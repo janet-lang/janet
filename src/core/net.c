@@ -431,6 +431,47 @@ static const char *serverify_socket(JSock sfd) {
     return NULL;
 }
 
+#ifdef JANET_WINDOWS
+#define JANET_SHUTDOWN_RW SD_BOTH
+#define JANET_SHUTDOWN_R SD_RECEIVE
+#define JANET_SHUTDOWN_W SD_SEND
+#else
+#define JANET_SHUTDOWN_RW SHUT_RDWR
+#define JANET_SHUTDOWN_R SHUT_RD
+#define JANET_SHUTDOWN_W SHUT_WR
+#endif
+
+static Janet cfun_net_shutdown(int32_t argc, Janet *argv) {
+    janet_arity(argc, 1, 2);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_SOCKET);
+    int shutdown_type = SHUT_RDWR;
+    if (argc == 2) {
+        const uint8_t *kw = janet_getkeyword(argv, 1);
+        if (0 == janet_cstrcmp(kw, "rw")) {
+            shutdown_type = JANET_SHUTDOWN_RW;
+        } else if (0 == janet_cstrcmp(kw, "r")) {
+            shutdown_type = JANET_SHUTDOWN_R;
+        } else if (0 == janet_cstrcmp(kw, "w")) {
+            shutdown_type = JANET_SHUTDOWN_W;
+        } else {
+            janet_panicf("unexpected keyword %v", argv[1]);
+        }
+    }
+    int status;
+#ifdef JANET_WINDOWS
+    status = shutdown((SOCKET) stream->handle, shutdown_type);
+#else
+    do {
+        status = shutdown(stream->handle, shutdown_type);
+    } while (status == -1 && errno == EINTR);
+#endif
+    if (status) {
+        janet_panicf("could not shutdown socket: %V", janet_ev_lasterr());
+    }
+    return argv[0];
+}
+
 static Janet cfun_net_listen(int32_t argc, Janet *argv) {
     janet_arity(argc, 2, 3);
 
@@ -622,6 +663,7 @@ static const JanetMethod net_stream_methods[] = {
     {"evread", janet_cfun_stream_read},
     {"evchunk", janet_cfun_stream_chunk},
     {"evwrite", janet_cfun_stream_write},
+    {"shutdown", cfun_net_shutdown},
     {NULL, NULL}
 };
 
@@ -708,6 +750,16 @@ static const JanetReg net_cfuns[] = {
              "Open a connection to communicate with a server. Returns a duplex stream "
              "that can be used to communicate with the server. Type is an optional keyword "
              "to specify a connection type, either :stream or :datagram. The default is :stream. ")
+    },
+    {
+        "net/shutdown", cfun_net_shutdown,
+        JDOC("(net/shutdown stream &opt mode)\n\n"
+             "Stop communication on this socket in a graceful manner, either in both directions or just "
+             "reading/writing from the stream. The `mode` parameter controls which communication to stop on the socket. "
+             "\n\n* `:wr` is the default and prevents both reading new data from the socket and writing new data to the socket.\n"
+             "* `:r` disables reading new data from the socket.\n"
+             "* `:w` disable writing data to the socket.\n\n"
+             "Returns the original socket.")
     },
     {NULL, NULL, NULL}
 };

@@ -1176,7 +1176,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                     status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
                 if (mask & EPOLLERR)
                     status3 = state->machine(state, JANET_ASYNC_EVENT_ERR);
-                if (mask & EPOLLHUP)
+                if ((mask & EPOLLHUP) && !(mask & (EPOLLOUT | EPOLLIN)))
                     status4 = state->machine(state, JANET_ASYNC_EVENT_HUP);
                 if (status1 == JANET_ASYNC_STATUS_DONE ||
                         status2 == JANET_ASYNC_STATUS_DONE ||
@@ -1306,7 +1306,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
         if (mask & POLLERR)
             status3 = state->machine(state, JANET_ASYNC_EVENT_ERR);
-        if (mask & POLLHUP)
+        if ((mask & POLLHUP) && !(mask & (POLLIN | POLLOUT)))
             status4 = state->machine(state, JANET_ASYNC_EVENT_HUP);
         if (status1 == JANET_ASYNC_STATUS_DONE ||
                 status2 == JANET_ASYNC_STATUS_DONE ||
