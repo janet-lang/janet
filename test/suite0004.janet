@@ -70,5 +70,17 @@
 (assert (= ~(,defn 1 2 3) [defn 1 2 3]) "bracket tuples are never macros")
 (assert (= ~(,+ 1 2 3) [+ 1 2 3]) "bracket tuples are never function calls")
 
+# Metadata
+
+(def foo-with-tags :a-tag :bar)
+(assert (get (dyn 'foo-with-tags) :a-tag) "extra keywords in def are metadata tags")
+
+(def foo-with-meta {:baz :quux} :bar)
+(assert (= :quux (get (dyn 'foo-with-meta) :baz)) "extra struct in def is metadata")
+
+(defn foo-fn-with-meta {:baz :quux} "This is a function" [x] (identity x))
+(assert (= :quux (get (dyn 'foo-fn-with-meta) :baz)) "extra struct in defn is metadata")
+(assert (= "(foo-fn-with-meta x)\n\nThis is a function" (get (dyn 'foo-fn-with-meta) :doc)) "extra string in defn is docstring")
+
 (end-suite)
 

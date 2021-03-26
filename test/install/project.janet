@@ -2,20 +2,24 @@
   :name "testmod")
 
 (declare-native
-    :name "testmod"
-    :source @["testmod.c"])
+  :name "testmod"
+  :source @["testmod.c"])
 
 (declare-native
-    :name "testmod2"
-    :source @["testmod2.c"])
+  :name "testmod2"
+  :source @["testmod2.c"])
 
 (declare-native
-    :name "testmod3"
-    :source @["testmod3.cpp"])
+  :name "testmod3"
+  :source @["testmod3.cpp"])
 
 (declare-native
-    :name "test-mod-4"
-    :source @["testmod4.c"])
+  :name "test-mod-4"
+  :source @["testmod4.c"])
+
+(declare-native
+  :name "testmod5"
+  :source @["testmod5.cc"])
 
 (declare-executable
   :name "testexec"
