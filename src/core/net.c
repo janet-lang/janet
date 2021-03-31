@@ -445,7 +445,7 @@ static Janet cfun_net_shutdown(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);
-    int shutdown_type = SHUT_RDWR;
+    int shutdown_type = JANET_SHUTDOWN_RW;
     if (argc == 2) {
         const uint8_t *kw = janet_getkeyword(argv, 1);
         if (0 == janet_cstrcmp(kw, "rw")) {
