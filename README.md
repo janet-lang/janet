@@ -17,6 +17,9 @@ to run script files. This client program is separate from the core runtime, so
 Janet can be embedded in other programs. Try Janet in your browser at
 [https://janet-lang.org](https://janet-lang.org).
 
+If you'd like to financially support the ongoing development of Janet, consider
+[sponsoring its primary author through github](https://github.com/sponsors/bakpakin).
+
 <br>
 
 ## Use Cases
