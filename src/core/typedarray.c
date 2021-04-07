@@ -498,16 +498,23 @@ static Janet cfun_typed_array_copy_bytes(int32_t argc, Janet *argv) {
     size_t index_src = janet_getsize(argv, 1);
     JanetTArrayView *dst = janet_getabstract(argv, 2, &janet_ta_view_type);
     size_t index_dst = janet_getsize(argv, 3);
+    if (index_src > src->size || index_dst > dst->size) {
+        janet_panic("invalid buffer index");
+    }
     size_t count = (argc == 5) ? janet_getsize(argv, 4) : 1;
+    if (count > dst->size || count > src->size) {
+        janet_panic("typed array copy out of bounds");
+    }
     size_t src_atom_size = ta_type_sizes[src->type];
     size_t dst_atom_size = ta_type_sizes[dst->type];
     size_t step_src = src->stride * src_atom_size;
     size_t step_dst = dst->stride * dst_atom_size;
     size_t pos_src = (src->as.u8 - src->buffer->data) + (index_src * step_src);
     size_t pos_dst = (dst->as.u8 - dst->buffer->data) + (index_dst * step_dst);
-    uint8_t *ps = src->buffer->data + pos_src, * pd = dst->buffer->data + pos_dst;
-    if ((pos_dst + (count - 1)*step_dst + src_atom_size <= dst->buffer->size) &&
-            (pos_src + (count - 1)*step_src + src_atom_size <= src->buffer->size)) {
+    uint8_t *ps = src->buffer->data + pos_src;
+    uint8_t *pd = dst->buffer->data + pos_dst;
+    if ((pos_dst + (count - 1) * step_dst + src_atom_size <= dst->buffer->size) &&
+            (pos_src + (count - 1) * step_src + src_atom_size <= src->buffer->size)) {
         for (size_t i = 0; i < count; i++) {
             memmove(pd, ps, src_atom_size);
             pd += step_dst;
