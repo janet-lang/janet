@@ -173,7 +173,7 @@ Emacs, and Atom will have syntax packages for the Janet language, though.
 
 ## Installation
 
-See [the Introduction](https://janet-lang.org/docs/introduction.html) for more details. If you just want
+See the [Introduction](https://janet-lang.org/docs/index.html) for more details. If you just want
 to try out the language, you don't need to install anything. You can also move the `janet` executable wherever you want on your system and run it.
 
 ## Usage
