@@ -270,14 +270,15 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
             JANET_OUT_OF_MEMORY;
         }
         saddr->sun_family = AF_UNIX;
+        size_t path_size = sizeof(saddr->sun_path);
 #ifdef JANET_LINUX
         if (path[0] == '@') {
             saddr->sun_path[0] = '\0';
-            snprintf(saddr->sun_path + 1, 107, "%s", path + 1);
+            snprintf(saddr->sun_path + 1, path_size - 1, "%s", path + 1);
         } else
 #endif
         {
-            snprintf(saddr->sun_path, 108, "%s", path);
+            snprintf(saddr->sun_path, path_size, "%s", path);
         }
         *is_unix = 1;
         return (struct addrinfo *) saddr;
