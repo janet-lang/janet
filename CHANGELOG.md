@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.15.5 - 2021-04-25
 - Add `declare-headers` to jpm.
 - Fix error using unix pipes on BSDs.
 - Support .cc and .cxx extensions in `jpm` for C++ code.
