@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `declare-headers` to jpm.
+- Fix error using unix pipes on BSDs.
 - Support .cc and .cxx extensions in `jpm` for C++ code.
 - Change networking code to not create as many HUP errors.
 - Add `net/shutdown` to close sockets in one direction without hang ups.

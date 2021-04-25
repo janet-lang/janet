@@ -617,7 +617,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                     if (mincap >= INT32_MAX / 2) {
                         S->keysort_capacity = INT32_MAX;
                     } else {
-                        S->keysort_capacity = (int32_t) (mincap * 2);
+                        S->keysort_capacity = (int32_t)(mincap * 2);
                     }
                     S->keysort_buffer = janet_srealloc(S->keysort_buffer, sizeof(int32_t) * S->keysort_capacity);
                     if (NULL == S->keysort_buffer) {

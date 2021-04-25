@@ -452,6 +452,7 @@
   [opts]
   @[;(opt opts :cflags default-cflags)
     (string "-I" (dyn :headerpath JANET_HEADERPATH))
+    (string "-I" (dyn :modpath JANET_MODPATH))
     (string "-O" (opt opts :optimize 2))])
 
 (defn- getcppflags
@@ -459,6 +460,7 @@
   [opts]
   @[;(opt opts :cppflags default-cppflags)
     (string "-I" (dyn :headerpath JANET_HEADERPATH))
+    (string "-I" (dyn :modpath JANET_MODPATH))
     (string "-O" (opt opts :optimize 2))])
 
 (defn- entry-name
@@ -1052,6 +1054,16 @@ int main(int argc, const char **argv) {
     (install-rule sources path)
     (each s sources
       (install-rule s path))))
+
+(defn declare-headers
+  "Declare headers for a library installation. Installed headers can be used by other native
+  libraries."
+  [&keys {:headers headers :prefix prefix}]
+  (def path (string (dyn :modpath JANET_MODPATH) (or prefix "")))
+  (if (bytes? headers)
+    (install-rule headers path)
+    (each h headers
+      (install-rule h path))))
 
 (defn declare-bin
   "Declare a generic file to be installed as an executable."
