@@ -119,7 +119,6 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/table.c \
 				   src/core/thread.c \
 				   src/core/tuple.c \
-				   src/core/typedarray.c \
 				   src/core/util.c \
 				   src/core/value.c \
 				   src/core/vector.c \
@@ -157,7 +156,7 @@ build/c/janet.c: build/janet_boot src/boot/boot.janet
 ##### Amalgamation #####
 ########################
 
-SONAME=libjanet.so.1.15
+SONAME=libjanet.so.1.16
 
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@

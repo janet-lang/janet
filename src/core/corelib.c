@@ -1026,9 +1026,6 @@ static void janet_load_libs(JanetTable *env) {
 #ifdef JANET_ASSEMBLER
     janet_lib_asm(env);
 #endif
-#ifdef JANET_TYPED_ARRAY
-    janet_lib_typed_array(env);
-#endif
 #ifdef JANET_INT_TYPES
     janet_lib_inttypes(env);
 #endif

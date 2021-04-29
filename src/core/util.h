@@ -52,12 +52,6 @@
     if (!(c)) JANET_EXIT((m)); \
 } while (0)
 
-/* What to do when out of memory */
-#ifndef JANET_OUT_OF_MEMORY
-#include <stdio.h>
-#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
-#endif
-
 /* Omit docstrings in some builds */
 #ifndef JANET_BOOTSTRAP
 #define JDOC(x) NULL

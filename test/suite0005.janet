@@ -21,54 +21,6 @@
 (import ./helper :prefix "" :exit true)
 (start-suite 5)
 
-# some tests typed array
-
-(defn inspect-tarray
-  [x]
-  (def a @[])
-  (for i 0 (tarray/length x) (array/push a (x i)))
-  (pp a))
-
-(assert-no-error
- "create some typed arrays"
- (do
-   (def a (tarray/new :float64 10))
-   (def b (tarray/new :float64 5 2 0 a))
-   (def c (tarray/new :uint32 20))))
-
-(assert-no-error
- "create some typed arrays from a buffer"
- (do
-   (def buf (tarray/buffer (+ 64 (* (+ 1 (* (- 10 1) 2)) 8))))
-   (def b (tarray/new :float64 10 2 64 buf))))
-
-(def a (tarray/new :float64 10))
-(def b (tarray/new :float64 5 2 0 a))
-
-(assert-no-error
- "fill tarray"
- (for i 0 (tarray/length a)
-      (set (a i) i)))
-
-(assert (= (tarray/buffer a) (tarray/buffer b)) "tarray views pointing same buffer")
-(assert (= (a 2) (b 1) ) "tarray views pointing same buffer")
-(assert (= ((tarray/slice b) 3) (b 3) (a 6) 6) "tarray slice")
-(assert (= ((tarray/slice b 1) 2) (b 3) (a 6) 6) "tarray slice")
-(assert (= (:length a) (length a)) "length method and function")
-
-(assert (= ((unmarshal (marshal b)) 3) (b 3)) "marshal")
-
-# Issue 408
-(assert-error :invalid-type (tarray/new :int32 10 1 0 (int/u64 7)) "tarray/new should only allow tarray or buffer for last argument")
-(def ta (tarray/new :int32 10))
-(assert (= (next a nil) 0) "tarray next 1")
-(assert (= (next a 0) 1) "tarray next 2")
-(assert (= (next a 8) 9) "tarray next 3")
-(assert (nil? (next a 9)) "tarray next 4")
-(put ta 3 7)
-(put ta 9 7)
-(assert (= 2 (count |(= $ 7) ta)) "tarray count")
-
 # Array remove
 
 (assert (deep= (array/remove @[1 2 3 4 5] 2) @[1 2 4 5]) "array/remove 1")

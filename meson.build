@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.15.6')
+  version : '1.16.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -62,7 +62,6 @@ conf.set('JANET_NO_PEG', not get_option('peg'))
 conf.set('JANET_NO_NET', not get_option('net'))
 conf.set('JANET_NO_EV', not get_option('ev') or get_option('single_threaded'))
 conf.set('JANET_REDUCED_OS', get_option('reduced_os'))
-conf.set('JANET_NO_TYPED_ARRAY', not get_option('typed_array'))
 conf.set('JANET_NO_INT_TYPES', not get_option('int_types'))
 conf.set('JANET_PRF', get_option('prf'))
 conf.set('JANET_RECURSION_GUARD', get_option('recursion_guard'))

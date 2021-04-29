@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Remove the `tarray` module. The functionality of typed arrays will be moved to an external module
+  that can be installed via `jpm`.
 - Add `from-pairs` to core.
 
 ## 1.15.5 - 2021-04-25

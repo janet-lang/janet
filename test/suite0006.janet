@@ -72,22 +72,6 @@
  "trap INT64_MIN / -1"
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
-# int64 typed arrays
-(assert (let [t (tarray/new :int64 10)
-              b (i64 1000)]
-          (set (t 0) 1000)
-          (set (t 1) b)
-          (set (t 2) "1000")
-          (set (t 3) (t 0))
-          (set (t 4) (u64 1000))
-          (and
-           (= (t 0) (t 1))
-           (= (t 1) (t 2))
-           (= (t 2) (t 3))
-           (= (t 3) (t 4))
-           ))
-        "int64 typed arrays")
-
 # Dynamic bindings
 (setdyn :a 10)
 (assert (= 40 (with-dyns [:a 25 :b 15] (+ (dyn :a) (dyn :b)))) "dyn usage 1")
