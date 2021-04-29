@@ -397,7 +397,7 @@ static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const Ja
     if (NULL != regprefix) {
         prefixlen = strlen(regprefix);
         bufsize = prefixlen + 256;
-        longname_buffer = malloc(bufsize);
+        longname_buffer = janet_malloc(bufsize);
         if (NULL == longname_buffer) {
             JANET_OUT_OF_MEMORY;
         }
@@ -413,7 +413,7 @@ static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const Ja
             int32_t totallen = (int32_t) prefixlen + nmlen;
             if ((size_t) totallen > bufsize) {
                 bufsize = (size_t)(totallen) + 128;
-                longname_buffer = realloc(longname_buffer, bufsize);
+                longname_buffer = janet_realloc(longname_buffer, bufsize);
                 if (NULL == longname_buffer) {
                     JANET_OUT_OF_MEMORY;
                 }
@@ -436,7 +436,7 @@ static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const Ja
         janet_table_put(janet_vm_registry, fun, name);
         cfuns++;
     }
-    free(longname_buffer);
+    janet_free(longname_buffer);
 }
 
 void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
@@ -719,4 +719,22 @@ int janet_cryptorand(uint8_t *out, size_t n) {
     (void) out;
     return -1;
 #endif
+}
+
+
+/* Alloc function macro fills */
+void *(janet_malloc)(size_t size) {
+    return janet_malloc(size);
+}
+
+void (janet_free)(void *ptr) {
+    return janet_free(ptr);
+}
+
+void *(janet_calloc)(size_t nmemb, size_t size) {
+    return janet_calloc(nmemb, size);
+}
+
+void *(janet_realloc)(void *ptr, size_t size) {
+    return janet_realloc(ptr, size);
 }

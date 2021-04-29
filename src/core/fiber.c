@@ -53,7 +53,7 @@ static JanetFiber *fiber_alloc(int32_t capacity) {
         capacity = 32;
     }
     fiber->capacity = capacity;
-    data = malloc(sizeof(Janet) * (size_t) capacity);
+    data = janet_malloc(sizeof(Janet) * (size_t) capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -100,12 +100,12 @@ JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, c
 static void janet_fiber_refresh_memory(JanetFiber *fiber) {
     int32_t n = fiber->capacity;
     if (n) {
-        Janet *newData = malloc(sizeof(Janet) * n);
+        Janet *newData = janet_malloc(sizeof(Janet) * n);
         if (NULL == newData) {
             JANET_OUT_OF_MEMORY;
         }
         memcpy(newData, fiber->data, fiber->capacity * sizeof(Janet));
-        free(fiber->data);
+        janet_free(fiber->data);
         fiber->data = newData;
     }
 }
@@ -115,7 +115,7 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
 void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
     int32_t old_size = fiber->capacity;
     int32_t diff = n - old_size;
-    Janet *newData = realloc(fiber->data, sizeof(Janet) * n);
+    Janet *newData = janet_realloc(fiber->data, sizeof(Janet) * n);
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
     }
@@ -254,7 +254,7 @@ static void janet_env_detach(JanetFuncEnv *env) {
         janet_env_valid(env);
         int32_t len = env->length;
         size_t s = sizeof(Janet) * (size_t) len;
-        Janet *vmem = malloc(s);
+        Janet *vmem = janet_malloc(s);
         janet_vm_next_collection += (uint32_t) s;
         if (NULL == vmem) {
             JANET_OUT_OF_MEMORY;

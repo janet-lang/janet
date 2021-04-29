@@ -93,7 +93,7 @@ static JanetTable *janet_thread_get_decode(void) {
 }
 
 static JanetMailbox *janet_mailbox_create(int refCount, uint16_t capacity) {
-    JanetMailbox *mailbox = malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * (size_t) capacity);
+    JanetMailbox *mailbox = janet_malloc(sizeof(JanetMailbox) + sizeof(JanetBuffer) * (size_t) capacity);
     if (NULL == mailbox) {
         JANET_OUT_OF_MEMORY;
     }
@@ -126,7 +126,7 @@ static void janet_mailbox_destroy(JanetMailbox *mailbox) {
     for (uint16_t i = 0; i < mailbox->messageCapacity; i++) {
         janet_buffer_deinit(mailbox->messages + i);
     }
-    free(mailbox);
+    janet_free(mailbox);
 }
 
 static void janet_mailbox_lock(JanetMailbox *mailbox) {
@@ -185,7 +185,7 @@ static int thread_mark(void *p, size_t size) {
 }
 
 static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original, uint64_t flags) {
-    JanetMailboxPair *pair = malloc(sizeof(JanetMailboxPair));
+    JanetMailboxPair *pair = janet_malloc(sizeof(JanetMailboxPair));
     if (NULL == pair) {
         JANET_OUT_OF_MEMORY;
     }
@@ -199,7 +199,7 @@ static JanetMailboxPair *make_mailbox_pair(JanetMailbox *original, uint64_t flag
 static void destroy_mailbox_pair(JanetMailboxPair *pair) {
     janet_mailbox_ref(pair->original, -1);
     janet_mailbox_ref(pair->newbox, -1);
-    free(pair);
+    janet_free(pair);
 }
 
 /* Abstract waiting for timeout across windows/posix */

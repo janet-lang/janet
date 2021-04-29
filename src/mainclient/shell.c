@@ -152,7 +152,7 @@ static const char *badterms[] = {
 
 static char *sdup(const char *s) {
     size_t len = strlen(s) + 1;
-    char *mem = malloc(len);
+    char *mem = janet_malloc(len);
     if (!mem) {
         return NULL;
     }
@@ -300,7 +300,7 @@ static int insert(char c, int draw) {
 
 static void historymove(int delta) {
     if (gbl_history_count > 1) {
-        free(gbl_history[gbl_historyi]);
+        janet_free(gbl_history[gbl_historyi]);
         gbl_history[gbl_historyi] = sdup(gbl_buf);
 
         gbl_historyi += delta;
@@ -326,7 +326,7 @@ static void addhistory(void) {
         gbl_history[gbl_history_count++] = newline;
         len++;
     } else {
-        free(gbl_history[JANET_HISTORY_MAX - 1]);
+        janet_free(gbl_history[JANET_HISTORY_MAX - 1]);
     }
     for (i = len - 1; i > 0; i--) {
         gbl_history[i] = gbl_history[i - 1];
@@ -338,7 +338,7 @@ static void replacehistory(void) {
     /* History count is always > 0 here */
     if (gbl_len == 0 || (gbl_history_count > 1 && !strcmp(gbl_buf, gbl_history[1]))) {
         /* Delete history */
-        free(gbl_history[0]);
+        janet_free(gbl_history[0]);
         for (int i = 1; i < gbl_history_count; i++) {
             gbl_history[i - 1] = gbl_history[i];
         }
@@ -346,7 +346,7 @@ static void replacehistory(void) {
     } else {
         char *newline = sdup(gbl_buf);
         if (!newline) return;
-        free(gbl_history[0]);
+        janet_free(gbl_history[0]);
         gbl_history[0] = newline;
     }
 }
@@ -934,7 +934,7 @@ void janet_line_deinit() {
     int i;
     norawmode();
     for (i = 0; i < gbl_history_count; i++)
-        free(gbl_history[i]);
+        janet_free(gbl_history[i]);
     gbl_historyi = 0;
 }
 

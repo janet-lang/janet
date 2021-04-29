@@ -738,7 +738,7 @@ static const uint8_t *unmarshal_one_env(
             if (length == 0) {
                 janet_panic("invalid funcenv length");
             }
-            env->as.values = malloc(sizeof(Janet) * (size_t) length);
+            env->as.values = janet_malloc(sizeof(Janet) * (size_t) length);
             if (!env->as.values) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -834,7 +834,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal constants */
         if (constants_length) {
-            def->constants = malloc(sizeof(Janet) * constants_length);
+            def->constants = janet_malloc(sizeof(Janet) * constants_length);
             if (!def->constants) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -846,7 +846,7 @@ static const uint8_t *unmarshal_one_def(
         def->constants_length = constants_length;
 
         /* Unmarshal bytecode */
-        def->bytecode = malloc(sizeof(uint32_t) * bytecode_length);
+        def->bytecode = janet_malloc(sizeof(uint32_t) * bytecode_length);
         if (!def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
@@ -855,7 +855,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal environments */
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
-            def->environments = calloc(1, sizeof(int32_t) * (size_t) environments_length);
+            def->environments = janet_calloc(1, sizeof(int32_t) * (size_t) environments_length);
             if (!def->environments) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -869,7 +869,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal sub funcdefs */
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS) {
-            def->defs = calloc(1, sizeof(JanetFuncDef *) * (size_t) defs_length);
+            def->defs = janet_calloc(1, sizeof(JanetFuncDef *) * (size_t) defs_length);
             if (!def->defs) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -884,7 +884,7 @@ static const uint8_t *unmarshal_one_def(
         /* Unmarshal source maps if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
             int32_t current = 0;
-            def->sourcemap = malloc(sizeof(JanetSourceMapping) * (size_t) bytecode_length);
+            def->sourcemap = janet_malloc(sizeof(JanetSourceMapping) * (size_t) bytecode_length);
             if (!def->sourcemap) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -900,7 +900,7 @@ static const uint8_t *unmarshal_one_def(
         /* Unmarshal closure bitset if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
             int32_t n = (def->slotcount + 31) >> 5;
-            def->closure_bitset = malloc(sizeof(uint32_t) * (size_t) n);
+            def->closure_bitset = janet_malloc(sizeof(uint32_t) * (size_t) n);
             if (NULL == def->closure_bitset) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -961,7 +961,7 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* Allocate stack memory */
     fiber->capacity = fiber_stacktop + 10;
-    fiber->data = malloc(sizeof(Janet) * fiber->capacity);
+    fiber->data = janet_malloc(sizeof(Janet) * fiber->capacity);
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
     }

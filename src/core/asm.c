@@ -224,7 +224,7 @@ static int32_t janet_asm_addenv(JanetAssembler *a, Janet envname) {
     janet_table_put(&a->envs, envname, janet_wrap_number(envindex));
     if (envindex >= a->environments_capacity) {
         int32_t newcap = 2 * envindex;
-        def->environments = realloc(def->environments, newcap * sizeof(int32_t));
+        def->environments = janet_realloc(def->environments, newcap * sizeof(int32_t));
         if (NULL == def->environments) {
             JANET_OUT_OF_MEMORY;
         }
@@ -582,7 +582,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("constants"));
     if (janet_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
-        def->constants = malloc(sizeof(Janet) * (size_t) count);
+        def->constants = janet_malloc(sizeof(Janet) * (size_t) count);
         if (NULL == def->constants) {
             JANET_OUT_OF_MEMORY;
         }
@@ -614,7 +614,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             newlen = def->defs_length + 1;
             if (a.defs_capacity < newlen) {
                 int32_t newcap = newlen;
-                def->defs = realloc(def->defs, newcap * sizeof(JanetFuncDef *));
+                def->defs = janet_realloc(def->defs, newcap * sizeof(JanetFuncDef *));
                 if (NULL == def->defs) {
                     JANET_OUT_OF_MEMORY;
                 }
@@ -643,7 +643,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         }
         /* Allocate bytecode array */
         def->bytecode_length = blength;
-        def->bytecode = malloc(sizeof(uint32_t) * (size_t) blength);
+        def->bytecode = janet_malloc(sizeof(uint32_t) * (size_t) blength);
         if (NULL == def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
@@ -685,7 +685,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("sourcemap"));
     if (janet_indexed_view(x, &arr, &count)) {
         janet_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
-        def->sourcemap = malloc(sizeof(JanetSourceMapping) * (size_t) count);
+        def->sourcemap = janet_malloc(sizeof(JanetSourceMapping) * (size_t) count);
         if (NULL == def->sourcemap) {
             JANET_OUT_OF_MEMORY;
         }
@@ -711,7 +711,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 
     /* Set environments */
     def->environments =
-        realloc(def->environments, def->environments_length * sizeof(int32_t));
+        janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
     if (NULL == def->environments) {
         JANET_OUT_OF_MEMORY;
     }

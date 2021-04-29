@@ -544,7 +544,7 @@ static Janet cfun_io_printf_impl_x(int32_t argc, Janet *argv, int newline,
     /* Clear buffer to make things easier for GC */
     buf->count = 0;
     buf->capacity = 0;
-    free(buf->data);
+    janet_free(buf->data);
     buf->data = NULL;
     return janet_wrap_nil();
 }

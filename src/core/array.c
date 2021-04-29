@@ -36,7 +36,7 @@ JanetArray *janet_array(int32_t capacity) {
     Janet *data = NULL;
     if (capacity > 0) {
         janet_vm_next_collection += capacity * sizeof(Janet);
-        data = (Janet *) malloc(sizeof(Janet) * (size_t) capacity);
+        data = (Janet *) janet_malloc(sizeof(Janet) * (size_t) capacity);
         if (NULL == data) {
             JANET_OUT_OF_MEMORY;
         }
@@ -52,7 +52,7 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     array->capacity = n;
     array->count = n;
-    array->data = malloc(sizeof(Janet) * (size_t) n);
+    array->data = janet_malloc(sizeof(Janet) * (size_t) n);
     if (!array->data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -68,7 +68,7 @@ void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
     int64_t new_capacity = ((int64_t) capacity) * growth;
     if (new_capacity > INT32_MAX) new_capacity = INT32_MAX;
     capacity = (int32_t) new_capacity;
-    newData = realloc(old, capacity * sizeof(Janet));
+    newData = janet_realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
     }
@@ -275,7 +275,7 @@ static Janet cfun_array_trim(int32_t argc, Janet *argv) {
     JanetArray *array = janet_getarray(argv, 0);
     if (array->count) {
         if (array->count < array->capacity) {
-            Janet *newData = realloc(array->data, array->count * sizeof(Janet));
+            Janet *newData = janet_realloc(array->data, array->count * sizeof(Janet));
             if (NULL == newData) {
                 JANET_OUT_OF_MEMORY;
             }
@@ -284,7 +284,7 @@ static Janet cfun_array_trim(int32_t argc, Janet *argv) {
         }
     } else {
         array->capacity = 0;
-        free(array->data);
+        janet_free(array->data);
         array->data = NULL;
     }
     return argv[0];

@@ -36,7 +36,7 @@ void janetc_regalloc_init(JanetcRegisterAllocator *ra) {
 }
 
 void janetc_regalloc_deinit(JanetcRegisterAllocator *ra) {
-    free(ra->chunks);
+    janet_free(ra->chunks);
 }
 
 /* Fallbacks for when ctz not available */
@@ -70,7 +70,7 @@ void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocato
     size = sizeof(uint32_t) * (size_t) dest->capacity;
     dest->regtemps = 0;
     if (size) {
-        dest->chunks = malloc(size);
+        dest->chunks = janet_malloc(size);
         if (!dest->chunks) {
             JANET_OUT_OF_MEMORY;
         }
@@ -87,7 +87,7 @@ static void pushchunk(JanetcRegisterAllocator *ra) {
     int32_t newcount = ra->count + 1;
     if (newcount > ra->capacity) {
         int32_t newcapacity = newcount * 2;
-        ra->chunks = realloc(ra->chunks, (size_t) newcapacity * sizeof(uint32_t));
+        ra->chunks = janet_realloc(ra->chunks, (size_t) newcapacity * sizeof(uint32_t));
         if (!ra->chunks) {
             JANET_OUT_OF_MEMORY;
         }

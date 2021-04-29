@@ -1335,7 +1335,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
      * bytecode. */
     uint32_t blen = (int32_t) peg->bytecode_len;
     uint32_t clen = peg->num_constants;
-    uint8_t *op_flags = calloc(1, blen);
+    uint8_t *op_flags = janet_calloc(1, blen);
     if (NULL == op_flags) {
         JANET_OUT_OF_MEMORY;
     }
@@ -1466,11 +1466,11 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     peg->bytecode = bytecode;
     peg->constants = constants;
     peg->has_backref = has_backref;
-    free(op_flags);
+    janet_free(op_flags);
     return peg;
 
 bad:
-    free(op_flags);
+    janet_free(op_flags);
     janet_panic("invalid peg bytecode");
 }
 

@@ -70,7 +70,7 @@ static char *get_processed_name(const char *name) {
         if (*c == '/') return (char *) name;
     }
     size_t l = (size_t)(c - name);
-    char *ret = malloc(l + 3);
+    char *ret = janet_malloc(l + 3);
     if (NULL == ret) {
         JANET_OUT_OF_MEMORY;
     }
@@ -85,7 +85,7 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     Clib lib = load_clib(processed_name);
     JanetModule init;
     JanetModconf getter;
-    if (name != processed_name) free(processed_name);
+    if (name != processed_name) janet_free(processed_name);
     if (!lib) {
         *error = janet_cstring(error_clib());
         return NULL;
@@ -754,7 +754,7 @@ static void janet_quick_asm(
     def->max_arity = max_arity;
     def->flags = flags;
     def->slotcount = slots;
-    def->bytecode = malloc(bytecode_size);
+    def->bytecode = janet_malloc(bytecode_size);
     def->bytecode_length = (int32_t)(bytecode_size / sizeof(uint32_t));
     def->name = janet_cstring(name);
     if (!def->bytecode) {
