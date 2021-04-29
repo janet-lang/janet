@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `native-deps` option to `decalre-native` in `jpm`. This lets native libraries link to other
+  native libraries when building with jpm.
 - Remove the `tarray` module. The functionality of typed arrays will be moved to an external module
   that can be installed via `jpm`.
 - Add `from-pairs` to core.

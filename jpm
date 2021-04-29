@@ -523,29 +523,18 @@
   (string hpath `\\janet.lib`))
 
 (defn- link-c
-  "Link C object files together to make a native module."
-  [opts target & objects]
-  (def linker (opt opts (if is-win :linker :compiler) default-linker))
-  (def cflags (getcflags opts))
+  "Link C or C++ object files together to make a native module."
+  [has-cpp opts target & objects]
+  (def linker
+    (if has-cpp
+      (opt opts (if is-win :cpp-linker :cpp-compiler) default-cpp-linker)
+      (opt opts (if is-win :linker :compiler) default-linker)))
+  (def cflags ((if has-cpp getcppflags getcflags) opts))
   (def lflags [;(opt opts :lflags default-lflags)
                ;(if (opts :static) [] dynamic-lflags)])
-  (def ldflags [;(opt opts :ldflags [])])
-  (rule target objects
-        (check-cc)
-        (print "linking " target "...")
-        (create-dirs target)
-        (if is-win
-          (shell linker ;ldflags (string "/OUT:" target) ;objects (win-import-library) ;lflags)
-          (shell linker ;cflags ;ldflags `-o` target ;objects ;lflags))))
-
-(defn- link-cpp
-  "Link C++ object files together to make a native module."
-  [opts target & objects]
-  (def linker (opt opts (if is-win :cpp-linker :cpp-compiler) default-cpp-linker))
-  (def cflags (getcppflags opts))
-  (def lflags [;(opt opts :lflags default-lflags)
-               ;(if (opts :static) [] dynamic-lflags)])
-  (def ldflags [;(opt opts :ldflags [])])
+  (def deplibs (get opts :native-deps []))
+  (def dep-ldflags (seq [x :in deplibs] (string (dyn :modpath JANET_MODPATH) sep x modext)))
+  (def ldflags [;(opt opts :ldflags []) ;dep-ldflags])
   (rule target objects
         (check-cc)
         (print "linking " target "...")
@@ -990,7 +979,7 @@ int main(int argc, const char **argv) {
       (array/push objects o-src)
       (create-buffer-c src c-src (embed-name src))
       (compile-c opts c-src o-src)))
-  ((if has-cpp link-cpp link-c) opts lname ;objects)
+  (link-c has-cpp opts lname ;objects)
   (add-dep "build" lname)
   (install-rule lname path)
 
