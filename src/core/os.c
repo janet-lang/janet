@@ -56,7 +56,12 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#ifdef JANET_APPLE
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#else
 extern char **environ;
+#endif
 #ifdef JANET_THREADS
 #include <pthread.h>
 #endif
