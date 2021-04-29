@@ -51,6 +51,12 @@
    :libpath (try-real (string exe-dir "/../lib"))
    :binpath exe-dir})
 
+# If janetconf.h has been modified such that core janet functions and macros require
+# linking to external libraries, modify this.
+#
+# Example - (def- extra-lflags ["-lmimalloc"])
+(def- extra-lflags [])
+
 ###END###
 
 # Default based on janet binary location
@@ -363,10 +369,10 @@
 # executables.
 (def janet-lflags
   (case (os/which)
-    :macos ["-ldl" "-lm" ;thread-flags]
-    :windows [;thread-flags]
-    :linux ["-lm" "-ldl" "-lrt" ;thread-flags]
-    ["-lm" ;thread-flags]))
+    :macos ["-ldl" "-lm" ;thread-flags ;extra-lflags]
+    :windows [;thread-flags ;extra-lflags]
+    :linux ["-lm" "-ldl" "-lrt" ;thread-flags ;extra-lflags]
+    ["-lm" ;thread-flags ;extra-lflags]))
 (def janet-ldflags [])
 (def janet-cflags [])
 
@@ -534,13 +540,15 @@
                ;(if (opts :static) [] dynamic-lflags)])
   (def deplibs (get opts :native-deps []))
   (def dep-ldflags (seq [x :in deplibs] (string (dyn :modpath JANET_MODPATH) sep x modext)))
+  # Use import libs on windows - we need an import lib to link natives to other natives.
+  (def dep-importlibs (seq [x :in deplibs] (string (dyn :modpath JANET_MODPATH) sep x ".lib")))
   (def ldflags [;(opt opts :ldflags []) ;dep-ldflags])
   (rule target objects
         (check-cc)
         (print "linking " target "...")
         (create-dirs target)
         (if is-win
-          (shell linker ;ldflags (string "/OUT:" target) ;objects (win-import-library) ;lflags)
+          (shell linker ;ldflags (string "/OUT:" target) ;objects (win-import-library) ;dep-importlibs ;lflags)
           (shell linker ;cflags ;ldflags `-o` target ;objects ;lflags))))
 
 (defn- archive-c
