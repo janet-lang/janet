@@ -134,7 +134,6 @@ core_src = [
   'src/core/table.c',
   'src/core/thread.c',
   'src/core/tuple.c',
-  'src/core/typedarray.c',
   'src/core/util.c',
   'src/core/value.c',
   'src/core/vector.c',
