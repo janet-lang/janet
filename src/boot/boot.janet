@@ -1525,6 +1525,15 @@
   (loop [k :keys dict] (array/push ret k (in dict k)))
   ret)
 
+(defn from-pairs
+  ``Takes a sequence of pairs and creates a table from each pair. The inverse of
+  `pairs` on a table.``
+  [ps]
+  (def ret @{})
+  (each [k v] ps
+    (put ret k v))
+  ret)
+
 (defn interpose
   `Returns a sequence of the elements of ind separated by
   sep. Returns a new array.`

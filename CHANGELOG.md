@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Add `from-pairs` to core.
+
 ## 1.15.5 - 2021-04-25
 - Add `declare-headers` to jpm.
 - Fix error using unix pipes on BSDs.
