@@ -55,9 +55,11 @@
 # linking to external libraries, modify this.
 #
 # Example - (def- extra-lflags ["-lmimalloc"])
-(def- extra-lflags [])
 
 ###END###
+
+(compwhen (not (dyn 'extra-lflags))
+  (def- extra-lflags []))
 
 # Default based on janet binary location
 (def JANET_HEADERPATH (or (os/getenv "JANET_HEADERPATH")
