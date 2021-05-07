@@ -866,20 +866,104 @@ error2:
 }
 
 /* Keep in lexicographic order */
-static const JanetSpecial janetc_specials[] = {
-    {"break", janetc_break},
-    {"def", janetc_def},
-    {"do", janetc_do},
-    {"fn", janetc_fn},
-    {"if", janetc_if},
-    {"quasiquote", janetc_quasiquote},
-    {"quote", janetc_quote},
-    {"set", janetc_varset},
-    {"splice", janetc_splice},
-    {"unquote", janetc_unquote},
-    {"upscope", janetc_upscope},
-    {"var", janetc_var},
-    {"while", janetc_while}
+const JanetSpecial janetc_specials[] = {
+    {"break", janetc_break,
+     JDOC("(break value?)\n\n"
+          "Breaks from a while loop or return early from a function. The break "
+          "special form can only break from the inner-most loop. Since a while "
+          "loop always returns nil, the optional `value` parameter has no "
+          "effect when used in a while loop, but when returning from a "
+          "function, the value parameter is the function's return value.")},
+    {"def", janetc_def,
+     JDOC("(def name meta... value)\n\n"
+          "Binds a value to a symbol. The symbol can be substituted for the "
+          "value in subsequent expressions for the same result. A binding made "
+          "by def is a constant and cannot be updated. A symbol can be "
+          "redefined to a new value, but previous uses of the binding will "
+          "refer to the previous value of the binding.\n\n"
+          "def can also take a tuple, array, table or struct to perform "
+          "destructuring on the value, allowing multiple assignments in one "
+          "def. Metadata and a docstring can be appended to the symbol when in "
+          "the global scope. If not in the global scope, the extra metadata "
+          "will be ignored.")},
+    {"do", janetc_do,
+     JDOC("(do body...)\n\n"
+          "Executes a series of forms for side effects and evaluates to the "
+          "final form. Also introduces a new lexical scope without creating or "
+          "calling a function.")},
+    {"fn", janetc_fn,
+     JDOC("(fn name? args body...)\n\n"
+          "Compiles a function literal (closure). A function literal consists "
+          "of an optional name, an argument list, and a function body. The "
+          "optional name is allowed so that functions can more easily be "
+          "recursive. The argument list is a tuple of named parameters, and "
+          "the body is 0 or more forms. The function will evaluate to the last "
+          "form in the body. The other forms will only be evaluated for side "
+          "effects. Introduces a new lexical scope, meaning the defs and vars "
+          "inside a function body will not escape outside the body.")},
+    {"if", janetc_if,
+     JDOC("(if condition when-true when-false?)\n\n"
+          "Evaluates one of two branches depending on the value of the "
+          "condition. The first form is the condition, the second form is the "
+          "branch to evaluate when the condition is true, and the optional "
+          "third form is the form to evaluate when the condition is false. If "
+          "no third form is provided, the result of the false branch is nil.\n\n"
+          "The if special form will not evaluate the when-true or when-false "
+          "forms unless it needs to - it is a lazy form, which is why it cannot "
+          "be a function or macro.\n\n"
+          "The condition is considered false only if it evaluates to nil or "
+          "false - all other values are considered true.")},
+    {"quasiquote", janetc_quasiquote,
+     JDOC("(quasiquote x)\n\n"
+          "Aallows for unquoting within x unlike (quote x). This makes "
+          "quasiquote useful for writing macros, as a macro definition often "
+          "generates a lot of templated code with a few custom values. The "
+          "shorthand for quasiquote is ~x. Within the quasiquoted form, "
+          "(unquote x) will evaluate and insert x into the unquoted form. The "
+          "shorthand for (unquote x) is ,x.")},
+    {"quote", janetc_quote,
+     JDOC("(quote x)\n\n"
+          "Evaluates to the literal value of the first argument. The argument "
+          "is not compiled and is simply used as a constant value in the "
+          "compiled code. The shorthand for (quote x) is 'x.")},
+    {"set", janetc_varset,
+     JDOC("(set l-value r-value)\n\n"
+          "Updates the value of the var l-value with the new r-value. The set "
+          "special form will then evaluate to r-value. The r-value can be any "
+          "expression, and the l-value should be a bound var or a pair of a "
+          "data structure and key. This allows set to behave like setf or setq "
+          "in Common Lisp.")},
+    {"splice", janetc_splice,
+     JDOC("(splice x)\n\n"
+          "Allows an array or tuple to be put into another form inline. splice "
+          "only has an effect in two places: as an argument in a function call "
+          "or literal constructor, or as the argument to the unquote form. "
+          "Outside of these two settings, the splice special form simply "
+          "evaluates directly to its argument x. The shorthand for (splice x) "
+          "is ;x. splice has no effect on the behavior of other special forms, "
+          "except as an argument to unquote.")},
+    {"unquote", janetc_unquote,
+     JDOC("(unquote x)\n\n"
+          "Unquotes a form within a quasiquoted form. Outside of a quasiquoted "
+          "form, unquote is invalid.")},
+    {"upscope", janetc_upscope,
+     JDOC("(upscope & body)\n\n"
+          "Evaluates body and evaluates to the result of the last form. This "
+          "is similar to do. However, unlike do, upscope does not create a new "
+          "lexical scope, which means that bindings created inside it are "
+          "visible in the scope where upscope is declared. This is useful for "
+          "writing macros that make several def and var declarations at once.")},
+    {"var", janetc_var,
+     JDOC("(var name meta... value)\n\n"
+          "Binds a value similarly to def but the binding can be updated using "
+          "set. In all other respects it is the same as def.")},
+    {"while", janetc_while,
+     JDOC("(while condition body...)\n\n"
+          "Compiles to a C-like while loop. The body of the form will be "
+          "continuously evaluated until the condition is false or nil. "
+          "Therefore, it is expected that the body will contain some side "
+          "effects or the loop will continue forever. A while loop always "
+          "evaluates to nil.")}
 };
 
 /* Find a special */

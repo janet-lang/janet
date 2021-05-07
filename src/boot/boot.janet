@@ -2891,6 +2891,14 @@
          (if d (doc-format d) "    no documentation found.")
          "\n\n"))
 
+(defn- print-special-entry
+  [sf]
+  (def d (in sf :doc))
+  (print "\n\n"
+         "    special form\n\n"
+         (if d (doc-format d) "    no documentation found.")
+         "\n\n"))
+
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of doc."
   [&opt sym]
@@ -2900,18 +2908,20 @@
     (print-index (fn [x] (string/find sym x)))
 
     sym
-    (do
+    (cond
       (def x (dyn sym))
-      (if (not x)
-        (do
-          (def [fullpath mod-kind] (module/find (string sym)))
-          (if-let [mod-env (in module/cache fullpath)]
-            (print-module-entry {:module     true
-                                 :kind       mod-kind
-                                 :source-map [fullpath nil nil]
-                                 :doc        (in mod-env :doc)})
-            (print "symbol " sym " not found.")))
-        (print-module-entry x)))
+      (print-module-entry x)
+
+      (def sf (get special-forms sym))
+      (print-special-entry sf)
+
+      (if-let [[fullpath mod-kind] (module/find (string sym))
+               mod-env             (in module/cache fullpath)]
+        (print-module-entry {:module     true
+                             :kind       mod-kind
+                             :source-map [fullpath nil nil]
+                             :doc        (in mod-env :doc)})
+        (print "symbol " sym " not found.")))
 
     # else
     (print-index identity)))

@@ -25,6 +25,7 @@
 #endif
 
 #include <janet.h>
+#include "../core/compile.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -513,18 +514,10 @@ static JanetByteView longest_common_prefix(void) {
 }
 
 static void check_specials(JanetByteView src) {
-    check_cmatch(src, "break");
-    check_cmatch(src, "def");
-    check_cmatch(src, "do");
-    check_cmatch(src, "fn");
-    check_cmatch(src, "if");
-    check_cmatch(src, "quasiquote");
-    check_cmatch(src, "quote");
-    check_cmatch(src, "set");
-    check_cmatch(src, "splice");
-    check_cmatch(src, "unquote");
-    check_cmatch(src, "var");
-    check_cmatch(src, "while");
+    int num_specials = (int) (sizeof(janetc_specials) / sizeof(JanetSpecial));
+    for(int i = 0; i < num_specials; i++) {
+        check_cmatch(src, janetc_specials[i].name);
+    }
 }
 
 static void resolve_format(JanetTable *entry) {

@@ -190,12 +190,16 @@ struct JanetFunOptimizer {
 struct JanetSpecial {
     const char *name;
     JanetSlot(*compile)(JanetFopts opts, int32_t argn, const Janet *argv);
+    const char *doc;
 };
 
 /****************************************************/
 
 /* Get an optimizer if it exists, otherwise NULL */
 const JanetFunOptimizer *janetc_funopt(uint32_t flags);
+
+/* Get the list of specials */
+extern const JanetSpecial janetc_specials[13];
 
 /* Get a special. Return NULL if none exists */
 const JanetSpecial *janetc_special(const uint8_t *name);

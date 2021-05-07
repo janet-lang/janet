@@ -2,23 +2,11 @@
 # Used to help build the tmLanguage grammar. Emits
 # the entire .tmLanguage file for janet.
 
-# Use dynamic binding and make this the first 
+# Use dynamic binding and make this the first
 # expression in the file to not pollute (all-bindings)
-(setdyn :allsyms  
-  (array/concat
-    @["break"
-      "def"
-      "do"
-      "var"
-      "set"
-      "fn"
-      "while"
-      "if"
-      "quote"
-      "quasiquote"
-      "unquote"
-      "splice"]
-    (all-bindings)))
+(setdyn :allsyms
+  (-> (map string (keys special-forms))
+      (array/concat (all-bindings))))
 (def allsyms (dyn :allsyms))
 
 (def grammar-template

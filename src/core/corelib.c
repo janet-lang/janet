@@ -1206,6 +1206,20 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_def(env, "root-env", janet_wrap_table(env),
               JDOC("The root environment used to create environments with (make-env)."));
 
+
+    // Create struct of special forms
+    int num_specials = (int) (sizeof(janetc_specials) / sizeof(JanetSpecial));
+    JanetKV *sfs = janet_struct_begin(num_specials);
+    for (int i = 0; i < num_specials; i++) {
+        JanetKV *sf = janet_struct_begin(1);
+        janet_struct_put(sf, janet_ckeywordv("doc"), janet_cstringv(janetc_specials[i].doc));
+        janet_struct_end(sf);
+        janet_struct_put(sfs, janet_csymbolv(janetc_specials[i].name), janet_wrap_struct(sf));
+    }
+    janet_struct_end(sfs);
+    janet_def(env, "special-forms", janet_wrap_struct(sfs),
+              JDOC("The special forms in Janet."));
+
     janet_load_libs(env);
     janet_gcroot(janet_wrap_table(env));
     return env;
