@@ -2891,6 +2891,13 @@
          (if d (doc-format d) "    no documentation found.")
          "\n\n"))
 
+(defn- print-special-form-entry
+  [x]
+  (print "\n\n"
+         (string "    special form\n\n")
+         (string "    (" x " ...)\n\n")
+         (string "    See https://janet-lang.org/docs/specials.html\n\n")))
+
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of doc."
   [&opt sym]
@@ -2903,14 +2910,17 @@
     (do
       (def x (dyn sym))
       (if (not x)
-        (do
-          (def [fullpath mod-kind] (module/find (string sym)))
-          (if-let [mod-env (in module/cache fullpath)]
-            (print-module-entry {:module     true
-                                 :kind       mod-kind
-                                 :source-map [fullpath nil nil]
-                                 :doc        (in mod-env :doc)})
-            (print "symbol " sym " not found.")))
+        (if (index-of sym '[break def do fn if quasiquote quote
+                            set splice unquote upscope var while])
+          (print-special-form-entry sym)
+          (do
+            (def [fullpath mod-kind] (module/find (string sym)))
+            (if-let [mod-env (in module/cache fullpath)]
+              (print-module-entry {:module     true
+                                   :kind       mod-kind
+                                   :source-map [fullpath nil nil]
+                                   :doc        (in mod-env :doc)})
+              (print "symbol " sym " not found."))))
         (print-module-entry x)))
 
     # else
