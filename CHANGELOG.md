@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `as-macro` to make using macros within quasiquote easier to do hygienically.
+- Add `module/add-syspath`
 - Expose `JANET_OUT_OF_MEMORY` as part of the Janet API.
 - Add `native-deps` option to `decalre-native` in `jpm`. This lets native libraries link to other
   native libraries when building with jpm.

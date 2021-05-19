@@ -47,6 +47,14 @@
   [name & more]
   (apply defn name :macro more))
 
+(defmacro as-macro
+  ``Use a function or macro literal `f` as a macro. This lets
+  any function be used as a macro. Inside a quasiquote, the
+  idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
+  to avoid unwanted variable capture.``
+  [f & args]
+  (f ;args))
+
 (defmacro defmacro-
   "Define a private macro that will not be exported."
   [name & more]
@@ -1465,7 +1473,7 @@
   ret)
 
 (defn partition-by
-  ``Partition elements of a sequential data structure by a representative function `f`. Partitions 
+  ``Partition elements of a sequential data structure by a representative function `f`. Partitions
   split when `(f x)` changes values when iterating to the next element `x` of `ind`. Returns a new array
   of arrays.``
   [f ind]
@@ -1776,8 +1784,8 @@
 ###
 
 (defn macex1
-  `Expand macros in a form, but do not recursively expand macros.
-  See macex docs for info on on-binding.`
+  ``Expand macros in a form, but do not recursively expand macros.
+  See `macex` docs for info on on-binding.``
   [x &opt on-binding]
 
   (when on-binding
@@ -2342,6 +2350,7 @@
   (unmarshal image load-image-dict))
 
 (defn- check-relative [x] (if (string/has-prefix? "." x) x))
+(defn- check-not-relative [x] (if-not (string/has-prefix? "." x) x))
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
@@ -2384,11 +2393,30 @@
   (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
   module/paths)
 
+(defn module/add-syspath
+  ```
+  Creates duplicates module paths entries for module loader that loads from the syspath.
+  This lets a user add multiple alternative syspaths is a convenient way. The new paths will be insterted
+  directly after the last path that references :sys:.
+  ```
+  [extra-path]
+  (def system-paths (seq [x :in module/paths
+                      :when (string? (0 x))
+                      :when (string/find ":sys:" (0 x))] x))
+  (def new-paths (seq [x :in system-paths]
+                   (tuple (string/replace-all ":sys:" extra-path (0 x))
+                          ;(slice x 1))))
+  (def last-index
+    (- (length module/paths)
+      (find-index |(string/find ":sys:" ($0 0)) (reverse module/paths))))
+  (array/insert module/paths last-index ;new-paths)
+  module/paths)
+
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-is-dep])
+(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-not-relative])
 
 # Version of fexists that works even with a reduced OS
 (defn- fexists
