@@ -261,9 +261,9 @@
 
 # Butlast
 
-(assert (= (butlast [0 1 2 3]) @[0 1 2]) "butlast")
-(assert (= (butlast [0]) @[]) "butlast on 1-element array")
-(assert (= (butlast []) @[]) "butlast on empty array")
+(assert (array= (butlast [0 1 2 3]) @[0 1 2]) "butlast")
+(assert (array= (butlast [0]) @[]) "butlast on 1-element array")
+(assert (array= (butlast []) @[]) "butlast on empty array")
 
 # Even and odd
 
