@@ -1148,7 +1148,9 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
     for (; i > 0 && janet_checktype(peg, JANET_KEYWORD); --i) {
         Janet nextPeg = janet_table_get_ex(grammar, peg, &grammar);
         if (!grammar || janet_checktype(nextPeg, JANET_NIL)) {
-            nextPeg = janet_table_get(b->default_grammar, peg);
+            nextPeg = (b->default_grammar == NULL)
+                ? janet_wrap_nil()
+                : janet_table_get(b->default_grammar, peg);
             if (janet_checktype(nextPeg, JANET_NIL)) {
                 peg_panic(b, "unknown rule");
             }
