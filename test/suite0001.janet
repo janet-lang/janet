@@ -259,6 +259,12 @@
 (assert (array= (array/slice @[1 2 3] 0 2) @[1 2]) "array/slice 1")
 (assert (array= (array/slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array/slice 2")
 
+# Butlast
+
+(assert (= (butlast [0 1 2 3]) [0 1 2]) "butlast")
+(assert (= (butlast [0]) []) "butlast on 1-element array")
+(assert (= (butlast []) []) "butlast on empty array")
+
 # Even and odd
 
 (assert (odd? 9) "odd? 1")

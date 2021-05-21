@@ -689,6 +689,12 @@
   [xs]
   (get xs (- (length xs) 1)))
 
+(defn butlast
+  "Return an array containing all but the last element in ind"
+  [ind]
+  (if (= (length ind) 0) []
+    (array/slice ind 0 -2)))
+
 ## Polymorphic comparisons
 
 (defn compare
