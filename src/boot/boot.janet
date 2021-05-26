@@ -3315,7 +3315,11 @@
   [thunk source env where]
   (when (tuple? source)
     (def head (source 0))
-    (def safe-check (safe-forms head))
+    (def safe-check
+      (or
+        (safe-forms head)
+        (if (symbol? head)
+          (if (string/has-prefix? "define-" head) is-safe-def))))
     (cond
       # Sometimes safe form
       (function? safe-check)

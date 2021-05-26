@@ -6,14 +6,21 @@
 # Basic Path Settings
 #
 
-# Windows is the OS outlier
-(def- is-win (= (os/which) :windows))
-(def- is-mac (= (os/which) :macos))
-(def- sep (if is-win "\\" "/"))
-(def- objext (if is-win ".obj" ".o"))
-(def- modext (if is-win ".dll" ".so"))
-(def- statext (if is-win ".static.lib" ".a"))
-(def- absprefix (if is-win "C:\\" "/"))
+# Allow changing the behavior via an environment variable
+(def- host-os (keyword (string/ascii-lower (os/getenv "JPM_OS_WHICH" (os/which)))))
+(defn- define-utils
+  []
+  (def is-win (= host-os :windows))
+  (defglobal 'is-win is-win)
+  (defglobal 'is-mac (= host-os :macos))
+  (def sep (if is-win "\\" "/"))
+  (defglobal 'sep sep)
+  (defglobal 'objext (if is-win ".obj" ".o"))
+  (defglobal 'modext (if is-win ".dll" ".so"))
+  (defglobal 'statext (if is-win ".static.lib" ".a"))
+  (defglobal 'absprefix (if is-win "C:\\" "/")))
+
+(define-utils)
 
 #
 # Defaults
@@ -57,6 +64,9 @@
 # Example - (def- extra-lflags ["-lmimalloc"])
 
 ###END###
+
+# Redefine utils in case the above section is overriden on some installs.
+(define-utils)
 
 (compwhen (not (dyn 'extra-lflags))
   (def- extra-lflags []))
@@ -370,7 +380,7 @@
 # flags needed for the janet binary and compiling standalone
 # executables.
 (def janet-lflags
-  (case (os/which)
+  (case host-os
     :macos ["-ldl" "-lm" ;thread-flags ;extra-lflags]
     :windows [;thread-flags ;extra-lflags]
     :linux ["-lm" "-ldl" "-lrt" ;thread-flags ;extra-lflags]

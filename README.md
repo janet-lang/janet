@@ -234,7 +234,7 @@ See the examples directory for some example janet code.
 ## Discussion
 
 Feel free to ask questions and join the discussion on the [Janet Gitter Channel](https://gitter.im/janet-language/community).
-Alternatively, check out [the #janet channel on Freenode](https://webchat.freenode.net/)
+Gitter provides Matrix and irc bridges as well.
 
 ## FAQ
 
@@ -246,8 +246,35 @@ will not. If your terminal does not support ANSI escape codes, run the REPL with
 the `-n` flag, which disables color output. You can also try the `-s` if further issues
 ensue.
 
-## Why Janet
+### Where is (favorite feature from other language)?
+
+It may exist, it may not. If you want to propose major language features, go ahead and open an issue, but
+they will likely by closed as "will not implement". Often, such features make one usecase simpler at the expense
+of 5 others by making the language more complicated.
+
+### Where is the example code?
+
+In the examples directory.
+
+### Is this a Clojure port?
+
+No. It's similar to Clojure superficially because I like Lisps and I like the asthetics.
+Internally, Janet is not at all like Clojure.
+
+### Are the immutable data structures (tuples and structs) implemented as hash tries?
+
+No. They are immutable arrays and hash tables. Don't try and use them like Clojure's vectors
+and maps, instead they work well as table keys or other identifiers.
+
+### Why can't we add (feature from Clojure) into the core?
+
+Usually, one of a few reasons:
+- Often, it already exists in a different form and the Clojure port would be redundant.
+- Clojure programs often generate a lot of garbage and rely on the JVM to clean it up.
+  Janet does not run on the JVM. We admittedly have a much more primitive GC.
+- We want to keep the Janet core small. With Lisps, usually a feature can be added as a library
+  without feeling "bolted on", especially when compared to ALGOL like languages.
+
+## Why is it called "Janet"?
 
 Janet is named after the almost omniscient and friendly artificial being in [The Good Place](https://en.wikipedia.org/wiki/The_Good_Place).
-
-<img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-the-good-place.gif" alt="Janet logo" width="115px" align="left">

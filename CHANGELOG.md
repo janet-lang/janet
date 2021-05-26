@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 - Remove the `tarray` module. The functionality of typed arrays will be moved to an external module
   that can be installed via `jpm`.
 - Add `from-pairs` to core.
+- Add `JPM_OS_WHICH` environment variable to jpm to allow changing auto-detection behavior.
+- The flychecker will consider any top-level calls of functions that start with `define-` to
+  be safe to execute and execute them. This allows certain patterns (like spork/path) to be
+  better processed by the flychecker.
 
 ## 1.15.5 - 2021-04-25
 - Add `declare-headers` to jpm.

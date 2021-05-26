@@ -269,5 +269,30 @@ An optional path to a git executable to use to clone git dependencies. By defaul
 if you have a normal install of git.
 .RE
 
+.B JPM_OS_WHICH
+.RS
+Use this option to override the C compiler and build system auto-detection for the host operating system. For example, set this
+environment variable to "posix" to make sure that on platforms like MinGW, you will use GCC instead of MSVC. On most platforms, users will not need to
+set this environment variable. Set this to one of the following
+strings:
+.IP
+\- windows
+.IP
+\- macos
+.IP
+\- linux
+.IP
+\- freebsd
+.IP
+\- openbsd
+.IP
+\- netbsd
+.IP
+\- bsd
+.IP
+\- posix
+.RE
+
+
 .SH AUTHOR
 Written by Calvin Rose <calsrose@gmail.com>
