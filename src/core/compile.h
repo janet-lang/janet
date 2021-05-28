@@ -29,6 +29,13 @@
 #include "regalloc.h"
 #endif
 
+/* Levels for compiler warnings */
+typedef enum {
+    JANET_C_LINT_RELAXED,
+    JANET_C_LINT_NORMAL,
+    JANET_C_LINT_STRICT
+} JanetCompileLintLevel;
+
 /* Tags for some functions for the prepared inliner */
 #define JANET_FUN_DEBUG 1
 #define JANET_FUN_ERROR 2
@@ -78,10 +85,10 @@ typedef struct JanetSpecial JanetSpecial;
 #define JANET_SLOT_MUTABLE 0x40000
 #define JANET_SLOT_REF 0x80000
 #define JANET_SLOT_RETURNED 0x100000
-/* Needed for handling single element arrays as global vars. */
-
-/* Used for unquote-splicing */
-#define JANET_SLOT_SPLICED 0x200000
+#define JANET_SLOT_DEP_NOTE 0x200000
+#define JANET_SLOT_DEP_WARN 0x400000
+#define JANET_SLOT_DEP_ERROR 0x800000
+#define JANET_SLOT_SPLICED 0x1000000
 
 #define JANET_SLOTTYPE_ANY 0xFFFF
 
@@ -164,6 +171,9 @@ struct JanetCompiler {
 
     /* Prevent unbounded recursion */
     int recursion_guard;
+
+    /* Collect linting results */
+    JanetArray *lints;
 };
 
 #define JANET_FOPTS_TAIL 0x10000
@@ -229,6 +239,9 @@ JanetSlot janetc_return(JanetCompiler *c, JanetSlot s);
 /* Store an error */
 void janetc_error(JanetCompiler *c, const uint8_t *m);
 void janetc_cerror(JanetCompiler *c, const char *m);
+
+/* Linting */
+void janetc_lintf(JanetCompiler *C, JanetCompileLintLevel level, const char *format, ...);
 
 /* Dispatch to correct form compiler */
 JanetSlot janetc_value(JanetFopts opts, Janet x);

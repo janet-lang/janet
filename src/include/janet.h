@@ -299,9 +299,10 @@ typedef struct {
 /***** START SECTION TYPES *****/
 
 #ifdef JANET_WINDOWS
-// Must be defined before including stdlib.h
+/* Must be defined before including stdlib.h */
 #define _CRT_RAND_S
 #endif
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -1409,6 +1410,11 @@ struct JanetCompileResult {
     enum JanetCompileStatus status;
 };
 JANET_API JanetCompileResult janet_compile(Janet source, JanetTable *env, JanetString where);
+JANET_API JanetCompileResult janet_compile_lint(
+    Janet source,
+    JanetTable *env,
+    JanetString where,
+    JanetArray *lints);
 
 /* Get the default environment for janet */
 JANET_API JanetTable *janet_core_env(JanetTable *replacements);
@@ -1664,11 +1670,24 @@ typedef enum {
     JANET_BINDING_VAR,
     JANET_BINDING_MACRO
 } JanetBindingType;
+
+typedef struct {
+    JanetBindingType type;
+    Janet value;
+    enum {
+        JANET_BINDING_DEP_NONE,
+        JANET_BINDING_DEP_RELAXED,
+        JANET_BINDING_DEP_NORMAL,
+        JANET_BINDING_DEP_STRICT,
+    } deprecation;
+} JanetBinding;
+
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_var(JanetTable *env, const char *name, Janet val, const char *documentation);
 JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetSymbol sym, Janet *out);
+JANET_API JanetBinding janet_resolve_ext(JanetTable *env, JanetSymbol sym);
 JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
 /* Get values from the core environment. */
