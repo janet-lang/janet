@@ -679,6 +679,9 @@ static int macroexpand1(
     Janet tempOut;
     JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &tempOut);
     janet_table_put(c->env, mf_kw, janet_wrap_nil());
+    if (c->lints) {
+        janet_table_put(c->env, janet_ckeywordv("macro-lints"), janet_wrap_array(c->lints));
+    }
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
         const uint8_t *es = janet_formatc("(macro) %V", tempOut);
