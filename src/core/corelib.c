@@ -395,6 +395,23 @@ static Janet janet_core_table(int32_t argc, Janet *argv) {
     return janet_wrap_table(table);
 }
 
+static Janet janet_core_getproto(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    if (janet_checktype(argv[0], JANET_TABLE)) {
+        JanetTable *t = janet_unwrap_table(argv[0]);
+        return t->proto
+               ? janet_wrap_table(t->proto)
+               : janet_wrap_nil();
+    }
+    if (janet_checktype(argv[0], JANET_STRUCT)) {
+        JanetStruct st = janet_unwrap_struct(argv[0]);
+        return janet_struct_proto(st)
+               ? janet_wrap_struct(janet_struct_proto(st))
+               : janet_wrap_nil();
+    }
+    janet_panicf("expected struct|table, got %v", argv[0]);
+}
+
 static Janet janet_core_struct(int32_t argc, Janet *argv) {
     int32_t i;
     if (argc & 1)
@@ -731,6 +748,11 @@ static const JanetReg corelib_cfuns[] = {
         JDOC("(signal what x)\n\n"
              "Raise a signal with payload x. ")
     },
+    {
+        "getproto", janet_core_getproto,
+        JDOC("(getproto x)\n\n"
+             "Get the prototype of a table or struct. Will return nil if `x` has no prototype.")
+    },
     {NULL, NULL, NULL}
 };
 
@@ -1013,6 +1035,7 @@ static void janet_load_libs(JanetTable *env) {
     janet_lib_tuple(env);
     janet_lib_buffer(env);
     janet_lib_table(env);
+    janet_lib_struct(env);
     janet_lib_fiber(env);
     janet_lib_os(env);
     janet_lib_parse(env);

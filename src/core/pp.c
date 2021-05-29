@@ -568,12 +568,12 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         case JANET_STRUCT:
         case JANET_TABLE: {
             int istable = janet_checktype(x, JANET_TABLE);
-            janet_buffer_push_cstring(S->buffer, istable ? "@" : "{");
 
             /* For object-like tables, print class name */
             if (istable) {
                 JanetTable *t = janet_unwrap_table(x);
                 JanetTable *proto = t->proto;
+                janet_buffer_push_cstring(S->buffer, "@");
                 if (NULL != proto) {
                     Janet name = janet_table_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
@@ -588,8 +588,25 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                         }
                     }
                 }
-                janet_buffer_push_cstring(S->buffer, "{");
+            } else {
+                JanetStruct st = janet_unwrap_struct(x);
+                JanetStruct proto = janet_struct_proto(st);
+                if (NULL != proto) {
+                    Janet name = janet_struct_get(proto, janet_ckeywordv("_name"));
+                    const uint8_t *n;
+                    int32_t len;
+                    if (janet_bytes_view(name, &n, &len)) {
+                        if (S->flags & JANET_PRETTY_COLOR) {
+                            janet_buffer_push_cstring(S->buffer, janet_class_color);
+                        }
+                        janet_buffer_push_bytes(S->buffer, n, len);
+                        if (S->flags & JANET_PRETTY_COLOR) {
+                            janet_buffer_push_cstring(S->buffer, "\x1B[0m");
+                        }
+                    }
+                }
             }
+            janet_buffer_push_cstring(S->buffer, "{");
 
             S->depth--;
             S->indent += 2;

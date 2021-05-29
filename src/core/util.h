@@ -116,6 +116,7 @@ void janet_lib_array(JanetTable *env);
 void janet_lib_tuple(JanetTable *env);
 void janet_lib_buffer(JanetTable *env);
 void janet_lib_table(JanetTable *env);
+void janet_lib_struct(JanetTable *env);
 void janet_lib_fiber(JanetTable *env);
 void janet_lib_os(JanetTable *env);
 void janet_lib_string(JanetTable *env);
