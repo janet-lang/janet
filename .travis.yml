@@ -4,7 +4,7 @@ script:
 - make test
 - sudo make install
 - make test-install
-- make build/janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
+- JANET_DIST_DIR=janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME} make build/janet-${TRAVIS_TAG}-${TRAVIS_OS_NAME}.tar.gz
 compiler:
 - clang
 - gcc
