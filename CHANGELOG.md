@@ -1,7 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.16.0 - 2021-05-30
+- Add color documentation to the `doc` macro - enable/disable with `(dyn :doc-color)`.
+- Remove simpler HTML docs from distribution - use website or built-in documentation instead.
+- Add compiler warnings and deprecation levels.
 - Add `as-macro` to make using macros within quasiquote easier to do hygienically.
 - Expose `JANET_OUT_OF_MEMORY` as part of the Janet API.
 - Add `native-deps` option to `decalre-native` in `jpm`. This lets native libraries link to other
