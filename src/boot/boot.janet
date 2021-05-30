@@ -2097,6 +2097,21 @@
     (if ec "\e[0m" ""))
   (eflush))
 
+(defn warn-compile
+  "Default handler for a compile warning"
+  [msg where &opt line col]
+  (def ec (dyn :err-color))
+  (eprin
+    (if ec "\e[33m" "")
+    where
+    ":"
+    line
+    ":"
+    col
+    ": compile warning: ")
+  (eprint msg (if ec "\e[0m" ""))
+  (eflush))
+
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where &opt line col]
@@ -2122,6 +2137,12 @@
   (if n (repeat n (if (= nil e) (break)) (set e (table/getproto e))))
   e)
 
+(def- lint-levels
+  {:none 0
+   :relaxed 1
+   :normal 2
+   :strict 3})
+
 (defn run-context
   ```
   Run a context. This evaluates expressions in an environment,
@@ -2134,12 +2155,15 @@
     * `:env` - the environment to compile against - default is the current env
     * `:source` - string path of source for better errors - default is "<anonymous>"
     * `:on-compile-error` - callback when compilation fails - default is bad-compile
+    * `:on-compile-warning` - callback for any linting error - default is warn-compile
     * `:evaluator` - callback that executes thunks. Signature is (evaluator thunk source env where)
     * `:on-status` - callback when a value is evaluated - default is debug/stacktrace.
     * `:fiber-flags` - what flags to wrap the compilation fiber with. Default is :ia.
     * `:expander` - an optional function that is called on each top level form before being compiled.
     * `:parser` - provide a custom parser that implements the same interface as Janet's built-in parser.
     * `:read` - optional function to get the next form, called like `(read env source)`.
+    * `:lint-error` - set the minimal lint level to trigger a compilation error. Default is :none.
+    * `:lint-warning` - set minimal lint level to trigger a compilation wanring. Default is :normal.
       Overrides all parsing.
   ```
   [opts]
@@ -2148,25 +2172,34 @@
         :chunks chunks
         :on-status onstatus
         :on-compile-error on-compile-error
+        :on-compile-warning on-compile-warning
         :on-parse-error on-parse-error
         :fiber-flags guard
         :evaluator evaluator
         :source default-where
         :parser parser
         :read read
+        :lint-error lint-error
+        :lint-warning lint-warning
         :expander expand} opts)
   (default env (or (fiber/getenv (fiber/current)) @{}))
   (default chunks (fn [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
+  (default on-compile-warning warn-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
   (default default-where "<anonymous>")
   (default guard :ydt)
 
+  # Convert lint levels to numbers.
+  (def lint-error (or (get lint-levels lint-error lint-error) 0))
+  (def lint-warning (or (get lint-levels lint-warning lint-warning) 2))
+
   (var where default-where)
 
   # Evaluate 1 source form in a protected manner
+  (def lints @[])
   (defn eval1 [source &opt l c]
     (def source (if expand (expand source) source))
     (var good true)
@@ -2174,13 +2207,22 @@
     (def f
       (fiber/new
         (fn []
-          (def res (compile source env where))
-          (if (= (type res) :function)
-            (evaluator res source env where)
-            (do
-              (set good false)
-              (def {:error err :line line :column column :fiber errf} res)
-              (on-compile-error err errf where (or line l) (or column c)))))
+          (array/clear lints)
+          (def res (compile source env where lints))
+          (each [level line col msg] lints
+            (def l (get lint-levels level 0))
+            (cond
+              (<= l lint-error) (do
+                                  (set good false)
+                                  (on-compile-error msg nil where (or line l) (or col c)))
+              (<= l lint-warning) (on-compile-warning msg where (or line l) (or col c))))
+          (when good
+            (if (= (type res) :function)
+              (evaluator res source env where)
+              (do
+                (set good false)
+                (def {:error err :line line :column column :fiber errf} res)
+                (on-compile-error err errf where (or line l) (or column c))))))
         guard))
     (fiber/setenv f env)
     (while (fiber/can-resume? f)

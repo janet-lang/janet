@@ -76,8 +76,8 @@ void janetc_lintf(JanetCompiler *c, JanetCompileLintLevel level, const char *for
         /* construct linting payload */
         Janet *payload = janet_tuple_begin(4);
         payload[0] = janet_ckeywordv(janet_lint_level_names[level]);
-        payload[1] = janet_wrap_integer(c->current_mapping.line);
-        payload[2] = janet_wrap_integer(c->current_mapping.column);
+        payload[1] = c->current_mapping.line == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.line);
+        payload[2] = c->current_mapping.column == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.column);
         payload[3] = janet_wrap_string(str);
         janet_array_push(c->lints, janet_wrap_tuple(janet_tuple_end(payload)));
     }
@@ -444,9 +444,9 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     JanetScope unusedScope;
     int32_t bufstart = janet_v_count(c->buffer);
     int32_t mapbufstart = janet_v_count(c->mapbuffer);
-    /* TODO - warn for dead code */
     janetc_scope(&unusedScope, c, JANET_SCOPE_UNUSED, "unusued");
     janetc_value(opts, x);
+    janetc_lintf(c, JANET_C_LINT_STRICT, "dead code, consider removing %.2q", x);
     janetc_popscope(c);
     if (c->buffer) {
         janet_v__cnt(c->buffer) = bufstart;
