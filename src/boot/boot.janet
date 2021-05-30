@@ -538,19 +538,19 @@
   Where `binding` is a binding as passed to def, `:verb` is one of a set of
   keywords, and `object` is any expression. The available verbs are:
 
-  * :iterate -- repeatedly evaluate and bind to the expression while it is
+  * `:iterate` - repeatedly evaluate and bind to the expression while it is
     truthy.
-  * :range -- loop over a range. The object should be a two-element tuple with
+  * `:range` - loop over a range. The object should be a two-element tuple with
     a start and end value, and an optional positive step. The range is half
     open, [start, end).
-  * :range-to -- same as :range, but the range is inclusive [start, end].
-  * :down -- loop over a range, stepping downwards. The object should be a
+  * `:range-to` - same as :range, but the range is inclusive [start, end].
+  * `:down` - loop over a range, stepping downwards. The object should be a
     two-element tuple with a start and (exclusive) end value, and an optional
     (positive!) step size.
-  * :down-to -- same as :down, but the range is inclusive [start, end].
-  * :keys -- iterate over the keys in a data structure.
-  * :pairs -- iterate over the key-value pairs as tuples in a data structure.
-  * :in -- iterate over the values in a data structure or fiber.
+  * `:down-to` - same as :down, but the range is inclusive [start, end].
+  * `:keys` - iterate over the keys in a data structure.
+  * `:pairs` - iterate over the key-value pairs as tuples in a data structure.
+  * `:in` - iterate over the values in a data structure or fiber.
 
   `loop` also accepts conditionals to refine the looping further. Conditionals are of
   the form:
@@ -566,6 +566,7 @@
   * `:before form` - evaluates a form for a side effect before the next inner loop.
   * `:after form` - same as `:before`, but the side effect happens after the next inner loop.
   * `:repeat n` - repeats the next inner loop `n` times.
+    lets try putting a loop item on multiple lines.
   * `:when condition` - only evaluates the loop body when condition is true.
 
   The `loop` macro always evaluates to nil.
@@ -2128,17 +2129,18 @@
   Returns (in environment :exit-value environment) when complete.
   opts is a table or struct of options. The options are as follows:
 
-    * :chunks - callback to read into a buffer - default is getline
-    * :on-parse-error - callback when parsing fails - default is bad-parse
-    * :env - the environment to compile against - default is the current env
-    * :source - string path of source for better errors - default is "<anonymous>"
-    * :on-compile-error - callback when compilation fails - default is bad-compile
-    * :evaluator - callback that executes thunks. Signature is (evaluator thunk source env where)
-    * :on-status - callback when a value is evaluated - default is debug/stacktrace.
-    * :fiber-flags - what flags to wrap the compilation fiber with. Default is :ia.
-    * :expander - an optional function that is called on each top level form before being compiled.
-    * :parser - provide a custom parser that implements the same interface as Janet's built-in parser.
-    * :read - optional function to get the next form, called like (read env source). Overrides all parsing.
+    * `:chunks` - callback to read into a buffer - default is getline
+    * `:on-parse-error` - callback when parsing fails - default is bad-parse
+    * `:env` - the environment to compile against - default is the current env
+    * `:source` - string path of source for better errors - default is "<anonymous>"
+    * `:on-compile-error` - callback when compilation fails - default is bad-compile
+    * `:evaluator` - callback that executes thunks. Signature is (evaluator thunk source env where)
+    * `:on-status` - callback when a value is evaluated - default is debug/stacktrace.
+    * `:fiber-flags` - what flags to wrap the compilation fiber with. Default is :ia.
+    * `:expander` - an optional function that is called on each top level form before being compiled.
+    * `:parser` - provide a custom parser that implements the same interface as Janet's built-in parser.
+    * `:read` - optional function to get the next form, called like `(read env source)`.
+      Overrides all parsing.
   ```
   [opts]
 
@@ -2264,8 +2266,9 @@
   nil)
 
 (defn eval-string
-  `Evaluates a string in the current environment. If more control over the
-  environment is needed, use run-context.`
+  ``
+  Evaluates a string in the current environment. If more control over the
+  environment is needed, use `run-context`.``
   [str]
   (var state (string str))
   (defn chunks [buf _]
@@ -2289,8 +2292,8 @@
   returnval)
 
 (defn eval
-  `Evaluates a form in the current environment. If more control over the
-  environment is needed, use run-context.`
+  ``Evaluates a form in the current environment. If more control over the
+  environment is needed, use `run-context`.``
   [form]
   (def res (compile form (fiber/getenv (fiber/current)) "eval"))
   (if (= (type res) :function)
@@ -2391,25 +2394,6 @@
   (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
   (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
-  module/paths)
-
-(defn module/add-syspath
-  ```
-  Creates duplicates module paths entries for module loader that loads from the syspath.
-  This lets a user add multiple alternative syspaths is a convenient way. The new paths will be insterted
-  directly after the last path that references :sys:.
-  ```
-  [extra-path]
-  (def system-paths (seq [x :in module/paths
-                      :when (string? (0 x))
-                      :when (string/find ":sys:" (0 x))] x))
-  (def new-paths (seq [x :in system-paths]
-                   (tuple (string/replace-all ":sys:" extra-path (0 x))
-                          ;(slice x 1))))
-  (def last-index
-    (- (length module/paths)
-      (find-index |(string/find ":sys:" ($0 0)) (reverse module/paths))))
-  (array/insert module/paths last-index ;new-paths)
   module/paths)
 
 (module/add-paths ":native:" :native)
@@ -2664,229 +2648,255 @@
   `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
   or a subset of markdown. This allows a long single line of prose or formatted text to be
   a well-formed docstring. Returns a buffer containing the formatted text.`
-  [str &opt width indent]
+  [str &opt width indent colorize]
+
   (default indent 4)
   (def max-width (- (or width (dyn :doc-width 80)) 8))
-  (def len (length str))
-  (def res @"")
-  (var pos 0)
-  (def line @"")
-  (var line-width 0)
-  (def levels @[0])
-  (var leading 0)
-  (var c nil)
+  (def has-color (if (not= nil colorize)
+                   colorize
+                   (dyn :doc-color)))
 
-  (set pos 0)
+  # Terminal codes for emission/tokenization
+  (def delimiters
+    (if has-color
+      {:underline ["\e[4m" "\e[24m"]
+       :code ["\e[3;97m" "\e[39;23m"]
+       :italics ["\e[3m" "\e[23m"]
+       :bold ["\e[1m" "\e[22m"]}
+      {:underline ["_" "_"]
+       :code ["`" "`"]
+       :italics ["*" "*"]
+       :bold ["**" "**"]}))
+  (def modes @{})
+  (defn toggle [mode]
+    (def active (get modes mode))
+    (def delims (get delimiters mode))
+    (put modes mode (not active))
+    (delims (if active 1 0)))
 
-  (defn skip-line-indent []
-    (var pos* pos)
-    (set c (get str pos*))
-    (while (and c
-                (not= 10 c)
-                (= 32 c))
-      (set c (get str (++ pos*))))
-    (set leading (- pos* pos))
-    (set pos pos*))
+  # Parse state
+  (var cursor 0) # indexes into string for parsing
+  (var stack @[])  # return value for this block.
 
-  (defn update-levels []
-    (while (< leading (array/peek levels))
-      (array/pop levels)
-      (if (empty? levels) (break))))
+  # Traversal helpers
+  (defn c [] (get str cursor))
+  (defn cn [n] (get str (+ n cursor)))
+  (defn c++ [] (let [ret (get str cursor)] (++ cursor) ret))
+  (defn c+=n [n] (let [ret (get str cursor)] (+= cursor n) ret))
+  # skip* functions return number of characters matched and advance the cursor.
+  (defn skipwhite []
+    (def x cursor)
+    (while (= (c) (chr " ")) (++ cursor))
+    (- cursor x))
+  (defn skipline []
+    (def x cursor)
+    (while (let [y (c)] (and y (not= y (chr "\n")))) (++ cursor))
+    (c++)
+    (- cursor x))
 
-  (defn start-nl? []
-    (= 10 (get str pos)))
+  # Detection helpers - return number of characters natched
+  (defn ul? []
+    (let [x (c) x1 (cn 1)]
+      (and
+        (= x1 (chr " "))
+        (or (= x (chr "*")) (= x (chr "-")))
+        2)))
+  (defn ol? []
+    (def old cursor)
+    (while (and (>= (c) (chr "0")) (<= (c) (chr "9"))) (c++))
+    (let [c1 (c) c2 (cn 1) c* cursor]
+      (set cursor old)
+      (if (and (= c1 (chr ".")) (= c2 (chr " ")))
+        (- c* cursor -2))))
+  (defn fcb? [] (if (= (chr "`") (c) (cn 1) (cn 2)) 3))
+  (defn nl? [] (= (chr "\n") (c)))
 
-  (defn start-fcb? []
-    (and (= 96 (get str (+ pos)))
-         (= 96 (get str (+ pos 1)))
-         (= 96 (get str (+ pos 2)))))
+  # Parse helper
+  # parse-* functions push nodes to `stack`, and return
+  # the indentation they leave the cursor on.
 
-  (defn end-fcb? []
-    (and (= 96 (get str (+ pos)))
-         (= 96 (get str (+ pos 1)))
-         (= 96 (get str (+ pos 2)))
-         (= 10 (get str (+ pos 3)))))
+  (var parse-blocks nil) # mutual recursion
+  (defn getslice [from to]
+    (def to (min to (length str)))
+    (string/slice str from to))
+  (defn push [x] (array/push stack x))
 
-  (defn start-icb? []
-    (and (not= leading (array/peek levels))
-         (or (= 4 leading)
-             (= 4 (- leading (array/peek levels))))))
+  (defn parse-list [bullet-check initial indent]
+    (def temp-stack @[initial])
+    (def old-stack stack)
+    (set stack temp-stack)
+    (var current-indent indent)
+    (while (and (c) (>= current-indent indent))
+      (def item-indent
+        (when-let [x (bullet-check)]
+          (c+=n x)
+          (+ indent (skipwhite) x)))
+      (unless item-indent
+        (set current-indent (skipwhite))
+        (break))
+      (def item-stack @[])
+      (set stack item-stack)
+      (set current-indent (parse-blocks item-indent))
+      (set stack temp-stack)
+      (push item-stack))
+    (set stack old-stack)
+    (push temp-stack)
+    current-indent)
 
-  (defn start-ul? []
-    (var pos* pos)
-    (var c* (get str pos*))
-    (while (and c* (= 32 c*))
-      (set c* (get str (++ pos*))))
-    (and (or (= 42 c*)
-             (= 43 c*)
-             (= 45 c*))
-         (= 32 (get str (+ pos* 1)))))
+  (defn add-codeblock [indent start end]
+    (def replace-chunk (string "\n" (string/repeat " " indent)))
+    (push @[:cb (string/replace-all replace-chunk "\n" (getslice start end))])
+    (skipline)
+    (skipwhite))
 
-  (defn start-ol? []
-    (var pos* pos)
-    (var c* (get str pos*))
-    (while (and c* (= 32 c*))
-      (set c* (get str (++ pos*))))
-    (while (and c*
-                (<= 48 c*)
-                (>= 57 c*))
-      (set c* (get str (++ pos*))))
-    (set c* (get str (-- pos*)))
-    (and (<= 48 c*)
-         (>= 57 c*)
-         (= 46 (get str (+ pos* 1)))
-         (= 32 (get str (+ pos* 2)))))
+  (defn parse-fcb [indent]
+    (c+=n 3)
+    (skipline)
+    (c+=n indent)
+    (def start cursor)
+    (var end cursor)
+    (while (c)
+      (if (fcb?) (break))
+      (skipline)
+      (set end cursor)
+      (skipwhite))
+    (add-codeblock indent start end))
 
-  (defn push-line []
-    (buffer/push-string res (buffer/new-filled indent 32))
-    (set c (get str pos))
-    (while (and c (not= 10 c))
-      (buffer/push-byte res c)
-      (set c (get str (++ pos))))
-    (buffer/push-byte res 10)
-    (++ pos))
+  (defn parse-icb [indent]
+    (var current-indent indent)
+    (def start cursor)
+    (var end cursor)
+    (while (c)
+      (skipline)
+      (set end cursor)
+      (set current-indent (skipwhite))
+      (if (< current-indent indent) (break)))
+    (add-codeblock indent start end))
 
-  (defn push-bullet []
-    (var pos* pos)
-    (buffer/push-string line (buffer/new-filled leading 32))
-    (set c (get str pos*))
-    # Add bullet
-    (while (and c (not= 32 c))
-      (buffer/push-byte line c)
-      (set c (get str (++ pos*))))
-    # Add item indentation
-    (while (= 32 c)
-      (buffer/push-byte line c)
-      (set c (get str (++ pos*))))
-    # Record indentation if necessary
-    (def item-indent (+ leading (- pos* pos)))
-    (when (not= item-indent (array/peek levels))
-       (array/push levels item-indent))
-    # Update line width
-    (+= line-width item-indent)
-    # Update position
-    (set pos pos*))
+  (defn tokenize-line [line]
+    (def tokens @[])
+    (def token @"")
+    (var token-length 0)
+    (defn delim [mode]
+      (def d (toggle mode))
+      (if-not has-color (+= token-length (length d)))
+      (buffer/push token d))
+    (defn endtoken []
+      (if (first token) (array/push tokens [(string token) token-length]))
+      (buffer/clear token)
+      (set token-length 0))
+    (forv i 0 (length line)
+      (def b (get line i))
+      (cond
+        (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
+        (= b (chr `\`)) (do
+                          (++ token-length)
+                          (buffer/push token (get line (++ i))))
+        (= b (chr "_")) (delim :underline)
+        (= b (chr "`")) (delim :code)
+        (= b (chr "*"))
+          (if (= (chr "*") (get line (+ i 1)))
+            (do (++ i)
+              (delim :bold))
+            (delim :italics))
+        (do (++ token-length) (buffer/push token b))))
+    (endtoken)
+    (tuple/slice tokens))
 
-  (defn push-word [hang-indent]
-    (def word @"")
-    (var word-len 0)
-    # Build a word
-    (while (and c
-                (not= 10 c)
-                (not= 32 c))
-      (buffer/push-byte word c)
-      (++ word-len)
-      (set c (get str (++ pos))))
-    # Start new line if necessary
-    (when (> (+ line-width word-len) max-width)
-      # Push existing line
-      (buffer/push-byte line 10)
-      (buffer/push-string res line)
-      (buffer/clear line)
-      # Indent new line
-      (buffer/push-string line (buffer/new-filled hang-indent 32))
-      (set line-width hang-indent))
-    # Add single space if not beginning of line
-    (when (not= line-width hang-indent)
-      (buffer/push-byte line 32)
-      (++ line-width))
-    # Push word onto line
-    (buffer/push-string line word)
-    (set line-width (+ line-width word-len)))
+  (set parse-blocks (fn parse-blocks [indent]
+    (var new-indent indent)
+    (var p-start nil)
+    (var p-end nil)
+    (defn p-line []
+      (unless p-start
+        (set p-start cursor))
+      (skipline)
+      (set p-end cursor)
+      (set new-indent (skipwhite)))
+    (defn finish-p []
+      (when (and p-start (> p-end p-start))
+        (push (tokenize-line (getslice p-start p-end)))
+        (set p-start nil)))
+    (while (and (c) (>= new-indent indent))
+      (cond
+        (nl?) (do (finish-p) (c++) (set new-indent (skipwhite)))
+        (ul?) (do (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
+        (ol?) (do (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
+        (fcb?) (do (finish-p) (set new-indent (parse-fcb new-indent)))
+        (>= new-indent (+ 4 indent)) (do (finish-p) (set new-indent (parse-icb new-indent)))
+        (p-line)))
+    (finish-p)
+    new-indent))
 
-  (defn push-nl []
-    (when (< pos len)
-      (buffer/push-byte res 10)
-      (++ pos)))
+  (parse-blocks 0)
 
-  (defn push-list []
-    (update-levels)
-    # Indent first line
-    (buffer/push-string line (buffer/new-filled indent 32))
-    (set line-width indent)
-    # Add bullet
-    (push-bullet)
-    # Add words
-    (set c (get str pos))
-    (while (and c
-                (not= 10 c))
-      # Skip spaces
-      (while (= 32 c)
-        (set c (get str (++ pos))))
-      # Add word
-      (push-word (+ indent (array/peek levels)))
-      (def old-c c)
-      (set c (get str (++ pos)))
-      # Check if next line is a new item
-      (when (and (= 10 old-c)
-                 (or (start-ul?)
-                     (start-ol?)))
-        (set c (get str (-- pos)))))
-    # Add final line
-    (buffer/push-string res line)
-    (buffer/clear line)
-    # Move position back for newline
-    (-- pos)
-    (push-nl))
+  # Emission state
+  (def buf @"")
+  (var current-column 0)
 
-  (defn push-fcb []
-    (update-levels)
-    (push-line)
-    (while (and (< pos len) (not (end-fcb?)))
-      (push-line))
-    (push-line))
+  # Emission
+  (defn emit-indent [indent]
+    (def delta (- indent current-column))
+    (when (< 0 delta)
+      (buffer/push buf (string/repeat " " delta))
+      (set current-column indent)))
 
-  (defn push-icb []
-    (buffer/push-string res (buffer/new-filled leading 32))
-    (push-line)
-    (while (and (< pos len) (not (start-nl?)))
-      (push-line))
-    (push-nl))
+  (defn emit-nl [&opt indent]
+    (buffer/push buf "\n")
+    (set current-column 0))
 
-  (defn push-p []
-    (update-levels)
-    # Set up the indentation
-    (def para-indent (+ indent (array/peek levels)))
-    # Indent first line
-    (buffer/push-string line (buffer/new-filled para-indent 32))
-    (set line-width para-indent)
-    # Add words
-    (set c (get str pos))
-    (while (and c (not= 10 c))
-      # Skip spaces
-      (while (= 32 c)
-        (set c (get str (++ pos))))
-      # Add word
-      (push-word para-indent)
-      (set c (get str (++ pos))))
-    # Add final line
-    (buffer/push-string res line)
-    (buffer/clear line)
-    # Move position back for newline
-    (-- pos)
-    (push-nl)
-    (push-nl))
+  (defn emit-word [word indent &opt len]
+    (def last-byte (last buf))
+    (when (and
+            last-byte
+            (not= last-byte (chr "\n"))
+            (not= last-byte (chr " ")))
+      (buffer/push buf " ")
+      (++ current-column))
+    (default len (length word))
+    (when (and indent (> (+ 1 current-column len) max-width))
+      (emit-nl)
+      (emit-indent indent))
+    (buffer/push buf word)
+    (+= current-column len))
 
-  (while (< pos len)
-    (skip-line-indent)
-    (cond
-      (start-nl?)
-      (push-nl)
+  (defn emit-code
+    [code indent]
+    (def replacement (string "\n" (string/repeat " " (+ 4 indent))))
+    (emit-indent (+ 4 indent))
+    (buffer/push buf (string/replace-all "\n" replacement code))
+    (if (= (chr "\n") (last code))
+      (set current-column 0)
+      (emit-nl)))
 
-      (start-ul?)
-      (push-list)
+  (defn emit-node
+    [el indent]
+    (emit-indent indent)
+    (if (tuple? el)
+      (let [rep (string "\n" (string/repeat " " indent))]
+        (each [word len] el
+          (emit-word
+            (string/replace-all "\n" rep word)
+            indent
+            len))
+        (emit-nl))
+      (case (first el)
+        :ul (for i 1 (length el)
+              (if (> i 1) (emit-indent indent))
+              (emit-word "* " nil)
+              (each subel (get el i) (emit-node subel (+ 2 indent))))
+        :ol (for i 1 (length el)
+              (if (> i 1) (emit-indent indent))
+              (def lab (string/format "%d. " i))
+              (emit-word lab nil)
+              (each subel (get el i) (emit-node subel (+ (length lab) indent))))
+        :cb (emit-code (get el 1) indent))))
 
-      (start-ol?)
-      (push-list)
+  (each el stack
+    (emit-nl)
+    (emit-node el indent))
 
-      (start-fcb?)
-      (push-fcb)
-
-      (start-icb?)
-      (push-icb)
-
-      (push-p)))
-  res)
+  buf)
 
 (defn- print-index
   "Print bindings in the current environment given a filter function"
@@ -2914,10 +2924,10 @@
   (print "\n\n"
          (when d bind-type)
          (when-let [[path line col] sm]
-           (string "    " path (when (and line col) (string " on line " line ", column " col)) "\n"))
-         (when (or d sm) "\n")
-         (if d (doc-format d) "    no documentation found.")
-         "\n\n"))
+           (string "    " path (when (and line col) (string " on line " line ", column " col))))
+         (when sm "\n")
+         (if d (doc-format d) "\n    no documentation found.\n")
+         "\n"))
 
 (defn- print-special-form-entry
   [x]
@@ -3147,12 +3157,13 @@
 ###
 
 (defn repl
-  `Run a repl. The first parameter is an optional function to call to
+  ``Run a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught. One can provide an optional environment table to run
   the repl in, as well as an optional parser or read function to pass
-  to run-context.`
+  to `run-context.`
+  ``
   [&opt chunks onsignal env parser read]
   (default env (make-env))
   (default chunks
@@ -3478,6 +3489,7 @@
           (getter (getprompt p) buf env))
         (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
         (setdyn :err-color (if *colorize* true))
+        (setdyn :doc-color (if *colorize* true))
         (repl getchunk nil env)))))
 
 ###
