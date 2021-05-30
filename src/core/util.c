@@ -491,10 +491,11 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     Janet ref;
     JanetTable *entry_table;
     Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
-    JanetBinding binding = {};
-    binding.type = JANET_BINDING_NONE;
-    binding.value = janet_wrap_nil();
-    binding.deprecation = JANET_BINDING_DEP_NONE;
+    JanetBinding binding = {
+        JANET_BINDING_NONE,
+        janet_wrap_nil(),
+        JANET_BINDING_DEP_NONE
+    };
 
     /* Check environment for entry */
     if (!janet_checktype(entry, JANET_TABLE))
