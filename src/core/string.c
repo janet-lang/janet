@@ -589,14 +589,14 @@ static const JanetReg string_cfuns[] = {
     },
     {
         "string/find", cfun_string_find,
-        JDOC("(string/find patt str)\n\n"
+        JDOC("(string/find patt str &opt start-index)\n\n"
              "Searches for the first instance of pattern patt in string "
              "str. Returns the index of the first character in patt if found, "
              "otherwise returns nil.")
     },
     {
         "string/find-all", cfun_string_findall,
-        JDOC("(string/find-all patt str)\n\n"
+        JDOC("(string/find-all patt str &opt start-index)\n\n"
              "Searches for all instances of pattern patt in string "
              "str. Returns an array of all indices of found patterns. Overlapping "
              "instances of the pattern are counted individually, meaning a byte in str "
