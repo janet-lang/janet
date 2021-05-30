@@ -33,12 +33,12 @@
     # Add function signature to docstring
     (var index 0)
     (def arglen (length args))
-    (def buf (buffer "`(" name))
+    (def buf (buffer "(" name))
     (while (< index arglen)
       (buffer/push-string buf " ")
       (buffer/format buf "%j" (in args index))
       (set index (+ index 1)))
-    (array/push modifiers (string buf ")`\n\n" docstr))
+    (array/push modifiers (string buf ")\n\n" docstr))
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
