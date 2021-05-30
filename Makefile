@@ -239,6 +239,15 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	cp CONTRIBUTING.md LICENSE README.md build/$(JANET_DIST_DIR)/
 	cd build && tar -czvf ../$@ ./$(JANET_DIST_DIR)
 
+#########################
+##### Documentation #####
+#########################
+
+docs: build/doc.html
+
+build/doc.html: $(JANET_TARGET) tools/gendoc.janet
+	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
+
 ########################
 ##### Installation #####
 ########################
