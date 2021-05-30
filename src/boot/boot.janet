@@ -2099,7 +2099,7 @@
 
 (defn warn-compile
   "Default handler for a compile warning"
-  [msg where &opt line col]
+  [msg level where &opt line col]
   (def ec (dyn :err-color))
   (eprin
     (if ec "\e[33m" "")
@@ -2108,7 +2108,7 @@
     line
     ":"
     col
-    ": compile warning: ")
+    ": compile warning (" level "): ")
   (eprint msg (if ec "\e[0m" ""))
   (eflush))
 
@@ -2215,7 +2215,7 @@
               (<= l lint-error) (do
                                   (set good false)
                                   (on-compile-error msg nil where (or line l) (or col c)))
-              (<= l lint-warning) (on-compile-warning msg where (or line l) (or col c))))
+              (<= l lint-warning) (on-compile-warning msg level where (or line l) (or col c))))
           (when good
             (if (= (type res) :function)
               (evaluator res source env where)

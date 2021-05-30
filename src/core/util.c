@@ -436,7 +436,7 @@ static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const Ja
         janet_table_put(janet_vm_registry, fun, name);
         cfuns++;
     }
-    janet_free(longname_buffer);
+    (janet_free)(longname_buffer);
 }
 
 void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
@@ -761,7 +761,7 @@ void *(janet_malloc)(size_t size) {
 }
 
 void (janet_free)(void *ptr) {
-    return janet_free(ptr);
+    janet_free(ptr);
 }
 
 void *(janet_calloc)(size_t nmemb, size_t size) {
