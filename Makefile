@@ -35,6 +35,7 @@ JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(LIBDIR)/janet
 JANET_MANPATH?=$(PREFIX)/share/man/man1/
 JANET_PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
+JANET_DIST_DIR?=janet-dist
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
@@ -223,8 +224,7 @@ dist: build/janet-dist.tar.gz
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	build/janet.h \
 	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	build/doc.html README.md build/c/janet.c build/c/shell.c jpm
-	$(eval JANET_DIST_DIR = "janet-$(shell basename $*)")
+	README.md build/c/janet.c build/c/shell.c jpm
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
 	cp jpm build/$(JANET_DIST_DIR)/bin/
@@ -236,17 +236,8 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	cp janet.1 jpm.1 build/$(JANET_DIST_DIR)/man/man1/
 	mkdir -p build/$(JANET_DIST_DIR)/src/
 	cp build/c/janet.c build/c/shell.c build/$(JANET_DIST_DIR)/src/
-	cp CONTRIBUTING.md build/doc.html LICENSE README.md build/$(JANET_DIST_DIR)/
-	cd build && tar -czvf ../$@ $(JANET_DIST_DIR)
-
-#########################
-##### Documentation #####
-#########################
-
-docs: build/doc.html
-
-build/doc.html: $(JANET_TARGET) tools/gendoc.janet
-	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
+	cp CONTRIBUTING.md LICENSE README.md build/$(JANET_DIST_DIR)/
+	cd build && tar -czvf ../$@ ./$(JANET_DIST_DIR)
 
 ########################
 ##### Installation #####
