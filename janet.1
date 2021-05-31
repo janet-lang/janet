@@ -8,6 +8,8 @@ janet \- run the Janet language abstract machine
 [\fB\-l\fR \fIMODULE\fR]
 [\fB\-m\fR \fIPATH\fR]
 [\fB\-c\fR \fIMODULE JIMAGE\fR]
+[\fB\-w\fR \fILEVEL\fR]
+[\fB\-x\fR \fILEVEL\fR]
 [\fB\-\-\fR]
 .BR script
 .BR args ...
@@ -210,7 +212,18 @@ resulting image. Output should usually end with the .jimage extension.
 Import a Janet module before running a script or repl. Multiple files can be loaded
 in this manner, and exports from each file will be made available to the script
 or repl.
-
+.TP
+.BR \-w\ level
+Set the warning linting level for Janet.
+This linting level should be one of :relaxed, :none, :strict, :normal, or a
+Janet number. Any linting message that is of a greater lint level than this setting will be displayed as
+a warning, but not stop compilation or execution.
+.TP
+.BR \-x\ level
+Set the error linting level for Janet.
+This linting level should be one of :relaxed, :none, :strict, :normal, or a
+Janet number. Any linting message that is of a greater lint level will cause a compilation error
+and stop compilation.
 .TP
 .BR \-\-
 Stop parsing command line arguments. All arguments after this one will be considered file names

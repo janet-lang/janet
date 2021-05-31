@@ -1784,6 +1784,20 @@
 ###
 ###
 
+(defn maclintf
+  ``When inside a macro, call this function to add a linter warning. Takes
+  a `fmt` argument like `string/format` which is used to format the message.``
+  [level fmt & args]
+  (def lints (dyn :macro-lints))
+  (when lints
+    (def form (dyn :macro-form))
+    (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
+    (def l (if-not (= -1 l) l))
+    (def c (if-not (= -1 c) c))
+    (def msg (string/format fmt ;args))
+    (array/push lints [level l c msg]))
+  nil)
+
 (defn macex1
   ``Expand macros in a form, but do not recursively expand macros.
   See `macex` docs for info on on-binding.``
@@ -2129,8 +2143,9 @@
     col
     ": compile warning (" level "): ")
   (eprint msg)
-  (print-line-col where line col)
-  (if ec (eprin "\e[0m"))
+  (when ec
+    (print-line-col where line col)
+    (eprin "\e[0m"))
   (eflush))
 
 (defn bad-compile
@@ -2148,8 +2163,9 @@
   (if macrof
     (debug/stacktrace macrof msg)
     (eprint msg))
-  (print-line-col where line col)
-  (if ec (eprin "\e[0m"))
+  (when ec 
+    (print-line-col where line col)
+    (eprin "\e[0m"))
   (eflush))
 
 (defn curenv
@@ -2164,7 +2180,8 @@
   {:none 0
    :relaxed 1
    :normal 2
-   :strict 3})
+   :strict 3
+   :all math/inf})
 
 (defn run-context
   ```
@@ -2226,10 +2243,11 @@
           (def res (compile source env where lints))
           (unless (empty? lints)
             # Convert lint levels to numbers.
+            (def levels (get env :lint-levels lint-levels))
             (def lint-error (get env :lint-error))
             (def lint-warning (get env :lint-warn))
-            (def lint-error (or (get lint-levels lint-error lint-error) 0))
-            (def lint-warning (or (get lint-levels lint-warning lint-warning) 2))
+            (def lint-error (or (get levels lint-error lint-error) 0))
+            (def lint-warning (or (get levels lint-warning lint-warning) 2))
             (each [level line col msg] lints
               (def lvl (get lint-levels level 0))
               (cond
@@ -3455,6 +3473,11 @@
   (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
 
+  (defn- get-lint-level
+    [i]
+    (def x (in args (+ i 1)))
+    (or (scan-number x) (keyword x)))
+
   # Flag handlers
   (def handlers
     {"h" (fn [&]
@@ -3505,8 +3528,8 @@
            (eval-string (in args (+ i 1)))
            2)
      "d" (fn [&] (set *debug* true) 1)
-     "w" (fn [i &] (set *warn-level* (keyword (in args (+ i 1)))) 2)
-     "x" (fn [i &] (set *error-level* (keyword (in args (+ i 1)))) 2)
+     "w" (fn [i &] (set *warn-level* (get-lint-level i)) 2)
+     "x" (fn [i &] (set *error-level* (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
 
   (defn- dohandler [n i &]

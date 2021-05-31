@@ -1,6 +1,19 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.16.1 - ???
+- Add `maclintf` - a utility for adding linting messages when inside macros.
+- Print source code of offending line on compiler warnings and errors.
+- Fix some issues with linting and re-add missing `make docs`.
+- Allow controlling linting with dynamic bindings `:lint-warn`, `:lint-error`, and `:lint-levels`.
+- Add `-w` and `-x` command line flags to the `janet` binary to set linting thresholds.
+  linting thresholds are as follows:
+    - :none - will never be trigger.
+    - :relaxed - will only trigger on `:relaxed` lints.
+    - :normal - will trigger on `:relaxed` and `:normal` lints.
+    - :strict - will trigger on `:strict`, `:normal`, and `:relaxed` lints. This will catch the most issues
+      but can be distracting.
+
 ## 1.16.0 - 2021-05-30
 - Add color documentation to the `doc` macro - enable/disable with `(dyn :doc-color)`.
 - Remove simpler HTML docs from distribution - use website or built-in documentation instead.
