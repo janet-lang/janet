@@ -2231,12 +2231,12 @@
             (def lint-error (or (get lint-levels lint-error lint-error) 0))
             (def lint-warning (or (get lint-levels lint-warning lint-warning) 2))
             (each [level line col msg] lints
-              (def l (get lint-levels level 0))
+              (def lvl (get lint-levels level 0))
               (cond
-                (<= l lint-error) (do
-                                    (set good false)
-                                    (on-compile-error msg nil where (or line l) (or col c)))
-                (<= l lint-warning) (on-compile-warning msg level where (or line l) (or col c)))))
+                (<= lvl lint-error) (do
+                                      (set good false)
+                                      (on-compile-error msg nil where (or line l) (or col c)))
+                (<= lvl lint-warning) (on-compile-warning msg level where (or line l) (or col c)))))
           (when good
             (if (= (type res) :function)
               (evaluator res source env where)
