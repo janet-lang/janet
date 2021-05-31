@@ -410,7 +410,9 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
         right = janetc_value(bodyopts, truebody);
         if (!drop && !tail) janetc_copy(c, target, right);
         janetc_popscope(c);
-        janetc_throwaway(bodyopts, falsebody);
+        if (!janet_checktype(falsebody, JANET_NIL)) {
+            janetc_throwaway(bodyopts, falsebody);
+        }
         janetc_popscope(c);
         return target;
     }
