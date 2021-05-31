@@ -2097,6 +2097,25 @@
     (if ec "\e[0m" ""))
   (eflush))
 
+(defn- print-line-col
+  "Print the source code at a line, column in a source file. If unable to open
+  the file, prints nothing."
+  [where line col]
+  (if-not line (break))
+  (when-with [f (file/open where :r)]
+    (def source-code (file/read f :all))
+    (var index 0)
+    (repeat (dec line)
+       (if-not index (break))
+       (set index (inc (string/find "\n" source-code index))))
+    (when index
+      (def line-end (string/find "\n" source-code index))
+      (eprint "  " (string/slice source-code index line-end))
+      (when col
+        (+= index col)
+        (eprint (string/repeat " " (inc col)) "^"))
+      (eflush))))
+
 (defn warn-compile
   "Default handler for a compile warning"
   [msg level where &opt line col]
@@ -2109,7 +2128,9 @@
     ":"
     col
     ": compile warning (" level "): ")
-  (eprint msg (if ec "\e[0m" ""))
+  (eprint msg)
+  (print-line-col where line col)
+  (if ec (eprin "\e[0m"))
   (eflush))
 
 (defn bad-compile
@@ -2126,7 +2147,9 @@
     ": compile error: ")
   (if macrof
     (debug/stacktrace macrof msg)
-    (eprint msg (if ec "\e[0m" "")))
+    (eprint msg))
+  (print-line-col where line col)
+  (if ec (eprin "\e[0m"))
   (eflush))
 
 (defn curenv
@@ -2162,8 +2185,6 @@
     * `:expander` - an optional function that is called on each top level form before being compiled.
     * `:parser` - provide a custom parser that implements the same interface as Janet's built-in parser.
     * `:read` - optional function to get the next form, called like `(read env source)`.
-    * `:lint-error` - set the minimal lint level to trigger a compilation error. Default is :none.
-    * `:lint-warning` - set minimal lint level to trigger a compilation wanring. Default is :normal.
       Overrides all parsing.
   ```
   [opts]
@@ -2179,8 +2200,6 @@
         :source default-where
         :parser parser
         :read read
-        :lint-error lint-error
-        :lint-warning lint-warning
         :expander expand} opts)
   (default env (or (fiber/getenv (fiber/current)) @{}))
   (default chunks (fn [buf p] (getline "" buf env)))
@@ -2191,10 +2210,6 @@
   (default evaluator (fn evaluate [x &] (x)))
   (default default-where "<anonymous>")
   (default guard :ydt)
-
-  # Convert lint levels to numbers.
-  (def lint-error (or (get lint-levels lint-error lint-error) 0))
-  (def lint-warning (or (get lint-levels lint-warning lint-warning) 2))
 
   (var where default-where)
 
@@ -2209,13 +2224,19 @@
         (fn []
           (array/clear lints)
           (def res (compile source env where lints))
-          (each [level line col msg] lints
-            (def lvl (get lint-levels level 0))
-            (cond
-              (<= lvl lint-error) (do
-                                    (set good false)
-                                    (on-compile-error msg nil where (or line l) (or col c)))
-              (<= lvl lint-warning) (on-compile-warning msg level where (or line l) (or col c))))
+          (unless (empty? lints)
+            # Convert lint levels to numbers.
+            (def lint-error (get env :lint-error))
+            (def lint-warning (get env :lint-warn))
+            (def lint-error (or (get lint-levels lint-error lint-error) 0))
+            (def lint-warning (or (get lint-levels lint-warning lint-warning) 2))
+            (each [level line col msg] lints
+              (def lvl (get lint-levels level 0))
+              (cond
+                (<= lvl lint-error) (do
+                                      (set good false)
+                                      (on-compile-error msg nil where (or line l) (or col c)))
+                (<= lvl lint-warning) (on-compile-warning msg level where (or line l) (or col c)))))
           (when good
             (if (= (type res) :function)
               (evaluator res source env where)
@@ -3427,6 +3448,8 @@
   (var *colorize* true)
   (var *debug* false)
   (var *compile-only* false)
+  (var *warn-level* nil)
+  (var *error-level* nil)
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
   (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
@@ -3453,6 +3476,8 @@
                -c source output : Compile janet source code into an image
                -n : Disable ANSI color output in the REPL
                -l lib : Import a module before processing more arguments
+               -w level : Set the lint warning level - default is "normal"
+               -x level : Set the lint error level - default is "none"
                -- : Stop handling options
              ```)
            (os/exit 0)
@@ -3480,6 +3505,8 @@
            (eval-string (in args (+ i 1)))
            2)
      "d" (fn [&] (set *debug* true) 1)
+     "w" (fn [i &] (set *warn-level* (keyword (in args (+ i 1)))) 2)
+     "x" (fn [i &] (set *error-level* (keyword (in args (+ i 1)))) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
 
   (defn- dohandler [n i &]
@@ -3498,6 +3525,8 @@
         (def env (make-env))
         (def subargs (array/slice args i))
         (put env :args subargs)
+        (put env :lint-error *error-level*)
+        (put env :lint-warn *warn-level*)
         (if *compile-only*
           (flycheck arg :exit *exit-on-error* :env env)
           (do
@@ -3532,6 +3561,8 @@
         (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
         (setdyn :err-color (if *colorize* true))
         (setdyn :doc-color (if *colorize* true))
+        (setdyn :lint-error *error-level*)
+        (setdyn :lint-warn *error-level*)
         (repl getchunk nil env)))))
 
 ###
