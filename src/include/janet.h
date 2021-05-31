@@ -172,11 +172,6 @@ extern "C" {
 #define JANET_PEG
 #endif
 
-/* Enable or disable the typedarray module */
-#ifndef JANET_NO_TYPED_ARRAY
-#define JANET_TYPED_ARRAY
-#endif
-
 /* Enable or disable event loop */
 #if !defined(JANET_NO_EV) && !defined(__EMSCRIPTEN__)
 #define JANET_EV
