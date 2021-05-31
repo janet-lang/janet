@@ -32,8 +32,9 @@ lockfile.janet
 # Local directory for testing
 local
 
-# Common test file I use.
+# Common test files I use.
 temp.janet
+scratch.janet
 
 # Emscripten
 *.bc
