@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2020 © Calvin Rose
+# Copyright 2021 © Calvin Rose
 
 ###
 ###

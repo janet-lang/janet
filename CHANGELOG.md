@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.16.1 - ???
+## 1.16.1 - 2021-06-09
 - Add `maclintf` - a utility for adding linting messages when inside macros.
 - Print source code of offending line on compiler warnings and errors.
 - Fix some issues with linting and re-add missing `make docs`.
