@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 - Add compiler warnings and deprecation levels.
 - Add `as-macro` to make using macros within quasiquote easier to do hygienically.
 - Expose `JANET_OUT_OF_MEMORY` as part of the Janet API.
-- Add `native-deps` option to `decalre-native` in `jpm`. This lets native libraries link to other
+- Add `native-deps` option to `declare-native` in `jpm`. This lets native libraries link to other
   native libraries when building with jpm.
 - Remove the `tarray` module. The functionality of typed arrays will be moved to an external module
   that can be installed via `jpm`.
