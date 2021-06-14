@@ -2,6 +2,15 @@
 
 # CLI tool for building janet projects.
 
+# Check for package to replace jpm - jpm package exists, run it's `cli` function.
+(def- [ok cli]
+  (protect
+    (def pkg (require "jpm"))
+    (get (get pkg 'cli) :value)))
+(when ok
+  (cli ;(dyn :args))
+  (os/exit 0))
+
 #
 # Basic Path Settings
 #
@@ -597,8 +606,6 @@
         (create-dirs dest)
         (with [f (file/open source :r)]
           (create-buffer-c-impl (:read f :all) dest name))))
-
-(def- root-env (table/getproto (fiber/getenv (fiber/current))))
 
 (defn- modpath-to-meta
   "Get the meta file path (.meta.janet) corresponding to a native module path (.so)."

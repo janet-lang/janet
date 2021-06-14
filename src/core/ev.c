@@ -697,6 +697,7 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
         } else if (janet_q_count(&channel->items) > channel->limit) {
             /* No root fiber, we are in completion on a root fiber. Don't block. */
             if (mode == 2) return 0;
+            if (mode == 3) return 1;
             /* Pushed successfully, but should block. */
             JanetChannelPending pending;
             pending.fiber = janet_vm_root_fiber,
@@ -2223,7 +2224,7 @@ static const JanetReg ev_cfuns[] = {
              "Resume a (copy of a) `fiber` in a new operating system thread, optionally passing `value` "
              "to resume with. "
              "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
-             "The the final result.")
+             "Return the final result.")
     },
     {
         "ev/give-supervisor", cfun_ev_give_supervisor,

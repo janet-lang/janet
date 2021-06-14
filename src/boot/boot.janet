@@ -1281,8 +1281,7 @@
   res)
 
 (defn any?
-  `Returns the first truthy value in ind, otherwise nil.
-  falsey value.`
+  `Returns the first truthy value in ind, otherwise nil.`
   [ind]
   (var res nil)
   (loop [x :in ind :until res]
@@ -3344,6 +3343,20 @@
       (unless (= sig :ok)
         (each f fibers (ev/cancel f "sibling canceled"))
         (propagate (fiber/last-value fiber) fiber))))
+
+  (defn ev/gather-thunks
+    ``
+    Function form of `ev/gather` that takes thunks instead of forms. If any of the
+    sibling fibers error, all other siblings will be canceled.  Returns the gathered
+    results in an array.
+    ``
+    [thunks]
+    (def chan (ev/chan))
+    (def res @[])
+    (wait-for-fibers chan
+        (seq [[i thunk] :pairs thunks]
+           (ev/go (fiber/new (fn [] (put res i (thunk))) :tp) nil chan)))
+    res)
 
   (defmacro ev/gather
     ``

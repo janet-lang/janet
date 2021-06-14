@@ -1,0 +1,4 @@
+#!/usr/bin/env janet
+(import "jpm/cli")
+(defn main [& argv]
+  (cli/main ;argv))
