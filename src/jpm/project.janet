@@ -15,5 +15,6 @@
 
 (declare-binscript
   :main "jpm"
-  :hardcode-syspath false
+  :hardcode-syspath true
+  :auto-shebang true
   :is-janet true)

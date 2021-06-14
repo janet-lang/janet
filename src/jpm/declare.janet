@@ -94,6 +94,7 @@
         (array/push sobjects o-src)
         # Buffer c-src is already declared by dynamic module
         (compile-c :cc opts c-src o-src true)))
+
     (archive-c opts sname ;sobjects)
     (add-dep "build" sname)
     (install-rule sname path)))
@@ -236,7 +237,7 @@
   (task "build" [])
 
   (task "manifest" [manifest])
-  (rule manifest []
+  (rule manifest ["uninstall"]
         (print "generating " manifest "...")
         (os/mkdir manifests)
         (def sha (pslurp (string "\"" (dyn:gitpath) "\" rev-parse HEAD")))

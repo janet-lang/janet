@@ -55,9 +55,9 @@
   (setdyn :lflags @[])
   (setdyn :ldflags @[])
   (setdyn :cflags @["-std=c99" "-Wall" "-Wextra"])
-  (setdyn :cppflags @["-std=c99" "-Wall" "-Wextra"])
+  (setdyn :cppflags @["-std=c++11" "-Wall" "-Wextra"])
   (setdyn :dynamic-lflags @["-shared" "-lpthread"])
-  (setdyn :dynamic-cflags @[])
+  (setdyn :dynamic-cflags @["-fPIC"])
   (setdyn :optimize 2)
   (setdyn :modext ".so")
   (setdyn :statext ".a")
@@ -69,23 +69,38 @@
   (setdyn :jpm-env _env)
   (setdyn :janet (dyn :executable))
   (setdyn :auto-shebang true)
+  (setdyn :workers nil)
+  (setdyn :verbose false)
 
   # Get flags
-  (while (< i len)
-    (if-let [m (peg/match argpeg (args i))]
-      (if (= 2 (length m))
-        (let [[key value] m]
-          (setdyn (keyword key) value))
-        (setdyn (keyword (m 0)) true))
-      (break))
-    (++ i))
+  (def cmdbuf @[])
+  (var flags-done false)
+  (each a args
+    (cond
+      (= a "--")
+      (set flags-done true)
+
+      flags-done
+      (array/push cmdbuf a)
+
+      (if-let [m (peg/match argpeg a)]
+        (do
+          (def key (keyword (get m 0)))
+          (def value-parser (get config-dyns key))
+          (unless value-parser
+            (error (string "unknown cli option " key)))
+          (if (= 2 (length m))
+            (do
+              (def v (value-parser key (get m 1)))
+              (setdyn key v))
+            (setdyn key true)))
+        (array/push cmdbuf a))))
 
   # Run subcommand
-  (if (= i len)
+  (if (empty? cmdbuf)
     (commands/help)
-    (do
-      (if-let [com (get commands/subcommands (args i))]
-        (com ;(tuple/slice args (+ i 1)))
+    (if-let [com (get commands/subcommands (first cmdbuf))]
+        (com ;(slice cmdbuf 1))
         (do
-          (print "invalid command " (args i))
-          (commands/help))))))
+          (print "invalid command " (first cmdbuf))
+          (commands/help)))))

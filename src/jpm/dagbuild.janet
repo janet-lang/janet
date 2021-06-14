@@ -45,6 +45,7 @@
     (if (seen node) (break))
     (put seen node true)
     (def depends-on (get dag node []))
+    (put dep-counts node (length depends-on))
     (if (empty? depends-on)
       (ev/give q node))
     (each r depends-on

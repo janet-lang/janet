@@ -9,7 +9,7 @@
 (use ./cc)
 (use ./pm)
 
-(defn- help
+(defn help
   []
   (print `
 usage: jpm [--key=value, --flag] ... [subcommand] [args] ...
@@ -86,10 +86,6 @@ Flags are:
   [rule &opt no-deps]
   (import-rules "./project.janet" no-deps)
   (do-rule rule))
-
-(defn show-help
-  []
-  (print help))
 
 (defn show-paths
   []
@@ -213,7 +209,7 @@ Flags are:
 (def subcommands
   {"build" build
    "clean" clean
-   "help" show-help
+   "help" help
    "install" install
    "test" test
    "help" help

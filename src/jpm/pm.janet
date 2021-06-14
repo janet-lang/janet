@@ -24,6 +24,11 @@
   (def currenv (proto-flatten @{} (curenv)))
   (loop [k :keys currenv :when (keyword? k)]
     (put env k (currenv k)))
+  # For compatibility reasons
+  (put env 'default-cflags @{:value (dyn:cflags)})
+  (put env 'default-lflags @{:value (dyn:lflags)})
+  (put env 'default-ldflags @{:value (dyn:ldflags)})
+  (put env 'default-cppflags @{:value (dyn:cppflags)})
   env)
 
 (defn require-jpm
@@ -204,4 +209,4 @@
 (defn do-rule
   "Evaluate a given rule in a one-off manner."
   [target]
-  (build-rules (dyn :rules) [target]))
+  (build-rules (dyn :rules) [target] (dyn :workers)))

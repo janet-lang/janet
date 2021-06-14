@@ -1065,7 +1065,7 @@ int main(int argc, const char **argv) {
   :prefix can optionally be given to modify the destination path to be
   (string JANET_PATH prefix source)."
   [&keys {:source sources :prefix prefix}]
-  (def path (string (dyn :modpath JANET_MODPATH) (or prefix "")))
+  (def path (string (dyn :modpath JANET_MODPATH) "/" (or prefix "")))
   (if (bytes? sources)
     (install-rule sources path)
     (each s sources
@@ -1075,7 +1075,7 @@ int main(int argc, const char **argv) {
   "Declare headers for a library installation. Installed headers can be used by other native
   libraries."
   [&keys {:headers headers :prefix prefix}]
-  (def path (string (dyn :modpath JANET_MODPATH) (or prefix "")))
+  (def path (string (dyn :modpath JANET_MODPATH) "/" (or prefix "")))
   (if (bytes? headers)
     (install-rule headers path)
     (each h headers

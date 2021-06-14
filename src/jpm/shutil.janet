@@ -79,12 +79,20 @@
     (def path (string/join (slice segs 0 i) "/"))
     (unless (empty? path) (os/mkdir path))))
 
+(defn devnull
+  []
+  (os/open (if (= :windows (os/which)) "NUL" "/dev/null") :rw))
+
 (defn shell
   "Do a shell command"
   [& args]
+  (def args (map string args))
   (if (dyn :verbose)
     (print ;(interpose " " args)))
-  (os/execute args :px))
+  (if (dyn :silent)
+    (with [dn (devnull)]
+      (os/execute args :px {:out dn :err dn}))
+    (os/execute args :px)))
 
 (defn copy
   "Copy a file or directory recursively from one location to another."

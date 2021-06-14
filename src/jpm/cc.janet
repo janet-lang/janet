@@ -70,7 +70,7 @@
   (def defines [;(make-defines (opt opts :defines {})) ;entry-defines])
   (def headers (or (opts :headers) []))
   (rule dest [src ;headers]
-        (print "compiling " src " to " dest "...")
+        (unless (dyn:verbose) (print "compiling " src " to " dest "..."))
         (create-dirs dest)
         (if (dyn :is-msvc)
           (shell cc ;defines "/c" ;cflags (string "/Fo" dest) src)
@@ -89,7 +89,7 @@
   (def dep-importlibs (seq [x :in deplibs] (string (dyn:modpath) "/" x ".lib")))
   (def ldflags [;(opt opts :ldflags []) ;dep-ldflags])
   (rule target objects
-        (print "linking " target "...")
+        (unless (dyn:verbose) (print "linking " target "..."))
         (create-dirs target)
         (if (dyn :is-msvc)
           (shell linker ;ldflags (string "/OUT:" target) ;objects
@@ -101,7 +101,7 @@
   [opts target & objects]
   (def ar (opt opts :ar))
   (rule target objects
-        (print "creating static library " target "...")
+        (unless (dyn:verbose) (print "creating static library " target "..."))
         (create-dirs target)
         (if (dyn :is-msvc)
           (shell ar "/nologo" (string "/out:" target) ;objects)
