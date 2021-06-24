@@ -2163,7 +2163,7 @@
   (if macrof
     (debug/stacktrace macrof msg)
     (eprint msg))
-  (when ec 
+  (when ec
     (print-line-col where line col)
     (eprin "\e[0m"))
   (eflush))
@@ -2335,6 +2335,7 @@
     (when (= (p-status p) :error)
       (parse-err p where)))
 
+  (put env :exit nil)
   (in env :exit-value env))
 
 (defn quit
