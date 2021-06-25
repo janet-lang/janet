@@ -333,7 +333,7 @@ static const JanetReg debug_cfuns[] = {
              "Will throw an error if the breakpoint location "
              "cannot be found. For example\n\n"
              "\t(debug/break \"core.janet\" 10 4)\n\n"
-             "wil set a breakpoint at line 10, 4th column of the file core.janet.")
+             "will set a breakpoint at line 10, 4th column of the file core.janet.")
     },
     {
         "debug/unbreak", cfun_debug_unbreak,
@@ -383,7 +383,7 @@ static const JanetReg debug_cfuns[] = {
         JDOC("(debug/stacktrace fiber &opt err)\n\n"
              "Prints a nice looking stacktrace for a fiber. Can optionally provide "
              "an error value to print the stack trace with. If `err` is nil or not "
-             "provided, will skipp the error line. Returns the fiber.")
+             "provided, will skip the error line. Returns the fiber.")
     },
     {
         "debug/lineage", cfun_debug_lineage,

@@ -2038,7 +2038,7 @@ error:
 static Janet cfun_ev_go(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
     JanetFiber *fiber = janet_getfiber(argv, 0);
-    Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
+    Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     JanetChannel *supervisor_channel = janet_optabstract(argv, argc, 2, &ChannelAT,
                                        janet_vm_root_fiber->supervisor_channel);
     fiber->supervisor_channel = supervisor_channel;
