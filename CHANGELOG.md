@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Fix issue with `ev/go` when called with an initial value and supervisor.
+
 ## 1.16.1 - 2021-06-09
 - Add `maclintf` - a utility for adding linting messages when inside macros.
 - Print source code of offending line on compiler warnings and errors.
