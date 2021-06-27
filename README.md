@@ -1,7 +1,6 @@
 [![Join the chat](https://badges.gitter.im/janet-language/community.svg)](https://gitter.im/janet-language/community)
 &nbsp;
 [![Appveyor Status](https://ci.appveyor.com/api/projects/status/bjraxrxexmt3sxyv/branch/master?svg=true)](https://ci.appveyor.com/project/bakpakin/janet/branch/master)
-[![Build Status](https://travis-ci.org/janet-lang/janet.svg?branch=master)](https://travis-ci.org/janet-lang/janet)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/freebsd.yml?)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/openbsd.yml?)
 
