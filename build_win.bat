@@ -162,8 +162,6 @@ call jpm --verbose quickbin testexec.janet build\testexec2.exe
 @if errorlevel 1 goto :TESTINSTALLFAIL
 call build\testexec2.exe
 @if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose --test --modpath=. install https://github.com/janet-lang/jhydro.git
-@if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
 @if errorlevel 1 goto :TESTINSTALLFAIL
 call jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git

@@ -329,7 +329,6 @@ test-install:
 		&& build/testexec2 \
 		&& mkdir -p modpath \
 		&& jpm --verbose --testdeps --modpath=./modpath install https://github.com/janet-lang/json.git
-	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/jhydro.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
 	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
 
