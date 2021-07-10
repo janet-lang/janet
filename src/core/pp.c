@@ -881,7 +881,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 }
             }
             if (nb >= MAX_ITEM)
-                janet_panicf("format buffer overflow", form);
+                janet_panic("format buffer overflow");
             if (nb > 0)
                 janet_buffer_push_bytes(b, (uint8_t *) item, nb);
         }
@@ -1033,7 +1033,7 @@ void janet_buffer_format(
                 }
             }
             if (nb >= MAX_ITEM)
-                janet_panicf("format buffer overflow", form);
+                janet_panic("format buffer overflow");
             if (nb > 0)
                 janet_buffer_push_bytes(b, (uint8_t *) item, nb);
         }

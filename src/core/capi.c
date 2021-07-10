@@ -71,7 +71,7 @@ void janet_panicv(Janet message) {
     janet_signalv(JANET_SIGNAL_ERROR, message);
 }
 
-void janet_panicf(const char *format, ...) {
+void janet_anicf(const char *format, ...) {
     va_list args;
     const uint8_t *ret;
     JanetBuffer buffer;
@@ -212,7 +212,7 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
     const uint8_t *jstr = janet_getstring(argv, n);
     const char *cstr = (const char *)jstr;
     if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
-        janet_panicf("string %v contains embedded 0s");
+        janet_panic("string contains embedded 0s");
     }
     return cstr;
 }
