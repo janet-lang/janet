@@ -71,7 +71,7 @@ void janet_panicv(Janet message) {
     janet_signalv(JANET_SIGNAL_ERROR, message);
 }
 
-void janet_anicf(const char *format, ...) {
+void janet_panicf(const char *format, ...) {
     va_list args;
     const uint8_t *ret;
     JanetBuffer buffer;
