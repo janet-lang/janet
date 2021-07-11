@@ -434,6 +434,7 @@ static int janet_proc_gc(void *p, size_t s) {
     JanetProc *proc = (JanetProc *) p;
 #ifdef JANET_WINDOWS
     if (!(proc->flags & JANET_PROC_CLOSED)) {
+        TerminateProcess(proc->pHandle, 1);
         CloseHandle(proc->pHandle);
         CloseHandle(proc->tHandle);
     }
@@ -519,6 +520,7 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
         janet_panicf("cannot close process handle that is already closed");
     }
     proc->flags |= JANET_PROC_CLOSED;
+    TerminateProcess(proc->pHandle, 1);
     CloseHandle(proc->pHandle);
     CloseHandle(proc->tHandle);
 #else
