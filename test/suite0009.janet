@@ -47,6 +47,11 @@
   (assert-no-error "pipe stdin to process 2" (os/proc-wait p))
   (assert (= "hello!" (string/trim x)) "round trip pipeline in process"))
 
+(let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+  (os/proc-kill p)
+  (def retval (os/proc-wait p))
+  (assert (not= retval 24) "Process was *not* terminated by parent"))
+
 # Parallel subprocesses
 
 (defn calc-1
