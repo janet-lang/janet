@@ -29,5 +29,4 @@ tasks:
     ninja
     ninja test
     doas ninja install
-    doas jpm --verbose install circlet
 

@@ -115,12 +115,6 @@
                 </File>
                 <RemoveFolder Id="RemoveBinDir" On="uninstall" />
             </Component>
-            <Component Directory="BinDir">
-                <File Source="jpm" Name="jpm.janet"/>
-            </Component>
-            <Component Directory="BinDir">
-                <File Source="tools\jpm.bat"/>
-            </Component>
 
             <Component Directory="CDir">
                 <File Source="dist\janet.h"/>

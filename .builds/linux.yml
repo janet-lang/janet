@@ -19,5 +19,3 @@ tasks:
     ninja
     ninja test
     sudo ninja install
-    sudo jpm --verbose install circlet
-    sudo jpm --verbose install spork

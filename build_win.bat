@@ -14,7 +14,6 @@
 @if "%1"=="test" goto TEST
 @if "%1"=="dist" goto DIST
 @if "%1"=="install" goto INSTALL
-@if "%1"=="test-install" goto TESTINSTALL
 @if "%1"=="all" goto ALL
 
 @rem Set compile and link options here
@@ -117,8 +116,6 @@ janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h buil
 copy build\janet.h dist\janet.h
 copy build\libjanet.lib dist\libjanet.lib
 
-copy .\jpm dist\jpm
-
 @rem Create installer
 janet.exe -e "(->> janet/version (peg/match ''(* :d+ `.` :d+ `.` :d+)) first print)" > build\version.txt
 janet.exe -e "(print (os/arch))" > build\arch.txt
@@ -146,32 +143,6 @@ FOR %%a in (janet-*-windows-*-installer.msi) DO (
     %%a /QN
 )
 exit /b 0
-
-@rem Test the installation.
-:TESTINSTALL
-pushd test\install
-call jpm clean
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm test
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose --modpath=. install https://github.com/janet-lang/json.git
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call build\testexec
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose quickbin testexec.janet build\testexec2.exe
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call build\testexec2.exe
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose --test --modpath=. install https://github.com/janet-lang/path.git
-@if errorlevel 1 goto :TESTINSTALLFAIL
-call jpm --verbose --test --modpath=. install https://github.com/janet-lang/argparse.git
-@if errorlevel 1 goto :TESTINSTALLFAIL
-popd
-exit /b 0
-
-:TESTINSTALLFAIL
-popd
-goto :TESTFAIL
 
 @rem build, test, dist, install. Useful for local dev.
 :ALL

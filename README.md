@@ -210,7 +210,7 @@ Options are:
   -- : Stop handling options
 ```
 
-If installed, you can also run `man janet` and `man jpm` to get usage information.
+If installed, you can also run `man janet` to get usage information.
 
 ## Embedding
 
