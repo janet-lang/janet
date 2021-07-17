@@ -55,8 +55,6 @@
 #endif
 #endif
 
-/* Ring buffer for storing a list of fibers */
-
 typedef struct {
     JanetFiber *fiber;
     uint32_t sched_id;
@@ -688,7 +686,7 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
     return 0;
 }
 
-/* Pop from a channel - returns 1 if item was obtain, 0 otherwise. The item
+/* Pop from a channel - returns 1 if item was obtained, 0 otherwise. The item
  * is returned by reference. If the pop would block, will add to the read_pending
  * queue in the channel. */
 static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) {
@@ -1386,6 +1384,9 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
 
 /* Default callback for janet_ev_threaded_await. */
 void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
+    if (return_value.fiber == NULL) {
+        return;
+    }
     switch (return_value.tag) {
         default:
         case JANET_EV_TCTAG_NIL:
@@ -2052,7 +2053,11 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
 static Janet cfun_ev_thread(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 3);
     janet_getfiber(argv, 0);
-    Janet value = argc == 2 ? argv[1] : janet_wrap_nil();
+    Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
+    uint64_t flags = 0;
+    if (argc >= 3) {
+        flags = janet_getflags(argv, 2, "n");
+    }
     /* Marshal arguments for the new thread. */
     JanetBuffer *buffer = janet_malloc(sizeof(JanetBuffer));
     if (NULL == buffer) {
@@ -2063,7 +2068,18 @@ static Janet cfun_ev_thread(int32_t argc, Janet *argv) {
     janet_marshal(buffer, janet_wrap_table(janet_vm.registry), NULL, JANET_MARSHAL_UNSAFE);
     janet_marshal(buffer, argv[0], NULL, JANET_MARSHAL_UNSAFE);
     janet_marshal(buffer, value, NULL, JANET_MARSHAL_UNSAFE);
-    janet_ev_threaded_await(janet_go_thread_subr, 0, argc, buffer);
+    if (flags & 0x1) {
+        /* Return immediately */
+        JanetEVGenericMessage arguments;
+        arguments.tag = 0;
+        arguments.argi = argc;
+        arguments.argp = buffer;
+        arguments.fiber = NULL;
+        janet_ev_threaded_call(janet_go_thread_subr, arguments, janet_ev_default_threaded_callback);
+        return janet_wrap_nil();
+    } else {
+        janet_ev_threaded_await(janet_go_thread_subr, 0, argc, buffer);
+    }
 }
 
 static Janet cfun_ev_give_supervisor(int32_t argc, Janet *argv) {
@@ -2185,7 +2201,8 @@ static const JanetReg ev_cfuns[] = {
              "Resume a (copy of a) `fiber` in a new operating system thread, optionally passing `value` "
              "to resume with. "
              "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
-             "The the final result.")
+             "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
+             "Otherwise, returns (a copy of) the final result from the fiber on the new thread.")
     },
     {
         "ev/give-supervisor", cfun_ev_give_supervisor,

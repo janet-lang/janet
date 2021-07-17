@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.17.0 - Unreleased
+- Add build option to disable the threading library without disabling all threads.
 - Remove JPM from the main Janet distribution. Instead, JPM must be installed
   separately like any other package.
 - Fix issue with `ev/go` when called with an initial value and supervisor.

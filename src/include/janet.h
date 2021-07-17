@@ -144,17 +144,23 @@ extern "C" {
 #define JANET_NO_UTC_MKTIME
 #endif
 
+/* Check thread library */
+#ifndef JANET_NO_THREADS
+#define JANET_THREADS
+#endif
+
 /* Define how global janet state is declared */
+/* Also enable the thread library only if not single-threaded */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL
+#undef JANET_THREADS
 #elif defined(__GNUC__)
 #define JANET_THREAD_LOCAL __thread
-#define JANET_THREADS
 #elif defined(_MSC_BUILD)
 #define JANET_THREAD_LOCAL __declspec(thread)
-#define JANET_THREADS
 #else
 #define JANET_THREAD_LOCAL
+#undef JANET_THREADS
 #endif
 
 /* Enable or disable dynamic module loading. Enabled by default. */
