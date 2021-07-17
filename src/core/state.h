@@ -139,7 +139,7 @@ struct JanetVM {
     size_t listener_cap;
     size_t extra_listeners;
 #ifdef JANET_WINDOWS
-    HANDLE iocp;
+    void **iocp;
 #elif defined(JANET_EV_EPOLL)
     JanetHandle selfpipe[2];
     int epoll;
