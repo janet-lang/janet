@@ -54,11 +54,13 @@ typedef struct {
     int is_error;
 } JanetTimeout;
 
+#ifdef JANET_THREADS
 typedef struct {
     JanetMailbox *original;
     JanetMailbox *newbox;
     uint64_t flags;
 } JanetMailboxPair;
+#endif
 
 struct JanetVM {
     /* Top level dynamic bindings */
@@ -121,7 +123,7 @@ struct JanetVM {
     JanetTraversalNode *traversal_base;
 
     /* Threading */
-#ifndef JANET_SINGLE_THREADED
+#ifdef JANET_THREADS
     JanetMailbox *mailbox;
     JanetThread *thread_current;
     JanetTable *thread_decode;
