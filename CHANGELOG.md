@@ -1,8 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.17.0 - Unreleased
+- Remove JPM from the main Janet distribution. Instead, JPM must be installed 
+  separately like any other package.
 - Fix issue with `ev/go` when called with an initial value and supervisor.
+- Add the C API functions `janet_vm_save` and `janet_vm_load` to allow
+saving and restoring the entire VM state.
 
 ## 1.16.1 - 2021-06-09
 - Add `maclintf` - a utility for adding linting messages when inside macros.
