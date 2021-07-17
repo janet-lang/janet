@@ -35,7 +35,7 @@ JanetArray *janet_array(int32_t capacity) {
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     Janet *data = NULL;
     if (capacity > 0) {
-        janet_vm_next_collection += capacity * sizeof(Janet);
+        janet_vm.next_collection += capacity * sizeof(Janet);
         data = (Janet *) janet_malloc(sizeof(Janet) * (size_t) capacity);
         if (NULL == data) {
             JANET_OUT_OF_MEMORY;
@@ -72,7 +72,7 @@ void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
     }
-    janet_vm_next_collection += (capacity - array->capacity) * sizeof(Janet);
+    janet_vm.next_collection += (capacity - array->capacity) * sizeof(Janet);
     array->data = newData;
     array->capacity = capacity;
 }

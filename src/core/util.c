@@ -366,7 +366,7 @@ const void *janet_strbinsearch(
 void janet_register(const char *name, JanetCFunction cfun) {
     Janet key = janet_wrap_cfunction(cfun);
     Janet value = janet_csymbolv(name);
-    janet_table_put(janet_vm_registry, key, value);
+    janet_table_put(janet_vm.registry, key, value);
 }
 
 /* Add a def to an environment */
@@ -433,7 +433,7 @@ static void _janet_cfuns_prefix(JanetTable *env, const char *regprefix, const Ja
         } else {
             janet_def(env, cfuns->name, fun, cfuns->documentation);
         }
-        janet_table_put(janet_vm_registry, fun, name);
+        janet_table_put(janet_vm.registry, fun, name);
         cfuns++;
     }
     (janet_free)(longname_buffer);
@@ -451,16 +451,16 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
     Janet sym = janet_csymbolv(at->name);
-    Janet check = janet_table_get(janet_vm_abstract_registry, sym);
+    Janet check = janet_table_get(janet_vm.abstract_registry, sym);
     if (!janet_checktype(check, JANET_NIL) && at != janet_unwrap_pointer(check)) {
         janet_panicf("cannot register abstract type %s, "
                      "a type with the same name exists", at->name);
     }
-    janet_table_put(janet_vm_abstract_registry, sym, janet_wrap_pointer((void *) at));
+    janet_table_put(janet_vm.abstract_registry, sym, janet_wrap_pointer((void *) at));
 }
 
 const JanetAbstractType *janet_get_abstract_type(Janet key) {
-    Janet wrapped = janet_table_get(janet_vm_abstract_registry, key);
+    Janet wrapped = janet_table_get(janet_vm.abstract_registry, key);
     if (janet_checktype(wrapped, JANET_NIL)) {
         return NULL;
     }
@@ -473,7 +473,7 @@ void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
     Janet key = janet_csymbolv(name);
     janet_table_put(env, key, x);
     if (janet_checktype(x, JANET_CFUNCTION)) {
-        janet_table_put(janet_vm_registry, x, key);
+        janet_table_put(janet_vm.registry, x, key);
     }
 }
 

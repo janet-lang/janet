@@ -55,7 +55,7 @@ void janet_debug_find(
     JanetFuncDef **def_out, int32_t *pc_out,
     const uint8_t *source, int32_t sourceLine, int32_t sourceColumn) {
     /* Scan the heap for right func def */
-    JanetGCObject *current = janet_vm_blocks;
+    JanetGCObject *current = janet_vm.blocks;
     /* Keep track of the best source mapping we have seen so far */
     int32_t besti = -1;
     int32_t best_line = -1;
@@ -144,7 +144,7 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             } else {
                 JanetCFunction cfun = (JanetCFunction)(frame->pc);
                 if (cfun) {
-                    Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
+                    Janet name = janet_table_get(janet_vm.registry, janet_wrap_cfunction(cfun));
                     if (!janet_checktype(name, JANET_NIL))
                         janet_eprintf(" %s", (const char *)janet_to_string(name));
                     else
@@ -252,7 +252,7 @@ static Janet doframe(JanetStackFrame *frame) {
     } else {
         JanetCFunction cfun = (JanetCFunction)(frame->pc);
         if (cfun) {
-            Janet name = janet_table_get(janet_vm_registry, janet_wrap_cfunction(cfun));
+            Janet name = janet_table_get(janet_vm.registry, janet_wrap_cfunction(cfun));
             if (!janet_checktype(name, JANET_NIL)) {
                 janet_table_put(t, janet_ckeywordv("name"), name);
             }

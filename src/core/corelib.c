@@ -269,8 +269,8 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
 static Janet janet_core_dyn(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     Janet value;
-    if (janet_vm_fiber->env) {
-        value = janet_table_get(janet_vm_fiber->env, argv[0]);
+    if (janet_vm.fiber->env) {
+        value = janet_table_get(janet_vm.fiber->env, argv[0]);
     } else {
         value = janet_wrap_nil();
     }
@@ -282,10 +282,10 @@ static Janet janet_core_dyn(int32_t argc, Janet *argv) {
 
 static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    if (!janet_vm_fiber->env) {
-        janet_vm_fiber->env = janet_table(2);
+    if (!janet_vm.fiber->env) {
+        janet_vm.fiber->env = janet_table(2);
     }
-    janet_table_put(janet_vm_fiber->env, argv[0], argv[1]);
+    janet_table_put(janet_vm.fiber->env, argv[0], argv[1]);
     return argv[1];
 }
 
@@ -428,14 +428,14 @@ static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
         janet_panic("interval too large");
     }
 #endif
-    janet_vm_gc_interval = s;
+    janet_vm.gc_interval = s;
     return janet_wrap_nil();
 }
 
 static Janet janet_core_gcinterval(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_number((double) janet_vm_gc_interval);
+    return janet_wrap_number((double) janet_vm.gc_interval);
 }
 
 static Janet janet_core_type(int32_t argc, Janet *argv) {
@@ -1215,8 +1215,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     /* Memoize core env, ignoring replacements the second time around. */
-    if (NULL != janet_vm_core_env) {
-        return janet_vm_core_env;
+    if (NULL != janet_vm.core_env) {
+        return janet_vm.core_env;
     }
 
     JanetTable *dict = janet_core_lookup_table(replacements);
@@ -1232,7 +1232,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Memoize */
     janet_gcroot(marsh_out);
     JanetTable *env = janet_unwrap_table(marsh_out);
-    janet_vm_core_env = env;
+    janet_vm.core_env = env;
 
     /* Invert image dict manually here. We can't do this in boot.janet as it
      * breaks deterministic builds */
@@ -1265,7 +1265,7 @@ JanetTable *janet_core_lookup_table(JanetTable *replacements) {
             if (!janet_checktype(kv.key, JANET_NIL)) {
                 janet_table_put(dict, kv.key, kv.value);
                 if (janet_checktype(kv.value, JANET_CFUNCTION)) {
-                    janet_table_put(janet_vm_registry, kv.value, kv.key);
+                    janet_table_put(janet_vm.registry, kv.value, kv.key);
                 }
             }
         }

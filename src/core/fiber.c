@@ -57,7 +57,7 @@ static JanetFiber *fiber_alloc(int32_t capacity) {
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
-    janet_vm_next_collection += sizeof(Janet) * capacity;
+    janet_vm.next_collection += sizeof(Janet) * capacity;
     fiber->data = data;
     return fiber;
 }
@@ -121,7 +121,7 @@ void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
     }
     fiber->data = newData;
     fiber->capacity = n;
-    janet_vm_next_collection += sizeof(Janet) * diff;
+    janet_vm.next_collection += sizeof(Janet) * diff;
 }
 
 /* Grow fiber if needed */
@@ -255,7 +255,7 @@ static void janet_env_detach(JanetFuncEnv *env) {
         int32_t len = env->length;
         size_t s = sizeof(Janet) * (size_t) len;
         Janet *vmem = janet_malloc(s);
-        janet_vm_next_collection += (uint32_t) s;
+        janet_vm.next_collection += (uint32_t) s;
         if (NULL == vmem) {
             JANET_OUT_OF_MEMORY;
         }
@@ -442,11 +442,11 @@ JanetFiberStatus janet_fiber_status(JanetFiber *f) {
 }
 
 JanetFiber *janet_current_fiber(void) {
-    return janet_vm_fiber;
+    return janet_vm.fiber;
 }
 
 JanetFiber *janet_root_fiber(void) {
-    return janet_vm_root_fiber;
+    return janet_vm.root_fiber;
 }
 
 /* CFuns */
@@ -520,17 +520,17 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
                         fiber->flags |= JANET_FIBER_MASK_YIELD;
                         break;
                     case 'i':
-                        if (!janet_vm_fiber->env) {
-                            janet_vm_fiber->env = janet_table(0);
+                        if (!janet_vm.fiber->env) {
+                            janet_vm.fiber->env = janet_table(0);
                         }
-                        fiber->env = janet_vm_fiber->env;
+                        fiber->env = janet_vm.fiber->env;
                         break;
                     case 'p':
-                        if (!janet_vm_fiber->env) {
-                            janet_vm_fiber->env = janet_table(0);
+                        if (!janet_vm.fiber->env) {
+                            janet_vm.fiber->env = janet_table(0);
                         }
                         fiber->env = janet_table(0);
-                        fiber->env->proto = janet_vm_fiber->env;
+                        fiber->env->proto = janet_vm.fiber->env;
                         break;
                 }
             }
@@ -549,13 +549,13 @@ static Janet cfun_fiber_status(int32_t argc, Janet *argv) {
 static Janet cfun_fiber_current(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_fiber(janet_vm_fiber);
+    return janet_wrap_fiber(janet_vm.fiber);
 }
 
 static Janet cfun_fiber_root(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_fiber(janet_vm_root_fiber);
+    return janet_wrap_fiber(janet_vm.root_fiber);
 }
 
 static Janet cfun_fiber_maxstack(int32_t argc, Janet *argv) {

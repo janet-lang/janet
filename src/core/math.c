@@ -23,12 +23,11 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "state.h"
 #include "util.h"
 #endif
 
 #include <math.h>
-
-static JANET_THREAD_LOCAL JanetRNG janet_vm_rng = {0, 0, 0, 0, 0};
 
 static int janet_rng_get(void *p, Janet key, Janet *out);
 static Janet janet_rng_next(void *p, Janet key);
@@ -69,7 +68,7 @@ const JanetAbstractType janet_rng_type = {
 };
 
 JanetRNG *janet_default_rng(void) {
-    return &janet_vm_rng;
+    return &janet_vm.rng;
 }
 
 void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
@@ -217,7 +216,7 @@ static Janet janet_rng_next(void *p, Janet key) {
 static Janet janet_rand(int32_t argc, Janet *argv) {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_number(janet_rng_double(&janet_vm_rng));
+    return janet_wrap_number(janet_rng_double(&janet_vm.rng));
 }
 
 /* Seed the random number generator */
@@ -225,10 +224,10 @@ static Janet janet_srand(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 1);
     if (janet_checkint(argv[0])) {
         uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
-        janet_rng_seed(&janet_vm_rng, seed);
+        janet_rng_seed(&janet_vm.rng, seed);
     } else {
         JanetByteView bytes = janet_getbytes(argv, 0);
-        janet_rng_longseed(&janet_vm_rng, bytes.bytes, bytes.len);
+        janet_rng_longseed(&janet_vm.rng, bytes.bytes, bytes.len);
     }
     return janet_wrap_nil();
 }

@@ -3681,6 +3681,7 @@
      "src/core/regalloc.c"
      "src/core/run.c"
      "src/core/specials.c"
+     "src/core/state.c"
      "src/core/string.c"
      "src/core/strtod.c"
      "src/core/struct.c"

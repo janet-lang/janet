@@ -71,25 +71,15 @@ struct JanetMailbox {
 #define JANET_THREAD_CFUNCTIONS 0x4
 static const char janet_thread_flags[] = "hac";
 
-typedef struct {
-    JanetMailbox *original;
-    JanetMailbox *newbox;
-    uint64_t flags;
-} JanetMailboxPair;
-
-static JANET_THREAD_LOCAL JanetMailbox *janet_vm_mailbox = NULL;
-static JANET_THREAD_LOCAL JanetThread *janet_vm_thread_current = NULL;
-static JANET_THREAD_LOCAL JanetTable *janet_vm_thread_decode = NULL;
-
 static JanetTable *janet_thread_get_decode(void) {
-    if (janet_vm_thread_decode == NULL) {
-        janet_vm_thread_decode = janet_get_core_table("load-image-dict");
-        if (NULL == janet_vm_thread_decode) {
-            janet_vm_thread_decode = janet_table(0);
+    if (janet_vm.thread_decode == NULL) {
+        janet_vm.thread_decode = janet_get_core_table("load-image-dict");
+        if (NULL == janet_vm.thread_decode) {
+            janet_vm.thread_decode = janet_table(0);
         }
-        janet_gcroot(janet_wrap_table(janet_vm_thread_decode));
+        janet_gcroot(janet_wrap_table(janet_vm.thread_decode));
     }
-    return janet_vm_thread_decode;
+    return janet_vm.thread_decode;
 }
 
 static JanetMailbox *janet_mailbox_create(int refCount, uint16_t capacity) {
@@ -326,8 +316,8 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
     /* Hack to capture all panics from marshalling. This works because
      * we know janet_marshal won't mess with other essential global state. */
     jmp_buf buf;
-    jmp_buf *old_buf = janet_vm_jmp_buf;
-    janet_vm_jmp_buf = &buf;
+    jmp_buf *old_buf = janet_vm.signal_buf;
+    janet_vm.signal_buf = &buf;
     int32_t oldmcount = mailbox->messageCount;
 
     int ret = 0;
@@ -347,7 +337,7 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
     }
 
     /* Cleanup */
-    janet_vm_jmp_buf = old_buf;
+    janet_vm.signal_buf = old_buf;
     janet_mailbox_unlock(mailbox);
 
     /* Potentially wake up a blocked thread */
@@ -358,7 +348,7 @@ int janet_thread_send(JanetThread *thread, Janet msg, double timeout) {
 
 /* Returns 0 on successful message. Returns 1 if timedout */
 int janet_thread_receive(Janet *msg_out, double timeout) {
-    JanetMailbox *mailbox = janet_vm_mailbox;
+    JanetMailbox *mailbox = janet_vm.mailbox;
     janet_mailbox_lock(mailbox);
 
     /* For timeouts */
@@ -373,15 +363,15 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
             /* Hack to capture all panics from marshalling. This works because
              * we know janet_marshal won't mess with other essential global state. */
             jmp_buf buf;
-            jmp_buf *old_buf = janet_vm_jmp_buf;
-            janet_vm_jmp_buf = &buf;
+            jmp_buf *old_buf = janet_vm.signal_buf;
+            janet_vm.signal_buf = &buf;
 
             /* Handle errors */
             if (setjmp(buf)) {
                 /* Cleanup jmp_buf, return error.
                  * Do not ignore bad messages as before. */
-                janet_vm_jmp_buf = old_buf;
-                *msg_out = *janet_vm_return_reg;
+                janet_vm.signal_buf = old_buf;
+                *msg_out = *janet_vm.return_reg;
                 janet_mailbox_unlock(mailbox);
                 return 2;
             } else {
@@ -397,7 +387,7 @@ int janet_thread_receive(Janet *msg_out, double timeout) {
                 *msg_out = item;
 
                 /* Cleanup */
-                janet_vm_jmp_buf = old_buf;
+                janet_vm.signal_buf = old_buf;
                 janet_mailbox_unlock(mailbox);
 
                 /* Potentially wake up pending threads */
@@ -455,12 +445,12 @@ static int thread_worker(JanetMailboxPair *pair) {
     JanetFiber *fiber = NULL;
     Janet out;
 
-    /* Use the mailbox we were given */
-    janet_vm_mailbox = pair->newbox;
-    janet_mailbox_ref(pair->newbox, 1);
-
     /* Init VM */
     janet_init();
+
+    /* Use the mailbox we were given */
+    janet_vm.mailbox = pair->newbox;
+    janet_mailbox_ref(pair->newbox, 1);
 
     /* Get dictionaries for default encode/decode */
     JanetTable *encode;
@@ -468,8 +458,8 @@ static int thread_worker(JanetMailboxPair *pair) {
         encode = janet_get_core_table("make-image-dict");
     } else {
         encode = NULL;
-        janet_vm_thread_decode = janet_table(0);
-        janet_gcroot(janet_wrap_table(janet_vm_thread_decode));
+        janet_vm.thread_decode = janet_table(0);
+        janet_gcroot(janet_wrap_table(janet_vm.thread_decode));
     }
 
     /* Create parent thread */
@@ -482,9 +472,9 @@ static int thread_worker(JanetMailboxPair *pair) {
         int status = janet_thread_receive(&reg, INFINITY);
         if (status) goto error;
         if (!janet_checktype(reg, JANET_TABLE)) goto error;
-        janet_gcunroot(janet_wrap_table(janet_vm_abstract_registry));
-        janet_vm_abstract_registry = janet_unwrap_table(reg);
-        janet_gcroot(janet_wrap_table(janet_vm_abstract_registry));
+        janet_gcunroot(janet_wrap_table(janet_vm.abstract_registry));
+        janet_vm.abstract_registry = janet_unwrap_table(reg);
+        janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
     }
 
     /* Unmarshal the normal registry */
@@ -493,9 +483,9 @@ static int thread_worker(JanetMailboxPair *pair) {
         int status = janet_thread_receive(&reg, INFINITY);
         if (status) goto error;
         if (!janet_checktype(reg, JANET_TABLE)) goto error;
-        janet_gcunroot(janet_wrap_table(janet_vm_registry));
-        janet_vm_registry = janet_unwrap_table(reg);
-        janet_gcroot(janet_wrap_table(janet_vm_registry));
+        janet_gcunroot(janet_wrap_table(janet_vm.registry));
+        janet_vm.registry = janet_unwrap_table(reg);
+        janet_gcroot(janet_wrap_table(janet_vm.registry));
     }
 
     /* Unmarshal the function */
@@ -580,28 +570,26 @@ static int janet_thread_start_child(JanetMailboxPair *pair) {
  */
 
 void janet_threads_init(void) {
-    if (NULL == janet_vm_mailbox) {
-        janet_vm_mailbox = janet_mailbox_create(1, 10);
-    }
-    janet_vm_thread_decode = NULL;
-    janet_vm_thread_current = NULL;
+    janet_vm.mailbox = janet_mailbox_create(1, 10);
+    janet_vm.thread_decode = NULL;
+    janet_vm.thread_current = NULL;
 }
 
 void janet_threads_deinit(void) {
-    janet_mailbox_lock(janet_vm_mailbox);
-    janet_vm_mailbox->closed = 1;
-    janet_mailbox_ref_with_lock(janet_vm_mailbox, -1);
-    janet_vm_mailbox = NULL;
-    janet_vm_thread_current = NULL;
-    janet_vm_thread_decode = NULL;
+    janet_mailbox_lock(janet_vm.mailbox);
+    janet_vm.mailbox->closed = 1;
+    janet_mailbox_ref_with_lock(janet_vm.mailbox, -1);
+    janet_vm.mailbox = NULL;
+    janet_vm.thread_current = NULL;
+    janet_vm.thread_decode = NULL;
 }
 
 JanetThread *janet_thread_current(void) {
-    if (NULL == janet_vm_thread_current) {
-        janet_vm_thread_current = janet_make_thread(janet_vm_mailbox, janet_get_core_table("make-image-dict"));
-        janet_gcroot(janet_wrap_abstract(janet_vm_thread_current));
+    if (NULL == janet_vm.thread_current) {
+        janet_vm.thread_current = janet_make_thread(janet_vm.mailbox, janet_get_core_table("make-image-dict"));
+        janet_gcroot(janet_wrap_abstract(janet_vm.thread_current));
     }
-    return janet_vm_thread_current;
+    return janet_vm.thread_current;
 }
 
 /*
@@ -630,7 +618,7 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
         encode = NULL;
     }
 
-    JanetMailboxPair *pair = make_mailbox_pair(janet_vm_mailbox, flags);
+    JanetMailboxPair *pair = make_mailbox_pair(janet_vm.mailbox, flags);
     JanetThread *thread = janet_make_thread(pair->newbox, encode);
     if (janet_thread_start_child(pair)) {
         destroy_mailbox_pair(pair);
@@ -638,13 +626,13 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     }
 
     if (flags & JANET_THREAD_ABSTRACTS) {
-        if (janet_thread_send(thread, janet_wrap_table(janet_vm_abstract_registry), INFINITY)) {
+        if (janet_thread_send(thread, janet_wrap_table(janet_vm.abstract_registry), INFINITY)) {
             janet_panic("could not send abstract registry to thread");
         }
     }
 
     if (flags & JANET_THREAD_CFUNCTIONS) {
-        if (janet_thread_send(thread, janet_wrap_table(janet_vm_registry), INFINITY)) {
+        if (janet_thread_send(thread, janet_wrap_table(janet_vm.registry), INFINITY)) {
             janet_panic("could not send registry to thread");
         }
     }

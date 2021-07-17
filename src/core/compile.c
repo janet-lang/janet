@@ -944,10 +944,10 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 /* C Function for compiling */
 static Janet cfun(int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 4);
-    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm_fiber->env;
+    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm.fiber->env;
     if (NULL == env) {
         env = janet_table(0);
-        janet_vm_fiber->env = env;
+        janet_vm.fiber->env = env;
     }
     const uint8_t *source = NULL;
     if (argc >= 3) {

@@ -57,8 +57,6 @@
 #define JANET_FIBER_DID_LONGJUMP     0x8000000
 #define JANET_FIBER_FLAG_MASK        0xF000000
 
-extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
-
 #define janet_fiber_set_status(f, s) do {\
     (f)->flags &= ~JANET_FIBER_STATUS_MASK;\
     (f)->flags |= (s) << JANET_FIBER_STATUS_OFFSET;\

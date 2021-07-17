@@ -36,30 +36,25 @@
 
 #include <string.h>
 
-/* Cache state */
-JANET_THREAD_LOCAL const uint8_t **janet_vm_cache = NULL;
-JANET_THREAD_LOCAL uint32_t janet_vm_cache_capacity = 0;
-JANET_THREAD_LOCAL uint32_t janet_vm_cache_count = 0;
-JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted = 0;
-
 /* Initialize the cache (allocate cache memory) */
 void janet_symcache_init() {
-    janet_vm_cache_capacity = 1024;
-    janet_vm_cache = janet_calloc(1, (size_t) janet_vm_cache_capacity * sizeof(const uint8_t *));
-    if (NULL == janet_vm_cache) {
+    janet_vm.cache_capacity = 1024;
+    janet_vm.cache = janet_calloc(1, (size_t) janet_vm.cache_capacity * sizeof(const uint8_t *));
+    if (NULL == janet_vm.cache) {
         JANET_OUT_OF_MEMORY;
     }
-    janet_vm_cache_count = 0;
-    janet_vm_cache_deleted = 0;
+    memset(&janet_vm.gensym_counter, 0, sizeof(janet_vm.gensym_counter));
+    janet_vm.cache_count = 0;
+    janet_vm.cache_deleted = 0;
 }
 
 /* Deinitialize the cache (free the cache memory) */
 void janet_symcache_deinit() {
-    janet_free((void *)janet_vm_cache);
-    janet_vm_cache = NULL;
-    janet_vm_cache_capacity = 0;
-    janet_vm_cache_count = 0;
-    janet_vm_cache_deleted = 0;
+    janet_free((void *)janet_vm.cache);
+    janet_vm.cache = NULL;
+    janet_vm.cache_capacity = 0;
+    janet_vm.cache_count = 0;
+    janet_vm.cache_deleted = 0;
 }
 
 /* Mark an entry in the table as deleted. */
@@ -79,24 +74,24 @@ static const uint8_t **janet_symcache_findmem(
 
     /* We will search two ranges - index to the end,
      * and 0 to the index. */
-    index = (uint32_t)hash & (janet_vm_cache_capacity - 1);
+    index = (uint32_t)hash & (janet_vm.cache_capacity - 1);
     bounds[0] = index;
-    bounds[1] = janet_vm_cache_capacity;
+    bounds[1] = janet_vm.cache_capacity;
     bounds[2] = 0;
     bounds[3] = index;
     for (j = 0; j < 4; j += 2)
         for (i = bounds[j]; i < bounds[j + 1]; ++i) {
-            const uint8_t *test = janet_vm_cache[i];
+            const uint8_t *test = janet_vm.cache[i];
             /* Check empty spots */
             if (NULL == test) {
                 if (NULL == firstEmpty)
-                    firstEmpty = janet_vm_cache + i;
+                    firstEmpty = janet_vm.cache + i;
                 goto notfound;
             }
             /* Check for marked deleted */
             if (JANET_SYMCACHE_DELETED == test) {
                 if (firstEmpty == NULL)
-                    firstEmpty = janet_vm_cache + i;
+                    firstEmpty = janet_vm.cache + i;
                 continue;
             }
             if (janet_string_equalconst(test, str, len, hash)) {
@@ -104,10 +99,10 @@ static const uint8_t **janet_symcache_findmem(
                 *success = 1;
                 if (firstEmpty != NULL) {
                     *firstEmpty = test;
-                    janet_vm_cache[i] = JANET_SYMCACHE_DELETED;
+                    janet_vm.cache[i] = JANET_SYMCACHE_DELETED;
                     return firstEmpty;
                 }
-                return janet_vm_cache + i;
+                return janet_vm.cache + i;
             }
         }
 notfound:
@@ -121,15 +116,15 @@ notfound:
 /* Resize the cache. */
 static void janet_cache_resize(uint32_t newCapacity) {
     uint32_t i, oldCapacity;
-    const uint8_t **oldCache = janet_vm_cache;
+    const uint8_t **oldCache = janet_vm.cache;
     const uint8_t **newCache = janet_calloc(1, (size_t) newCapacity * sizeof(const uint8_t *));
     if (newCache == NULL) {
         JANET_OUT_OF_MEMORY;
     }
-    oldCapacity = janet_vm_cache_capacity;
-    janet_vm_cache = newCache;
-    janet_vm_cache_capacity = newCapacity;
-    janet_vm_cache_deleted = 0;
+    oldCapacity = janet_vm.cache_capacity;
+    janet_vm.cache = newCache;
+    janet_vm.cache_capacity = newCapacity;
+    janet_vm.cache_deleted = 0;
     /* Add all of the old cache entries back */
     for (i = 0; i < oldCapacity; ++i) {
         int status;
@@ -150,13 +145,13 @@ static void janet_cache_resize(uint32_t newCapacity) {
 
 /* Add an item to the cache */
 static void janet_symcache_put(const uint8_t *x, const uint8_t **bucket) {
-    if ((janet_vm_cache_count + janet_vm_cache_deleted) * 2 > janet_vm_cache_capacity) {
+    if ((janet_vm.cache_count + janet_vm.cache_deleted) * 2 > janet_vm.cache_capacity) {
         int status;
-        janet_cache_resize(janet_tablen((2 * janet_vm_cache_count + 1)));
+        janet_cache_resize(janet_tablen((2 * janet_vm.cache_count + 1)));
         bucket = janet_symcache_find(x, &status);
     }
     /* Add x to the cache */
-    janet_vm_cache_count++;
+    janet_vm.cache_count++;
     *bucket = x;
 }
 
@@ -165,8 +160,8 @@ void janet_symbol_deinit(const uint8_t *sym) {
     int status = 0;
     const uint8_t **bucket = janet_symcache_find(sym, &status);
     if (status) {
-        janet_vm_cache_count--;
-        janet_vm_cache_deleted++;
+        janet_vm.cache_count--;
+        janet_vm.cache_deleted++;
         *bucket = JANET_SYMCACHE_DELETED;
     }
 }
@@ -194,22 +189,19 @@ const uint8_t *janet_csymbol(const char *cstr) {
     return janet_symbol((const uint8_t *)cstr, (int32_t) strlen(cstr));
 }
 
-/* Store counter for genysm to avoid quadratic behavior */
-JANET_THREAD_LOCAL uint8_t gensym_counter[8] = {'_', '0', '0', '0', '0', '0', '0', 0};
-
 /* Increment the gensym buffer */
 static void inc_gensym(void) {
-    for (int i = sizeof(gensym_counter) - 2; i; i--) {
-        if (gensym_counter[i] == '9') {
-            gensym_counter[i] = 'a';
+    for (int i = sizeof(janet_vm.gensym_counter) - 2; i; i--) {
+        if (janet_vm.gensym_counter[i] == '9') {
+            janet_vm.gensym_counter[i] = 'a';
             break;
-        } else if (gensym_counter[i] == 'z') {
-            gensym_counter[i] = 'A';
+        } else if (janet_vm.gensym_counter[i] == 'z') {
+            janet_vm.gensym_counter[i] = 'A';
             break;
-        } else if (gensym_counter[i] == 'Z') {
-            gensym_counter[i] = '0';
+        } else if (janet_vm.gensym_counter[i] == 'Z') {
+            janet_vm.gensym_counter[i] = '0';
         } else {
-            gensym_counter[i]++;
+            janet_vm.gensym_counter[i]++;
             break;
         }
     }
@@ -227,19 +219,19 @@ const uint8_t *janet_symbol_gen(void) {
      * is enough for resolving collisions. */
     do {
         hash = janet_string_calchash(
-                   gensym_counter,
-                   sizeof(gensym_counter) - 1);
+                   janet_vm.gensym_counter,
+                   sizeof(janet_vm.gensym_counter) - 1);
         bucket = janet_symcache_findmem(
-                     gensym_counter,
-                     sizeof(gensym_counter) - 1,
+                     janet_vm.gensym_counter,
+                     sizeof(janet_vm.gensym_counter) - 1,
                      hash,
                      &status);
     } while (status && (inc_gensym(), 1));
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + sizeof(gensym_counter));
-    head->length = sizeof(gensym_counter) - 1;
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + sizeof(janet_vm.gensym_counter));
+    head->length = sizeof(janet_vm.gensym_counter) - 1;
     head->hash = hash;
     sym = (uint8_t *)(head->data);
-    memcpy(sym, gensym_counter, sizeof(gensym_counter));
+    memcpy(sym, janet_vm.gensym_counter, sizeof(janet_vm.gensym_counter));
     janet_symcache_put((const uint8_t *)sym, bucket);
     return (const uint8_t *)sym;
 }

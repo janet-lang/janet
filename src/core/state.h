@@ -25,75 +25,135 @@
 
 #include <stdint.h>
 
-/* The VM state. Rather than a struct that is passed
- * around, the vm state is global for simplicity. If
- * at some point a global state object, or context,
- * is required to be passed around, this is what would
- * be in it. However, thread local global variables for interpreter
- * state should allow easy multi-threading. */
+typedef int64_t JanetTimestamp;
 
-typedef struct JanetScratch JanetScratch;
+typedef struct JanetScratch {
+    JanetScratchFinalizer finalize;
+    long long mem[]; /* for proper alignment */
+} JanetScratch;
 
-/* Top level dynamic bindings */
-extern JANET_THREAD_LOCAL JanetTable *janet_vm_top_dyns;
-
-/* Cache the core environment */
-extern JANET_THREAD_LOCAL JanetTable *janet_vm_core_env;
-
-/* How many VM stacks have been entered */
-extern JANET_THREAD_LOCAL int janet_vm_stackn;
-
-/* The current running fiber on the current thread.
- * Set and unset by janet_run. */
-extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
-extern JANET_THREAD_LOCAL JanetFiber *janet_vm_root_fiber;
-
-/* The current pointer to the inner most jmp_buf. The current
- * return point for panics. */
-extern JANET_THREAD_LOCAL jmp_buf *janet_vm_jmp_buf;
-extern JANET_THREAD_LOCAL Janet *janet_vm_return_reg;
-
-/* The global registry for c functions. Used to store meta-data
- * along with otherwise bare c function pointers. */
-extern JANET_THREAD_LOCAL JanetTable *janet_vm_registry;
-
-/* Registry for abstract abstract types that can be marshalled.
- * We need this to look up the constructors when unmarshalling. */
-extern JANET_THREAD_LOCAL JanetTable *janet_vm_abstract_registry;
-
-/* Immutable value cache */
-extern JANET_THREAD_LOCAL const uint8_t **janet_vm_cache;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_capacity;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_count;
-extern JANET_THREAD_LOCAL uint32_t janet_vm_cache_deleted;
-
-/* Garbage collection */
-extern JANET_THREAD_LOCAL void *janet_vm_blocks;
-extern JANET_THREAD_LOCAL size_t janet_vm_gc_interval;
-extern JANET_THREAD_LOCAL size_t janet_vm_next_collection;
-extern JANET_THREAD_LOCAL size_t janet_vm_block_count;
-extern JANET_THREAD_LOCAL int janet_vm_gc_suspend;
-
-/* GC roots */
-extern JANET_THREAD_LOCAL Janet *janet_vm_roots;
-extern JANET_THREAD_LOCAL size_t janet_vm_root_count;
-extern JANET_THREAD_LOCAL size_t janet_vm_root_capacity;
-
-/* Scratch memory */
-extern JANET_THREAD_LOCAL JanetScratch **janet_scratch_mem;
-extern JANET_THREAD_LOCAL size_t janet_scratch_cap;
-extern JANET_THREAD_LOCAL size_t janet_scratch_len;
-
-/* Recursionless traversal of data structures */
 typedef struct {
     JanetGCObject *self;
     JanetGCObject *other;
     int32_t index;
     int32_t index2;
 } JanetTraversalNode;
-extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal;
-extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_top;
-extern JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_base;
+
+typedef struct {
+    int32_t capacity;
+    int32_t head;
+    int32_t tail;
+    void *data;
+} JanetQueue;
+
+typedef struct {
+    JanetTimestamp when;
+    JanetFiber *fiber;
+    JanetFiber *curr_fiber;
+    uint32_t sched_id;
+    int is_error;
+} JanetTimeout;
+
+typedef struct {
+    JanetMailbox *original;
+    JanetMailbox *newbox;
+    uint64_t flags;
+} JanetMailboxPair;
+
+struct JanetVM {
+    /* Top level dynamic bindings */
+    JanetTable *top_dyns;
+
+    /* Cache the core environment */
+    JanetTable *core_env;
+
+    /* How many VM stacks have been entered */
+    int stackn;
+
+    /* The current running fiber on the current thread.
+     * Set and unset by janet_run. */
+    JanetFiber *fiber;
+    JanetFiber *root_fiber;
+
+    /* The current pointer to the inner most jmp_buf. The current
+     * return point for panics. */
+    jmp_buf *signal_buf;
+    Janet *return_reg;
+
+    /* The global registry for c functions. Used to store meta-data
+     * along with otherwise bare c function pointers. */
+    JanetTable *registry;
+
+    /* Registry for abstract abstract types that can be marshalled.
+     * We need this to look up the constructors when unmarshalling. */
+    JanetTable *abstract_registry;
+
+    /* Immutable value cache */
+    const uint8_t **cache;
+    uint32_t cache_capacity;
+    uint32_t cache_count;
+    uint32_t cache_deleted;
+    uint8_t gensym_counter[8];
+
+    /* Garbage collection */
+    void *blocks;
+    size_t gc_interval;
+    size_t next_collection;
+    size_t block_count;
+    int gc_suspend;
+
+    /* GC roots */
+    Janet *roots;
+    size_t root_count;
+    size_t root_capacity;
+
+    /* Scratch memory */
+    JanetScratch **scratch_mem;
+    size_t scratch_cap;
+    size_t scratch_len;
+
+    /* Random number generator */
+    JanetRNG rng;
+
+    /* Traversal pointers */
+    JanetTraversalNode *traversal;
+    JanetTraversalNode *traversal_top;
+    JanetTraversalNode *traversal_base;
+
+    /* Threading */
+#ifndef JANET_SINGLE_THREADED
+    JanetMailbox *mailbox;
+    JanetThread *thread_current;
+    JanetTable *thread_decode;
+#endif
+
+    /* Event loop and scheduler globals */
+#ifdef JANET_EV
+    size_t tq_count;
+    size_t tq_capacity;
+    JanetQueue spawn;
+    JanetTimeout *tq;
+    JanetRNG ev_rng;
+    JanetListenerState **listeners;
+    size_t listener_count;
+    size_t listener_cap;
+    size_t extra_listeners;
+#ifdef JANET_WINDOWS
+    HANDLE iocp;
+#elif defined(JANET_EV_EPOLL)
+    JanetHandle selfpipe[2];
+    int epoll;
+    int timerfd;
+    int timer_enabled;
+#else
+    JanetHandle selfpipe[2];
+    struct pollfd *fds;
+#endif
+#endif
+
+};
+
+extern JANET_THREAD_LOCAL JanetVM janet_vm;
 
 /* Setup / teardown */
 #ifdef JANET_THREADS

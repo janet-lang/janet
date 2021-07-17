@@ -227,7 +227,7 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         }
         return;
         case JANET_CFUNCTION: {
-            Janet check = janet_table_get(janet_vm_registry, x);
+            Janet check = janet_table_get(janet_vm.registry, x);
             if (janet_checktype(check, JANET_SYMBOL)) {
                 janet_buffer_push_cstring(buffer, "<cfunction ");
                 janet_buffer_push_bytes(buffer,
