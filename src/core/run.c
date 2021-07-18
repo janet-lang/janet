@@ -108,3 +108,19 @@ int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Jan
     return janet_dobytes(env, (const uint8_t *)str, len, sourcePath, out);
 }
 
+/* Run a fiber to completion (use event loop if enabled). Return the status. */
+int janet_loop_fiber(JanetFiber *fiber) {
+    int status;
+#ifdef JANET_EV
+    janet_schedule(fiber, janet_wrap_nil());
+    janet_loop();
+    status = janet_fiber_status(fiber);
+#else
+    Janet out;
+    status = janet_continue(fiber, janet_wrap_nil(), &out);
+    if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
+        janet_stacktrace(fiber, out);
+    }
+#endif
+    return status;
+}

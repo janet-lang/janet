@@ -1424,8 +1424,12 @@ JANET_API JanetCompileResult janet_compile_lint(
 JANET_API JanetTable *janet_core_env(JanetTable *replacements);
 JANET_API JanetTable *janet_core_lookup_table(JanetTable *replacements);
 
+/* Execute strings */
 JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);
 JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
+
+/* Run the entrypoint of a wrapped program */
+JANET_API int janet_loop_fiber(JanetFiber *fiber);
 
 /* Number scanning */
 JANET_API int janet_scan_number(const uint8_t *str, int32_t len, double *out);
