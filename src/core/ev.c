@@ -72,6 +72,28 @@ typedef struct {
     int32_t limit;
 } JanetChannel;
 
+typedef struct {
+    JanetFiber *fiber;
+    Janet value;
+    JanetSignal sig;
+} JanetTask;
+
+/* Wrap return value by pairing it with the callback used to handle it
+ * in the main thread */
+typedef struct {
+    JanetEVGenericMessage msg;
+    JanetThreadedCallback cb;
+} JanetSelfPipeEvent;
+
+/* Structure used to initialize threads in the thread pool
+ * (same head structure as self pipe event)*/
+typedef struct {
+    JanetEVGenericMessage msg;
+    JanetThreadedCallback cb;
+    JanetThreadedSubroutine subr;
+    JanetHandle write_pipe;
+} JanetEVThreadInit;
+
 #define JANET_MAX_Q_CAPACITY 0x7FFFFFF
 
 static void janet_q_init(JanetQueue *q) {
@@ -126,14 +148,6 @@ static int janet_q_pop(JanetQueue *q, void *out, size_t itemsize) {
     q->head = q->head + 1 < q->capacity ? q->head + 1 : 0;
     return 0;
 }
-
-/* New fibers to spawn or resume */
-typedef struct JanetTask JanetTask;
-struct JanetTask {
-    JanetFiber *fiber;
-    Janet value;
-    JanetSignal sig;
-};
 
 /* Forward declaration */
 static void janet_unlisten(JanetListenerState *state);
@@ -904,22 +918,6 @@ void janet_loop(void) {
 /*
  * Self-pipe handling code.
  */
-
-/* Wrap return value by pairing it with the callback used to handle it
- * in the main thread */
-typedef struct {
-    JanetEVGenericMessage msg;
-    JanetThreadedCallback cb;
-} JanetSelfPipeEvent;
-
-/* Structure used to initialize threads in the thread pool
- * (same head structure as self pipe event)*/
-typedef struct {
-    JanetEVGenericMessage msg;
-    JanetThreadedCallback cb;
-    JanetThreadedSubroutine subr;
-    JanetHandle write_pipe;
-} JanetEVThreadInit;
 
 #ifdef JANET_WINDOWS
 
