@@ -150,7 +150,7 @@ static int janet_q_pop(JanetQueue *q, void *out, size_t itemsize) {
 }
 
 /* Forward declaration */
-static void janet_unlisten(JanetListenerState *state);
+static void janet_unlisten(JanetListenerState *state, int is_gc);
 
 /* Get current timestamp (millisecond precision) */
 static JanetTimestamp ts_now(void);
@@ -266,7 +266,7 @@ static JanetListenerState *janet_listen_impl(JanetStream *stream, JanetListener 
 
 /* Indicate we are no longer listening for an event. This
  * frees the memory of the state machine as well. */
-static void janet_unlisten_impl(JanetListenerState *state) {
+static void janet_unlisten_impl(JanetListenerState *state, int is_gc) {
     state->machine(state, JANET_ASYNC_EVENT_DEINIT);
     /* Remove state machine from poll list */
     JanetListenerState **iter = &(state->stream->state);
@@ -277,9 +277,11 @@ static void janet_unlisten_impl(JanetListenerState *state) {
     /* Remove mask */
     state->stream->_mask &= ~(state->_mask);
     /* Ensure fiber does not reference this state */
-    JanetFiber *fiber = state->fiber;
-    if (NULL != fiber && fiber->waiting == state) {
-        fiber->waiting = NULL;
+    if (!is_gc) {
+        JanetFiber *fiber = state->fiber;
+        if (NULL != fiber && fiber->waiting == state) {
+            fiber->waiting = NULL;
+        }
     }
     /* Untrack a listener for gc purposes */
     size_t index = state->_index;
@@ -308,22 +310,16 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
     return stream;
 }
 
-/* Called to clean up a stream */
-static int janet_stream_gc(void *p, size_t s) {
-    (void) s;
-    JanetStream *stream = (JanetStream *)p;
-    janet_stream_close(stream);
-    return 0;
-}
-
 /* Close a stream */
-void janet_stream_close(JanetStream *stream) {
+static void janet_stream_close_impl(JanetStream *stream, int is_gc) {
     if (stream->flags & JANET_STREAM_CLOSED) return;
     JanetListenerState *state = stream->state;
     while (NULL != state) {
-        state->machine(state, JANET_ASYNC_EVENT_CLOSE);
+        if (!is_gc) {
+            state->machine(state, JANET_ASYNC_EVENT_CLOSE);
+        }
         JanetListenerState *next_state = state->_next;
-        janet_unlisten(state);
+        janet_unlisten(state, is_gc);
         state = next_state;
     }
     stream->state = NULL;
@@ -340,6 +336,19 @@ void janet_stream_close(JanetStream *stream) {
 #else
     close(stream->handle);
 #endif
+}
+
+void janet_stream_close(JanetStream *stream) {
+    janet_stream_close_impl(stream, 0);
+}
+
+
+/* Called to clean up a stream */
+static int janet_stream_gc(void *p, size_t s) {
+    (void) s;
+    JanetStream *stream = (JanetStream *)p;
+    janet_stream_close_impl(stream, 1);
+    return 0;
 }
 
 /* Mark a stream for GC */
@@ -458,7 +467,7 @@ void janet_fiber_did_resume(JanetFiber *fiber) {
     /* Cancel any pending fibers */
     if (fiber->waiting) {
         fiber->waiting->machine(fiber->waiting, JANET_ASYNC_EVENT_CANCEL);
-        janet_unlisten(fiber->waiting);
+        janet_unlisten(fiber->waiting, 0);
     }
 }
 
@@ -978,8 +987,8 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
 }
 
 
-static void janet_unlisten(JanetListenerState *state) {
-    janet_unlisten_impl(state);
+static void janet_unlisten(JanetListenerState *state, int is_gc) {
+    janet_unlisten_impl(state, is_gc);
 }
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
@@ -1018,7 +1027,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
                     state->bytes = num_bytes_transfered;
                     JanetAsyncStatus status = state->machine(state, JANET_ASYNC_EVENT_COMPLETE);
                     if (status == JANET_ASYNC_STATUS_DONE) {
-                        janet_unlisten(state);
+                        janet_unlisten(state, 0);
                     }
                     break;
                 } else {
@@ -1061,14 +1070,14 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
         status = epoll_ctl(janet_vm.epoll, op, stream->handle, &ev);
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
-        janet_unlisten_impl(state);
+        janet_unlisten_impl(state, 0);
         janet_panicv(janet_ev_lasterr());
     }
     return state;
 }
 
 /* Tell system we are done listening for a certain event */
-static void janet_unlisten(JanetListenerState *state) {
+static void janet_unlisten(JanetListenerState *state, int is_gc) {
     JanetStream *stream = state->stream;
     if (!(stream->flags & JANET_STREAM_CLOSED)) {
         int is_last = (state->_next == NULL && stream->state == state);
@@ -1085,7 +1094,7 @@ static void janet_unlisten(JanetListenerState *state) {
         }
     }
     /* Destroy state machine and free memory */
-    janet_unlisten_impl(state);
+    janet_unlisten_impl(state, is_gc);
 }
 
 #define JANET_EPOLL_MAX_EVENTS 64
@@ -1142,7 +1151,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                         status2 == JANET_ASYNC_STATUS_DONE ||
                         status3 == JANET_ASYNC_STATUS_DONE ||
                         status4 == JANET_ASYNC_STATUS_DONE)
-                    janet_unlisten(state);
+                    janet_unlisten(state, 0);
                 state = next_state;
             }
         }
@@ -1220,9 +1229,9 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     return state;
 }
 
-static void janet_unlisten(JanetListenerState *state) {
+static void janet_unlisten(JanetListenerState *state, int is_gc) {
     janet_vm.fds[state->_index + 1] = janet_vm.fds[janet_vm.listener_count];
-    janet_unlisten_impl(state);
+    janet_unlisten_impl(state, is_gc);
 }
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
@@ -1270,7 +1279,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 status2 == JANET_ASYNC_STATUS_DONE ||
                 status3 == JANET_ASYNC_STATUS_DONE ||
                 status4 == JANET_ASYNC_STATUS_DONE)
-            janet_unlisten(state);
+            janet_unlisten(state, 0);
     }
 }
 
