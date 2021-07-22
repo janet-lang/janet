@@ -588,9 +588,14 @@
   ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) :yi)."
+  "A wrapper for making fibers that may yield multiple values (coroutine). Same as (fiber/new (fn [] ;body) :yi)."
   [& body]
   (tuple fiber/new (tuple 'fn '[] ;body) :yi))
+
+(defmacro fiber-fn
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) flags)."
+  [flags & body]
+  (tuple fiber/new (tuple 'fn '[] ;body) flags))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
