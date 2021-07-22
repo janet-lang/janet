@@ -311,6 +311,13 @@ static Janet cfun_table_clone(int32_t argc, Janet *argv) {
     return janet_wrap_table(janet_table_clone(table));
 }
 
+static Janet cfun_table_clear(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    JanetTable *table = janet_gettable(argv, 0);
+    janet_table_clear(table);
+    return janet_wrap_table(table);
+}
+
 static const JanetReg table_cfuns[] = {
     {
         "table/new", cfun_table_new,
@@ -349,6 +356,11 @@ static const JanetReg table_cfuns[] = {
         JDOC("(table/clone tab)\n\n"
              "Create a copy of a table. Updates to the new table will not change the old table, "
              "and vice versa.")
+    },
+    {
+        "table/clear", cfun_table_clear,
+        JDOC("(table/clear tab)\n\n"
+             "Remove all key-value pairs in a table and return the modified table `tab`.")
     },
     {NULL, NULL, NULL}
 };
