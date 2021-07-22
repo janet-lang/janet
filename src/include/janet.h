@@ -193,6 +193,11 @@ extern "C" {
 #define JANET_INT_TYPES
 #endif
 
+/* Enable or disable epoll on Linux */
+#if defined(JANET_LINUX) && !defined(JANET_EV_NO_EPOLL)
+#define JANET_EV_EPOLL
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
