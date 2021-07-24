@@ -1660,9 +1660,11 @@ JANET_API int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *i
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetVM *janet_vm_alloc(void);
+JANET_API JanetVM *janet_local_vm(void);
 JANET_API void janet_vm_free(JanetVM *vm);
 JANET_API void janet_vm_save(JanetVM *into);
 JANET_API void janet_vm_load(JanetVM *from);
+JANET_API void janet_interpreter_interrupt(JanetVM *vm);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);

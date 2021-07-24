@@ -111,6 +111,17 @@
         janet_panicf("expected %T, got %v", (TS), (X)); \
     } \
 } while (0)
+#ifdef JANET_NO_INTERPRETER_INTERRUPT
+#define vm_maybe_auto_suspend(COND)
+#else
+#define vm_maybe_auto_suspend(COND) do { \
+    if ((COND) && janet_vm.auto_suspend) { \
+        janet_vm.auto_suspend = 0; \
+        fiber->flags |= (JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP); \
+        vm_return(JANET_SIGNAL_EVENT, janet_wrap_nil()); \
+    } \
+} while (0)
+#endif
 
 /* Templates for certain patterns in opcodes */
 #define vm_binop_immediate(op)\
@@ -746,11 +757,13 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_JUMP)
     pc += DS;
+    vm_maybe_auto_suspend(DS < 0);
     vm_next();
 
     VM_OP(JOP_JUMP_IF)
     if (janet_truthy(stack[A])) {
         pc += ES;
+        vm_maybe_auto_suspend(ES < 0);
     } else {
         pc++;
     }
@@ -761,12 +774,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         pc++;
     } else {
         pc += ES;
+        vm_maybe_auto_suspend(ES < 0);
     }
     vm_next();
 
     VM_OP(JOP_JUMP_IF_NIL)
     if (janet_checktype(stack[A], JANET_NIL)) {
         pc += ES;
+        vm_maybe_auto_suspend(ES < 0);
     } else {
         pc++;
     }
@@ -777,6 +792,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         pc++;
     } else {
         pc += ES;
+        vm_maybe_auto_suspend(ES < 0);
     }
     vm_next();
 
@@ -950,6 +966,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_checkgc_pcnext();
 
     VM_OP(JOP_CALL) {
+        vm_maybe_auto_suspend(1);
         Janet callee = stack[E];
         if (fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
@@ -989,6 +1006,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     }
 
     VM_OP(JOP_TAILCALL) {
+        vm_maybe_auto_suspend(1);
         Janet callee = stack[D];
         if (fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
@@ -1035,6 +1053,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_RESUME) {
         Janet retreg;
+        vm_maybe_auto_suspend(1);
         vm_assert_type(stack[B], JANET_FIBER);
         JanetFiber *child = janet_unwrap_fiber(stack[B]);
         if (janet_check_can_resume(child, &retreg)) {
@@ -1518,6 +1537,9 @@ int janet_init(void) {
 
     /* Core env */
     janet_vm.core_env = NULL;
+
+    /* Auto suspension */
+    janet_vm.auto_suspend = 0;
 
     /* Dynamic bindings */
     janet_vm.top_dyns = NULL;
