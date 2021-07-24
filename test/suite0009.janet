@@ -105,6 +105,18 @@
   (file/close outfile)
   (os/rm "unique.txt"))
 
+# Ensure that the stream created by os/open works
+
+(assert-no-error "File writing 4.1"
+   (def outstream (os/open "unique.txt" :wct))
+   (defer (:close outstream)
+     (:write outstream "123\n")
+     (:write outstream "456\n"))
+   # Cast to string to enable comparison
+   (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
+   (os/rm "unique.txt"))
+     
+
 # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")

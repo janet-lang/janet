@@ -1838,6 +1838,16 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
             } else
 #endif
             {
+                // File handles in IOCP need to specify this if they are writing to the 
+                // ends of files, like how this is used here.
+                // If the underlying resource doesn't support seeking
+                // byte offsets, they will be ignored
+                // but this otherwise writes to the end of the file in question
+                // Right now, os/open streams aren't seekable, so this works.
+                // for more details see the lpOverlapped parameter in
+                // https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
+                state->overlapped.Offset = (DWORD) 0xFFFFFFFF;
+                state->overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
                 status = WriteFile(s->stream->handle, bytes, len, NULL, &state->overlapped);
                 if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
