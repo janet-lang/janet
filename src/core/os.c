@@ -1845,7 +1845,6 @@ static Janet os_open(int32_t argc, Janet *argv) {
             case 'W':
                 shareMode |= FILE_SHARE_WRITE;
                 break;
-                gg
             case 'H':
                 flagsAndAttributes |= FILE_ATTRIBUTE_HIDDEN;
                 break;
