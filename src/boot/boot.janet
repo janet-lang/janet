@@ -3616,6 +3616,9 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
+    # Fix directory separators on windows to make image identical between windows and non-windows
+    (when-let [sm (get flat :source-map)]
+      (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))
     (if (v :private)
       (put root-env k nil)
       (put root-env k flat)))
