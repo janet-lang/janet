@@ -307,12 +307,12 @@ static const JanetReg array_cfuns[] = {
     {
         "array/new-filled", cfun_array_new_filled,
         JDOC("(array/new-filled count &opt value)\n\n"
-             "Creates a new array of count elements, all set to value, which defaults to nil. Returns the new array.")
+             "Creates a new array of `count` elements, all set to `value`, which defaults to nil. Returns the new array.")
     },
     {
         "array/fill", cfun_array_fill,
         JDOC("(array/fill arr &opt value)\n\n"
-             "Replace all elements of an array with value (defaulting to nil) without changing the length of the array. "
+             "Replace all elements of an array with `value` (defaulting to nil) without changing the length of the array. "
              "Returns the modified array.")
     },
     {
@@ -334,7 +334,7 @@ static const JanetReg array_cfuns[] = {
     {
         "array/ensure", cfun_array_ensure,
         JDOC("(array/ensure arr capacity growth)\n\n"
-             "Ensures that the memory backing the array is large enough for capacity "
+             "Ensures that the memory backing the array is large enough for `capacity` "
              "items at the given rate of growth. Capacity and growth must be integers. "
              "If the backing capacity is already enough, then this function does nothing. "
              "Otherwise, the backing memory will be reallocated so that there is enough space.")
@@ -342,34 +342,34 @@ static const JanetReg array_cfuns[] = {
     {
         "array/slice", cfun_array_slice,
         JDOC("(array/slice arrtup &opt start end)\n\n"
-             "Takes a slice of array or tuple from start to end. The range is half open, "
-             "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-             "end of the array. By default, start is 0 and end is the length of the array. "
-             "Note that index -1 is synonymous with index (length arrtup) to allow a full "
+             "Takes a slice of array or tuple from `start` to `end`. The range is half open, "
+             "[start, end). Indexes can also be negative, indicating indexing from the "
+             "end of the array. By default, `start` is 0 and `end` is the length of the array. "
+             "Note that index -1 is synonymous with index `(length arrtup)` to allow a full "
              "negative slice range. Returns a new array.")
     },
     {
         "array/concat", cfun_array_concat,
         JDOC("(array/concat arr & parts)\n\n"
-             "Concatenates a variable number of arrays (and tuples) into the first argument "
+             "Concatenates a variable number of arrays (and tuples) into the first argument, "
              "which must be an array. If any of the parts are arrays or tuples, their elements will "
-             "be inserted into the array. Otherwise, each part in parts will be appended to arr in order. "
-             "Return the modified array arr.")
+             "be inserted into the array. Otherwise, each part in `parts` will be appended to `arr` in order. "
+             "Return the modified array `arr`.")
     },
     {
         "array/insert", cfun_array_insert,
         JDOC("(array/insert arr at & xs)\n\n"
-             "Insert all xs into array arr at index at. at should be an integer between "
-             "0 and the length of the array. A negative value for at will index backwards from "
+             "Insert all `xs` into array `arr` at index `at`. `at` should be an integer between "
+             "0 and the length of the array. A negative value for `at` will index backwards from "
              "the end of the array, such that inserting at -1 appends to the array. "
              "Returns the array.")
     },
     {
         "array/remove", cfun_array_remove,
         JDOC("(array/remove arr at &opt n)\n\n"
-             "Remove up to n elements starting at index at in array arr. at can index from "
-             "the end of the array with a negative index, and n must be a non-negative integer. "
-             "By default, n is 1. "
+             "Remove up to `n` elements starting at index `at` in array `arr`. `at` can index from "
+             "the end of the array with a negative index, and `n` must be a non-negative integer. "
+             "By default, `n` is 1. "
              "Returns the array.")
     },
     {
