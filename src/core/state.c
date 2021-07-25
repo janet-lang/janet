@@ -56,9 +56,6 @@ void janet_vm_load(JanetVM *from) {
  * exit the interpeter loop when convenient. You can optionally
  * use NULL to interrupt the current VM when convenient */
 void janet_interpreter_interrupt(JanetVM *vm) {
-    if (NULL == vm) {
-        janet_vm.auto_suspend = 1;
-    } else {
-        vm->auto_suspend = 1;
-    }
+    vm = vm ? vm : &janet_vm;
+    vm->auto_suspend = 1;
 }

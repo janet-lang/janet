@@ -411,6 +411,7 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
 
 /* Callback that is called in main thread when subroutine completes. */
 static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    janet_ev_dec_refcount();
     int status = args.argi;
     JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {

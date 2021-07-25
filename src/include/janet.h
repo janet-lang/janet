@@ -355,6 +355,7 @@ typedef enum {
 } JanetSignal;
 
 #define JANET_SIGNAL_EVENT JANET_SIGNAL_USER9
+#define JANET_SIGNAL_INTERRUPT JANET_SIGNAL_USER8
 
 /* Fiber statuses - mostly corresponds to signals. */
 typedef enum {
@@ -1281,6 +1282,31 @@ extern JANET_API const JanetAbstractType janet_stream_type;
 /* Run the event loop */
 JANET_API void janet_loop(void);
 
+/* Run the event loop, but allow for user scheduled interrupts triggered
+ * by janet_loop1_interrupt being called in library code, a signal handler, or
+ * another thread.
+ *
+ * Example:
+ *
+ * while (!janet_loop_done()) {
+ *   // One turn of the event loop
+ *   JanetFiber *interrupted_fiber = janet_loop1();
+ *   // interrupted_fiber may be NULL
+ *   // do some work here periodically...
+ *   if (NULL != interrupted_fiber) {
+ *     if (cancel_interrupted_fiber) {
+ *       janet_cancel(interrupted_fiber, janet_cstringv("fiber was interrupted for [reason]"));
+ *     } else {
+ *       janet_schedule(interrupted_fiber, janet_wrap_nil());
+ *     }
+ *   }
+ * }
+ *
+ */
+JANET_API int janet_loop_done(void);
+JANET_API JanetFiber *janet_loop1(void);
+JANET_API void janet_loop1_interrupt(JanetVM *vm);
+
 /* Wrapper around streams */
 JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
 JANET_API void janet_stream_close(JanetStream *stream);
@@ -1344,12 +1370,19 @@ typedef struct {
 /* Function pointer that is run in the thread pool */
 typedef JanetEVGenericMessage(*JanetThreadedSubroutine)(JanetEVGenericMessage arguments);
 
-/* Handler that is run in the main thread with the result of the JanetAsyncSubroutine */
+/* Handler for events posted to the event loop */
+typedef void (*JanetCallback)(JanetEVGenericMessage return_value);
+
+/* Handler that is run in the main thread with the result of the JanetAsyncSubroutine (same as JanetCallback) */
 typedef void (*JanetThreadedCallback)(JanetEVGenericMessage return_value);
 
 /* API calls for quickly offloading some work in C to a new thread or thread pool. */
 JANET_API void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb);
 JANET_NO_RETURN JANET_API void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp);
+
+/* Post callback + userdata to an event loop. Takes the vm parameter to allow posting from other
+ * threads or signal handlers. Use NULL to post to the current thread. */
+JANET_API void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage msg);
 
 /* Callback used by janet_ev_threaded_await */
 JANET_API void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value);
