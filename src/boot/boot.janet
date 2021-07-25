@@ -3048,10 +3048,10 @@
     (print-index identity)))
 
 (defmacro doc
-  `Shows documentation for the given symbol, or can show a list of available bindings.
-  If sym is a symbol, will look for documentation for that symbol. If sym is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment with
-  that prefix (all bindings will be shown if no prefix is given).`
+  ``Shows documentation for the given symbol, or can show a list of available bindings.
+  If `sym` is a symbol, will look for documentation for that symbol. If `sym` is a string
+  or is not provided, will show all lexical and dynamic bindings in the current environment
+  containing that string (all bindings will be shown if no string is given).``
   [&opt sym]
   ~(,doc* ',sym))
 
