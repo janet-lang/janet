@@ -403,6 +403,7 @@ typedef struct JanetKV JanetKV;
 typedef struct JanetStackFrame JanetStackFrame;
 typedef struct JanetAbstractType JanetAbstractType;
 typedef struct JanetReg JanetReg;
+typedef struct JanetRegExt JanetRegExt;
 typedef struct JanetMethod JanetMethod;
 typedef struct JanetSourceMapping JanetSourceMapping;
 typedef struct JanetView JanetView;
@@ -1093,6 +1094,14 @@ struct JanetReg {
     const char *documentation;
 };
 
+struct JanetRegExt {
+    const char *name;
+    JanetCFunction cfun;
+    const char *documentation;
+    const char *source_file;
+    int32_t source_line;
+};
+
 struct JanetMethod {
     const char *name;
     JanetCFunction cfun;
@@ -1749,6 +1758,54 @@ JANET_API Janet janet_resolve_core(const char *name);
 
 /* Shorthand for janet C function declarations */
 #define JANET_CFUN(name) Janet name (int32_t argc, Janet *argv)
+
+/* Declare a C function with documentation and source mapping */
+#define JANET_REG_END {NULL, NULL, NULL, NULL, 0}
+
+/* no docstrings or sourcemaps */
+#define JANET_REG_(JNAME, CNAME) {JNAME, CNAME, NULL, NULL, 0}
+#define JANET_FN_(CNAME, USAGE, DOCSTRING) \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* sourcemaps only */
+#define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
+#define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
+    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* docstring only */
+#define JANET_REG_D(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, NULL, 0}
+#define JANET_FN_D(CNAME, USAGE, DOCSTRING) \
+    static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* sourcemaps and docstrings */
+#define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
+#define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
+    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* Choose defaults for source mapping and docstring based on config defs */
+#if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_
+#define JANET_FN JANET_FN_
+#elif defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_D
+#define JANET_FN JANET_FN_D
+#elif !defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_S
+#define JANET_FN JANET_FN_S
+#elif !defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_SD
+#define JANET_FN JANET_FN_SD
+#endif
+
+/* Define things with source mapping information */
+JANET_API void janet_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
+JANET_API void janet_cfuns_ext_prefix(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
+JANET_API void janet_def_sm(JanetTable *env, const char *name, Janet val, const char *documentation, const char *source_file, int32_t source_line);
+JANET_API void janet_var_sm(JanetTable *env, const char *name, Janet val, const char *documentation, const char *source_file, int32_t source_line);
 
 /* Allow setting entry name for static libraries */
 #ifdef __cplusplus

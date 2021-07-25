@@ -90,11 +90,19 @@ Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 /* Inside the janet core, defining globals is different
  * at bootstrap time and normal runtime */
 #ifdef JANET_BOOTSTRAP
+#define JANET_CORE_REG JANET_REG
+#define JANET_CORE_FN JANET_FN
 #define janet_core_def janet_def
 #define janet_core_cfuns janet_cfuns
+#define janet_core_def_sm janet_def_sm
+#define janet_core_cfuns_ext janet_cfuns_ext
 #else
+#define JANET_CORE_REG JANET_REG_
+#define JANET_CORE_FN JANET_FN_
 void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p);
 void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
+void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl);
+void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
 #endif
 
 /* Clock gettime */
