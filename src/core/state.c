@@ -28,6 +28,10 @@
 
 JANET_THREAD_LOCAL JanetVM janet_vm;
 
+JanetVM *janet_local_vm(void) {
+    return &janet_vm;
+}
+
 JanetVM *janet_vm_alloc(void) {
     JanetVM *mem = janet_malloc(sizeof(JanetVM));
     if (NULL == mem) {
@@ -46,4 +50,12 @@ void janet_vm_save(JanetVM *into) {
 
 void janet_vm_load(JanetVM *from) {
     janet_vm = *from;
+}
+
+/* Trigger suspension of the Janet vm by trying to
+ * exit the interpeter loop when convenient. You can optionally
+ * use NULL to interrupt the current VM when convenient */
+void janet_interpreter_interrupt(JanetVM *vm) {
+    vm = vm ? vm : &janet_vm;
+    vm->auto_suspend = 1;
 }

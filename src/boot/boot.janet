@@ -1032,7 +1032,7 @@
   ret)
 
 (defn take
-  "Take first n elements in an indexed type. Returns new indexed instance."
+  "Take the first n elements of an indexed or bytes type. Returns a new tuple or string, respectively."
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1043,7 +1043,7 @@
   (f ind 0 end))
 
 (defn take-until
-  "Same as (take-while (complement pred) ind)."
+  "Same as `(take-while (complement pred) ind)`."
   [pred ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1053,13 +1053,14 @@
   (f ind 0 end))
 
 (defn take-while
-  `Given a predicate, take only elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array.`
+  `Given a predicate, take only elements from an indexed or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new tuple or string, respectively.`
   [pred ind]
   (take-until (complement pred) ind))
 
 (defn drop
-  "Drop first n elements in an indexed type. Returns new indexed instance."
+  ``Drop the first n elements in an indexed or bytes type. Returns a new tuple or string
+  instance, respectively.``
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1070,7 +1071,7 @@
   (f ind start -1))
 
 (defn drop-until
-  "Same as (drop-while (complement pred) ind)."
+  "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1080,8 +1081,8 @@
   (f ind start))
 
 (defn drop-while
-  `Given a predicate, remove elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array.`
+  `Given a predicate, remove elements from an indexed or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new tuple or string, respectively.`
   [pred ind]
   (drop-until (complement pred) ind))
 
@@ -3620,6 +3621,9 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
+    # Fix directory separators on windows to make image identical between windows and non-windows
+    (when-let [sm (get flat :source-map)]
+      (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))
     (if (v :private)
       (put root-env k nil)
       (put root-env k flat)))

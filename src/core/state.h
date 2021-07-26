@@ -72,6 +72,10 @@ struct JanetVM {
     /* How many VM stacks have been entered */
     int stackn;
 
+    /* If this flag is true, suspend on function calls and backwards jumps.
+     * When this occurs, this flag will be reset to 0. */
+    int auto_suspend;
+
     /* The current running fiber on the current thread.
      * Set and unset by janet_run. */
     JanetFiber *fiber;

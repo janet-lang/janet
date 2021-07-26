@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.17.0 - Unreleased
+- Add `JANET_FN` and `JANET_REG` macros to more easily define C functions that export their source mapping information.
+- Add `janet_interpreter_interupt` and `janet_loop1_interrupt` to interrupt the interpreter while running.
 - Add `table/clear`
 - Add build option to disable the threading library without disabling all threads.
 - Remove JPM from the main Janet distribution. Instead, JPM must be installed

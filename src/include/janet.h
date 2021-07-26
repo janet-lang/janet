@@ -355,6 +355,7 @@ typedef enum {
 } JanetSignal;
 
 #define JANET_SIGNAL_EVENT JANET_SIGNAL_USER9
+#define JANET_SIGNAL_INTERRUPT JANET_SIGNAL_USER8
 
 /* Fiber statuses - mostly corresponds to signals. */
 typedef enum {
@@ -402,6 +403,7 @@ typedef struct JanetKV JanetKV;
 typedef struct JanetStackFrame JanetStackFrame;
 typedef struct JanetAbstractType JanetAbstractType;
 typedef struct JanetReg JanetReg;
+typedef struct JanetRegExt JanetRegExt;
 typedef struct JanetMethod JanetMethod;
 typedef struct JanetSourceMapping JanetSourceMapping;
 typedef struct JanetView JanetView;
@@ -1092,6 +1094,14 @@ struct JanetReg {
     const char *documentation;
 };
 
+struct JanetRegExt {
+    const char *name;
+    JanetCFunction cfun;
+    const char *documentation;
+    const char *source_file;
+    int32_t source_line;
+};
+
 struct JanetMethod {
     const char *name;
     JanetCFunction cfun;
@@ -1281,6 +1291,31 @@ extern JANET_API const JanetAbstractType janet_stream_type;
 /* Run the event loop */
 JANET_API void janet_loop(void);
 
+/* Run the event loop, but allow for user scheduled interrupts triggered
+ * by janet_loop1_interrupt being called in library code, a signal handler, or
+ * another thread.
+ *
+ * Example:
+ *
+ * while (!janet_loop_done()) {
+ *   // One turn of the event loop
+ *   JanetFiber *interrupted_fiber = janet_loop1();
+ *   // interrupted_fiber may be NULL
+ *   // do some work here periodically...
+ *   if (NULL != interrupted_fiber) {
+ *     if (cancel_interrupted_fiber) {
+ *       janet_cancel(interrupted_fiber, janet_cstringv("fiber was interrupted for [reason]"));
+ *     } else {
+ *       janet_schedule(interrupted_fiber, janet_wrap_nil());
+ *     }
+ *   }
+ * }
+ *
+ */
+JANET_API int janet_loop_done(void);
+JANET_API JanetFiber *janet_loop1(void);
+JANET_API void janet_loop1_interrupt(JanetVM *vm);
+
 /* Wrapper around streams */
 JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
 JANET_API void janet_stream_close(JanetStream *stream);
@@ -1344,12 +1379,19 @@ typedef struct {
 /* Function pointer that is run in the thread pool */
 typedef JanetEVGenericMessage(*JanetThreadedSubroutine)(JanetEVGenericMessage arguments);
 
-/* Handler that is run in the main thread with the result of the JanetAsyncSubroutine */
+/* Handler for events posted to the event loop */
+typedef void (*JanetCallback)(JanetEVGenericMessage return_value);
+
+/* Handler that is run in the main thread with the result of the JanetAsyncSubroutine (same as JanetCallback) */
 typedef void (*JanetThreadedCallback)(JanetEVGenericMessage return_value);
 
 /* API calls for quickly offloading some work in C to a new thread or thread pool. */
 JANET_API void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage arguments, JanetThreadedCallback cb);
 JANET_NO_RETURN JANET_API void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp);
+
+/* Post callback + userdata to an event loop. Takes the vm parameter to allow posting from other
+ * threads or signal handlers. Use NULL to post to the current thread. */
+JANET_API void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage msg);
 
 /* Callback used by janet_ev_threaded_await */
 JANET_API void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value);
@@ -1660,9 +1702,11 @@ JANET_API int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *i
 JANET_API int janet_init(void);
 JANET_API void janet_deinit(void);
 JANET_API JanetVM *janet_vm_alloc(void);
+JANET_API JanetVM *janet_local_vm(void);
 JANET_API void janet_vm_free(JanetVM *vm);
 JANET_API void janet_vm_save(JanetVM *into);
 JANET_API void janet_vm_load(JanetVM *from);
+JANET_API void janet_interpreter_interrupt(JanetVM *vm);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
@@ -1714,6 +1758,54 @@ JANET_API Janet janet_resolve_core(const char *name);
 
 /* Shorthand for janet C function declarations */
 #define JANET_CFUN(name) Janet name (int32_t argc, Janet *argv)
+
+/* Declare a C function with documentation and source mapping */
+#define JANET_REG_END {NULL, NULL, NULL, NULL, 0}
+
+/* no docstrings or sourcemaps */
+#define JANET_REG_(JNAME, CNAME) {JNAME, CNAME, NULL, NULL, 0}
+#define JANET_FN_(CNAME, USAGE, DOCSTRING) \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* sourcemaps only */
+#define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
+#define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
+    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* docstring only */
+#define JANET_REG_D(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, NULL, 0}
+#define JANET_FN_D(CNAME, USAGE, DOCSTRING) \
+    static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* sourcemaps and docstrings */
+#define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
+#define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
+    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
+    static Janet CNAME (int32_t argc, Janet *argv)
+
+/* Choose defaults for source mapping and docstring based on config defs */
+#if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_
+#define JANET_FN JANET_FN_
+#elif defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_D
+#define JANET_FN JANET_FN_D
+#elif !defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_S
+#define JANET_FN JANET_FN_S
+#elif !defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
+#define JANET_REG JANET_REG_SD
+#define JANET_FN JANET_FN_SD
+#endif
+
+/* Define things with source mapping information */
+JANET_API void janet_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
+JANET_API void janet_cfuns_ext_prefix(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
+JANET_API void janet_def_sm(JanetTable *env, const char *name, Janet val, const char *documentation, const char *source_file, int32_t source_line);
+JANET_API void janet_var_sm(JanetTable *env, const char *name, Janet val, const char *documentation, const char *source_file, int32_t source_line);
 
 /* Allow setting entry name for static libraries */
 #ifdef __cplusplus

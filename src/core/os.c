@@ -353,6 +353,7 @@ static const JanetAbstractType ProcAT;
 #define JANET_PROC_OWNS_STDIN 16
 #define JANET_PROC_OWNS_STDOUT 32
 #define JANET_PROC_OWNS_STDERR 64
+#define JANET_PROC_ALLOW_ZOMBIE 128
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
@@ -410,6 +411,7 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
 
 /* Callback that is called in main thread when subroutine completes. */
 static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    janet_ev_dec_refcount();
     int status = args.argi;
     JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {
@@ -434,12 +436,14 @@ static int janet_proc_gc(void *p, size_t s) {
     JanetProc *proc = (JanetProc *) p;
 #ifdef JANET_WINDOWS
     if (!(proc->flags & JANET_PROC_CLOSED)) {
-        TerminateProcess(proc->pHandle, 1);
+        if (!(proc->flags & JANET_PROC_ALLOW_ZOMBIE)) {
+            TerminateProcess(proc->pHandle, 1);
+        }
         CloseHandle(proc->pHandle);
         CloseHandle(proc->tHandle);
     }
 #else
-    if (!(proc->flags & JANET_PROC_WAITED)) {
+    if (!(proc->flags & (JANET_PROC_WAITED | JANET_PROC_ALLOW_ZOMBIE))) {
         /* Kill and wait to prevent zombies */
         kill(proc->pid, SIGKILL);
         int status;
@@ -759,7 +763,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
-        flags = janet_getflags(argv, 1, "epx");
+        flags = janet_getflags(argv, 1, "epxd");
     }
 
     /* Get environment */
@@ -777,7 +781,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
     int pipe_errflag = 0; /* Track errors setting up pipes */
-    int pipe_owner_flags = 0;
+    int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
 
     /* Get optional redirections */
     if (argc > 2) {
@@ -2094,12 +2098,13 @@ static const JanetReg os_cfuns[] = {
         "os/execute", os_execute,
         JDOC("(os/execute args &opt flags env)\n\n"
              "Execute a program on the system and pass it string arguments. `flags` "
-             "is a keyword that modifies how the program will execute.\n\n"
+             "is a keyword that modifies how the program will execute.\n"
              "* :e - enables passing an environment to the program. Without :e, the "
-             "current environment is inherited.\n\n"
+             "current environment is inherited.\n"
              "* :p - allows searching the current PATH for the binary to execute. "
-             "Without this flag, binaries must use absolute paths.\n\n"
-             "* :x - raise error if exit code is non-zero.\n\n"
+             "Without this flag, binaries must use absolute paths.\n"
+             "* :x - raise error if exit code is non-zero.\n"
+             "* :d - Don't try and terminate the process on garbage collection (allow spawning zombies).\n"
              "`env` is a table or struct mapping environment variables to values. It can also "
              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
              "These arguments should be core/file values. "

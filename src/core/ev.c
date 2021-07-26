@@ -520,21 +520,6 @@ static Janet make_supervisor_event(const char *name, JanetFiber *fiber) {
     return janet_wrap_tuple(janet_tuple_n(tup, 2));
 }
 
-/* Run a top level task */
-static void run_one(JanetFiber *fiber, Janet value, JanetSignal sigin) {
-    fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
-    Janet res;
-    JanetSignal sig = janet_continue_signal(fiber, value, &res, sigin);
-    JanetChannel *chan = (JanetChannel *)(fiber->supervisor_channel);
-    if (NULL == chan) {
-        if (sig != JANET_SIGNAL_EVENT && sig != JANET_SIGNAL_YIELD) {
-            janet_stacktrace(fiber, res);
-        }
-    } else if (sig == JANET_SIGNAL_OK || (fiber->flags & (1 << sig))) {
-        janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig], fiber), 2);
-    }
-}
-
 /* Common init code */
 void janet_ev_init_common(void) {
     janet_q_init(&janet_vm.spawn);
@@ -864,7 +849,14 @@ static Janet janet_chanat_next(void *p, Janet key) {
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout);
 
-void janet_loop1(void) {
+int janet_loop_done(void) {
+    return !(janet_vm.listener_count ||
+            (janet_vm.spawn.head != janet_vm.spawn.tail) ||
+            janet_vm.tq_count ||
+            janet_vm.extra_listeners);
+}
+
+JanetFiber *janet_loop1(void) {
     /* Schedule expired timers */
     JanetTimeout to;
     JanetTimestamp now = ts_now();
@@ -899,7 +891,21 @@ void janet_loop1(void) {
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
-        run_one(task.fiber, task.value, task.sig);
+        task.fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
+        Janet res;
+        JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
+        JanetChannel *chan = (JanetChannel *)(task.fiber->supervisor_channel);
+        if (NULL == chan) {
+            if (sig != JANET_SIGNAL_EVENT && sig != JANET_SIGNAL_YIELD && sig != JANET_SIGNAL_INTERRUPT) {
+                janet_stacktrace(task.fiber, res);
+            }
+        } else if (sig == JANET_SIGNAL_OK || (task.fiber->flags & (1 << sig))) {
+            janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig], task.fiber), 2);
+        }
+        if (sig == JANET_SIGNAL_INTERRUPT) {
+            /* On interrupts, return the interrupted fiber immediately */
+            return task.fiber;
+        }
     }
 
     /* Poll for events */
@@ -916,11 +922,28 @@ void janet_loop1(void) {
             janet_loop1_impl(has_timeout, to.when);
         }
     }
+
+    /* No fiber was interrupted */
+    return NULL;
+}
+
+/* Same as janet_interpreter_interrupt, but will also
+ * break out of the event loop if waiting for an event
+ * (say, waiting for ev/sleep to finish). Does this by pushing
+ * an empty event to the event loop. */
+void janet_loop1_interrupt(JanetVM *vm) {
+    janet_interpreter_interrupt(vm);
+    JanetEVGenericMessage msg = {0};
+    JanetCallback cb = NULL;
+    janet_ev_post_event(vm, cb, msg);
 }
 
 void janet_loop(void) {
-    while (janet_vm.listener_count || (janet_vm.spawn.head != janet_vm.spawn.tail) || janet_vm.tq_count || janet_vm.extra_listeners) {
-        janet_loop1();
+    while (!janet_loop_done()) {
+        JanetFiber *interrupted_fiber = janet_loop1();
+        if (NULL != interrupted_fiber) {
+            janet_schedule(interrupted_fiber, janet_wrap_nil());
+        }
     }
 }
 
@@ -945,8 +968,9 @@ static void janet_ev_setup_selfpipe(void) {
 static void janet_ev_handle_selfpipe(void) {
     JanetSelfPipeEvent response;
     while (read(janet_vm.selfpipe[0], &response, sizeof(response)) > 0) {
-        response.cb(response.msg);
-        janet_ev_dec_refcount();
+        if (NULL != response.cb) {
+            response.cb(response.msg);
+        }
     }
 }
 
@@ -1014,9 +1038,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
         if (0 == completionKey) {
             /* Custom event */
             JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);
-            response->cb(response->msg);
+            if (NULL != response->cb) {
+                response->cb(response->msg);
+            }
             janet_free(response);
-            janet_ev_dec_refcount();
         } else {
             /* Normal event */
             JanetStream *stream = (JanetStream *) completionKey;
@@ -1311,6 +1336,45 @@ void janet_ev_deinit(void) {
  */
 
 /*
+ * Generic Callback system. Post a function pointer + data to the event loop (from another
+ * thread or even a signal handler). Allows posting events from another thread or signal handler.
+ */
+void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage msg) {
+    vm = vm ? vm : &janet_vm;
+#ifdef JANET_WINDOWS
+    JanetHandle iocp = vm->iocp;
+    JanetSelfPipeEvent *event = janet_malloc(sizeof(JanetSelfPipeEvent));
+    if (NULL == event) {
+        JANET_OUT_OF_MEMORY;
+    }
+    event->msg = msg;
+    event->cb = cb;
+    janet_assert(PostQueuedCompletionStatus(iocp,
+                sizeof(JanetSelfPipeEvent),
+                0,
+                (LPOVERLAPPED) event),
+            "failed to post completion event");
+#else
+    JanetSelfPipeEvent event;
+    event.msg = msg;
+    event.cb = cb;
+    int fd = vm->selfpipe;
+    /* handle a bit of back pressure before giving up. */
+    int tries = 4;
+    while (tries > 0) {
+        int status;
+        do {
+            status = write(fd, &event, sizeof(event));
+        } while (status == -1 && errno == EINTR);
+        if (status > 0) break;
+        sleep(1);
+        tries--;
+    }
+    janet_assert(tries > 0, "failed to write event to self-pipe");
+#endif
+}
+
+/*
  * Threaded calls
  */
 
@@ -1391,6 +1455,7 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
 
 /* Default callback for janet_ev_threaded_await. */
 void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
+    janet_ev_dec_refcount();
     if (return_value.fiber == NULL) {
         return;
     }
@@ -1808,6 +1873,18 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
             } else
 #endif
             {
+                /*
+                 * File handles in IOCP need to specify this if they are writing to the
+                 * ends of files, like how this is used here.
+                 * If the underlying resource doesn't support seeking
+                 * byte offsets, they will be ignored
+                 * but this otherwise writes to the end of the file in question
+                 * Right now, os/open streams aren't seekable, so this works.
+                 * for more details see the lpOverlapped parameter in
+                 * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
+                 */
+                state->overlapped.Offset = (DWORD) 0xFFFFFFFF;
+                state->overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
                 status = WriteFile(s->stream->handle, bytes, len, NULL, &state->overlapped);
                 if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
