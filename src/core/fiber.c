@@ -451,7 +451,10 @@ JanetFiber *janet_root_fiber(void) {
 
 /* CFuns */
 
-static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_getenv,
+              "(fiber/getenv fiber)",
+              "Gets the environment for a fiber. Returns nil if no such table is "
+              "set yet.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return fiber->env ?
@@ -459,7 +462,10 @@ static Janet cfun_fiber_getenv(int32_t argc, Janet *argv) {
            janet_wrap_nil();
 }
 
-static Janet cfun_fiber_setenv(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_setenv,
+              "(fiber/setenv fiber table)",
+              "Sets the environment table for a fiber. Set to nil to remove the current "
+              "environment.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     if (janet_checktype(argv[1], JANET_NIL)) {
@@ -470,7 +476,30 @@ static Janet cfun_fiber_setenv(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_new,
+              "(fiber/new func &opt sigmask)",
+              "Create a new fiber with function body func. Can optionally "
+              "take a set of signals to block from the current parent fiber "
+              "when called. The mask is specified as a keyword where each character "
+              "is used to indicate a signal to block. If the ev module is enabled, and "
+              "this fiber is used as an argument to `ev/go`, these \"blocked\" signals "
+              "will result in messages being sent to the supervisor channel. "
+              "The default sigmask is :y. "
+              "For example,\n\n"
+              "    (fiber/new myfun :e123)\n\n"
+              "blocks error signals and user signals 1, 2 and 3. The signals are "
+              "as follows:\n\n"
+              "* :a - block all signals\n"
+              "* :d - block debug signals\n"
+              "* :e - block error signals\n"
+              "* :t - block termination signals: error + user[0-4]\n"
+              "* :u - block user signals\n"
+              "* :y - block yield signals\n"
+              "* :0-9 - block a specific user signal\n\n"
+              "The sigmask argument also can take environment flags. If any mutually "
+              "exclusive flags are present, the last flag takes precedence.\n\n"
+              "* :i - inherit the environment from the current fiber\n"
+              "* :p - the environment table's prototype is the current environment table") {
     janet_arity(argc, 1, 2);
     JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
@@ -539,32 +568,53 @@ static Janet cfun_fiber_new(int32_t argc, Janet *argv) {
     return janet_wrap_fiber(fiber);
 }
 
-static Janet cfun_fiber_status(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_status,
+              "(fiber/status fib)",
+              "Get the status of a fiber. The status will be one of:\n\n"
+              "* :dead - the fiber has finished\n"
+              "* :error - the fiber has errored out\n"
+              "* :debug - the fiber is suspended in debug mode\n"
+              "* :pending - the fiber has been yielded\n"
+              "* :user(0-9) - the fiber is suspended by a user signal\n"
+              "* :alive - the fiber is currently running and cannot be resumed\n"
+              "* :new - the fiber has just been created and not yet run") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = janet_fiber_status(fiber);
     return janet_ckeywordv(janet_status_names[s]);
 }
 
-static Janet cfun_fiber_current(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_current,
+              "(fiber/current)",
+              "Returns the currently running fiber.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm.fiber);
 }
 
-static Janet cfun_fiber_root(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_root,
+              "(fiber/root)",
+              "Returns the current root fiber. The root fiber is the oldest ancestor "
+              "that does not have a parent.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm.root_fiber);
 }
 
-static Janet cfun_fiber_maxstack(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_maxstack,
+              "(fiber/maxstack fib)",
+              "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
+              "the fiber's stack is not allocated up front, the fiber will not allocated more "
+              "than this amount and will throw a stack-overflow error if more memory is needed. ") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return janet_wrap_integer(fiber->maxstack);
 }
 
-static Janet cfun_fiber_setmaxstack(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_setmaxstack,
+              "(fiber/setmaxstack fib maxstack)",
+              "Sets the maximum stack size in janet values for a fiber. By default, the "
+              "maximum stack size is usually 8192.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     int32_t maxs = janet_getinteger(argv, 1);
@@ -575,7 +625,9 @@ static Janet cfun_fiber_setmaxstack(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_fiber_can_resume(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_can_resume,
+              "(fiber/can-resume? fiber)",
+              "Check if a fiber is finished and cannot be resumed.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetFiberStatus s = janet_fiber_status(fiber);
@@ -589,101 +641,28 @@ static Janet cfun_fiber_can_resume(int32_t argc, Janet *argv) {
     return janet_wrap_boolean(!isFinished);
 }
 
-static Janet cfun_fiber_last_value(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_fiber_last_value,
+              "(fiber/last-value",
+              "Get the last value returned or signaled from the fiber.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return fiber->last_value;
 }
 
-static const JanetReg fiber_cfuns[] = {
-    {
-        "fiber/new", cfun_fiber_new,
-        JDOC("(fiber/new func &opt sigmask)\n\n"
-             "Create a new fiber with function body func. Can optionally "
-             "take a set of signals to block from the current parent fiber "
-             "when called. The mask is specified as a keyword where each character "
-             "is used to indicate a signal to block. If the ev module is enabled, and "
-             "this fiber is used as an argument to `ev/go`, these \"blocked\" signals "
-             "will result in messages being sent to the supervisor channel. "
-             "The default sigmask is :y. "
-             "For example,\n\n"
-             "    (fiber/new myfun :e123)\n\n"
-             "blocks error signals and user signals 1, 2 and 3. The signals are "
-             "as follows:\n\n"
-             "* :a - block all signals\n"
-             "* :d - block debug signals\n"
-             "* :e - block error signals\n"
-             "* :t - block termination signals: error + user[0-4]\n"
-             "* :u - block user signals\n"
-             "* :y - block yield signals\n"
-             "* :0-9 - block a specific user signal\n\n"
-             "The sigmask argument also can take environment flags. If any mutually "
-             "exclusive flags are present, the last flag takes precedence.\n\n"
-             "* :i - inherit the environment from the current fiber\n"
-             "* :p - the environment table's prototype is the current environment table")
-    },
-    {
-        "fiber/status", cfun_fiber_status,
-        JDOC("(fiber/status fib)\n\n"
-             "Get the status of a fiber. The status will be one of:\n\n"
-             "* :dead - the fiber has finished\n"
-             "* :error - the fiber has errored out\n"
-             "* :debug - the fiber is suspended in debug mode\n"
-             "* :pending - the fiber has been yielded\n"
-             "* :user(0-9) - the fiber is suspended by a user signal\n"
-             "* :alive - the fiber is currently running and cannot be resumed\n"
-             "* :new - the fiber has just been created and not yet run")
-    },
-    {
-        "fiber/root", cfun_fiber_root,
-        JDOC("(fiber/root)\n\n"
-             "Returns the current root fiber. The root fiber is the oldest ancestor "
-             "that does not have a parent.")
-    },
-    {
-        "fiber/current", cfun_fiber_current,
-        JDOC("(fiber/current)\n\n"
-             "Returns the currently running fiber.")
-    },
-    {
-        "fiber/maxstack", cfun_fiber_maxstack,
-        JDOC("(fiber/maxstack fib)\n\n"
-             "Gets the maximum stack size in janet values allowed for a fiber. While memory for "
-             "the fiber's stack is not allocated up front, the fiber will not allocated more "
-             "than this amount and will throw a stack-overflow error if more memory is needed. ")
-    },
-    {
-        "fiber/setmaxstack", cfun_fiber_setmaxstack,
-        JDOC("(fiber/setmaxstack fib maxstack)\n\n"
-             "Sets the maximum stack size in janet values for a fiber. By default, the "
-             "maximum stack size is usually 8192.")
-    },
-    {
-        "fiber/getenv", cfun_fiber_getenv,
-        JDOC("(fiber/getenv fiber)\n\n"
-             "Gets the environment for a fiber. Returns nil if no such table is "
-             "set yet.")
-    },
-    {
-        "fiber/setenv", cfun_fiber_setenv,
-        JDOC("(fiber/setenv fiber table)\n\n"
-             "Sets the environment table for a fiber. Set to nil to remove the current "
-             "environment.")
-    },
-    {
-        "fiber/can-resume?", cfun_fiber_can_resume,
-        JDOC("(fiber/can-resume? fiber)\n\n"
-             "Check if a fiber is finished and cannot be resumed.")
-    },
-    {
-        "fiber/last-value", cfun_fiber_last_value,
-        JDOC("(fiber/last-value\n\n"
-             "Get the last value returned or signaled from the fiber.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_fiber(JanetTable *env) {
-    janet_core_cfuns(env, NULL, fiber_cfuns);
+    JanetRegExt fiber_cfuns[] = {
+        JANET_CORE_REG("fiber/new", cfun_fiber_new),
+        JANET_CORE_REG("fiber/status", cfun_fiber_status),
+        JANET_CORE_REG("fiber/root", cfun_fiber_root),
+        JANET_CORE_REG("fiber/current", cfun_fiber_current),
+        JANET_CORE_REG("fiber/maxstack", cfun_fiber_maxstack),
+        JANET_CORE_REG("fiber/setmaxstack", cfun_fiber_setmaxstack),
+        JANET_CORE_REG("fiber/getenv", cfun_fiber_getenv),
+        JANET_CORE_REG("fiber/setenv", cfun_fiber_setenv),
+        JANET_CORE_REG("fiber/can-resume?", cfun_fiber_can_resume),
+        JANET_CORE_REG("fiber/last-value", cfun_fiber_last_value),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, fiber_cfuns);
 }
