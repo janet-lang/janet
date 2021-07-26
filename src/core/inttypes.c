@@ -193,12 +193,16 @@ Janet janet_wrap_u64(uint64_t x) {
     return janet_wrap_abstract(box);
 }
 
-static Janet cfun_it_s64_new(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_it_s64_new,
+              "(int/s64 value)",
+              "Create a boxed signed 64 bit integer from a string value.") {
     janet_fixarity(argc, 1);
     return janet_wrap_s64(janet_unwrap_s64(argv[0]));
 }
 
-static Janet cfun_it_u64_new(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_it_u64_new,
+              "(int/u64 value)",
+              "Create a boxed unsigned 64 bit integer from a string value.") {
     janet_fixarity(argc, 1);
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
@@ -505,23 +509,14 @@ static int it_u64_get(void *p, Janet key, Janet *out) {
     return janet_getmethod(janet_unwrap_keyword(key), it_u64_methods, out);
 }
 
-static const JanetReg it_cfuns[] = {
-    {
-        "int/s64", cfun_it_s64_new,
-        JDOC("(int/s64 value)\n\n"
-             "Create a boxed signed 64 bit integer from a string value.")
-    },
-    {
-        "int/u64", cfun_it_u64_new,
-        JDOC("(int/u64 value)\n\n"
-             "Create a boxed unsigned 64 bit integer from a string value.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_inttypes(JanetTable *env) {
-    janet_core_cfuns(env, NULL, it_cfuns);
+    JanetRegExt it_cfuns[] = {
+        JANET_CORE_REG("int/s64", cfun_it_s64_new),
+        JANET_CORE_REG("int/u64", cfun_it_u64_new),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, it_cfuns);
     janet_register_abstract_type(&janet_s64_type);
     janet_register_abstract_type(&janet_u64_type);
 }
