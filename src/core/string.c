@@ -606,7 +606,7 @@ JANET_CORE_FN(cfun_string_trimr,
 
 /* Module entry point */
 void janet_lib_string(JanetTable *env) {
-  JanetRegExt string_cfuns[] = {
+    JanetRegExt string_cfuns[] = {
         JANET_CORE_REG("string/slice", cfun_string_slice),
         JANET_CORE_REG("keyword/slice", cfun_keyword_slice),
         JANET_CORE_REG("symbol/slice", cfun_symbol_slice),

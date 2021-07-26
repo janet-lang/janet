@@ -1282,21 +1282,21 @@ static Janet parsernext(void *p, Janet key) {
 
 /* Load the library */
 void janet_lib_parse(JanetTable *env) {
-     JanetRegExt parse_cfuns[] = {
-         JANET_CORE_REG("parser/new", cfun_parse_parser),
-         JANET_CORE_REG("parser/clone", cfun_parse_clone),
-         JANET_CORE_REG("parser/has-more", cfun_parse_has_more),
-         JANET_CORE_REG("parser/produce", cfun_parse_produce),
-         JANET_CORE_REG("parser/consume", cfun_parse_consume),
-         JANET_CORE_REG("parser/byte", cfun_parse_byte),
-         JANET_CORE_REG("parser/error", cfun_parse_error),
-         JANET_CORE_REG("parser/status", cfun_parse_status),
-         JANET_CORE_REG("parser/flush", cfun_parse_flush),
-         JANET_CORE_REG("parser/state", cfun_parse_state),
-         JANET_CORE_REG("parser/where", cfun_parse_where),
-         JANET_CORE_REG("parser/eof", cfun_parse_eof),
-         JANET_CORE_REG("parser/insert", cfun_parse_insert),
-         JANET_REG_END
+    JanetRegExt parse_cfuns[] = {
+        JANET_CORE_REG("parser/new", cfun_parse_parser),
+        JANET_CORE_REG("parser/clone", cfun_parse_clone),
+        JANET_CORE_REG("parser/has-more", cfun_parse_has_more),
+        JANET_CORE_REG("parser/produce", cfun_parse_produce),
+        JANET_CORE_REG("parser/consume", cfun_parse_consume),
+        JANET_CORE_REG("parser/byte", cfun_parse_byte),
+        JANET_CORE_REG("parser/error", cfun_parse_error),
+        JANET_CORE_REG("parser/status", cfun_parse_status),
+        JANET_CORE_REG("parser/flush", cfun_parse_flush),
+        JANET_CORE_REG("parser/state", cfun_parse_state),
+        JANET_CORE_REG("parser/where", cfun_parse_where),
+        JANET_CORE_REG("parser/eof", cfun_parse_eof),
+        JANET_CORE_REG("parser/insert", cfun_parse_insert),
+        JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, parse_cfuns);
 }

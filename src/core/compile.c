@@ -982,8 +982,8 @@ JANET_CORE_FN(cfun,
 
 void janet_lib_compile(JanetTable *env) {
     JanetRegExt cfuns[] = {
-      JANET_CORE_REG("compile", cfun),
-      JANET_REG_END
+        JANET_CORE_REG("compile", cfun),
+        JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);
 }
