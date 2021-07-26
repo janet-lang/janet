@@ -851,9 +851,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout);
 
 int janet_loop_done(void) {
     return !(janet_vm.listener_count ||
-            (janet_vm.spawn.head != janet_vm.spawn.tail) ||
-            janet_vm.tq_count ||
-            janet_vm.extra_listeners);
+             (janet_vm.spawn.head != janet_vm.spawn.tail) ||
+             janet_vm.tq_count ||
+             janet_vm.extra_listeners);
 }
 
 JanetFiber *janet_loop1(void) {
@@ -1082,6 +1082,23 @@ static int make_epoll_events(int mask) {
     return events;
 }
 
+static void janet_epoll_sync_callback(JanetEVGenericMessage msg) {
+    JanetListenerState *state = msg.argp;
+    JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
+    JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
+    if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE)
+        status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+    if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE)
+        status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
+    if (status1 == JANET_ASYNC_STATUS_DONE ||
+            status2 == JANET_ASYNC_STATUS_DONE) {
+        janet_unlisten(state, 0);
+    } else {
+        /* Repost event */
+        janet_ev_post_event(NULL, janet_epoll_sync_callback, msg);
+    }
+}
+
 /* Wait for the next event */
 JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
     int is_first = !(stream->state);
@@ -1095,8 +1112,22 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
         status = epoll_ctl(janet_vm.epoll, op, stream->handle, &ev);
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
-        janet_unlisten_impl(state, 0);
-        janet_panicv(janet_ev_lasterr());
+        if (errno == EPERM) {
+            /* Couldn't add to event loop, so assume that it completes
+             * synchronously. In that case, fire the completion
+             * event manually, since this should be a read or write
+             * event to a file. So we just post a custom event to do the read/write
+             * asap. */
+            /* Use flag to indicate state is not registered in epoll */
+            state->_mask |= (1 << JANET_ASYNC_EVENT_COMPLETE);
+            JanetEVGenericMessage msg = {0};
+            msg.argp = state;
+            janet_ev_post_event(NULL, janet_epoll_sync_callback, msg);
+        } else {
+            /* Unexpected error */
+            janet_unlisten_impl(state, 0);
+            janet_panicv(janet_ev_lasterr());
+        }
     }
     return state;
 }
@@ -1105,17 +1136,20 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
 static void janet_unlisten(JanetListenerState *state, int is_gc) {
     JanetStream *stream = state->stream;
     if (!(stream->flags & JANET_STREAM_CLOSED)) {
-        int is_last = (state->_next == NULL && stream->state == state);
-        int op = is_last ? EPOLL_CTL_DEL : EPOLL_CTL_MOD;
-        struct epoll_event ev;
-        ev.events = make_epoll_events(stream->_mask & ~state->_mask);
-        ev.data.ptr = stream;
-        int status;
-        do {
-            status = epoll_ctl(janet_vm.epoll, op, stream->handle, &ev);
-        } while (status == -1 && errno == EINTR);
-        if (status == -1) {
-            janet_panicv(janet_ev_lasterr());
+        /* Use flag to indicate state is not registered in epoll */
+        if (!(state->_mask & (1 << JANET_ASYNC_EVENT_COMPLETE))) {
+            int is_last = (state->_next == NULL && stream->state == state);
+            int op = is_last ? EPOLL_CTL_DEL : EPOLL_CTL_MOD;
+            struct epoll_event ev;
+            ev.events = make_epoll_events(stream->_mask & ~state->_mask);
+            ev.data.ptr = stream;
+            int status;
+            do {
+                status = epoll_ctl(janet_vm.epoll, op, stream->handle, &ev);
+            } while (status == -1 && errno == EINTR);
+            if (status == -1) {
+                janet_panicv(janet_ev_lasterr());
+            }
         }
     }
     /* Destroy state machine and free memory */
@@ -1350,15 +1384,15 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
     event->msg = msg;
     event->cb = cb;
     janet_assert(PostQueuedCompletionStatus(iocp,
-                sizeof(JanetSelfPipeEvent),
-                0,
-                (LPOVERLAPPED) event),
-            "failed to post completion event");
+                                            sizeof(JanetSelfPipeEvent),
+                                            0,
+                                            (LPOVERLAPPED) event),
+                 "failed to post completion event");
 #else
     JanetSelfPipeEvent event;
     event.msg = msg;
     event.cb = cb;
-    int fd = vm->selfpipe;
+    int fd = vm->selfpipe[1];
     /* handle a bit of back pressure before giving up. */
     int tries = 4;
     while (tries > 0) {
