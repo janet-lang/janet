@@ -735,7 +735,7 @@ JANET_CORE_FN(cfun_channel_push,
 
 JANET_CORE_FN(cfun_channel_pop, 
         "(ev/take channel)",
-        "Write a value to a channel, suspending the current fiber if the channel is full."
+        "Read from a channel, suspending the current fiber if no value is available."
         ) {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
