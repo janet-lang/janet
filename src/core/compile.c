@@ -942,7 +942,14 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 }
 
 /* C Function for compiling */
-static Janet cfun(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun,
+              "(compile ast &opt env source lints)",
+              "Compiles an Abstract Syntax Tree (ast) into a function. "
+              "Pair the compile function with parsing functionality to implement "
+              "eval. Returns a new function and does not modify ast. Returns an error "
+              "struct with keys :line, :column, and :error if compilation fails. "
+              "If a `lints` array is given, linting messages will be appended to the array. "
+              "Each message will be a tuple of the form `(level line col message)`.") {
     janet_arity(argc, 1, 4);
     JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm.fiber->env;
     if (NULL == env) {
@@ -973,20 +980,10 @@ static Janet cfun(int32_t argc, Janet *argv) {
     }
 }
 
-static const JanetReg compile_cfuns[] = {
-    {
-        "compile", cfun,
-        JDOC("(compile ast &opt env source lints)\n\n"
-             "Compiles an Abstract Syntax Tree (ast) into a function. "
-             "Pair the compile function with parsing functionality to implement "
-             "eval. Returns a new function and does not modify ast. Returns an error "
-             "struct with keys :line, :column, and :error if compilation fails. "
-             "If a `lints` array is given, linting messages will be appended to the array. "
-             "Each message will be a tuple of the form `(level line col message)`.")
-    },
-    {NULL, NULL, NULL}
-};
-
 void janet_lib_compile(JanetTable *env) {
-    janet_core_cfuns(env, NULL, compile_cfuns);
+    JanetRegExt cfuns[] = {
+      JANET_CORE_REG("compile", cfun),
+      JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, cfuns);
 }
