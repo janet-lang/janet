@@ -832,7 +832,7 @@ static void fisher_yates_args(int32_t argc, Janet *argv) {
 }
 
 JANET_CORE_FN(cfun_channel_rchoice,
-        "ev/rselect",
+        "(ev/rselect & clauses)",
         "Similar to ev/select, but will try clauses in a random order for fairness."
         ) {
     fisher_yates_args(argc, argv);
@@ -2355,6 +2355,7 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/capacity", cfun_channel_capacity),
         JANET_CORE_REG("ev/count", cfun_channel_count),
         JANET_CORE_REG("ev/select", cfun_channel_choice),
+        JANET_CORE_REG("ev/rselect", cfun_channel_rchoice),
         JANET_CORE_REG("ev/chan", cfun_channel_new),
         JANET_CORE_REG("ev/go", cfun_ev_go),
         JANET_CORE_REG("ev/thread", cfun_ev_thread),
