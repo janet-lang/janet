@@ -596,13 +596,24 @@ JanetThread *janet_thread_current(void) {
  * Cfuns
  */
 
-static Janet cfun_thread_current(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_current,
+              "(thread/current)",
+              "Get the current running thread.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_abstract(janet_thread_current());
 }
 
-static Janet cfun_thread_new(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_new,
+              "(thread/new func &opt capacity flags)",
+              "Start a new thread that will start immediately. "
+              "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
+              "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
+              "Can optionally provide flags to the new thread - supported flags are:\n\n"
+              "* :h - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n\n"
+              "* :a - Allow sending over registered abstract types to the new thread\n\n"
+              "* :c - Send over cfunction information to the new thread.\n\n"
+              "Returns a handle to the new thread.") {
     janet_arity(argc, 1, 3);
     /* Just type checking */
     janet_getfunction(argv, 0);
@@ -645,7 +656,11 @@ static Janet cfun_thread_new(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(thread);
 }
 
-static Janet cfun_thread_send(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_send,
+              "(thread/send thread msgi &opt timeout)",
+              "Send a message to the thread. By default, the timeout is 1 second, but an optional timeout "
+              "in seconds can be provided. Use math/inf for no timeout. "
+              "Will throw an error if there is a problem sending the message.") {
     janet_arity(argc, 2, 3);
     JanetThread *thread = janet_getthread(argv, 0);
     int status = janet_thread_send(thread, argv[1], janet_optnumber(argv, argc, 2, 1.0));
@@ -660,7 +675,12 @@ static Janet cfun_thread_send(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_receive,
+              "(thread/receive &opt timeout)",
+              "Get a message sent to this thread. If timeout (in seconds) is provided, an error "
+              "will be thrown after the timeout has elapsed but "
+              "no messages are received. The default timeout is 1 second, and math/inf cam be passed to "
+              "turn off the timeout.") {
     janet_arity(argc, 0, 1);
     double wait = janet_optnumber(argv, argc, 0, 1.0);
     Janet out;
@@ -676,14 +696,20 @@ static Janet cfun_thread_receive(int32_t argc, Janet *argv) {
     return out;
 }
 
-static Janet cfun_thread_close(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_close,
+              "(thread/close thread)",
+              "Close a thread, unblocking it and ending communication with it. Note that closing "
+              "a thread is idempotent and does not cancel the thread's operation. Returns nil.") {
     janet_fixarity(argc, 1);
     JanetThread *thread = janet_getthread(argv, 0);
     janet_close_thread(thread);
     return janet_wrap_nil();
 }
 
-static Janet cfun_thread_exit(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_thread_exit,
+              "(thread/exit &opt code)",
+              "Exit from the current thread. If no more threads are running, ends the process, but otherwise does "
+              "not end the current process.") {
     (void) argv;
     janet_arity(argc, 0, 1);
 #if defined(JANET_WINDOWS)
@@ -712,57 +738,18 @@ static Janet janet_thread_next(void *p, Janet key) {
     return janet_nextmethod(janet_thread_methods, key);
 }
 
-static const JanetReg threadlib_cfuns[] = {
-    {
-        "thread/current", cfun_thread_current,
-        JDOC("(thread/current)\n\n"
-             "Get the current running thread.")
-    },
-    {
-        "thread/new", cfun_thread_new,
-        JDOC("(thread/new func &opt capacity flags)\n\n"
-             "Start a new thread that will start immediately. "
-             "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
-             "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
-             "Can optionally provide flags to the new thread - supported flags are:\n\n"
-             "* :h - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n\n"
-             "* :a - Allow sending over registered abstract types to the new thread\n\n"
-             "* :c - Send over cfunction information to the new thread.\n\n"
-             "Returns a handle to the new thread.")
-    },
-    {
-        "thread/send", cfun_thread_send,
-        JDOC("(thread/send thread msgi &opt timeout)\n\n"
-             "Send a message to the thread. By default, the timeout is 1 second, but an optional timeout "
-             "in seconds can be provided. Use math/inf for no timeout. "
-             "Will throw an error if there is a problem sending the message.")
-    },
-    {
-        "thread/receive", cfun_thread_receive,
-        JDOC("(thread/receive &opt timeout)\n\n"
-             "Get a message sent to this thread. If timeout (in seconds) is provided, an error "
-             "will be thrown after the timeout has elapsed but "
-             "no messages are received. The default timeout is 1 second, and math/inf cam be passed to "
-             "turn off the timeout.")
-    },
-    {
-        "thread/close", cfun_thread_close,
-        JDOC("(thread/close thread)\n\n"
-             "Close a thread, unblocking it and ending communication with it. Note that closing "
-             "a thread is idempotent and does not cancel the thread's operation. Returns nil.")
-    },
-    {
-        "thread/exit", cfun_thread_exit,
-        JDOC("(thread/exit &opt code)\n\n"
-             "Exit from the current thread. If no more threads are running, ends the process, but otherwise does "
-             "not end the current process.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_thread(JanetTable *env) {
-    janet_core_cfuns(env, NULL, threadlib_cfuns);
+    JanetRegExt threadlib_cfuns[] = {
+        JANET_CORE_REG("thread/current", cfun_thread_current),
+        JANET_CORE_REG("thread/new", cfun_thread_new),
+        JANET_CORE_REG("thread/send", cfun_thread_send),
+        JANET_CORE_REG("thread/receive", cfun_thread_receive),
+        JANET_CORE_REG("thread/close", cfun_thread_close),
+        JANET_CORE_REG("thread/exit", cfun_thread_exit),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, threadlib_cfuns);
     janet_register_abstract_type(&janet_thread_type);
 }
 

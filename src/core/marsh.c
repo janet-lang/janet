@@ -1391,13 +1391,24 @@ Janet janet_unmarshal(
 
 /* C functions */
 
-static Janet cfun_env_lookup(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_env_lookup,
+              "(env-lookup env)",
+              "Creates a forward lookup table for unmarshalling from an environment. "
+              "To create a reverse lookup table, use the invert function to swap keys "
+              "and values in the returned table.") {
     janet_fixarity(argc, 1);
     JanetTable *env = janet_gettable(argv, 0);
     return janet_wrap_table(janet_env_lookup(env));
 }
 
-static Janet cfun_marshal(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_marshal,
+              "(marshal x &opt reverse-lookup buffer)",
+              "Marshal a value into a buffer and return the buffer. The buffer "
+              "can then later be unmarshalled to reconstruct the initial value. "
+              "Optionally, one can pass in a reverse lookup table to not marshal "
+              "aliased values that are found in the table. Then a forward "
+              "lookup table can be used to recover the original value when "
+              "unmarshalling.") {
     janet_arity(argc, 1, 3);
     JanetBuffer *buffer;
     JanetTable *rreg = NULL;
@@ -1413,7 +1424,11 @@ static Janet cfun_marshal(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
-static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_unmarshal,
+              "(unmarshal buffer &opt lookup)",
+              "Unmarshal a value from a buffer. An optional lookup table "
+              "can be provided to allow for aliases to be resolved. Returns the value "
+              "unmarshalled from the buffer.") {
     janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetTable *reg = NULL;
@@ -1423,35 +1438,13 @@ static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
     return janet_unmarshal(view.bytes, (size_t) view.len, 0, reg, NULL);
 }
 
-static const JanetReg marsh_cfuns[] = {
-    {
-        "marshal", cfun_marshal,
-        JDOC("(marshal x &opt reverse-lookup buffer)\n\n"
-             "Marshal a value into a buffer and return the buffer. The buffer "
-             "can then later be unmarshalled to reconstruct the initial value. "
-             "Optionally, one can pass in a reverse lookup table to not marshal "
-             "aliased values that are found in the table. Then a forward "
-             "lookup table can be used to recover the original value when "
-             "unmarshalling.")
-    },
-    {
-        "unmarshal", cfun_unmarshal,
-        JDOC("(unmarshal buffer &opt lookup)\n\n"
-             "Unmarshal a value from a buffer. An optional lookup table "
-             "can be provided to allow for aliases to be resolved. Returns the value "
-             "unmarshalled from the buffer.")
-    },
-    {
-        "env-lookup", cfun_env_lookup,
-        JDOC("(env-lookup env)\n\n"
-             "Creates a forward lookup table for unmarshalling from an environment. "
-             "To create a reverse lookup table, use the invert function to swap keys "
-             "and values in the returned table.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_marsh(JanetTable *env) {
-    janet_core_cfuns(env, NULL, marsh_cfuns);
+    JanetRegExt marsh_cfuns[] = {
+        JANET_CORE_REG("marshal", cfun_marshal),
+        JANET_CORE_REG("unmarshal", cfun_unmarshal),
+        JANET_CORE_REG("env-lookup", cfun_env_lookup),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, marsh_cfuns);
 }

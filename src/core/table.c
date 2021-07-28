@@ -268,13 +268,21 @@ void janet_table_merge_struct(JanetTable *table, const JanetKV *other) {
 
 /* C Functions */
 
-static Janet cfun_table_new(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_new,
+              "(table/new capacity)",
+              "Creates a new empty table with pre-allocated memory "
+              "for capacity entries. This means that if one knows the number of "
+              "entries going to go in a table on creation, extra memory allocation "
+              "can be avoided. Returns the new table.") {
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
 
-static Janet cfun_table_getproto(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_getproto,
+              "(table/getproto tab)",
+              "Get the prototype table of a table. Returns nil if a table "
+              "has no prototype, otherwise returns the prototype.") {
     janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return t->proto
@@ -282,7 +290,9 @@ static Janet cfun_table_getproto(int32_t argc, Janet *argv) {
            : janet_wrap_nil();
 }
 
-static Janet cfun_table_setproto(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_setproto,
+              "(table/setproto tab proto)",
+              "Set the prototype of a table. Returns the original table tab.") {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     JanetTable *proto = NULL;
@@ -293,79 +303,54 @@ static Janet cfun_table_setproto(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_table_tostruct(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_tostruct,
+              "(table/to-struct tab)",
+              "Convert a table to a struct. Returns a new struct. This function "
+              "does not take into account prototype tables.") {
     janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
     return janet_wrap_struct(janet_table_to_struct(t));
 }
 
-static Janet cfun_table_rawget(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_rawget,
+              "(table/rawget tab key)",
+              "Gets a value from a table without looking at the prototype table. "
+              "If a table tab does not contain t directly, the function will return "
+              "nil without checking the prototype. Returns the value in the table.") {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     return janet_table_rawget(table, argv[1]);
 }
 
-static Janet cfun_table_clone(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_clone,
+              "(table/clone tab)",
+              "Create a copy of a table. Updates to the new table will not change the old table, "
+              "and vice versa.") {
     janet_fixarity(argc, 1);
     JanetTable *table = janet_gettable(argv, 0);
     return janet_wrap_table(janet_table_clone(table));
 }
 
-static Janet cfun_table_clear(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_table_clear,
+              "(table/clear tab)",
+              "Remove all key-value pairs in a table and return the modified table `tab`.") {
     janet_fixarity(argc, 1);
     JanetTable *table = janet_gettable(argv, 0);
     janet_table_clear(table);
     return janet_wrap_table(table);
 }
 
-static const JanetReg table_cfuns[] = {
-    {
-        "table/new", cfun_table_new,
-        JDOC("(table/new capacity)\n\n"
-             "Creates a new empty table with pre-allocated memory "
-             "for capacity entries. This means that if one knows the number of "
-             "entries going to go in a table on creation, extra memory allocation "
-             "can be avoided. Returns the new table.")
-    },
-    {
-        "table/to-struct", cfun_table_tostruct,
-        JDOC("(table/to-struct tab)\n\n"
-             "Convert a table to a struct. Returns a new struct. This function "
-             "does not take into account prototype tables.")
-    },
-    {
-        "table/getproto", cfun_table_getproto,
-        JDOC("(table/getproto tab)\n\n"
-             "Get the prototype table of a table. Returns nil if a table "
-             "has no prototype, otherwise returns the prototype.")
-    },
-    {
-        "table/setproto", cfun_table_setproto,
-        JDOC("(table/setproto tab proto)\n\n"
-             "Set the prototype of a table. Returns the original table tab.")
-    },
-    {
-        "table/rawget", cfun_table_rawget,
-        JDOC("(table/rawget tab key)\n\n"
-             "Gets a value from a table without looking at the prototype table. "
-             "If a table tab does not contain t directly, the function will return "
-             "nil without checking the prototype. Returns the value in the table.")
-    },
-    {
-        "table/clone", cfun_table_clone,
-        JDOC("(table/clone tab)\n\n"
-             "Create a copy of a table. Updates to the new table will not change the old table, "
-             "and vice versa.")
-    },
-    {
-        "table/clear", cfun_table_clear,
-        JDOC("(table/clear tab)\n\n"
-             "Remove all key-value pairs in a table and return the modified table `tab`.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the table module */
 void janet_lib_table(JanetTable *env) {
-    janet_core_cfuns(env, NULL, table_cfuns);
+    JanetRegExt table_cfuns[] = {
+        JANET_CORE_REG("table/new", cfun_table_new),
+        JANET_CORE_REG("table/to-struct", cfun_table_tostruct),
+        JANET_CORE_REG("table/getproto", cfun_table_getproto),
+        JANET_CORE_REG("table/setproto", cfun_table_setproto),
+        JANET_CORE_REG("table/rawget", cfun_table_rawget),
+        JANET_CORE_REG("table/clone", cfun_table_clone),
+        JANET_CORE_REG("table/clear", cfun_table_clear),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, table_cfuns);
 }

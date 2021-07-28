@@ -553,7 +553,8 @@ void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cf
 }
 
 void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl) {
-    (void) sf, sl;
+    (void) sf;
+    (void) sl;
     janet_core_def(env, name, x, p);
 }
 

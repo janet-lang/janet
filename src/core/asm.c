@@ -943,11 +943,11 @@ Janet janet_disasm(JanetFuncDef *def) {
 }
 
 JANET_CORE_FN(cfun_asm,
-        "(asm assembly)",
-        "Returns a new function that is the compiled result of the assembly.\n"
-        "The syntax for the assembly can be found on the Janet website, and should correspond\n"
-        "to the return value of disasm. Will throw an\n"
-        "error on invalid assembly.") {
+              "(asm assembly)",
+              "Returns a new function that is the compiled result of the assembly.\n"
+              "The syntax for the assembly can be found on the Janet website, and should correspond\n"
+              "to the return value of disasm. Will throw an\n"
+              "error on invalid assembly.") {
     janet_fixarity(argc, 1);
     JanetAssembleResult res;
     res = janet_asm(argv[0], 0);
@@ -958,23 +958,23 @@ JANET_CORE_FN(cfun_asm,
 }
 
 JANET_CORE_FN(cfun_disasm,
-        "(disasm func &opt field)",
-        "Returns assembly that could be used to compile the given function. "
-        "func must be a function, not a c function. Will throw on error on a badly "
-        "typed argument. If given a field name, will only return that part of the function assembly. "
-        "Possible fields are:\n\n"
-        "* :arity - number of required and optional arguments.\n"
-        "* :min-arity - minimum number of arguments function can be called with.\n"
-        "* :max-arity - maximum number of arguments function can be called with.\n"
-        "* :vararg - true if function can take a variable number of arguments.\n"
-        "* :bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n"
-        "* :source - name of source file that this function was compiled from.\n"
-        "* :name - name of function.\n"
-        "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
-        "* :constants - an array of constants referenced by this function.\n"
-        "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
-        "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"
-        "* :defs - other function definitions that this function may instantiate.\n") {
+              "(disasm func &opt field)",
+              "Returns assembly that could be used to compile the given function. "
+              "func must be a function, not a c function. Will throw on error on a badly "
+              "typed argument. If given a field name, will only return that part of the function assembly. "
+              "Possible fields are:\n\n"
+              "* :arity - number of required and optional arguments.\n"
+              "* :min-arity - minimum number of arguments function can be called with.\n"
+              "* :max-arity - maximum number of arguments function can be called with.\n"
+              "* :vararg - true if function can take a variable number of arguments.\n"
+              "* :bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n"
+              "* :source - name of source file that this function was compiled from.\n"
+              "* :name - name of function.\n"
+              "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
+              "* :constants - an array of constants referenced by this function.\n"
+              "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
+              "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"
+              "* :defs - other function definitions that this function may instantiate.\n") {
     janet_arity(argc, 1, 2);
     JanetFunction *f = janet_getfunction(argv, 0);
     if (argc == 2) {
