@@ -256,7 +256,7 @@ JANET_CORE_FN(janet_srand,
 }
 
 #define JANET_DEFINE_MATHOP(name, fop, doc)\
-JANET_CORE_FN(janet_##name, "(math/##name x)", doc) {\
+JANET_CORE_FN(janet_##name, "(math/" #name " x)", doc) {\
     janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
