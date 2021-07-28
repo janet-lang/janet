@@ -1765,26 +1765,26 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* no docstrings or sourcemaps */
 #define JANET_REG_(JNAME, CNAME) {JNAME, CNAME, NULL, NULL, 0}
 #define JANET_FN_(CNAME, USAGE, DOCSTRING) \
-    static Janet CNAME (int32_t argc, Janet *argv)
+    Janet CNAME (int32_t argc, Janet *argv)
 
 /* sourcemaps only */
 #define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
     static int32_t CNAME##_sourceline_ = __LINE__; \
-    static Janet CNAME (int32_t argc, Janet *argv)
+    Janet CNAME (int32_t argc, Janet *argv)
 
 /* docstring only */
 #define JANET_REG_D(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, NULL, 0}
 #define JANET_FN_D(CNAME, USAGE, DOCSTRING) \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
-    static Janet CNAME (int32_t argc, Janet *argv)
+    Janet CNAME (int32_t argc, Janet *argv)
 
 /* sourcemaps and docstrings */
 #define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
     static int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
-    static Janet CNAME (int32_t argc, Janet *argv)
+    Janet CNAME (int32_t argc, Janet *argv)
 
 /* Choose defaults for source mapping and docstring based on config defs */
 #if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
