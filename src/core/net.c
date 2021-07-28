@@ -713,7 +713,6 @@ static const JanetMethod net_stream_methods[] = {
     {"accept-loop", cfun_stream_accept_loop},
     {"send-to", cfun_stream_send_to},
     {"recv-from", cfun_stream_recv_from},
-    {"recv-from", cfun_stream_recv_from},
     {"evread", janet_cfun_stream_read},
     {"evchunk", janet_cfun_stream_chunk},
     {"evwrite", janet_cfun_stream_write},
