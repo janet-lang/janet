@@ -311,9 +311,6 @@ JANET_CORE_FN(janet_not, "(not x)", "Returns the boolean inverse of x.") {
 }
 
 
-
-#define JANET_CORE_CONST(env, name, val, doc) janet_def_sm(env, name, val, doc, __FILE__, __LINE__)
-
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     JanetRegExt math_cfuns[] = {
@@ -362,27 +359,26 @@ void janet_lib_math(JanetTable *env) {
     janet_core_cfuns_ext(env, NULL, math_cfuns);
     janet_register_abstract_type(&janet_rng_type);
 #ifdef JANET_BOOTSTRAP
-    JANET_CORE_CONST(env, "math/pi", janet_wrap_number(3.1415926535897931),
-              JDOC("The value pi."));
-    JANET_CORE_CONST(env, "math/e", janet_wrap_number(2.7182818284590451),
-              JDOC("The base of the natural log."));
-    JANET_CORE_CONST(env, "math/inf", janet_wrap_number(INFINITY),
-              JDOC("The number representing positive infinity"));
-    JANET_CORE_CONST(env, "math/-inf", janet_wrap_number(-INFINITY),
-              JDOC("The number representing negative infinity"));
-    JANET_CORE_CONST(env, "math/int32-min", janet_wrap_number(INT32_MIN),
-              JDOC("The minimum contiguous integer representable by a 32 bit signed integer"));
-    JANET_CORE_CONST(env, "math/int32-max", janet_wrap_number(INT32_MAX),
-              JDOC("The maximum contiguous integer represtenable by a 32 bit signed integer"));
-    JANET_CORE_CONST(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
-              JDOC("The minimum contiguous integer representable by a double (2^53)"));
-    JANET_CORE_CONST(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
-              JDOC("The maximum contiguous integer represtenable by a double (-(2^53))"));
+    JANET_CORE_DEF(env, "math/pi", janet_wrap_number(3.1415926535897931),
+              "The value pi.");
+    JANET_CORE_DEF(env, "math/e", janet_wrap_number(2.7182818284590451),
+              "The base of the natural log.");
+    JANET_CORE_DEF(env, "math/inf", janet_wrap_number(INFINITY),
+              "The number representing positive infinity");
+    JANET_CORE_DEF(env, "math/-inf", janet_wrap_number(-INFINITY),
+              "The number representing negative infinity");
+    JANET_CORE_DEF(env, "math/int32-min", janet_wrap_number(INT32_MIN),
+              "The minimum contiguous integer representable by a 32 bit signed integer");
+    JANET_CORE_DEF(env, "math/int32-max", janet_wrap_number(INT32_MAX),
+              "The maximum contiguous integer represtenable by a 32 bit signed integer");
+    JANET_CORE_DEF(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
+              "The minimum contiguous integer representable by a double (2^53)");
+    JANET_CORE_DEF(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
+              "The maximum contiguous integer represtenable by a double (-(2^53))");
 #ifdef NAN
-    janet_def_sm(env, "math/nan", janet_wrap_number(NAN),
+    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN");
 #else
-    janet_def_sm(env, "math/nan", janet_wrap_number(0.0 / 0.0),
+    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(0.0 / 0.0), "Not a number (IEEE-754 NaN)");
 #endif
-              JDOC("Not a number (IEEE-754 NaN)"), __FILE__, __LINE__);
 #endif
 }

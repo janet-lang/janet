@@ -1766,18 +1766,24 @@ JANET_API Janet janet_resolve_core(const char *name);
 #define JANET_REG_(JNAME, CNAME) {JNAME, CNAME, NULL, NULL, 0}
 #define JANET_FN_(CNAME, USAGE, DOCSTRING) \
     static Janet CNAME (int32_t argc, Janet *argv)
+#define JANET_DEF_(ENV, JNAME, VAL, DOC) \
+    janet_def(ENV, JNAME, VAL, NULL)
 
 /* sourcemaps only */
 #define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
     static int32_t CNAME##_sourceline_ = __LINE__; \
     static Janet CNAME (int32_t argc, Janet *argv)
+#define JANET_DEF_S(ENV, JNAME, VAL, DOC) \
+    janet_def_sm(ENV, JNAME, VAL, NULL, __FILE__, __LINE__)
 
 /* docstring only */
 #define JANET_REG_D(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, NULL, 0}
 #define JANET_FN_D(CNAME, USAGE, DOCSTRING) \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
     static Janet CNAME (int32_t argc, Janet *argv)
+#define JANET_DEF_D(ENV, JNAME, VAL, DOC) \
+    janet_def(ENV, JNAME, VAL, DOC)
 
 /* sourcemaps and docstrings */
 #define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
@@ -1785,20 +1791,26 @@ JANET_API Janet janet_resolve_core(const char *name);
     static int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
     static Janet CNAME (int32_t argc, Janet *argv)
+#define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
+    janet_def_sm(ENV, JNAME, VAL, DOC, __FILE__, __LINE__)
 
 /* Choose defaults for source mapping and docstring based on config defs */
 #if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
 #define JANET_REG JANET_REG_
 #define JANET_FN JANET_FN_
+#define JANET_DEF JANET_DEF_
 #elif defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
 #define JANET_REG JANET_REG_D
 #define JANET_FN JANET_FN_D
+#define JANET_DEF JANET_DEF_D
 #elif !defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
 #define JANET_REG JANET_REG_S
 #define JANET_FN JANET_FN_S
+#define JANET_DEF JANET_DEF_S
 #elif !defined(JANET_NO_SOURCEMAPS) && !defined(JANET_NO_DOCSTRINGS)
 #define JANET_REG JANET_REG_SD
 #define JANET_FN JANET_FN_SD
+#define JANET_DEF JANET_DEF_SD
 #endif
 
 /* Define things with source mapping information */
