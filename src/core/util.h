@@ -92,6 +92,7 @@ Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 #ifdef JANET_BOOTSTRAP
 #define JANET_CORE_REG JANET_REG
 #define JANET_CORE_FN JANET_FN
+#define JANET_CORE_DEF JANET_DEF
 #define janet_core_def janet_def
 #define janet_core_cfuns janet_cfuns
 #define janet_core_def_sm janet_def_sm
@@ -99,6 +100,7 @@ Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 #else
 #define JANET_CORE_REG JANET_REG_
 #define JANET_CORE_FN JANET_FN_
+#define JANET_CORE_DEF JANET_DEF_
 void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p);
 void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl);

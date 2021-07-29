@@ -117,7 +117,12 @@ double janet_rng_double(JanetRNG *rng) {
     return ldexp((double)(big >> (64 - 52)), -52);
 }
 
-static Janet cfun_rng_make(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_rng_make,
+        "(math/rng &opt seed)", 
+        "Creates a Psuedo-Random number generator, with an optional seed. "
+        "The seed should be an unsigned 32 bit integer or a buffer. "
+        "Do not use this for cryptography. Returns a core/rng abstract type."
+        ) {
     janet_arity(argc, 0, 1);
     JanetRNG *rng = janet_abstract(&janet_rng_type, sizeof(JanetRNG));
     if (argc == 1) {
@@ -134,13 +139,21 @@ static Janet cfun_rng_make(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(rng);
 }
 
-static Janet cfun_rng_uniform(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_rng_uniform,
+        "(math/rng-uniform rng)",
+        "Extract a random random integer in the range [0, max] from the RNG. If "
+        "no max is given, the default is 2^31 - 1."
+        ) {
     janet_fixarity(argc, 1);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     return janet_wrap_number(janet_rng_double(rng));
 }
 
-static Janet cfun_rng_int(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_rng_int, 
+        "(math/rng-int rng &opt max)", 
+        "Extract a random random integer in the range [0, max] from the RNG. If "
+        "no max is given, the default is 2^31 - 1."
+        ) {
     janet_arity(argc, 1, 2);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     if (argc == 1) {
@@ -168,7 +181,11 @@ static void rng_get_4bytes(JanetRNG *rng, uint8_t *buf) {
     buf[3] = (word >> 24) & 0xFF;
 }
 
-static Janet cfun_rng_buffer(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_rng_buffer, 
+        "(math/rng-buffer rng n &opt buf)", 
+        "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
+        "provided, otherwise appends to the given buffer. Returns the buffer."
+        ) {
     janet_arity(argc, 2, 3);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     int32_t n = janet_getnat(argv, 1);
@@ -213,14 +230,20 @@ static Janet janet_rng_next(void *p, Janet key) {
 }
 
 /* Get a random number */
-static Janet janet_rand(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_rand, 
+        "(math/random)", 
+        "Returns a uniformly distributed random number between 0 and 1") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_number(janet_rng_double(&janet_vm.rng));
 }
 
 /* Seed the random number generator */
-static Janet janet_srand(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_srand, 
+        "(math/seedrandom seed)", 
+        "Set the seed for the random number generator. seed should be "
+        "an integer or a buffer."
+        ) {
     janet_fixarity(argc, 1);
     if (janet_checkint(argv[0])) {
         uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
@@ -232,295 +255,130 @@ static Janet janet_srand(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-#define JANET_DEFINE_MATHOP(name, fop)\
-static Janet janet_##name(int32_t argc, Janet *argv) {\
+#define JANET_DEFINE_MATHOP(name, fop, doc)\
+JANET_CORE_FN(janet_##name, "(math/" #name " x)", doc) {\
     janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
 }
 
-JANET_DEFINE_MATHOP(acos, acos)
-JANET_DEFINE_MATHOP(asin, asin)
-JANET_DEFINE_MATHOP(atan, atan)
-JANET_DEFINE_MATHOP(cos, cos)
-JANET_DEFINE_MATHOP(cosh, cosh)
-JANET_DEFINE_MATHOP(acosh, acosh)
-JANET_DEFINE_MATHOP(sin, sin)
-JANET_DEFINE_MATHOP(sinh, sinh)
-JANET_DEFINE_MATHOP(asinh, asinh)
-JANET_DEFINE_MATHOP(tan, tan)
-JANET_DEFINE_MATHOP(tanh, tanh)
-JANET_DEFINE_MATHOP(atanh, atanh)
-JANET_DEFINE_MATHOP(exp, exp)
-JANET_DEFINE_MATHOP(exp2, exp2)
-JANET_DEFINE_MATHOP(expm1, expm1)
-JANET_DEFINE_MATHOP(log, log)
-JANET_DEFINE_MATHOP(log10, log10)
-JANET_DEFINE_MATHOP(log2, log2)
-JANET_DEFINE_MATHOP(sqrt, sqrt)
-JANET_DEFINE_MATHOP(cbrt, cbrt)
-JANET_DEFINE_MATHOP(ceil, ceil)
-JANET_DEFINE_MATHOP(fabs, fabs)
-JANET_DEFINE_MATHOP(floor, floor)
-JANET_DEFINE_MATHOP(trunc, trunc)
-JANET_DEFINE_MATHOP(round, round)
-JANET_DEFINE_MATHOP(gamma, lgamma)
-JANET_DEFINE_MATHOP(log1p, log1p)
-JANET_DEFINE_MATHOP(erf, erf)
-JANET_DEFINE_MATHOP(erfc, erfc)
+JANET_DEFINE_MATHOP(acos, acos, "Returns the arccosize of x.")
+JANET_DEFINE_MATHOP(asin, asin, "Returns the arcsin of x.")
+JANET_DEFINE_MATHOP(atan, atan, "Returns the arctangent of x.")
+JANET_DEFINE_MATHOP(cos, cos, "Returns the cosine of x.")
+JANET_DEFINE_MATHOP(cosh, cosh, "Returns the hyperbolic cosine of x.")
+JANET_DEFINE_MATHOP(acosh, acosh, "Returns the hyperbolic arccosine of x.")
+JANET_DEFINE_MATHOP(sin, sin, "Returns the sine of x.")
+JANET_DEFINE_MATHOP(sinh, sinh, "Returns the hyperbolic sine of x.")
+JANET_DEFINE_MATHOP(asinh, asinh, "Returns the hypberbolic arcsine of x.")
+JANET_DEFINE_MATHOP(tan, tan, "Returns the tangent of x.")
+JANET_DEFINE_MATHOP(tanh, tanh, "Returns the hyperbolic tangent of x.")
+JANET_DEFINE_MATHOP(atanh, atanh, "Returns the hyperbolic arctangent of x.")
+JANET_DEFINE_MATHOP(exp, exp, "Returns e to the power of x.")
+JANET_DEFINE_MATHOP(exp2, exp2, "Returns 2 to the power of x.")
+JANET_DEFINE_MATHOP(expm1, expm1, "Returns e to the power of x minus 1.")
+JANET_DEFINE_MATHOP(log, log, "Returns the natural logarithm of x.")
+JANET_DEFINE_MATHOP(log10, log10, "Returns the log base 10 of x.")
+JANET_DEFINE_MATHOP(log2, log2, "Returns the log base 2 of x.")
+JANET_DEFINE_MATHOP(sqrt, sqrt, "Returns the square root of x.")
+JANET_DEFINE_MATHOP(cbrt, cbrt, "Returns the cube root of x.")
+JANET_DEFINE_MATHOP(ceil, ceil, "Returns the smallest integer value number that is not less than x.")
+JANET_DEFINE_MATHOP(fabs, fabs, "Return the absolute value of x.")
+JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that is not greater than x.")
+JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
+JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
+JANET_DEFINE_MATHOP(gamma, lgamma, "Returns gamma(x).")
+JANET_DEFINE_MATHOP(log1p, log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
+JANET_DEFINE_MATHOP(erf, erf, "Returns the error function of x.")
+JANET_DEFINE_MATHOP(erfc, erfc, "Returns the complementary error function of x.")
 
-#define JANET_DEFINE_MATH2OP(name, fop)\
-static Janet janet_##name(int32_t argc, Janet *argv) {\
+#define JANET_DEFINE_MATH2OP(name, fop, signature, doc)\
+JANET_CORE_FN(janet_##name, signature, doc) {\
     janet_fixarity(argc, 2); \
     double lhs = janet_getnumber(argv, 0); \
     double rhs = janet_getnumber(argv, 1); \
     return janet_wrap_number(fop(lhs, rhs)); \
-}\
+}
 
-JANET_DEFINE_MATH2OP(atan2, atan2)
-JANET_DEFINE_MATH2OP(pow, pow)
-JANET_DEFINE_MATH2OP(hypot, hypot)
-JANET_DEFINE_MATH2OP(nextafter, nextafter)
+JANET_DEFINE_MATH2OP(atan2, atan2, "(math/atan2 y x)", "Returns the arctangent of y/x. Works even when x is 0.")
+JANET_DEFINE_MATH2OP(pow, pow, "(math/pow a x)", "Returns a to the power of x.")
+JANET_DEFINE_MATH2OP(hypot, hypot, "(math/hypot a b)", "Returns c from the equation c^2 = a^2 + b^2.")
+JANET_DEFINE_MATH2OP(nextafter, nextafter,  "(math/next x y)", "Returns the next representable floating point vaue after x in the direction of y.")
 
-static Janet janet_not(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_not, "(not x)", "Returns the boolean inverse of x.") {
     janet_fixarity(argc, 1);
     return janet_wrap_boolean(!janet_truthy(argv[0]));
 }
 
-static const JanetReg math_cfuns[] = {
-    {
-        "not", janet_not,
-        JDOC("(not x)\n\nReturns the boolean inverse of x.")
-    },
-    {
-        "math/random", janet_rand,
-        JDOC("(math/random)\n\n"
-             "Returns a uniformly distributed random number between 0 and 1.")
-    },
-    {
-        "math/seedrandom", janet_srand,
-        JDOC("(math/seedrandom seed)\n\n"
-             "Set the seed for the random number generator. seed should be "
-             "an integer or a buffer.")
-    },
-    {
-        "math/cos", janet_cos,
-        JDOC("(math/cos x)\n\n"
-             "Returns the cosine of x.")
-    },
-    {
-        "math/sin", janet_sin,
-        JDOC("(math/sin x)\n\n"
-             "Returns the sine of x.")
-    },
-    {
-        "math/tan", janet_tan,
-        JDOC("(math/tan x)\n\n"
-             "Returns the tangent of x.")
-    },
-    {
-        "math/acos", janet_acos,
-        JDOC("(math/acos x)\n\n"
-             "Returns the arccosine of x.")
-    },
-    {
-        "math/asin", janet_asin,
-        JDOC("(math/asin x)\n\n"
-             "Returns the arcsine of x.")
-    },
-    {
-        "math/atan", janet_atan,
-        JDOC("(math/atan x)\n\n"
-             "Returns the arctangent of x.")
-    },
-    {
-        "math/exp", janet_exp,
-        JDOC("(math/exp x)\n\n"
-             "Returns e to the power of x.")
-    },
-    {
-        "math/log", janet_log,
-        JDOC("(math/log x)\n\n"
-             "Returns log base natural number of x.")
-    },
-    {
-        "math/log10", janet_log10,
-        JDOC("(math/log10 x)\n\n"
-             "Returns log base 10 of x.")
-    },
-    {
-        "math/log2", janet_log2,
-        JDOC("(math/log2 x)\n\n"
-             "Returns log base 2 of x.")
-    },
-    {
-        "math/sqrt", janet_sqrt,
-        JDOC("(math/sqrt x)\n\n"
-             "Returns the square root of x.")
-    },
-    {
-        "math/cbrt", janet_cbrt,
-        JDOC("(math/cbrt x)\n\n"
-             "Returns the cube root of x.")
-    },
-    {
-        "math/floor", janet_floor,
-        JDOC("(math/floor x)\n\n"
-             "Returns the largest integer value number that is not greater than x.")
-    },
-    {
-        "math/ceil", janet_ceil,
-        JDOC("(math/ceil x)\n\n"
-             "Returns the smallest integer value number that is not less than x.")
-    },
-    {
-        "math/pow", janet_pow,
-        JDOC("(math/pow a x)\n\n"
-             "Return a to the power of x.")
-    },
-    {
-        "math/abs", janet_fabs,
-        JDOC("(math/abs x)\n\n"
-             "Return the absolute value of x.")
-    },
-    {
-        "math/sinh", janet_sinh,
-        JDOC("(math/sinh x)\n\n"
-             "Return the hyperbolic sine of x.")
-    },
-    {
-        "math/cosh", janet_cosh,
-        JDOC("(math/cosh x)\n\n"
-             "Return the hyperbolic cosine of x.")
-    },
-    {
-        "math/tanh", janet_tanh,
-        JDOC("(math/tanh x)\n\n"
-             "Return the hyperbolic tangent of x.")
-    },
-    {
-        "math/atanh", janet_atanh,
-        JDOC("(math/atanh x)\n\n"
-             "Return the hyperbolic arctangent of x.")
-    },
-    {
-        "math/asinh", janet_asinh,
-        JDOC("(math/asinh x)\n\n"
-             "Return the hyperbolic arcsine of x.")
-    },
-    {
-        "math/acosh", janet_acosh,
-        JDOC("(math/acosh x)\n\n"
-             "Return the hyperbolic arccosine of x.")
-    },
-    {
-        "math/atan2", janet_atan2,
-        JDOC("(math/atan2 y x)\n\n"
-             "Return the arctangent of y/x. Works even when x is 0.")
-    },
-    {
-        "math/rng", cfun_rng_make,
-        JDOC("(math/rng &opt seed)\n\n"
-             "Creates a Psuedo-Random number generator, with an optional seed. "
-             "The seed should be an unsigned 32 bit integer or a buffer. "
-             "Do not use this for cryptography. Returns a core/rng abstract type.")
-    },
-    {
-        "math/rng-uniform", cfun_rng_uniform,
-        JDOC("(math/rng-seed rng seed)\n\n"
-             "Extract a random number in the range [0, 1) from the RNG.")
-    },
-    {
-        "math/rng-int", cfun_rng_int,
-        JDOC("(math/rng-int rng &opt max)\n\n"
-             "Extract a random random integer in the range [0, max] from the RNG. If "
-             "no max is given, the default is 2^31 - 1.")
-    },
-    {
-        "math/rng-buffer", cfun_rng_buffer,
-        JDOC("(math/rng-buffer rng n &opt buf)\n\n"
-             "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
-             "provided, otherwise appends to the given buffer. Returns the buffer.")
-    },
-    {
-        "math/hypot", janet_hypot,
-        JDOC("(math/hypot a b)\n\n"
-             "Returns the c from the equation c^2 = a^2 + b^2")
-    },
-    {
-        "math/exp2", janet_exp2,
-        JDOC("(math/exp2 x)\n\n"
-             "Returns 2 to the power of x.")
-    },
-    {
-        "math/log1p", janet_log1p,
-        JDOC("(math/log1p x)\n\n"
-             "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
-    },
-    {
-        "math/gamma", janet_gamma,
-        JDOC("(math/gamma x)\n\n"
-             "Returns gamma(x).")
-    },
-    {
-        "math/erfc", janet_erfc,
-        JDOC("(math/erfc x)\n\n"
-             "Returns the complementary error function of x.")
-    },
-    {
-        "math/erf", janet_erf,
-        JDOC("(math/erf x)\n\n"
-             "Returns the error function of x.")
-    },
-    {
-        "math/expm1", janet_expm1,
-        JDOC("(math/expm1 x)\n\n"
-             "Returns e to the power of x minus 1.")
-    },
-    {
-        "math/trunc", janet_trunc,
-        JDOC("(math/trunc x)\n\n"
-             "Returns the integer between x and 0 nearest to x.")
-    },
-    {
-        "math/round", janet_round,
-        JDOC("(math/round x)\n\n"
-             "Returns the integer nearest to x.")
-    },
-    {
-        "math/next", janet_nextafter,
-        JDOC("(math/next x y)\n\n"
-             "Returns the next representable floating point value after x in the direction of y.")
-    },
-    {NULL, NULL, NULL}
-};
 
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
-    janet_core_cfuns(env, NULL, math_cfuns);
+    JanetRegExt math_cfuns[] = {
+        JANET_CORE_REG("not", janet_not),
+        JANET_CORE_REG("math/random", janet_rand),
+        JANET_CORE_REG("math/seedrandom", janet_srand),
+        JANET_CORE_REG("math/cos", janet_cos),
+        JANET_CORE_REG("math/sin", janet_sin),
+        JANET_CORE_REG("math/tan", janet_tan),
+        JANET_CORE_REG("math/acos", janet_acos),
+        JANET_CORE_REG("math/asin", janet_asin),
+        JANET_CORE_REG("math/atan", janet_atan),
+        JANET_CORE_REG("math/exp", janet_exp),
+        JANET_CORE_REG("math/log", janet_log),
+        JANET_CORE_REG("math/log10", janet_log10),
+        JANET_CORE_REG("math/log2", janet_log2),
+        JANET_CORE_REG("math/sqrt", janet_sqrt),
+        JANET_CORE_REG("math/cbrt", janet_cbrt),
+        JANET_CORE_REG("math/floor", janet_floor),
+        JANET_CORE_REG("math/ceil", janet_ceil),
+        JANET_CORE_REG("math/pow", janet_pow),
+        JANET_CORE_REG("math/abs", janet_fabs),
+        JANET_CORE_REG("math/sinh", janet_sinh),
+        JANET_CORE_REG("math/cosh", janet_cosh),
+        JANET_CORE_REG("math/tanh", janet_tanh),
+        JANET_CORE_REG("math/atanh", janet_atanh),
+        JANET_CORE_REG("math/asinh", janet_asinh),
+        JANET_CORE_REG("math/acosh", janet_acosh),
+        JANET_CORE_REG("math/atan2", janet_atan2),
+        JANET_CORE_REG("math/rng", cfun_rng_make),
+        JANET_CORE_REG("math/rng-uniform", cfun_rng_uniform),
+        JANET_CORE_REG("math/rng-int", cfun_rng_int),
+        JANET_CORE_REG("math/rng-buffer", cfun_rng_buffer),
+        JANET_CORE_REG("math/hypot", janet_hypot),
+        JANET_CORE_REG("math/exp2", janet_exp2),
+        JANET_CORE_REG("math/log1p", janet_log1p),
+        JANET_CORE_REG("math/gamma", janet_gamma),
+        JANET_CORE_REG("math/erfc", janet_erfc),
+        JANET_CORE_REG("math/erf", janet_erf),
+        JANET_CORE_REG("math/expm1", janet_expm1),
+        JANET_CORE_REG("math/trunc", janet_trunc),
+        JANET_CORE_REG("math/round", janet_round),
+        JANET_CORE_REG("math/next", janet_nextafter),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, math_cfuns);
     janet_register_abstract_type(&janet_rng_type);
 #ifdef JANET_BOOTSTRAP
-    janet_def(env, "math/pi", janet_wrap_number(3.1415926535897931),
-              JDOC("The value pi."));
-    janet_def(env, "math/e", janet_wrap_number(2.7182818284590451),
-              JDOC("The base of the natural log."));
-    janet_def(env, "math/inf", janet_wrap_number(INFINITY),
-              JDOC("The number representing positive infinity"));
-    janet_def(env, "math/-inf", janet_wrap_number(-INFINITY),
-              JDOC("The number representing negative infinity"));
-    janet_def(env, "math/int32-min", janet_wrap_number(INT32_MIN),
-              JDOC("The minimum contiguous integer representable by a 32 bit signed integer"));
-    janet_def(env, "math/int32-max", janet_wrap_number(INT32_MAX),
-              JDOC("The maximum contiguous integer represtenable by a 32 bit signed integer"));
-    janet_def(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
-              JDOC("The minimum contiguous integer representable by a double (2^53)"));
-    janet_def(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
-              JDOC("The maximum contiguous integer represtenable by a double (-(2^53))"));
+    JANET_CORE_DEF(env, "math/pi", janet_wrap_number(3.1415926535897931),
+              "The value pi.");
+    JANET_CORE_DEF(env, "math/e", janet_wrap_number(2.7182818284590451),
+              "The base of the natural log.");
+    JANET_CORE_DEF(env, "math/inf", janet_wrap_number(INFINITY),
+              "The number representing positive infinity");
+    JANET_CORE_DEF(env, "math/-inf", janet_wrap_number(-INFINITY),
+              "The number representing negative infinity");
+    JANET_CORE_DEF(env, "math/int32-min", janet_wrap_number(INT32_MIN),
+              "The minimum contiguous integer representable by a 32 bit signed integer");
+    JANET_CORE_DEF(env, "math/int32-max", janet_wrap_number(INT32_MAX),
+              "The maximum contiguous integer represtenable by a 32 bit signed integer");
+    JANET_CORE_DEF(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
+              "The minimum contiguous integer representable by a double (2^53)");
+    JANET_CORE_DEF(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
+              "The maximum contiguous integer represtenable by a double (-(2^53))");
 #ifdef NAN
-    janet_def(env, "math/nan", janet_wrap_number(NAN),
+    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN");
 #else
-    janet_def(env, "math/nan", janet_wrap_number(0.0 / 0.0),
+    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(0.0 / 0.0), "Not a number (IEEE-754 NaN)");
 #endif
-              JDOC("Not a number (IEEE-754 NaN)"));
 #endif
 }
