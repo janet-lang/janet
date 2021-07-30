@@ -477,17 +477,6 @@ static int thread_worker(JanetMailboxPair *pair) {
         janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
     }
 
-    /* Unmarshal the normal registry */
-    if (pair->flags & JANET_THREAD_CFUNCTIONS) {
-        Janet reg;
-        int status = janet_thread_receive(&reg, INFINITY);
-        if (status) goto error;
-        if (!janet_checktype(reg, JANET_TABLE)) goto error;
-        janet_gcunroot(janet_wrap_table(janet_vm.registry));
-        janet_vm.registry = janet_unwrap_table(reg);
-        janet_gcroot(janet_wrap_table(janet_vm.registry));
-    }
-
     /* Unmarshal the function */
     Janet funcv;
     int status = janet_thread_receive(&funcv, INFINITY);
@@ -610,9 +599,9 @@ JANET_CORE_FN(cfun_thread_new,
               "If capacity is provided, that is how many messages can be stored in the thread's mailbox before blocking senders. "
               "The capacity must be between 1 and 65535 inclusive, and defaults to 10. "
               "Can optionally provide flags to the new thread - supported flags are:\n\n"
-              "* :h - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n\n"
-              "* :a - Allow sending over registered abstract types to the new thread\n\n"
-              "* :c - Send over cfunction information to the new thread.\n\n"
+              "* `:h` - Start a heavyweight thread. This loads the core environment by default, so may use more memory initially. Messages may compress better, though.\n"
+              "* `:a` - Allow sending over registered abstract types to the new thread\n"
+              "* `:c` - Send over cfunction information to the new thread (no longer supported).\n"
               "Returns a handle to the new thread.") {
     janet_arity(argc, 1, 3);
     /* Just type checking */
@@ -639,12 +628,6 @@ JANET_CORE_FN(cfun_thread_new,
     if (flags & JANET_THREAD_ABSTRACTS) {
         if (janet_thread_send(thread, janet_wrap_table(janet_vm.abstract_registry), INFINITY)) {
             janet_panic("could not send abstract registry to thread");
-        }
-    }
-
-    if (flags & JANET_THREAD_CFUNCTIONS) {
-        if (janet_thread_send(thread, janet_wrap_table(janet_vm.registry), INFINITY)) {
-            janet_panic("could not send registry to thread");
         }
     }
 

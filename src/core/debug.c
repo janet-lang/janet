@@ -118,6 +118,7 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
         fiber = fibers[fi];
         int32_t i = fiber->frame;
         while (i > 0) {
+            JanetCFunRegistry *reg = NULL;
             JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
             JanetFuncDef *def = NULL;
             i = frame->prevframe;
@@ -144,11 +145,19 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             } else {
                 JanetCFunction cfun = (JanetCFunction)(frame->pc);
                 if (cfun) {
-                    Janet name = janet_table_get(janet_vm.registry, janet_wrap_cfunction(cfun));
-                    if (!janet_checktype(name, JANET_NIL))
-                        janet_eprintf(" %s", (const char *)janet_to_string(name));
-                    else
+                    reg = janet_registry_get(cfun);
+                    if (NULL != reg && NULL != reg->name) {
+                        if (reg->name_prefix) {
+                            janet_eprintf(" %s/%s", reg->name_prefix, reg->name);
+                        } else {
+                            janet_eprintf(" %s", reg->name);
+                        }
+                        if (NULL != reg->source_file) {
+                            janet_eprintf(" [%s]", reg->source_file);
+                        }
+                    } else {
                         janet_eprintf(" <cfunction>");
+                    }
                 }
             }
             if (frame->flags & JANET_STACKFRAME_TAILCALL)
@@ -160,6 +169,11 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
                     janet_eprintf(" on line %d, column %d", mapping.line, mapping.column);
                 } else {
                     janet_eprintf(" pc=%d", off);
+                }
+            } else if (NULL != reg) {
+                /* C Function */
+                if (reg->source_line > 0) {
+                    janet_eprintf(" on line %d", (long) reg->source_line);
                 }
             }
             janet_eprintf("\n");
@@ -273,9 +287,20 @@ static Janet doframe(JanetStackFrame *frame) {
     } else {
         JanetCFunction cfun = (JanetCFunction)(frame->pc);
         if (cfun) {
-            Janet name = janet_table_get(janet_vm.registry, janet_wrap_cfunction(cfun));
-            if (!janet_checktype(name, JANET_NIL)) {
-                janet_table_put(t, janet_ckeywordv("name"), name);
+            JanetCFunRegistry *reg = janet_registry_get(cfun);
+            if (NULL != reg->name) {
+                if (NULL != reg->name_prefix) {
+                    janet_table_put(t, janet_ckeywordv("name"), janet_wrap_string(janet_formatc("%s/%s", reg->name_prefix, reg->name)));
+                } else {
+                    janet_table_put(t, janet_ckeywordv("name"), janet_cstringv(reg->name));
+                }
+                if (NULL != reg->source_file) {
+                    janet_table_put(t, janet_ckeywordv("source"), janet_cstringv(reg->source_file));
+                }
+                if (reg->source_line > 0) {
+                    janet_table_put(t, janet_ckeywordv("source-line"), janet_wrap_integer(reg->source_line));
+                    janet_table_put(t, janet_ckeywordv("source-column"), janet_wrap_integer(1));
+                }
             }
         }
         janet_table_put(t, janet_ckeywordv("c"), janet_wrap_true());

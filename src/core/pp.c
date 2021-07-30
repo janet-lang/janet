@@ -227,12 +227,14 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         }
         return;
         case JANET_CFUNCTION: {
-            Janet check = janet_table_get(janet_vm.registry, x);
-            if (janet_checktype(check, JANET_SYMBOL)) {
+            JanetCFunRegistry *reg = janet_registry_get(janet_unwrap_cfunction(x));
+            if (NULL != reg) {
                 janet_buffer_push_cstring(buffer, "<cfunction ");
-                janet_buffer_push_bytes(buffer,
-                                        janet_unwrap_symbol(check),
-                                        janet_string_length(janet_unwrap_symbol(check)));
+                if (NULL != reg->name_prefix) {
+                    janet_buffer_push_cstring(buffer, reg->name_prefix);
+                    janet_buffer_push_u8(buffer, '/');
+                }
+                janet_buffer_push_cstring(buffer, reg->name);
                 janet_buffer_push_u8(buffer, '>');
                 break;
             }

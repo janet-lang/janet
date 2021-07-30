@@ -118,11 +118,11 @@ double janet_rng_double(JanetRNG *rng) {
 }
 
 JANET_CORE_FN(cfun_rng_make,
-        "(math/rng &opt seed)", 
-        "Creates a Psuedo-Random number generator, with an optional seed. "
-        "The seed should be an unsigned 32 bit integer or a buffer. "
-        "Do not use this for cryptography. Returns a core/rng abstract type."
-        ) {
+              "(math/rng &opt seed)",
+              "Creates a Psuedo-Random number generator, with an optional seed. "
+              "The seed should be an unsigned 32 bit integer or a buffer. "
+              "Do not use this for cryptography. Returns a core/rng abstract type."
+             ) {
     janet_arity(argc, 0, 1);
     JanetRNG *rng = janet_abstract(&janet_rng_type, sizeof(JanetRNG));
     if (argc == 1) {
@@ -140,20 +140,20 @@ JANET_CORE_FN(cfun_rng_make,
 }
 
 JANET_CORE_FN(cfun_rng_uniform,
-        "(math/rng-uniform rng)",
-        "Extract a random random integer in the range [0, max] from the RNG. If "
-        "no max is given, the default is 2^31 - 1."
-        ) {
+              "(math/rng-uniform rng)",
+              "Extract a random random integer in the range [0, max] from the RNG. If "
+              "no max is given, the default is 2^31 - 1."
+             ) {
     janet_fixarity(argc, 1);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     return janet_wrap_number(janet_rng_double(rng));
 }
 
-JANET_CORE_FN(cfun_rng_int, 
-        "(math/rng-int rng &opt max)", 
-        "Extract a random random integer in the range [0, max] from the RNG. If "
-        "no max is given, the default is 2^31 - 1."
-        ) {
+JANET_CORE_FN(cfun_rng_int,
+              "(math/rng-int rng &opt max)",
+              "Extract a random random integer in the range [0, max] from the RNG. If "
+              "no max is given, the default is 2^31 - 1."
+             ) {
     janet_arity(argc, 1, 2);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     if (argc == 1) {
@@ -181,11 +181,11 @@ static void rng_get_4bytes(JanetRNG *rng, uint8_t *buf) {
     buf[3] = (word >> 24) & 0xFF;
 }
 
-JANET_CORE_FN(cfun_rng_buffer, 
-        "(math/rng-buffer rng n &opt buf)", 
-        "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
-        "provided, otherwise appends to the given buffer. Returns the buffer."
-        ) {
+JANET_CORE_FN(cfun_rng_buffer,
+              "(math/rng-buffer rng n &opt buf)",
+              "Get n random bytes and put them in a buffer. Creates a new buffer if no buffer is "
+              "provided, otherwise appends to the given buffer. Returns the buffer."
+             ) {
     janet_arity(argc, 2, 3);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
     int32_t n = janet_getnat(argv, 1);
@@ -230,20 +230,20 @@ static Janet janet_rng_next(void *p, Janet key) {
 }
 
 /* Get a random number */
-JANET_CORE_FN(janet_rand, 
-        "(math/random)", 
-        "Returns a uniformly distributed random number between 0 and 1") {
+JANET_CORE_FN(janet_rand,
+              "(math/random)",
+              "Returns a uniformly distributed random number between 0 and 1") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_number(janet_rng_double(&janet_vm.rng));
 }
 
 /* Seed the random number generator */
-JANET_CORE_FN(janet_srand, 
-        "(math/seedrandom seed)", 
-        "Set the seed for the random number generator. seed should be "
-        "an integer or a buffer."
-        ) {
+JANET_CORE_FN(janet_srand,
+              "(math/seedrandom seed)",
+              "Set the seed for the random number generator. seed should be "
+              "an integer or a buffer."
+             ) {
     janet_fixarity(argc, 1);
     if (janet_checkint(argv[0])) {
         uint32_t seed = (uint32_t)(janet_getinteger(argv, 0));
@@ -360,21 +360,21 @@ void janet_lib_math(JanetTable *env) {
     janet_register_abstract_type(&janet_rng_type);
 #ifdef JANET_BOOTSTRAP
     JANET_CORE_DEF(env, "math/pi", janet_wrap_number(3.1415926535897931),
-              "The value pi.");
+                   "The value pi.");
     JANET_CORE_DEF(env, "math/e", janet_wrap_number(2.7182818284590451),
-              "The base of the natural log.");
+                   "The base of the natural log.");
     JANET_CORE_DEF(env, "math/inf", janet_wrap_number(INFINITY),
-              "The number representing positive infinity");
+                   "The number representing positive infinity");
     JANET_CORE_DEF(env, "math/-inf", janet_wrap_number(-INFINITY),
-              "The number representing negative infinity");
+                   "The number representing negative infinity");
     JANET_CORE_DEF(env, "math/int32-min", janet_wrap_number(INT32_MIN),
-              "The minimum contiguous integer representable by a 32 bit signed integer");
+                   "The minimum contiguous integer representable by a 32 bit signed integer");
     JANET_CORE_DEF(env, "math/int32-max", janet_wrap_number(INT32_MAX),
-              "The maximum contiguous integer represtenable by a 32 bit signed integer");
+                   "The maximum contiguous integer represtenable by a 32 bit signed integer");
     JANET_CORE_DEF(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
-              "The minimum contiguous integer representable by a double (2^53)");
+                   "The minimum contiguous integer representable by a double (2^53)");
     JANET_CORE_DEF(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
-              "The maximum contiguous integer represtenable by a double (-(2^53))");
+                   "The maximum contiguous integer represtenable by a double (-(2^53))");
 #ifdef NAN
     JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN");
 #else

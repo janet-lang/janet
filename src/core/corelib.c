@@ -35,6 +35,13 @@ extern const unsigned char *janet_core_image;
 extern size_t janet_core_image_size;
 #endif
 
+/* Docstrings should only exist during bootstrap */
+#ifdef JANET_BOOTSTRAP
+#define JDOC(x) (x)
+#else
+#define JDOC(x) NULL
+#endif
+
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
  * with native code. */
 #if defined(JANET_NO_DYNAMIC_MODULES)
@@ -1207,9 +1214,7 @@ JanetTable *janet_core_lookup_table(JanetTable *replacements) {
             JanetKV kv = replacements->data[i];
             if (!janet_checktype(kv.key, JANET_NIL)) {
                 janet_table_put(dict, kv.key, kv.value);
-                if (janet_checktype(kv.value, JANET_CFUNCTION)) {
-                    janet_table_put(janet_vm.registry, kv.value, kv.key);
-                }
+                /* Add replacement functions to registry? */
             }
         }
     }

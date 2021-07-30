@@ -62,6 +62,19 @@ typedef struct {
 } JanetMailboxPair;
 #endif
 
+/* Registry table for C functions - containts metadata that can
+ * be looked up by cfunction pointer. All strings here are pointing to
+ * static memory not managed by Janet. */
+typedef struct {
+    JanetCFunction cfun;
+    const char *name;
+    const char *name_prefix;
+    const char *source_file;
+    int32_t source_line;
+    /* int32_t min_arity; */
+    /* int32_t max_arity; */
+} JanetCFunRegistry;
+
 struct JanetVM {
     /* Top level dynamic bindings */
     JanetTable *top_dyns;
@@ -88,7 +101,10 @@ struct JanetVM {
 
     /* The global registry for c functions. Used to store meta-data
      * along with otherwise bare c function pointers. */
-    JanetTable *registry;
+    JanetCFunRegistry *registry;
+    size_t registry_cap;
+    size_t registry_count;
+    int registry_dirty;
 
     /* Registry for abstract abstract types that can be marshalled.
      * We need this to look up the constructors when unmarshalling. */

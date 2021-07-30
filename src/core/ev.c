@@ -722,9 +722,8 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) 
 /* Channel Methods */
 
 JANET_CORE_FN(cfun_channel_push,
-        "(ev/give channel value)",
-        "Write a value to a channel, suspending the current fiber if the channel is full."
-        ) {
+              "(ev/give channel value)",
+              "Write a value to a channel, suspending the current fiber if the channel is full.") {
     janet_fixarity(argc, 2);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
     if (janet_channel_push(channel, argv[1], 0)) {
@@ -733,10 +732,9 @@ JANET_CORE_FN(cfun_channel_push,
     return argv[0];
 }
 
-JANET_CORE_FN(cfun_channel_pop, 
-        "(ev/take channel)",
-        "Read from a channel, suspending the current fiber if no value is available."
-        ) {
+JANET_CORE_FN(cfun_channel_pop,
+              "(ev/take channel)",
+              "Read from a channel, suspending the current fiber if no value is available.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
     Janet item;
@@ -747,12 +745,11 @@ JANET_CORE_FN(cfun_channel_pop,
 }
 
 JANET_CORE_FN(cfun_channel_choice,
-        "(ev/select & clauses)",
-        "Block until the first of several channel operations occur. Returns a tuple of the form [:give chan] or [:take chan x], where "
-        "a :give tuple is the result of a write and :take tuple is the result of a write. Each clause must be either a channel (for "
-        "a channel take operation) or a tuple [channel x] for a channel give operation. Operations are tried in order, such that the first "
-        "clauses will take precedence over later clauses."
-        ) {
+              "(ev/select & clauses)",
+              "Block until the first of several channel operations occur. Returns a tuple of the form [:give chan] or [:take chan x], where "
+              "a :give tuple is the result of a write and :take tuple is the result of a write. Each clause must be either a channel (for "
+              "a channel take operation) or a tuple [channel x] for a channel give operation. Operations are tried in order, such that the first "
+              "clauses will take precedence over later clauses.") {
     janet_arity(argc, 1, -1);
     int32_t len;
     const Janet *data;
@@ -795,27 +792,24 @@ JANET_CORE_FN(cfun_channel_choice,
 }
 
 JANET_CORE_FN(cfun_channel_full,
-        "(ev/full channel)",
-        "Check if a channel is full or not."
-        ) {
+              "(ev/full channel)",
+              "Check if a channel is full or not.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
     return janet_wrap_boolean(janet_q_count(&channel->items) >= channel->limit);
 }
 
 JANET_CORE_FN(cfun_channel_capacity,
-        "(ev/capacity channel)",
-        "Get the number of items a channel will store before blocking writers."
-        ) {
+              "(ev/capacity channel)",
+              "Get the number of items a channel will store before blocking writers.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
     return janet_wrap_integer(channel->limit);
 }
 
 JANET_CORE_FN(cfun_channel_count,
-        "(ev/count channel)",
-        "Get the number of items currently waiting in a channel."
-        ) {
+              "(ev/count channel)",
+              "Get the number of items currently waiting in a channel.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getabstract(argv, 0, &ChannelAT);
     return janet_wrap_integer(janet_q_count(&channel->items));
@@ -832,18 +826,16 @@ static void fisher_yates_args(int32_t argc, Janet *argv) {
 }
 
 JANET_CORE_FN(cfun_channel_rchoice,
-        "(ev/rselect & clauses)",
-        "Similar to ev/select, but will try clauses in a random order for fairness."
-        ) {
+              "(ev/rselect & clauses)",
+              "Similar to ev/select, but will try clauses in a random order for fairness.") {
     fisher_yates_args(argc, argv);
     return cfun_channel_choice(argc, argv);
 }
 
-JANET_CORE_FN(cfun_channel_new, 
-        "(ev/chan &opt capacity)", 
-        "Create a new channel. capacity is the number of values to queue before "
-        "blocking writers, defaults to 0 if not provided. Returns a new channel."
-        ) {
+JANET_CORE_FN(cfun_channel_new,
+              "(ev/chan &opt capacity)",
+              "Create a new channel. capacity is the number of values to queue before "
+              "blocking writers, defaults to 0 if not provided. Returns a new channel.") {
     janet_arity(argc, 0, 1);
     int32_t limit = janet_optnat(argv, argc, 0, 0);
     JanetChannel *channel = janet_abstract(&ChannelAT, sizeof(JanetChannel));
@@ -2145,13 +2137,12 @@ error:
 /* C functions */
 
 JANET_CORE_FN(cfun_ev_go,
-        "(ev/go fiber &opt value supervisor)",
-        "Put a fiber on the event loop to be resumed later. Optionally pass "
-        "a value to resume with, otherwise resumes with nil. Returns the fiber. "
-        "An optional `core/channel` can be provided as well as a supervisor. When various "
-        "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
-        "If not provided, the new fiber will inherit the current supervisor."
-        ) {
+              "(ev/go fiber &opt value supervisor)",
+              "Put a fiber on the event loop to be resumed later. Optionally pass "
+              "a value to resume with, otherwise resumes with nil. Returns the fiber. "
+              "An optional `core/channel` can be provided as well as a supervisor. When various "
+              "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
+              "If not provided, the new fiber will inherit the current supervisor.") {
     janet_arity(argc, 1, 3);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
@@ -2167,18 +2158,39 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
     JanetBuffer *buffer = (JanetBuffer *) args.argp;
     const uint8_t *nextbytes = buffer->data;
     const uint8_t *endbytes = nextbytes + buffer->count;
+    uint32_t flags = args.tag;
+    args.tag = 0;
     janet_init();
     JanetTryState tstate;
     JanetSignal signal = janet_try(&tstate);
     if (!signal) {
-        Janet aregv = janet_unmarshal(nextbytes, endbytes - nextbytes,
-                                      JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
-        if (!janet_checktype(aregv, JANET_TABLE)) janet_panic("expected table for abstract registry");
-        janet_vm.abstract_registry = janet_unwrap_table(aregv);
-        Janet regv = janet_unmarshal(nextbytes, endbytes - nextbytes,
-                                     JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
-        if (!janet_checktype(regv, JANET_TABLE)) janet_panic("expected table for cfunction registry");
-        janet_vm.registry = janet_unwrap_table(regv);
+
+        /* Set abstract registry */
+        if (flags & 0x2) {
+            Janet aregv = janet_unmarshal(nextbytes, endbytes - nextbytes,
+                                          JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
+            if (!janet_checktype(aregv, JANET_TABLE)) janet_panic("expected table for abstract registry");
+            janet_vm.abstract_registry = janet_unwrap_table(aregv);
+        }
+
+        /* Set cfunction registry */
+        if (flags & 0x4) {
+            uint32_t count1;
+            memcpy(&count1, nextbytes, sizeof(count1));
+            size_t count = (size_t) count1;
+            if (count > (endbytes - nextbytes) * sizeof(JanetCFunRegistry)) {
+                janet_panic("thread message invalid");
+            }
+            janet_vm.registry_count = count;
+            janet_vm.registry_cap = count;
+            janet_vm.registry = janet_malloc(count * sizeof(JanetCFunRegistry));
+            if (janet_vm.registry == NULL) {
+                JANET_OUT_OF_MEMORY;
+            }
+            janet_vm.registry_dirty = 1;
+            memcpy(janet_vm.registry, nextbytes, count * sizeof(JanetCFunRegistry));
+        }
+
         Janet fiberv = janet_unmarshal(nextbytes, endbytes - nextbytes,
                                        JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
         Janet value = janet_unmarshal(nextbytes, endbytes - nextbytes,
@@ -2203,20 +2215,22 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
     return args;
 }
 
-JANET_CORE_FN(cfun_ev_thread, 
-        "(ev/thread fiber &opt value flags)", 
-        "Resume a (copy of a) `fiber` in a new operating system thread, optionally passing `value` "
-        "to resume with. "
-        "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
-        "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
-        "Otherwise, returns (a copy of) the final result from the fiber on the new thread."
-        ) {
+JANET_CORE_FN(cfun_ev_thread,
+              "(ev/thread fiber &opt value flags)",
+              "Resume a (copy of a) `fiber` in a new operating system thread, optionally passing `value` "
+              "to resume with. "
+              "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
+              "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
+              "Otherwise, returns (a copy of) the final result from the fiber on the new thread. Available flags:\n\n"
+              "* `:n` - return immediately\n"
+              "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
+              "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
     janet_arity(argc, 1, 3);
     janet_getfiber(argv, 0);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     uint64_t flags = 0;
     if (argc >= 3) {
-        flags = janet_getflags(argv, 2, "n");
+        flags = janet_getflags(argv, 2, "nac");
     }
     /* Marshal arguments for the new thread. */
     JanetBuffer *buffer = janet_malloc(sizeof(JanetBuffer));
@@ -2224,14 +2238,19 @@ JANET_CORE_FN(cfun_ev_thread,
         JANET_OUT_OF_MEMORY;
     }
     janet_buffer_init(buffer, 0);
-    janet_marshal(buffer, janet_wrap_table(janet_vm.abstract_registry), NULL, JANET_MARSHAL_UNSAFE);
-    janet_marshal(buffer, janet_wrap_table(janet_vm.registry), NULL, JANET_MARSHAL_UNSAFE);
+    if (flags & 0x2) janet_marshal(buffer, janet_wrap_table(janet_vm.abstract_registry), NULL, JANET_MARSHAL_UNSAFE);
+    if (flags & 0x4) {
+        janet_assert(janet_vm.registry_count <= UINT32_MAX, "assert failed size check");
+        uint32_t temp = (uint32_t) janet_vm.registry_count;
+        janet_buffer_push_bytes(buffer, (uint8_t *) &temp, sizeof(temp));
+        janet_buffer_push_bytes(buffer, (uint8_t *) janet_vm.registry, janet_vm.registry_count * sizeof(JanetCFunRegistry));
+    }
     janet_marshal(buffer, argv[0], NULL, JANET_MARSHAL_UNSAFE);
     janet_marshal(buffer, value, NULL, JANET_MARSHAL_UNSAFE);
     if (flags & 0x1) {
         /* Return immediately */
         JanetEVGenericMessage arguments;
-        arguments.tag = 0;
+        arguments.tag = (uint32_t) flags;;
         arguments.argi = argc;
         arguments.argp = buffer;
         arguments.fiber = NULL;
@@ -2242,12 +2261,11 @@ JANET_CORE_FN(cfun_ev_thread,
     }
 }
 
-JANET_CORE_FN(cfun_ev_give_supervisor, 
-        "(ev/give-supervisor tag & payload)", 
-        "Send a message to the current supervior channel if there is one. The message will be a "
-        "tuple of all of the arguments combined into a single message, where the first element is tag. "
-        "By convention, tag should be a keyword indicating the type of message. Returns nil."
-        ) {
+JANET_CORE_FN(cfun_ev_give_supervisor,
+              "(ev/give-supervisor tag & payload)",
+              "Send a message to the current supervior channel if there is one. The message will be a "
+              "tuple of all of the arguments combined into a single message, where the first element is tag. "
+              "By convention, tag should be a keyword indicating the type of message. Returns nil.") {
     janet_arity(argc, 1, -1);
     JanetChannel *chan = janet_vm.root_fiber->supervisor_channel;
     if (NULL != chan) {
@@ -2270,21 +2288,19 @@ JANET_NO_RETURN void janet_sleep_await(double sec) {
 }
 
 JANET_CORE_FN(cfun_ev_sleep,
-        "(ev/sleep sec)", 
-        "Suspend the current fiber for sec seconds without blocking the event loop."
-        ) {
+              "(ev/sleep sec)",
+              "Suspend the current fiber for sec seconds without blocking the event loop.") {
     janet_fixarity(argc, 1);
     double sec = janet_getnumber(argv, 0);
     janet_sleep_await(sec);
 }
 
-JANET_CORE_FN(cfun_ev_deadline, 
-        "(ev/deadline sec &opt tocancel tocheck)",
-        "Set a deadline for a fiber `tocheck`. If `tocheck` is not finished after `sec` seconds, "
-        "`tocancel` will be canceled as with `ev/cancel`. "
-        "If `tocancel` and `tocheck` are not given, they default to `(fiber/root)` and "
-        "`(fiber/current)` respectively. Returns `tocancel`."
-        ) {
+JANET_CORE_FN(cfun_ev_deadline,
+              "(ev/deadline sec &opt tocancel tocheck)",
+              "Set a deadline for a fiber `tocheck`. If `tocheck` is not finished after `sec` seconds, "
+              "`tocancel` will be canceled as with `ev/cancel`. "
+              "If `tocancel` and `tocheck` are not given, they default to `(fiber/root)` and "
+              "`(fiber/current)` respectively. Returns `tocancel`.") {
     janet_arity(argc, 1, 3);
     double sec = janet_getnumber(argv, 0);
     JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm.root_fiber);
@@ -2300,9 +2316,8 @@ JANET_CORE_FN(cfun_ev_deadline,
 }
 
 JANET_CORE_FN(cfun_ev_cancel,
-        "(ev/cancel fiber err)",
-        "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately"
-        ) {
+              "(ev/cancel fiber err)",
+              "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
@@ -2310,10 +2325,9 @@ JANET_CORE_FN(cfun_ev_cancel,
     return argv[0];
 }
 
-JANET_CORE_FN(janet_cfun_stream_close, 
-        "(ev/close stream)",
-        "Close a stream. This should be the same as calling (:close stream) for all streams."
-        ) {
+JANET_CORE_FN(janet_cfun_stream_close,
+              "(ev/close stream)",
+              "Close a stream. This should be the same as calling (:close stream) for all streams.") {
     janet_fixarity(argc, 1);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_close(stream);
@@ -2321,14 +2335,13 @@ JANET_CORE_FN(janet_cfun_stream_close,
 }
 
 JANET_CORE_FN(janet_cfun_stream_read,
-        "(ev/read stream n &opt buffer timeout)",
-        "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
-        "`:all` to read into the buffer until end of stream. "
-        "Optionally provide a buffer to write into "
-        "as well as a timeout in seconds after which to cancel the operation and raise an error. "
-        "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "
-        "error if there are problems with the IO operation."
-        ) {
+              "(ev/read stream n &opt buffer timeout)",
+              "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
+              "`:all` to read into the buffer until end of stream. "
+              "Optionally provide a buffer to write into "
+              "as well as a timeout in seconds after which to cancel the operation and raise an error. "
+              "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "
+              "error if there are problems with the IO operation.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
@@ -2345,11 +2358,10 @@ JANET_CORE_FN(janet_cfun_stream_read,
     janet_await();
 }
 
-JANET_CORE_FN(janet_cfun_stream_chunk, 
-        "(ev/chunk stream n &opt buffer timeout)",
-        "Same as ev/read, but will not return early if less than n bytes are available. If an end of "
-        "stream is reached, will also return early with the collected bytes."
-        ) {
+JANET_CORE_FN(janet_cfun_stream_chunk,
+              "(ev/chunk stream n &opt buffer timeout)",
+              "Same as ev/read, but will not return early if less than n bytes are available. If an end of "
+              "stream is reached, will also return early with the collected bytes.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
@@ -2361,11 +2373,11 @@ JANET_CORE_FN(janet_cfun_stream_chunk,
     janet_await();
 }
 
-JANET_CORE_FN(janet_cfun_stream_write, 
-        "(ev/write stream data &opt timeout)", 
-        "Write data to a stream, suspending the current fiber until the write "
-        "completes. Takes an optional timeout in seconds, after which will return nil. "
-        "Returns nil, or raises an error if the write failed.") {
+JANET_CORE_FN(janet_cfun_stream_write,
+              "(ev/write stream data &opt timeout)",
+              "Write data to a stream, suspending the current fiber until the write "
+              "completes. Takes an optional timeout in seconds, after which will return nil. "
+              "Returns nil, or raises an error if the write failed.") {
     janet_arity(argc, 2, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_WRITABLE);

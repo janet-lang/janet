@@ -362,13 +362,6 @@ const void *janet_strbinsearch(
     return NULL;
 }
 
-/* Register a value in the global registry */
-void janet_register(const char *name, JanetCFunction cfun) {
-    Janet key = janet_wrap_cfunction(cfun);
-    Janet value = janet_csymbolv(name);
-    janet_table_put(janet_vm.registry, key, value);
-}
-
 /* Add sourcemapping and documentation to a binding table */
 static void janet_add_meta(JanetTable *table, const char *doc, const char *source_file, int32_t source_line) {
     if (doc) {
@@ -408,109 +401,147 @@ void janet_var(JanetTable *env, const char *name, Janet val, const char *doc) {
     janet_var_sm(env, name, val, doc, NULL, 0);
 }
 
-/* Load many cfunctions at once */
-typedef struct {
-    uint8_t *longname_buffer;
-    size_t prefixlen;
-    size_t bufsize;
-} JanetNameBuffer;
+/* Registry functions */
 
-static void cfuns_namebuf_init(JanetNameBuffer *nb, const char *regprefix) {
-    nb->longname_buffer = NULL;
-    nb->prefixlen = 0;
-    nb->bufsize = 0;
-    if (NULL != regprefix) {
-        nb->prefixlen = strlen(regprefix);
-        nb->bufsize = nb->prefixlen + 256;
-        nb->longname_buffer = janet_malloc(nb->bufsize);
-        if (NULL == nb->longname_buffer) {
+/* Put the registry in sorted order. */
+static void janet_registry_sort(void) {
+    for (size_t i = 1; i < janet_vm.registry_count; i++) {
+        JanetCFunRegistry reg = janet_vm.registry[i];
+        size_t j;
+        for (j = i; j > 0; j--) {
+            if (janet_vm.registry[j - 1].cfun < reg.cfun) break;
+            janet_vm.registry[j] = janet_vm.registry[j - 1];
+        }
+        janet_vm.registry[j] = reg;
+    }
+    janet_vm.registry_dirty = 0;
+}
+
+void janet_registry_put(
+    JanetCFunction key,
+    const char *name,
+    const char *name_prefix,
+    const char *source_file,
+    int32_t source_line) {
+    if (janet_vm.registry_count == janet_vm.registry_cap) {
+        size_t newcap = (janet_vm.registry_count + 1) * 2;
+        /* Size it nicely with core by default */
+        if (newcap < 512) {
+            newcap = 512;
+        }
+        janet_vm.registry = janet_realloc(janet_vm.registry, newcap * sizeof(JanetCFunRegistry));
+        if (NULL == janet_vm.registry) {
             JANET_OUT_OF_MEMORY;
         }
-        safe_memcpy(nb->longname_buffer, regprefix, nb->prefixlen);
-        nb->longname_buffer[nb->prefixlen] = '/';
-        nb->prefixlen++;
+        janet_vm.registry_cap = newcap;
     }
+    JanetCFunRegistry value = {
+        key,
+        name,
+        name_prefix,
+        source_file,
+        source_line
+    };
+    janet_vm.registry[janet_vm.registry_count++] = value;
+    janet_vm.registry_dirty = 1;
 }
 
-static Janet cfuns_namebuf_getname(JanetNameBuffer *nb, const char *suffix) {
-    if (nb->prefixlen) {
-        int32_t nmlen = 0;
-        while (suffix[nmlen]) nmlen++;
-        int32_t totallen = (int32_t) nb->prefixlen + nmlen;
-        if ((size_t) totallen > nb->bufsize) {
-            nb->bufsize = (size_t)(totallen) + 128;
-            nb->longname_buffer = janet_realloc(nb->longname_buffer, nb->bufsize);
-            if (NULL == nb->longname_buffer) {
-                JANET_OUT_OF_MEMORY;
-            }
+JanetCFunRegistry *janet_registry_get(JanetCFunction key) {
+    if (janet_vm.registry_dirty) {
+        janet_registry_sort();
+    }
+    for (size_t i = 0; i < janet_vm.registry_count; i++) {
+        if (janet_vm.registry[i].cfun == key) {
+            return janet_vm.registry + i;
         }
-        safe_memcpy(nb->longname_buffer + nb->prefixlen, suffix, nmlen);
-        return janet_wrap_symbol(janet_symbol(nb->longname_buffer, totallen));
-    } else {
-        return janet_csymbolv(suffix);
     }
+    JanetCFunRegistry *lo = janet_vm.registry;
+    JanetCFunRegistry *hi = lo + janet_vm.registry_count;
+    while (lo < hi) {
+        JanetCFunRegistry *mid = lo + (hi - lo) / 2;
+        if (mid->cfun == key) {
+            return mid;
+        }
+        if (mid->cfun > key) {
+            hi = mid;
+        } else {
+            lo = mid + 1;
+        }
+    }
+    return NULL;
 }
 
-static void cfuns_namebuf_deinit(JanetNameBuffer *nb) {
-    janet_free(nb->longname_buffer);
+typedef struct {
+    char *buf;
+    size_t plen;
+} NameBuf;
+
+static void namebuf_init(NameBuf *namebuf, const char *prefix) {
+    size_t plen = strlen(prefix);
+    namebuf->plen = plen;
+    namebuf->buf = janet_malloc(namebuf->plen + 256);
+    if (NULL == namebuf->buf) {
+        JANET_OUT_OF_MEMORY;
+    }
+    memcpy(namebuf->buf, prefix, plen);
+    namebuf->buf[plen] = '/';
 }
 
-void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
-    JanetNameBuffer nb;
-    cfuns_namebuf_init(&nb, regprefix);
-    while (cfuns->name) {
-        Janet name = cfuns_namebuf_getname(&nb, cfuns->name);
-        Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_def(env, cfuns->name, fun, cfuns->documentation);
-        janet_table_put(janet_vm.registry, fun, name);
-        cfuns++;
+static void namebuf_deinit(NameBuf *namebuf) {
+    janet_free(namebuf->buf);
+}
+
+static char *namebuf_name(NameBuf *namebuf, const char *suffix) {
+    size_t slen = strlen(suffix);
+    namebuf->buf = janet_realloc(namebuf->buf, namebuf->plen + 2 + slen);
+    if (NULL == namebuf->buf) {
+        JANET_OUT_OF_MEMORY;
     }
-    cfuns_namebuf_deinit(&nb);
+    memcpy(namebuf->buf + namebuf->plen + 1, suffix, slen);
+    namebuf->buf[namebuf->plen + 1 + slen] = '\0';
+    return (char *)(namebuf->buf);
 }
 
 void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
-    JanetNameBuffer nb;
-    cfuns_namebuf_init(&nb, regprefix);
     while (cfuns->name) {
-        Janet name = cfuns_namebuf_getname(&nb, cfuns->name);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        JanetTable *subt = janet_table(2);
-        janet_table_put(subt, janet_ckeywordv("value"), fun);
-        janet_add_meta(subt, cfuns->documentation, NULL, 0);
-        janet_table_put(env, name, janet_wrap_table(subt));
-        janet_table_put(janet_vm.registry, fun, name);
+        if (env) janet_def(env, cfuns->name, fun, cfuns->documentation);
+        janet_registry_put(cfuns->cfun, cfuns->name, regprefix, NULL, 0);
         cfuns++;
     }
-    cfuns_namebuf_deinit(&nb);
 }
 
 void janet_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns) {
-    JanetNameBuffer nb;
-    cfuns_namebuf_init(&nb, regprefix);
     while (cfuns->name) {
-        Janet name = cfuns_namebuf_getname(&nb, cfuns->name);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_def_sm(env, cfuns->name, fun, cfuns->documentation, cfuns->source_file, cfuns->source_line);
-        janet_table_put(janet_vm.registry, fun, name);
+        if (env) janet_def_sm(env, cfuns->name, fun, cfuns->documentation, cfuns->source_file, cfuns->source_line);
+        janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);
         cfuns++;
     }
-    cfuns_namebuf_deinit(&nb);
+}
+
+void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
+    NameBuf nb;
+    if (env) namebuf_init(&nb, regprefix);
+    while (cfuns->name) {
+        Janet fun = janet_wrap_cfunction(cfuns->cfun);
+        if (env) janet_def(env, namebuf_name(&nb, cfuns->name), fun, cfuns->documentation);
+        janet_registry_put(cfuns->cfun, cfuns->name, regprefix, NULL, 0);
+        cfuns++;
+    }
+    if (env) namebuf_deinit(&nb);
 }
 
 void janet_cfuns_ext_prefix(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns) {
-    JanetNameBuffer nb;
-    cfuns_namebuf_init(&nb, regprefix);
+    NameBuf nb;
+    if (env) namebuf_init(&nb, regprefix);
     while (cfuns->name) {
-        Janet name = cfuns_namebuf_getname(&nb, cfuns->name);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        JanetTable *subt = janet_table(2);
-        janet_table_put(subt, janet_ckeywordv("value"), fun);
-        janet_add_meta(subt, cfuns->documentation, cfuns->source_file, cfuns->source_line);
-        janet_table_put(env, name, janet_wrap_table(subt));
-        janet_table_put(janet_vm.registry, fun, name);
+        if (env) janet_def_sm(env, namebuf_name(&nb, cfuns->name), fun, cfuns->documentation, cfuns->source_file, cfuns->source_line);
+        janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);
         cfuns++;
     }
-    cfuns_namebuf_deinit(&nb);
+    if (env) namebuf_deinit(&nb);
 }
 
 /* Abstract type introspection */
@@ -534,35 +565,23 @@ const JanetAbstractType *janet_get_abstract_type(Janet key) {
 }
 
 #ifndef JANET_BOOTSTRAP
-void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p) {
+void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl) {
+    (void) sf;
+    (void) sl;
     (void) p;
     Janet key = janet_csymbolv(name);
     janet_table_put(env, key, x);
     if (janet_checktype(x, JANET_CFUNCTION)) {
-        janet_table_put(janet_vm.registry, x, key);
+        janet_registry_put(janet_unwrap_cfunction(x), name, NULL, NULL, 0);
     }
-}
-
-void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
-    (void) regprefix;
-    while (cfuns->name) {
-        Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_core_def(env, cfuns->name, fun, cfuns->documentation);
-        cfuns++;
-    }
-}
-
-void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl) {
-    (void) sf;
-    (void) sl;
-    janet_core_def(env, name, x, p);
 }
 
 void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns) {
     (void) regprefix;
     while (cfuns->name) {
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
-        janet_core_def(env, cfuns->name, fun, cfuns->documentation);
+        janet_table_put(env, janet_csymbolv(cfuns->name), fun);
+        janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);
         cfuns++;
     }
 }

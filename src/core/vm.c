@@ -1525,9 +1525,13 @@ int janet_init(void) {
     janet_vm.scratch_cap = 0;
 
     /* Initialize registry */
-    janet_vm.registry = janet_table(0);
+    janet_vm.registry = NULL;
+    janet_vm.registry_cap = 0;
+    janet_vm.registry_count = 0;
+    janet_vm.registry_dirty = 0;
+
+    /* Intialize abstract registry */
     janet_vm.abstract_registry = janet_table(0);
-    janet_gcroot(janet_wrap_table(janet_vm.registry));
     janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
 
     /* Traversal */
@@ -1579,6 +1583,7 @@ void janet_deinit(void) {
     janet_free(janet_vm.traversal_base);
     janet_vm.fiber = NULL;
     janet_vm.root_fiber = NULL;
+    janet_free(janet_vm.registry);
 #ifdef JANET_THREADS
     janet_threads_deinit();
 #endif

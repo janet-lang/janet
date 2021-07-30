@@ -1749,7 +1749,6 @@ JANET_API void janet_cfuns(JanetTable *env, const char *regprefix, const JanetRe
 JANET_API void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
 JANET_API JanetBindingType janet_resolve(JanetTable *env, JanetSymbol sym, Janet *out);
 JANET_API JanetBinding janet_resolve_ext(JanetTable *env, JanetSymbol sym);
-JANET_API void janet_register(const char *name, JanetCFunction cfun);
 
 /* Get values from the core environment. */
 JANET_API Janet janet_resolve_core(const char *name);

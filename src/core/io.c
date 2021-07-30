@@ -798,16 +798,16 @@ void janet_lib_io(JanetTable *env) {
     janet_register_abstract_type(&janet_file_type);
     int default_flags = JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE;
     /* stdout */
-    janet_core_def(env, "stdout",
+    JANET_CORE_DEF(env, "stdout",
                    janet_makefile(stdout, JANET_FILE_APPEND | default_flags),
-                   JDOC("The standard output file."));
+                   "The standard output file.");
     /* stderr */
-    janet_core_def(env, "stderr",
+    JANET_CORE_DEF(env, "stderr",
                    janet_makefile(stderr, JANET_FILE_APPEND | default_flags),
-                   JDOC("The standard error file."));
+                   "The standard error file.");
     /* stdin */
-    janet_core_def(env, "stdin",
+    JANET_CORE_DEF(env, "stdin",
                    janet_makefile(stdin, JANET_FILE_READ | default_flags),
-                   JDOC("The standard input file."));
+                   "The standard input file.");
 
 }

@@ -3653,8 +3653,8 @@
   (def feature-header "src/core/features.h")
 
   (def local-headers
-    ["src/core/util.h"
-     "src/core/state.h"
+    ["src/core/state.h"
+     "src/core/util.h"
      "src/core/gc.h"
      "src/core/vector.h"
      "src/core/fiber.h"
