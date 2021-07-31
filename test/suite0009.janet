@@ -116,7 +116,6 @@
    (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
    (os/rm "unique.txt"))
      
-
 # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
@@ -179,5 +178,47 @@
 (ev/cancel fiber "boop")
 
 (assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+
+# Test some channel
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/chan-close c2))
+(for i 0 1000
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/take c2)
+(assert (= (slice arr) (slice (range 1000))) "ev/chan-close 1")
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/sleep 0.1)
+  (ev/chan-close c2))
+(for i 0 100
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/select c2)
+(assert (= (slice arr) (slice (range 100))) "ev/chan-close 2")
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/chan-close c2))
+(for i 0 100
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/rselect c2)
+(assert (= (slice arr) (slice (range 100))) "ev/chan-close 3")
 
 (end-suite)
