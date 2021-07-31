@@ -1164,7 +1164,7 @@ JANET_CORE_FN(os_setenv,
 
 JANET_CORE_FN(os_time,
               "(os/time)",
-              "Get the current time expressed as the number of seconds since "
+              "Get the current time expressed as the number of whole seconds since "
               "January 1, 1970, the Unix epoch. Returns a real number.") {
     janet_fixarity(argc, 0);
     (void) argv;
@@ -1174,7 +1174,7 @@ JANET_CORE_FN(os_time,
 
 JANET_CORE_FN(os_clock,
               "(os/clock)",
-              "Return the number of seconds since some fixed point in time. The clock "
+              "Return the number of whole + fractional seconds since some fixed point in time. The clock "
               "is guaranteed to be non decreasing in real time.") {
     janet_fixarity(argc, 0);
     (void) argv;
