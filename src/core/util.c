@@ -429,10 +429,11 @@ void janet_registry_put(
         if (newcap < 512) {
             newcap = 512;
         }
-        janet_vm.registry = janet_realloc(janet_vm.registry, newcap * sizeof(JanetCFunRegistry));
-        if (NULL == janet_vm.registry) {
+        void *newmem = janet_realloc(janet_vm.registry, newcap * sizeof(JanetCFunRegistry));
+        if (NULL == newmem) {
             JANET_OUT_OF_MEMORY;
         }
+        janet_vm.registry = newmem;
         janet_vm.registry_cap = newcap;
     }
     JanetCFunRegistry value = {
