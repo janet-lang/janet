@@ -1323,8 +1323,9 @@
 
 (defn invert
   `Returns a table where the keys of an associative data structure
-  are the values, and the values of the keys. If multiple keys have the same
-  value, one key will be ignored.`
+  are the values, and the values are the keys. If multiple keys in the 
+  original mapped to the same value, only one of those values will
+  become a key in the returned table.`
   [ds]
   (def ret @{})
   (loop [k :keys ds]
