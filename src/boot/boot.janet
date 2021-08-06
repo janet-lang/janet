@@ -1031,30 +1031,60 @@
     (set k (next ind k)))
   ret)
 
-(defn take
-  "Take the first n elements of an indexed or bytes type. Returns a new tuple or string, respectively."
-  [n ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+(defn- resume-n
+  [n fib]
+  (def res @[])
+  (var taken 0)
+  (while (and (< taken n) (fiber/can-resume? fib))
+    (let [elem (resume fib)]
+      (+= taken 1)
+      (array/push res elem)))
+  res)
+
+(defn- slice-n
+  [f n ind]
   (def len (length ind))
   # make sure end is in [0, len]
   (def m (if (> n 0) n 0))
   (def end (if (> m len) len m))
   (f ind 0 end))
 
-(defn take-until
-  "Same as `(take-while (complement pred) ind)`."
-  [pred ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+(defn take
+  "Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string, respectively."
+  [n ind]
+  (cond
+    (fiber? ind) (resume-n n ind)
+    (bytes? ind) (slice-n string/slice n ind)
+    (slice-n tuple/slice n ind)))
+
+(defn- resume-until
+  [pred fib]
+  (def res @[])
+  (while (fiber/can-resume? fib)
+    (let [elem (resume fib)]
+      (if (pred elem)
+        (break)
+        (array/push res elem))))
+  res)
+
+(defn- slice-until
+  [f pred ind]
   (def len (length ind))
   (def i (find-index pred ind))
   (def end (if (nil? i) len i))
   (f ind 0 end))
 
+(defn take-until
+  "Same as `(take-while (complement pred) ind)`."
+  [pred ind]
+  (cond
+    (fiber? ind) (resume-until pred ind)
+    (bytes? ind) (slice-until string/slice pred ind)
+    (slice-until tuple/slice pred ind)))
+
 (defn take-while
-  `Given a predicate, take only elements from an indexed or bytes type that satisfy
-  the predicate, and abort on first failure. Returns a new tuple or string, respectively.`
+  `Given a predicate, take only elements from a fiber, indexed or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new array, tuple or string, respectively.`
   [pred ind]
   (take-until (complement pred) ind))
 
