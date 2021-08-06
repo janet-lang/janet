@@ -54,8 +54,7 @@
 (assert (deep= (take 3 (generate [x :in [1 2 3 4 5]] x)) @[1 2 3]) "take from fiber")
 # NB: repeatedly resuming a fiber created with `generate` includes a `nil` as
 # the final element. Thus a generate of 2 elements will create an array of 3.
-(assert (= (length (take 4 (generate [x :in [1 2]] x))) 3) "take from short fiber")
-(assert-error :invalid-type (take 3 {}) "take 6")
+(assert (= (length (take 4 (generate [x :in [1 2]] x))) 2) "take from short fiber")
 
 # take-until
 

@@ -1031,14 +1031,23 @@
     (set k (next ind k)))
   ret)
 
-(defn- resume-n
-  [n fib]
+(defn- take-n-fallback
+  [n xs]
   (def res @[])
-  (var taken 0)
-  (while (and (< taken n) (fiber/can-resume? fib))
-    (let [elem (resume fib)]
-      (+= taken 1)
-      (array/push res elem)))
+  (when (> n 0)
+    (var left n)
+    (each x xs
+      (array/push res x)
+      (-- left)
+      (if (= 0 left) (break))))
+  res)
+
+(defn- take-until-fallback
+  [pred xs]
+  (def res @[])
+  (each x xs
+    (if (pred x) (break))
+    (array/push res x))
   res)
 
 (defn- slice-n
@@ -1053,19 +1062,9 @@
   "Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string, respectively."
   [n ind]
   (cond
-    (fiber? ind) (resume-n n ind)
     (bytes? ind) (slice-n string/slice n ind)
-    (slice-n tuple/slice n ind)))
-
-(defn- resume-until
-  [pred fib]
-  (def res @[])
-  (while (fiber/can-resume? fib)
-    (let [elem (resume fib)]
-      (if (pred elem)
-        (break)
-        (array/push res elem))))
-  res)
+    (indexed? ind) (slice-n tuple/slice n ind)
+    (take-n-fallback n ind)))
 
 (defn- slice-until
   [f pred ind]
@@ -1078,9 +1077,9 @@
   "Same as `(take-while (complement pred) ind)`."
   [pred ind]
   (cond
-    (fiber? ind) (resume-until pred ind)
     (bytes? ind) (slice-until string/slice pred ind)
-    (slice-until tuple/slice pred ind)))
+    (indexed? ind) (slice-until tuple/slice pred ind)
+    (take-until-fallback pred ind)))
 
 (defn take-while
   `Given a predicate, take only elements from a fiber, indexed or bytes type that satisfy
