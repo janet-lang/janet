@@ -43,7 +43,8 @@ void janet_symcache_init() {
     if (NULL == janet_vm.cache) {
         JANET_OUT_OF_MEMORY;
     }
-    memset(&janet_vm.gensym_counter, 0, sizeof(janet_vm.gensym_counter));
+    memset(&janet_vm.gensym_counter, '0', sizeof(janet_vm.gensym_counter));
+    janet_vm.gensym_counter[0] = '_';
     janet_vm.cache_count = 0;
     janet_vm.cache_deleted = 0;
 }
