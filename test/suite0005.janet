@@ -51,6 +51,10 @@
 (assert (deep= (take 0 [1 2 3 4 5]) []) "take 3")
 (assert (deep= (take 10 [1 2 3]) [1 2 3]) "take 4")
 (assert (deep= (take -1 [:a :b :c]) []) "take 5")
+(assert (deep= (take 3 (generate [x :in [1 2 3 4 5]] x)) @[1 2 3]) "take from fiber")
+# NB: repeatedly resuming a fiber created with `generate` includes a `nil` as
+# the final element. Thus a generate of 2 elements will create an array of 3.
+(assert (= (length (take 4 (generate [x :in [1 2]] x))) 3) "take from short fiber")
 (assert-error :invalid-type (take 3 {}) "take 6")
 
 # take-until
@@ -61,6 +65,8 @@
 (assert (deep= (take-until pos? @[-1 -2 3]) [-1 -2]) "take-until 4")
 (assert (deep= (take-until pos? @[-1 1 -2]) [-1]) "take-until 5")
 (assert (deep= (take-until |(= $ 115) "books") "book") "take-until 6")
+(assert (deep= (take-until |(= $ 115) (generate [x :in "books"] x))
+               @[98 111 111 107]) "take-until from fiber")
 
 # take-while
 
@@ -69,6 +75,8 @@
 (assert (deep= (take-while neg? @[-1 -2 -3]) [-1 -2 -3]) "take-while 3")
 (assert (deep= (take-while neg? @[-1 -2 3]) [-1 -2]) "take-while 4")
 (assert (deep= (take-while neg? @[-1 1 -2]) [-1]) "take-while 5")
+(assert (deep= (take-while neg? (generate [x :in  @[-1 1 -2]] x))
+               @[-1]) "take-while from fiber")
 
 # drop
 
