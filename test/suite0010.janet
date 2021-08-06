@@ -161,4 +161,10 @@
            ([err] :caught))))
     "regression #638"))
 
+# Issue #751
+(def t {:side false})
+(assert (nil? (get-in t [:side :note])) "get-in with false value")
+(assert (= (get-in t [:side :note] "dflt") "dflt")
+        "get-in with false value and default")
+
 (end-suite)

@@ -1381,7 +1381,7 @@
   a sequence of keys.`
   [ds ks &opt dflt]
   (var d ds)
-  (loop [k :in ks :while d] (set d (get d k)))
+  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
   (if (= nil d) dflt d))
 
 (defn update-in
