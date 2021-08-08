@@ -1666,6 +1666,10 @@
   * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
     that will match any value without creating a binding.
 
+  While a symbol pattern will ordinarily match any value, the pattern `(@ <sym>)`,
+  where <sym> is any symbol, will attempt to match `x` against a value
+  already bound to `<sym>`, rather than matching and rebinding it.
+
   Any other value pattern will only match if it is equal to `x`.
   ```
   [x & cases]
