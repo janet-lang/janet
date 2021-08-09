@@ -84,7 +84,6 @@ time_t timegm(struct tm *tm);
  * setenv/getenv are not thread safe. */
 #ifdef JANET_THREADS
 # ifdef JANET_WINDOWS
-static int env_lock_initialized = 0;
 static CRITICAL_SECTION env_lock;
 static void janet_lock_environ(void) {
     EnterCriticalSection(&env_lock);
@@ -2146,10 +2145,17 @@ void janet_lib_os(JanetTable *env) {
 #if !defined(JANET_REDUCED_OS) && defined(JANET_WINDOWS) && defined(JANET_THREADS)
     /* During start up, the top-most abstract machine (thread)
      * in the thread tree sets up the critical section. */
-    if (!env_lock_initialized) {
-        InitializeCriticalSection(&env_lock);
-        env_lock_initialized = 1;
+    static volatile long env_lock_initializing = 0;
+    static volatile long env_lock_initialized = 0;
+    if(!InterlockedExchange(&env_lock_initializing, 1)){
+      InitializeCriticalSection(&env_lock);
+      InterlockedOr(&env_lock_initialized, 1);
+    } else {
+      while (!InterlockedOr(&env_lock_initialized, 0)) {
+        Sleep(0);
+      }
     }
+
 #endif
 #ifndef JANET_NO_PROCESSES
 #endif
