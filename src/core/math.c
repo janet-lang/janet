@@ -141,7 +141,7 @@ JANET_CORE_FN(cfun_rng_make,
 
 JANET_CORE_FN(cfun_rng_uniform,
               "(math/rng-uniform rng)",
-              "Extract a random integer in the range [0, 1) from the RNG."
+              "Extract a random number in the range [0, 1) from the RNG."
              ) {
     janet_fixarity(argc, 1);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
