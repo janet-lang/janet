@@ -746,6 +746,7 @@ static int janet_chanat_gc(void *p, size_t s) {
         janet_chan_lock(channel);
         if (--channel->ref_count == 0) {
             janet_chan_deinit(channel);
+            janet_free(channel);
         } else {
             janet_chan_unlock(channel);
         }
