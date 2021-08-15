@@ -1287,6 +1287,7 @@ extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 #ifdef JANET_EV
 
 extern JANET_API const JanetAbstractType janet_stream_type;
+extern JANET_API const JanetAbstractType janet_channel_type;
 
 /* Run the event loop */
 JANET_API void janet_loop(void);

@@ -3369,6 +3369,11 @@
     [& body]
     ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t)))
 
+  (defmacro ev/spawn-thread
+    ``Run some code in a new thread. Returns a fiber that can be  ``
+    [& body]
+    ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t) :n))
+
   (defmacro ev/with-deadline
     `Run a body of code with a deadline, such that if the code does not complete before
     the deadline is up, it will be canceled.`

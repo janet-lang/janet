@@ -1576,7 +1576,6 @@ void janet_deinit(void) {
     janet_vm.roots = NULL;
     janet_vm.root_count = 0;
     janet_vm.root_capacity = 0;
-    janet_vm.registry = NULL;
     janet_vm.abstract_registry = NULL;
     janet_vm.core_env = NULL;
     janet_vm.top_dyns = NULL;
@@ -1584,6 +1583,7 @@ void janet_deinit(void) {
     janet_vm.fiber = NULL;
     janet_vm.root_fiber = NULL;
     janet_free(janet_vm.registry);
+    janet_vm.registry = NULL;
 #ifdef JANET_THREADS
     janet_threads_deinit();
 #endif
