@@ -2147,13 +2147,13 @@ void janet_lib_os(JanetTable *env) {
      * in the thread tree sets up the critical section. */
     static volatile long env_lock_initializing = 0;
     static volatile long env_lock_initialized = 0;
-    if(!InterlockedExchange(&env_lock_initializing, 1)){
-      InitializeCriticalSection(&env_lock);
-      InterlockedOr(&env_lock_initialized, 1);
+    if (!InterlockedExchange(&env_lock_initializing, 1)) {
+        InitializeCriticalSection(&env_lock);
+        InterlockedOr(&env_lock_initialized, 1);
     } else {
-      while (!InterlockedOr(&env_lock_initialized, 0)) {
-        Sleep(0);
-      }
+        while (!InterlockedOr(&env_lock_initialized, 0)) {
+            Sleep(0);
+        }
     }
 
 #endif

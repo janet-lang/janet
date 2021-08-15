@@ -818,6 +818,7 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
     int mode = msg.tag;
     JanetChannel *channel = (JanetChannel *) msg.argp;
     Janet x = msg.argj;
+    janet_ev_dec_refcount();
     if (fiber->sched_id == sched_id) {
         if (mode == JANET_CP_MODE_CHOICE_READ) {
             janet_assert(!janet_chan_unpack(channel, &x), "packing error");
@@ -911,6 +912,7 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
             janet_q_push(&channel->write_pending, &pending, sizeof(pending));
             janet_chan_unlock(channel);
             if (is_threaded) {
+                janet_ev_inc_refcount();
                 janet_gcroot(janet_wrap_fiber(pending.fiber));
             }
             return 1;
@@ -960,6 +962,7 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) 
         janet_q_push(&channel->read_pending, &pending, sizeof(pending));
         janet_chan_unlock(channel);
         if (is_threaded) {
+            janet_ev_inc_refcount();
             janet_gcroot(janet_wrap_fiber(pending.fiber));
         }
         return 0;
@@ -1805,10 +1808,10 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
             status = write(fd, &event, sizeof(event));
         } while (status == -1 && errno == EINTR);
         if (status > 0) break;
-        sleep(1);
+        sleep(0);
         tries--;
     }
-    janet_assert(tries > 0, "failed to write event to self-pipe");
+    //janet_assert(tries > 0, "failed to write event to self-pipe");
 #endif
 }
 
@@ -1934,6 +1937,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
 JANET_NO_RETURN
 void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp) {
     JanetEVGenericMessage arguments;
+    memset(&arguments, 0, sizeof(arguments));
     arguments.tag = tag;
     arguments.argi = argi;
     arguments.argp = argp;
@@ -2640,6 +2644,7 @@ JANET_CORE_FN(cfun_ev_thread,
     if (flags & 0x1) {
         /* Return immediately */
         JanetEVGenericMessage arguments;
+        memset(&arguments, 0, sizeof(arguments));
         arguments.tag = (uint32_t) flags;
         arguments.argi = argc;
         arguments.argp = buffer;
