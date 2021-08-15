@@ -1343,7 +1343,7 @@ JANET_API void janet_addtimeout(double sec);
 JANET_API void janet_ev_inc_refcount(void);
 JANET_API void janet_ev_dec_refcount(void);
 
-/* Get last error from a an IO operation */
+/* Get last error from an IO operation */
 JANET_API Janet janet_ev_lasterr(void);
 
 /* Async service for calling a function or syscall in a background thread. This is not
@@ -1357,6 +1357,7 @@ typedef struct {
     int tag;
     int argi;
     void *argp;
+    Janet argj;
     JanetFiber *fiber;
 } JanetEVGenericMessage;
 
@@ -1586,6 +1587,7 @@ JANET_API const JanetKV *janet_struct_find(JanetStruct st, Janet key);
 /* Table functions */
 JANET_API JanetTable *janet_table(int32_t capacity);
 JANET_API JanetTable *janet_table_init(JanetTable *table, int32_t capacity);
+JANET_API JanetTable *janet_table_init_raw(JanetTable *table, int32_t capacity);
 JANET_API void janet_table_deinit(JanetTable *table);
 JANET_API Janet janet_table_get(JanetTable *t, Janet key);
 JANET_API Janet janet_table_get_ex(JanetTable *t, Janet key, JanetTable **which);

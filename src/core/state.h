@@ -160,6 +160,7 @@ struct JanetVM {
     size_t listener_count;
     size_t listener_cap;
     size_t extra_listeners;
+    JanetTable channel_map; /* threaded channel lookup table, no  gc */
 #ifdef JANET_WINDOWS
     void **iocp;
 #elif defined(JANET_EV_EPOLL)

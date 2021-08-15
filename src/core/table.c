@@ -67,14 +67,23 @@ static JanetTable *janet_table_init_impl(JanetTable *table, int32_t capacity, in
     return table;
 }
 
-/* Initialize a table */
+/* Initialize a table (for use withs scratch memory) */
 JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
     return janet_table_init_impl(table, capacity, 1);
 }
 
+/* Initialize a table without using scratch memory */
+JanetTable *janet_table_init_raw(JanetTable *table, int32_t capacity) {
+    return janet_table_init_impl(table, capacity, 0);
+}
+
 /* Deinitialize a table */
 void janet_table_deinit(JanetTable *table) {
-    janet_sfree(table->data);
+    if (table->gc.flags & JANET_TABLE_FLAG_STACK) {
+        janet_sfree(table->data);
+    } else {
+        janet_free(table->data);
+    }
 }
 
 /* Create a new table */
