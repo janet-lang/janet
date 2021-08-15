@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.17.0 - Unreleased
+- Deprecate the `thread` library. Use threaded channels and ev instead.
+- Channels can now be marshalled.
+- Add the ability to close channels with `ev/chan-close` (or `:close`).
+- Add threaded channels with `ev/thread-chan`.
 - Add `JANET_FN` and `JANET_REG` macros to more easily define C functions that export their source mapping information.
 - Add `janet_interpreter_interupt` and `janet_loop1_interrupt` to interrupt the interpreter while running.
 - Add `table/clear`

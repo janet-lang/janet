@@ -3651,6 +3651,12 @@
         (put into k (x k))))
     into)
 
+  # Deprecate thread library
+  (loop [[k v] :in (pairs root-env)
+         :when (symbol? k)
+         :when (string/has-prefix? "thread/" k)]
+    (put v :deprecated true))
+
   # Modify root-env to remove private symbols and
   # flatten nested tables.
   (loop [[k v] :in (pairs root-env)
