@@ -579,8 +579,16 @@ static inline int janet_chan_is_threaded(JanetChannel *chan) {
 static int janet_chan_pack(JanetChannel *chan, Janet *x) {
     if (chan->ref_count < 0) return 0;
     switch (janet_type(*x)) {
-        default:
-            return 1;
+        default: {
+            JanetBuffer *buf = janet_malloc(sizeof(JanetBuffer));
+            if (NULL == buf) {
+                JANET_OUT_OF_MEMORY;
+            }
+            janet_buffer_init(buf, 10);
+            janet_marshal(buf, *x, NULL, JANET_MARSHAL_UNSAFE);
+            *x = janet_wrap_buffer(buf);
+            return 0;
+        }
         case JANET_NIL:
         case JANET_NUMBER:
         case JANET_POINTER:
@@ -595,6 +603,13 @@ static int janet_chan_unpack(JanetChannel *chan, Janet *x) {
     switch (janet_type(*x)) {
         default:
             return 1;
+        case JANET_BUFFER: {
+            JanetBuffer *buf = janet_unwrap_buffer(*x);
+            *x = janet_unmarshal(buf->data, buf->count, JANET_MARSHAL_UNSAFE, NULL, NULL);
+            janet_buffer_deinit(buf);
+            janet_free(buf);
+            return 0;
+        }
         case JANET_NIL:
         case JANET_NUMBER:
         case JANET_POINTER:
@@ -1812,7 +1827,7 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
         sleep(0);
         tries--;
     }
-    //janet_assert(tries > 0, "failed to write event to self-pipe");
+    janet_assert(tries > 0, "failed to write event to self-pipe");
 #endif
 }
 
