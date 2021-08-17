@@ -1103,14 +1103,18 @@ Janet janet_unmarshal_janet(JanetMarshalContext *ctx) {
     return ret;
 }
 
-void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
+void janet_unmarshal_abstract_reuse(JanetMarshalContext *ctx, void *p) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     if (ctx->at == NULL) {
         janet_panicf("janet_unmarshal_abstract called more than once");
     }
-    void *p = janet_abstract(ctx->at, size);
     janet_v_push(st->lookup, janet_wrap_abstract(p));
     ctx->at = NULL;
+}
+
+void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
+    void *p = janet_abstract(ctx->at, size);
+    janet_unmarshal_abstract_reuse(ctx, p);
     return p;
 }
 
