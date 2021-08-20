@@ -161,6 +161,7 @@ struct JanetVM {
     size_t listener_cap;
     size_t extra_listeners;
     JanetTable channel_map; /* threaded channel lookup table, no  gc */
+    JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
 #ifdef JANET_WINDOWS
     void **iocp;
 #elif defined(JANET_EV_EPOLL)

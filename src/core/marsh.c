@@ -63,7 +63,10 @@ enum {
     LB_FUNCENV_REF, /* 219 */
     LB_FUNCDEF_REF, /* 220 */
     LB_UNSAFE_CFUNCTION, /* 221 */
-    LB_UNSAFE_POINTER /* 222 */
+    LB_UNSAFE_POINTER, /* 222 */
+#ifdef JANET_EV
+    LB_THREADED_ABSTRACT/* 223 */
+#endif
 } LeadBytes;
 
 /* Helper to look inside an entry in an environment */
@@ -369,6 +372,20 @@ void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
+#ifdef JANET_EV
+    /* Threaded abstract types get passed through as pointers in the unsafe mode */
+    if ((flags & JANET_MARSHAL_UNSAFE) &&
+            (JANET_MEMORY_THREADED_ABSTRACT == (janet_abstract_head(abstract)->gc.flags & JANET_MEM_TYPEBITS))) {
+
+        /* Increment refcount before sending message. This prevents a "death in transit" problem
+         * where a message is garbage collected while in transit between two threads - i.e., the sending threads
+         * loses the reference and runs a garbage collection before the receiving thread gets the message. */
+        janet_abstract_incref(abstract);
+        pushbyte(st, LB_THREADED_ABSTRACT);
+        pushbytes(st, (uint8_t *) &abstract, sizeof(abstract));
+        return;
+    }
+#endif
     const JanetAbstractType *at = janet_abstract_type(abstract);
     if (at->marshal) {
         pushbyte(st, LB_ABSTRACT);
@@ -376,7 +393,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
     } else {
-        janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
+        janet_panicf("cannot marshal %p", x);
     }
 }
 
@@ -1361,6 +1378,37 @@ static const uint8_t *unmarshal_one(
             janet_v_push(st->lookup, *out);
             return data;
         }
+#ifdef JANET_EV
+        case LB_THREADED_ABSTRACT: {
+            MARSH_EOS(st, data + sizeof(void *));
+            data++;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) {
+                janet_panicf("unsafe flag not given, "
+                             "will not unmarshal threaded abstract pointer at index %d",
+                             (int)(data - st->start));
+            }
+            union {
+                void *ptr;
+                uint8_t bytes[sizeof(void *)];
+            } u;
+            memcpy(u.bytes, data, sizeof(void *));
+            data += sizeof(void *);
+            *out = janet_wrap_abstract(u.ptr);
+
+            /* Check if we have already seen this abstract type - if we have, decrement refcount */
+            Janet check = janet_table_get(&janet_vm.threaded_abstracts, *out);
+            if (janet_checktype(check, JANET_NIL)) {
+                /* Transfers reference from threaded channel buffer to current heap */
+                janet_table_put(&janet_vm.threaded_abstracts, *out, janet_wrap_false());
+            } else {
+                /* Heap reference already accounted for, remove threaded channel reference. */
+                janet_abstract_decref(u.ptr);
+            }
+
+            janet_v_push(st->lookup, *out);
+            return data;
+        }
+#endif
         default: {
             janet_panicf("unknown byte %x at index %d",
                          *data,

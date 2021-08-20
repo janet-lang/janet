@@ -839,7 +839,10 @@ JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at
  * list of blocks, which is naive but works. */
 struct JanetGCObject {
     int32_t flags;
-    JanetGCObject *next;
+    union {
+        JanetGCObject *next;
+        int32_t refcount; /* For threaded abstract types */
+    };
 };
 
 /* A lightweight green thread in janet. Does not correspond to
@@ -1343,6 +1346,13 @@ JANET_NO_RETURN JANET_API void janet_sleep_await(double sec);
 JANET_API void janet_addtimeout(double sec);
 JANET_API void janet_ev_inc_refcount(void);
 JANET_API void janet_ev_dec_refcount(void);
+
+/* Thread aware abstract types and helpers */
+JANET_API void *janet_abstract_begin_threaded(const JanetAbstractType *atype, size_t size);
+JANET_API void *janet_abstract_end_threaded(void *x);
+JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size);
+JANET_API int32_t janet_abstract_incref(void *abst);
+JANET_API int32_t janet_abstract_decref(void *abst);
 
 /* Get last error from an IO operation */
 JANET_API Janet janet_ev_lasterr(void);

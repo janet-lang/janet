@@ -105,6 +105,14 @@ static void janet_mark_buffer(JanetBuffer *buffer) {
 }
 
 static void janet_mark_abstract(void *adata) {
+#ifdef JANET_EV
+    /* Check if abstract type is a threaded abstract type. If it is, marking means
+     * updating the threaded_abstract table. */
+    if ((janet_abstract_head(adata)->gc.flags & JANET_MEM_TYPEBITS) == JANET_MEMORY_THREADED_ABSTRACT) {
+        janet_table_put(&janet_vm.threaded_abstracts, janet_wrap_abstract(adata), janet_wrap_true());
+        return;
+    }
+#endif
     if (janet_gc_reachable(janet_abstract_head(adata)))
         return;
     janet_gc_mark(janet_abstract_head(adata));
@@ -329,6 +337,42 @@ void janet_sweep() {
         }
         current = next;
     }
+#ifdef JANET_EV
+    /* Sweep threaded abstract types for references to decrement */
+    JanetKV *items = janet_vm.threaded_abstracts.data;
+    for (int32_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
+        if (janet_checktype(items[i].key, JANET_ABSTRACT)) {
+
+            /* If item was not visited during the mark phase, then this
+             * abstract type isn't present in the heap and needs its refcount
+             * decremented, and shouuld be removed from table. If the refcount is
+             * then 0, the item will be collected. This ensures that only one interpreter
+             * will clean up the threaded abstract. */
+
+            /* If not visited... */
+            if (!janet_truthy(items[i].value)) {
+                void *abst = janet_unwrap_abstract(items[i].key);
+                if (0 == janet_abstract_decref(abst)) {
+                    /* Run finalizer */
+                    JanetAbstractHead *head = janet_abstract_head(abst);
+                    if (head->type->gc) {
+                        janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
+                    }
+                    /* Mark as tombstone in place */
+                    items[i].key = janet_wrap_nil();
+                    items[i].value = janet_wrap_false();
+                    janet_vm.threaded_abstracts.deleted++;
+                    janet_vm.threaded_abstracts.count--;
+                    /* Free memory */
+                    janet_free(janet_abstract_head(abst));
+                }
+            }
+
+            /* Reset for next sweep */
+            items[i].value = janet_wrap_false();
+        }
+    }
+#endif
 }
 
 /* Allocate some memory that is tracked for garbage collection */

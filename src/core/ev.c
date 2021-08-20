@@ -531,6 +531,7 @@ void janet_ev_init_common(void) {
     janet_vm.tq_count = 0;
     janet_vm.tq_capacity = 0;
     janet_table_init_raw(&janet_vm.channel_map, 0);
+    janet_table_init_raw(&janet_vm.threaded_abstracts, 0);
     janet_rng_seed(&janet_vm.ev_rng, 0);
 }
 
@@ -541,6 +542,7 @@ void janet_ev_deinit_common(void) {
     janet_free(janet_vm.listeners);
     janet_vm.listeners = NULL;
     janet_table_deinit(&janet_vm.channel_map);
+    janet_table_deinit(&janet_vm.threaded_abstracts);
 }
 
 /* Short hand to yield to event loop */
