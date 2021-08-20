@@ -65,11 +65,7 @@ typedef struct {
     int32_t limit;
     int closed;
     int is_threaded;
-#ifdef JANET_WINDOWS
-    CRITICAL_SECTION lock;
-#else
-    pthread_mutex_t lock;
-#endif
+    JanetOSMutex lock;
 } JanetChannel;
 
 typedef struct {
@@ -627,11 +623,7 @@ static void janet_chan_init(JanetChannel *chan, int32_t limit, int threaded) {
     janet_q_init(&chan->items);
     janet_q_init(&chan->read_pending);
     janet_q_init(&chan->write_pending);
-#ifdef JANET_WINDOWS
-    InitializeCriticalSection(&chan->lock);
-#else
-    pthread_mutex_init(&chan->lock, NULL);
-#endif
+    janet_os_mutex_init(&chan->lock);
 }
 
 static void janet_chan_deinit(JanetChannel *chan) {
@@ -644,29 +636,17 @@ static void janet_chan_deinit(JanetChannel *chan) {
         }
     }
     janet_q_deinit(&chan->items);
-#ifdef JANET_WINDOWS
-    DeleteCriticalSection(&chan->lock);
-#else
-    pthread_mutex_destroy(&chan->lock);
-#endif
+    janet_os_mutex_deinit(&chan->lock);
 }
 
 static void janet_chan_lock(JanetChannel *chan) {
     if (!janet_chan_is_threaded(chan)) return;
-#ifdef JANET_WINDOWS
-    EnterCriticalSection(&chan->lock);
-#else
-    pthread_mutex_lock(&chan->lock);
-#endif
+    janet_os_mutex_lock(&chan->lock);
 }
 
 static void janet_chan_unlock(JanetChannel *chan) {
     if (!janet_chan_is_threaded(chan)) return;
-#ifdef JANET_WINDOWS
-    LeaveCriticalSection(&chan->lock);
-#else
-    pthread_mutex_unlock(&chan->lock);
-#endif
+    janet_os_mutex_unlock(&chan->lock);
 }
 
 /*

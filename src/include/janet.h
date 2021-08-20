@@ -317,6 +317,17 @@ typedef struct {
 #include <stddef.h>
 #include <stdio.h>
 
+/* Some extra includes if EV is enabled */
+#ifdef JANET_EV
+#ifdef JANET_WINDOWS
+#include <synchapi.h>
+typedef CRTICAL_SECTION JanetOSMutex;
+#else
+#include <pthread.h>
+typedef pthread_mutex_t JanetOSMutex;
+#endif
+#endif
+
 #ifdef JANET_BSD
 int _setjmp(jmp_buf);
 JANET_NO_RETURN void _longjmp(jmp_buf, int);
@@ -1353,6 +1364,12 @@ JANET_API void *janet_abstract_end_threaded(void *x);
 JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size);
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
+
+/* Expose some OS sync primitives to make portable abstract types easier to implement */
+JANET_API void janet_os_mutex_init(JanetOSMutex *mutex);
+JANET_API void janet_os_mutex_deinit(JanetOSMutex *mutex);
+JANET_API void janet_os_mutex_lock(JanetOSMutex *mutex);
+JANET_API void janet_os_mutex_unlock(JanetOSMutex *mutex);
 
 /* Get last error from an IO operation */
 JANET_API Janet janet_ev_lasterr(void);

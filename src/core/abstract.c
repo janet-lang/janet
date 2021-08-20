@@ -81,7 +81,7 @@ void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size) {
     return janet_abstract_end_threaded(janet_abstract_begin_threaded(atype, size));
 }
 
-/* Refcounting primitives */
+/* Refcounting primitives and sync primitives */
 
 #ifdef JANET_WINDOWS
 
@@ -93,6 +93,22 @@ static int32_t janet_decref(JanetAbstractHead *ab) {
     return InterlockedDecrement(&ab->gc.refcount);
 }
 
+void janet_os_mutex_init(JanetOSMutex *mutex) {
+    InitializeCriticalSection(mutex);
+}
+
+void janet_os_mutex_deinit(JanetOSMutex *mutex) {
+    DeleteCriticalSection(mutex);
+}
+
+void janet_os_mutex_lock(JanetOSMutex *mutex) {
+    EnterCriticalSection(mutex);
+}
+
+void janet_os_mutex_unlock(JanetOSMutex *mutex) {
+    LeaveCriticalSection(mutex);
+}
+
 #else
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
@@ -101,6 +117,22 @@ static int32_t janet_incref(JanetAbstractHead *ab) {
 
 static int32_t janet_decref(JanetAbstractHead *ab) {
     return __atomic_add_fetch(&ab->gc.refcount, -1, __ATOMIC_RELAXED);
+}
+
+void janet_os_mutex_init(JanetOSMutex *mutex) {
+    pthread_mutex_init(mutex, NULL);
+}
+
+void janet_os_mutex_deinit(JanetOSMutex *mutex) {
+    pthread_mutex_destroy(mutex);
+}
+
+void janet_os_mutex_lock(JanetOSMutex *mutex) {
+    pthread_mutex_lock(mutex);
+}
+
+void janet_os_mutex_unlock(JanetOSMutex *mutex) {
+    pthread_mutex_unlock(mutex);
 }
 
 #endif
