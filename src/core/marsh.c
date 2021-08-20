@@ -1396,16 +1396,21 @@ static const uint8_t *unmarshal_one(
             } u;
             memcpy(u.bytes, data, sizeof(void *));
             data += sizeof(void *);
-            *out = janet_wrap_abstract(u.ptr);
 
-            /* Check if we have already seen this abstract type - if we have, decrement refcount */
-            Janet check = janet_table_get(&janet_vm.threaded_abstracts, *out);
-            if (janet_checktype(check, JANET_NIL)) {
-                /* Transfers reference from threaded channel buffer to current heap */
-                janet_table_put(&janet_vm.threaded_abstracts, *out, janet_wrap_false());
-            } else {
-                /* Heap reference already accounted for, remove threaded channel reference. */
+            if (flags & JANET_MARSHAL_DECREF) {
+                /* Decrement immediately and don't bother putting into heap */
                 janet_abstract_decref(u.ptr);
+                *out = janet_wrap_nil();
+            } else {
+                *out = janet_wrap_abstract(u.ptr);
+                Janet check = janet_table_get(&janet_vm.threaded_abstracts, *out);
+                if (janet_checktype(check, JANET_NIL)) {
+                    /* Transfers reference from threaded channel buffer to current heap */
+                    janet_table_put(&janet_vm.threaded_abstracts, *out, janet_wrap_false());
+                } else {
+                    /* Heap reference already accounted for, remove threaded channel reference. */
+                    janet_abstract_decref(u.ptr);
+                }
             }
 
             janet_v_push(st->lookup, *out);
@@ -1419,7 +1424,6 @@ static const uint8_t *unmarshal_one(
             return NULL;
         }
     }
-#undef EXTRA
 }
 
 Janet janet_unmarshal(

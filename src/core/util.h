@@ -49,6 +49,8 @@
 } while (0)
 #endif
 
+#define JANET_MARSHAL_DECREF 0x40000
+
 #define janet_assert(c, m) do { \
     if (!(c)) JANET_EXIT((m)); \
 } while (0)

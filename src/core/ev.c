@@ -598,14 +598,15 @@ static int janet_chan_pack(JanetChannel *chan, Janet *x) {
     }
 }
 
-static int janet_chan_unpack(JanetChannel *chan, Janet *x) {
+static int janet_chan_unpack(JanetChannel *chan, Janet *x, int is_cleanup) {
     if (!janet_chan_is_threaded(chan)) return 0;
     switch (janet_type(*x)) {
         default:
             return 1;
         case JANET_BUFFER: {
             JanetBuffer *buf = janet_unwrap_buffer(*x);
-            *x = janet_unmarshal(buf->data, buf->count, JANET_MARSHAL_UNSAFE, NULL, NULL);
+            int flags = is_cleanup ? JANET_MARSHAL_UNSAFE : (JANET_MARSHAL_UNSAFE | JANET_MARSHAL_DECREF);
+            *x = janet_unmarshal(buf->data, buf->count, flags, NULL, NULL);
             janet_buffer_deinit(buf);
             janet_free(buf);
             return 0;
@@ -639,7 +640,7 @@ static void janet_chan_deinit(JanetChannel *chan) {
     if (janet_chan_is_threaded(chan)) {
         Janet item;
         while (!janet_q_pop(&chan->items, &item, sizeof(item))) {
-            janet_chan_unpack(chan, &item);
+            janet_chan_unpack(chan, &item, 1);
         }
     }
     janet_q_deinit(&chan->items);
@@ -747,12 +748,12 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
     janet_ev_dec_refcount();
     if (fiber->sched_id == sched_id) {
         if (mode == JANET_CP_MODE_CHOICE_READ) {
-            janet_assert(!janet_chan_unpack(channel, &x), "packing error");
+            janet_assert(!janet_chan_unpack(channel, &x, 0), "packing error");
             janet_schedule(fiber, make_read_result(channel, x));
         } else if (mode == JANET_CP_MODE_CHOICE_WRITE) {
             janet_schedule(fiber, make_write_result(channel));
         } else if (mode == JANET_CP_MODE_READ) {
-            janet_assert(!janet_chan_unpack(channel, &x), "packing error");
+            janet_assert(!janet_chan_unpack(channel, &x, 0), "packing error");
             janet_schedule(fiber, x);
         } else if (mode == JANET_CP_MODE_WRITE) {
             janet_schedule(fiber, janet_wrap_channel(channel));
@@ -893,7 +894,7 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) 
         }
         return 0;
     }
-    janet_assert(!janet_chan_unpack(channel, item), "bad channel packing");
+    janet_assert(!janet_chan_unpack(channel, item, 0), "bad channel packing");
     if (!janet_q_pop(&channel->write_pending, &writer, sizeof(writer))) {
         /* Pending writer */
         if (is_threaded) {
