@@ -328,6 +328,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     }
     if (fiber->child)
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
+    marshal_one(st, fiber->last_value, flags + 1);
 }
 
 void janet_marshal_size(JanetMarshalContext *ctx, size_t value) {
@@ -1062,6 +1063,9 @@ static const uint8_t *unmarshal_one_fiber(
         janet_asserttype(fiberv, JANET_FIBER);
         fiber->child = janet_unwrap_fiber(fiberv);
     }
+
+    /* Get the fiber last value */
+    data = unmarshal_one(st, data, &fiber->last_value, flags + 1);
 
     /* We have valid fiber, finally construct remaining fields. */
     fiber->frame = frame;

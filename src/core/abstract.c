@@ -63,6 +63,7 @@ void *janet_abstract_begin_threaded(const JanetAbstractType *atype, size_t size)
     }
     janet_vm.next_collection += size + sizeof(JanetAbstractHead);
     header->gc.flags = JANET_MEMORY_THREADED_ABSTRACT;
+    header->gc.next = NULL; /* Clear memory for address sanitizers */
     header->gc.refcount = 1;
     header->size = size;
     header->type = atype;
