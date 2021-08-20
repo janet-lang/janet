@@ -320,7 +320,10 @@ typedef struct {
 /* Some extra includes if EV is enabled */
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
-#include <synchapi.h>
+#ifdef JANET_NET
+#include <winsock2.h>
+#endif
+#include <windows.h>
 typedef CRTICAL_SECTION JanetOSMutex;
 #else
 #include <pthread.h>
