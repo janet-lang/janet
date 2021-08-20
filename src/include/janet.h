@@ -324,7 +324,7 @@ typedef struct {
 #include <winsock2.h>
 #endif
 #include <windows.h>
-typedef CRTICAL_SECTION JanetOSMutex;
+typedef CRITICAL_SECTION JanetOSMutex;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t JanetOSMutex;
