@@ -2487,6 +2487,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                                           JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
             if (!janet_checktype(aregv, JANET_TABLE)) janet_panic("expected table for abstract registry");
             janet_vm.abstract_registry = janet_unwrap_table(aregv);
+            janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
         }
 
         /* Get supervsior */

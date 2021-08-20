@@ -512,6 +512,21 @@ int janet_gcunrootall(Janet root) {
 
 /* Free all allocated memory */
 void janet_clear_memory(void) {
+#ifdef JANET_EV
+    JanetKV *items = janet_vm.threaded_abstracts.data;
+    for (int32_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
+        if (janet_checktype(items[i].key, JANET_ABSTRACT)) {
+            void *abst = janet_unwrap_abstract(items[i].key);
+            if (0 == janet_abstract_decref(abst)) {
+                JanetAbstractHead *head = janet_abstract_head(abst);
+                if (head->type->gc) {
+                    janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
+                }
+                janet_free(janet_abstract_head(abst));
+            }
+        }
+    }
+#endif
     JanetGCObject *current = janet_vm.blocks;
     while (NULL != current) {
         janet_deinit_block(current);

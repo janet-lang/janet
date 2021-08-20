@@ -1143,17 +1143,16 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);
     const JanetAbstractType *at = janet_get_abstract_type(key);
-    if (at == NULL) goto oops;
+    if (at == NULL) janet_panic("unknown abstract type");
     if (at->unmarshal) {
         JanetMarshalContext context = {NULL, st, flags, data, at};
         *out = janet_wrap_abstract(at->unmarshal(&context));
         if (context.at != NULL) {
-            janet_panicf("janet_unmarshal_abstract not called");
+            janet_panic("janet_unmarshal_abstract not called");
         }
         return context.data;
     }
-oops:
-    janet_panic("invalid abstract type");
+    janet_panic("invalid abstract type - no unmarshal function pointer");
 }
 
 static const uint8_t *unmarshal_one(
