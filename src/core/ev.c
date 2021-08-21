@@ -2519,9 +2519,9 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
             args.argp = "failed to start thread";
         }
     }
+    janet_restore(&tstate);
     janet_buffer_deinit(buffer);
     janet_free(buffer);
-    janet_restore(&tstate);
     janet_deinit();
     return args;
 }
