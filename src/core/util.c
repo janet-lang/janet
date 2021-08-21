@@ -409,7 +409,7 @@ static void janet_registry_sort(void) {
         JanetCFunRegistry reg = janet_vm.registry[i];
         size_t j;
         for (j = i; j > 0; j--) {
-            if (janet_vm.registry[j - 1].cfun < reg.cfun) break;
+            if ((void *)(janet_vm.registry[j - 1].cfun) < (void *)(reg.cfun)) break;
             janet_vm.registry[j] = janet_vm.registry[j - 1];
         }
         janet_vm.registry[j] = reg;
@@ -463,7 +463,7 @@ JanetCFunRegistry *janet_registry_get(JanetCFunction key) {
         if (mid->cfun == key) {
             return mid;
         }
-        if (mid->cfun > key) {
+        if ((void *)(mid->cfun) > (void *)(key)) {
             hi = mid;
         } else {
             lo = mid + 1;
