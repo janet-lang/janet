@@ -2562,7 +2562,7 @@ JANET_CORE_FN(cfun_ev_thread,
         janet_assert(janet_vm.registry_count <= UINT32_MAX, "assert failed size check");
         uint32_t temp = (uint32_t) janet_vm.registry_count;
         janet_buffer_push_bytes(buffer, (uint8_t *) &temp, sizeof(temp));
-        janet_buffer_push_bytes(buffer, (uint8_t *) janet_vm.registry, janet_vm.registry_count * sizeof(JanetCFunRegistry));
+        janet_buffer_push_bytes(buffer, (uint8_t *) janet_vm.registry, (int32_t) janet_vm.registry_count * sizeof(JanetCFunRegistry));
     }
     janet_marshal(buffer, argv[0], NULL, JANET_MARSHAL_UNSAFE);
     janet_marshal(buffer, value, NULL, JANET_MARSHAL_UNSAFE);
