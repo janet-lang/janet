@@ -2425,7 +2425,7 @@
   (def res (compile form (fiber/getenv (fiber/current)) "eval"))
   (if (= (type res) :function)
     (res)
-    (error (res :error))))
+    (error (get res :error))))
 
 (defn parse
   `Parse a string and return the first value. For complex parsing, such as for a repl with error handling,
@@ -3540,6 +3540,7 @@
                -v : Print the version string
                -s : Use raw stdin instead of getline like functionality
                -e code : Execute a string of janet
+               -E code arguments... : Evaluate  an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
@@ -3578,6 +3579,15 @@
            (set *no-file* false)
            (eval-string (in args (+ i 1)))
            2)
+     "E" (fn E-switch [i &]
+           (set *no-file* false)
+           (def subargs (array/slice args (+ i 2)))
+           (def src ~|,(parse (in args (+ i 1))))
+           (def thunk (compile src))
+           (if (function? thunk)
+             ((thunk) ;subargs)
+             (error (get thunk :error)))
+           math/inf)
      "d" (fn [&] (set *debug* true) 1)
      "w" (fn [i &] (set *warn-level* (get-lint-level i)) 2)
      "x" (fn [i &] (set *error-level* (get-lint-level i)) 2)
