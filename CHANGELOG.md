@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.17.0 - Unreleased
+## 1.17.0 - 2021-08-21
 - Add support for threaded abstract types. Threaded abstract types can easily be shared between threads.
 - Deprecate the `thread` library. Use threaded channels and ev instead.
 - Channels can now be marshalled.
