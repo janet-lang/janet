@@ -545,6 +545,11 @@ void janet_cfuns_ext_prefix(JanetTable *env, const char *regprefix, const JanetR
     if (env) namebuf_deinit(&nb);
 }
 
+/* Register a value in the global registry */
+void janet_register(const char *name, JanetCFunction cfun) {
+    janet_registry_put(cfun, name, NULL, NULL, 0);
+}
+
 /* Abstract type introspection */
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
