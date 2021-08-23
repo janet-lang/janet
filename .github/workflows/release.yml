@@ -19,7 +19,7 @@ jobs:
       - name: Set the version
         run: echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
       - name: Set the platform
-        run: echo "platform=${RUNNER_OS,,}" >> $GITHUB_ENV
+        run: echo "platform=$(tr '[A-Z]' '[a-z]' <<< $RUNNER_OS)" >> $GITHUB_ENV
       - name: Compile the project
         run: make clean && make
       - name: Build the artifact
