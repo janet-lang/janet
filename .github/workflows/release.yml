@@ -23,7 +23,7 @@ jobs:
       - name: Compile the project
         run: make clean && make
       - name: Build the artifact
-        run: make build/janet-${{ env.version }}-${{ env.platform }}-x64.tar.gz
+        run: JANET_DIST_DIR=janet-${{ env.version }}-${{ env.platform }} make build/janet-${{ env.version }}-${{ env.platform }}-x64.tar.gz
       - name: Draft the release
         uses: softprops/action-gh-release@v1
         with:
