@@ -1,0 +1,34 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+
+  test-posix:
+    name: Build and test on POSIX systems
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest ]
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Compile the project
+        run: make clean && make
+      - name: Test the project
+        run: make test
+
+  test-windows:
+    name: Build and test on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Build the project
+        shell: cmd
+        run: build_win
+      - name: Test the project
+        shell: cmd
+        run: build_win test
