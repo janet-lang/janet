@@ -2547,7 +2547,7 @@ JANET_CORE_FN(cfun_ev_thread,
               "to resume with. "
               "Unlike `ev/go`, this function will suspend the current fiber until the thread is complete. "
               "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
-              "Otherwise, returns (a copy of) the final result from the fiber on the new thread. Available flags:\n\n"
+              "Otherwise, returns nil. Available flags:\n\n"
               "* `:n` - return immediately\n"
               "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
               "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
