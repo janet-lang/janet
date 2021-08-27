@@ -1520,6 +1520,7 @@ int janet_init(void) {
     janet_vm.root_capacity = 0;
 
     /* Scratch memory */
+    janet_vm.user = NULL;
     janet_vm.scratch_mem = NULL;
     janet_vm.scratch_len = 0;
     janet_vm.scratch_cap = 0;
@@ -1579,6 +1580,7 @@ void janet_deinit(void) {
     janet_vm.abstract_registry = NULL;
     janet_vm.core_env = NULL;
     janet_vm.top_dyns = NULL;
+    janet_vm.user = NULL;
     janet_free(janet_vm.traversal_base);
     janet_vm.fiber = NULL;
     janet_vm.root_fiber = NULL;

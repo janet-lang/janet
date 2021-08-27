@@ -953,6 +953,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
     fiber->env = NULL;
+    fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
     fiber->waiting = NULL;
     fiber->sched_id = 0;
@@ -1257,7 +1258,7 @@ static const uint8_t *unmarshal_one(
             data++;
             int32_t len = readnat(st, &data);
             if (len > 255) {
-                janet_panicf("invalid function");
+                janet_panicf("invalid function - too many environments (%d)", len);
             }
             func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) +
                                  len * sizeof(JanetFuncEnv));
@@ -1265,7 +1266,8 @@ static const uint8_t *unmarshal_one(
             janet_v_push(st->lookup, *out);
             data = unmarshal_one_def(st, data, &def, flags + 1);
             if (def->environments_length != len) {
-                janet_panicf("invalid function");
+                janet_panicf("invalid function - env count does not match def (%d != %d)",
+                        len, def->environments_length);
             }
             func->def = def;
             for (int32_t i = 0; i < def->environments_length; i++) {

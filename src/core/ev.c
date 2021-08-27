@@ -2472,12 +2472,12 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         }
 
         /* Get supervsior */
-        void *supervisor = NULL;
         if (flags & 0x8) {
             Janet sup =
                 janet_unmarshal(nextbytes, endbytes - nextbytes,
                                 JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
-            supervisor = janet_unwrap_pointer(sup);
+            /* Hack - use a global variable to avoid longjmp clobber */
+            janet_vm.user = janet_unwrap_pointer(sup);
         }
 
         /* Set cfunction registry */
@@ -2506,17 +2506,32 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                                       JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
         if (!janet_checktype(fiberv, JANET_FIBER)) janet_panicf("expected fiber, got %v", fiberv);
         JanetFiber *fiber = janet_unwrap_fiber(fiberv);
-        fiber->supervisor_channel = supervisor;
+        fiber->supervisor_channel = janet_vm.user;
         janet_schedule(fiber, value);
         janet_loop();
         args.tag = JANET_EV_TCTAG_NIL;
     } else {
-        if (janet_checktype(tstate.payload, JANET_STRING)) {
-            args.tag = JANET_EV_TCTAG_ERR_STRINGF;
-            args.argp = strdup((const char *) janet_unwrap_string(tstate.payload));
+        void *supervisor = janet_vm.user;
+        if (NULL != supervisor) {
+            /* Got a supervisor, write error there */
+            Janet pair[] = {
+                janet_ckeywordv("error"),
+                tstate.payload
+            };
+            janet_channel_push((JanetChannel *)supervisor,
+                    janet_wrap_tuple(janet_tuple_n(pair, 2)), 2);
+        } else if (flags & 0x1) {
+            /* No wait, just print to stderr */
+            janet_eprintf("thread start failure: %v\n", tstate.payload);
         } else {
-            args.tag = JANET_EV_TCTAG_ERR_STRING;
-            args.argp = "failed to start thread";
+            /* Make ev/thread call from parent thread error */
+            if (janet_checktype(tstate.payload, JANET_STRING)) {
+                args.tag = JANET_EV_TCTAG_ERR_STRINGF;
+                args.argp = strdup((const char *) janet_unwrap_string(tstate.payload));
+            } else {
+                args.tag = JANET_EV_TCTAG_ERR_STRING;
+                args.argp = "failed to start thread";
+            }
         }
     }
     janet_restore(&tstate);
@@ -2559,7 +2574,7 @@ JANET_CORE_FN(cfun_ev_thread,
         janet_marshal(buffer, janet_wrap_abstract(supervisor), NULL, JANET_MARSHAL_UNSAFE);
     }
     if (!(flags & 0x4)) {
-        janet_assert(janet_vm.registry_count <= UINT32_MAX, "assert failed size check");
+        janet_assert(janet_vm.registry_count <= INT32_MAX, "assert failed size check");
         uint32_t temp = (uint32_t) janet_vm.registry_count;
         janet_buffer_push_bytes(buffer, (uint8_t *) &temp, sizeof(temp));
         janet_buffer_push_bytes(buffer, (uint8_t *) janet_vm.registry, (int32_t) janet_vm.registry_count * sizeof(JanetCFunRegistry));

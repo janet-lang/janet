@@ -76,6 +76,9 @@ typedef struct {
 } JanetCFunRegistry;
 
 struct JanetVM {
+    /* Place for user data */
+    void *user;
+
     /* Top level dynamic bindings */
     JanetTable *top_dyns;
 
