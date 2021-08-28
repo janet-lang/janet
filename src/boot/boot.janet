@@ -3375,7 +3375,7 @@
     ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t)))
 
   (defmacro ev/spawn-thread
-    ``Run some code in a new thread. Like `ev/do-thread`, but returns immediately with a fiber.``
+    ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
     [& body]
     ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t) nil :n))
 
