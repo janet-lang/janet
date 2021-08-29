@@ -171,7 +171,7 @@ janetc = custom_target('janetc',
   capture : true,
   command : [
     janet_boot, meson.current_source_dir(),
-    'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
+    'JANET_PATH', janet_path
   ])
 
 janet_dependencies = [m_dep, dl_dep]

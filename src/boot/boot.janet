@@ -2124,11 +2124,10 @@
 ###
 ###
 
-# Initialize syspath and header path
+# Initialize syspath
 (each [k v] (partition 2 (tuple/slice boot/args 2))
   (case k
-    "JANET_PATH" (setdyn :syspath v)
-    "JANET_HEADERPATH" (setdyn :headerpath v)))
+    "JANET_PATH" (setdyn :syspath v)))
 
 (defn make-env
   `Create a new environment table. The new environment
@@ -3521,7 +3520,6 @@
   (var *error-level* nil)
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
-  (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
 
   (defn- get-lint-level
