@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.17.1 - 2021-08-29
+- Fix docstring typos
+- Add `make install-jpm-git` to make jpm co-install simpler if using makefile.
+- Fix bugs with starting ev/threads and fiber marshling.
+
 ## 1.17.0 - 2021-08-21
 - Add the `-E` flag for one-liners with the `short-fn` syntax for argument passing.
 - Add support for threaded abstract types. Threaded abstract types can easily be shared between threads.

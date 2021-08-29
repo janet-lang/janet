@@ -1267,7 +1267,7 @@ static const uint8_t *unmarshal_one(
             data = unmarshal_one_def(st, data, &def, flags + 1);
             if (def->environments_length != len) {
                 janet_panicf("invalid function - env count does not match def (%d != %d)",
-                        len, def->environments_length);
+                             len, def->environments_length);
             }
             func->def = def;
             for (int32_t i = 0; i < def->environments_length; i++) {

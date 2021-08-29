@@ -2519,7 +2519,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                 tstate.payload
             };
             janet_channel_push((JanetChannel *)supervisor,
-                    janet_wrap_tuple(janet_tuple_n(pair, 2)), 2);
+                               janet_wrap_tuple(janet_tuple_n(pair, 2)), 2);
         } else if (flags & 0x1) {
             /* No wait, just print to stderr */
             janet_eprintf("thread start failure: %v\n", tstate.payload);
