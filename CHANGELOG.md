@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unlreleased - ???
+- Supervisor channels in threads will no longer include a wastful copy of the fiber in every
+  message across a thread.
+- Allow passing a closure to @code`ev/thead` as well as a whole fiber.
+
+
 ## 1.17.1 - 2021-08-29
 - Fix docstring typos
 - Add `make install-jpm-git` to make jpm co-install simpler if using makefile.
