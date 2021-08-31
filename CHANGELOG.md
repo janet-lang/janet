@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file.
 ## Unlreleased - ???
 - Supervisor channels in threads will no longer include a wastful copy of the fiber in every
   message across a thread.
-- Allow passing a closure to @code`ev/thead` as well as a whole fiber.
-
+- Allow passing a closure to `ev/thead` as well as a whole fiber.
+- Allow passing a closure directly to `ev/go` to spawn fibers on the event loop.
 
 ## 1.17.1 - 2021-08-29
 - Fix docstring typos
