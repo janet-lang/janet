@@ -2443,12 +2443,34 @@ JANET_CORE_FN(cfun_ev_go,
               "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
               "If not provided, the new fiber will inherit the current supervisor.") {
     janet_arity(argc, 1, 3);
-    JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     void *supervisor = janet_optabstract(argv, argc, 2, &janet_channel_type, janet_vm.root_fiber->supervisor_channel);
+    JanetFiber *fiber;
+    if (janet_checktype(argv[0], JANET_FUNCTION)) {
+        /* Create a fiber for the user */
+        JanetFunction *func = janet_unwrap_function(argv[0]);
+        if (func->def->min_arity > 1) {
+            janet_panicf("task function must accept 0 or 1 arguments");
+        }
+        fiber = janet_fiber(func, 64, func->def->min_arity, &value);
+        fiber->flags |=
+            JANET_FIBER_MASK_ERROR |
+            JANET_FIBER_MASK_USER0 |
+            JANET_FIBER_MASK_USER1 |
+            JANET_FIBER_MASK_USER2 |
+            JANET_FIBER_MASK_USER3 |
+            JANET_FIBER_MASK_USER4;
+        if (!janet_vm.fiber->env) {
+            janet_vm.fiber->env = janet_table(0);
+        }
+        fiber->env = janet_table(0);
+        fiber->env->proto = janet_vm.fiber->env;
+    } else {
+        fiber = janet_getfiber(argv, 0);
+    }
     fiber->supervisor_channel = supervisor;
     janet_schedule(fiber, value);
-    return argv[0];
+    return janet_wrap_fiber(fiber);
 }
 
 /* For ev/thread - Run an interpreter in the new thread. */

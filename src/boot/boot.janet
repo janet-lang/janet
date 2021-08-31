@@ -3360,23 +3360,23 @@
     Returns a fiber that is scheduled to run the function.
     ```
     [f & args]
-    (ev/go (fiber/new (fn [&] (f ;args)) :tp)))
+    (ev/go (fn _call [&] (f ;args))))
 
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
-    ~(,ev/go (fiber/new (fn _spawn [&] ,;body) :tp)))
+    ~(,ev/go (fn _spawn [&] ,;body)))
 
   (defmacro ev/do-thread
     ``Run some code in a new thread. Suspends the current fiber until the thread is complete, and
     evaluates to nil.``
     [& body]
-    ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t)))
+    ~(,ev/thread (fn _do-thread [&] ,;body)))
 
   (defmacro ev/spawn-thread
     ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
     [& body]
-    ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t) nil :n))
+    ~(,ev/thread (fn _spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
     `Run a body of code with a deadline, such that if the code does not complete before
@@ -3407,7 +3407,7 @@
          (def ,res @[])
          (,wait-for-fibers ,chan
            ,(seq [[i body] :pairs bodies]
-              ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body)) :tp) nil ,chan)))
+              ~(,ev/go (fn [] (put ,res ,i ,body)) nil ,chan)))
          ,res))))
 
 (compwhen (dyn 'net/listen)
