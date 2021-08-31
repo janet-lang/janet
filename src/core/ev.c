@@ -513,7 +513,7 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice);
 static Janet make_supervisor_event(const char *name, JanetFiber *fiber, int threaded) {
     Janet tup[2];
     tup[0] = janet_ckeywordv(name);
-    tup[1] = threaded ? janet_ckeywordv("thread-fiber") : janet_wrap_fiber(fiber) ;
+    tup[1] = threaded ? fiber->last_value : janet_wrap_fiber(fiber) ;
     return janet_wrap_tuple(janet_tuple_n(tup, 2));
 }
 
