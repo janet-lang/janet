@@ -560,9 +560,9 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
+            pushint(st, func->def->environments_length);
             /* Mark seen before reading def */
             MARK_SEEN();
-            pushint(st, func->def->environments_length);
             marshal_one_def(st, func->def, flags);
             for (int32_t i = 0; i < func->def->environments_length; i++)
                 marshal_one_env(st, func->envs[i], flags + 1);
@@ -1262,15 +1262,12 @@ static const uint8_t *unmarshal_one(
             }
             func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) +
                                  len * sizeof(JanetFuncEnv));
+            func->def = NULL;
             *out = janet_wrap_function(func);
             janet_v_push(st->lookup, *out);
             data = unmarshal_one_def(st, data, &def, flags + 1);
-            if (def->environments_length != len) {
-                janet_panicf("invalid function - env count does not match def (%d != %d)",
-                             len, def->environments_length);
-            }
             func->def = def;
-            for (int32_t i = 0; i < def->environments_length; i++) {
+            for (int32_t i = 0; i < len; i++) {
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
             }
             return data;
