@@ -1209,14 +1209,17 @@ JanetFiber *janet_loop1(void) {
         Janet res;
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
         void *sv = task.fiber->supervisor_channel;
+        int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
         if (NULL == sv) {
-            if (sig != JANET_SIGNAL_EVENT && sig != JANET_SIGNAL_YIELD && sig != JANET_SIGNAL_INTERRUPT) {
+            if (!is_suspended) {
                 janet_stacktrace(task.fiber, res);
             }
         } else if (sig == JANET_SIGNAL_OK || (task.fiber->flags & (1 << sig))) {
             JanetChannel *chan = janet_channel_unwrap(sv);
             janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig],
                                task.fiber, chan->is_threaded), 2);
+        } else if (!is_suspended) {
+            janet_stacktrace(task.fiber, res);
         }
         if (sig == JANET_SIGNAL_INTERRUPT) {
             /* On interrupts, return the interrupted fiber immediately */
