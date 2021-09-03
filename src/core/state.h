@@ -171,6 +171,11 @@ struct JanetVM {
     int epoll;
     int timerfd;
     int timer_enabled;
+#elif defined(JANET_EV_KQUEUE)
+    JanetHandle selfpipe[2];
+    int kq;
+    int timer;
+    int timer_enabled
 #else
     JanetHandle selfpipe[2];
     struct pollfd *fds;

@@ -198,6 +198,11 @@ extern "C" {
 #define JANET_EV_EPOLL
 #endif
 
+/* TODO: Probably breaks NetBSD, might need help here. */
+#if defined(JANET_BSD) && !defined(JANET_EV_NO_KQUEUE)
+#define JANET_EV_KQUEUE
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
