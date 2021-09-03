@@ -1602,11 +1602,12 @@ void add_kqueue_events(const struct kevent *events, int length) {
     status = kevent(janet_vm.kq, events, length, NULL, 0, NULL);
     if(status == -1 && errno != EINTR)
         janet_panicv(janet_ev_lasterr());
+    /* Disabling this for now, probably is wrong, haven't seen it done elsewhere
     for(int i = 0; i < length; i++) {
         if((events[i].flags & EV_ERROR) && events[i].data != EINTR) {
             janet_panicv(janet_ev_lasterr());
         }
-    }
+    }*/
 }
 
 JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
