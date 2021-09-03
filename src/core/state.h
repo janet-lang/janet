@@ -175,7 +175,7 @@ struct JanetVM {
     JanetHandle selfpipe[2];
     int kq;
     int timer;
-    int timer_enabled
+    int timer_enabled;
 #else
     JanetHandle selfpipe[2];
     struct pollfd *fds;
