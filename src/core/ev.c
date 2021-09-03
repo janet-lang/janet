@@ -1601,10 +1601,10 @@ void add_kqueue_events(const struct kevent *events, int length) {
     int status;
     status = kevent(janet_vm.kq, events, length, NULL, 0, NULL);
     if(status == -1 && errno != EINTR)
-        exit(-1); /* do a better exit */
+        janet_panicv(janet_ev_lasterr());
     for(int i = 0; i < length; i++) {
         if((events[i].flags & EV_ERROR) && events[i].data != EINTR) {
-            exit(-1); /* do a better exit */
+            janet_panicv(janet_ev_lasterr());
         }
     }
 }
