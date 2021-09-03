@@ -18,6 +18,7 @@ option('umask', type : 'boolean', value : true)
 option('realpath', type : 'boolean', value : true)
 option('simple_getline', type : 'boolean', value : false)
 option('epoll', type : 'boolean', value : false)
+option('kqueue', type : 'boolen', value : false)
 option('interpreter_interrupt', type : 'boolean', value : false)
 
 option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
