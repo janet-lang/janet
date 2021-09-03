@@ -1581,12 +1581,12 @@ void janet_ev_deinit(void) {
 static JanetTimestamp ts_now(void) {
     struct timespec now;
     janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
-    uint64_t res 1000 * now.tv_sec;
+    uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
 }
 
-void add_events(const struct *kevent events, int length) {
+void add_kqueue_events(const struct kevent *events, int length) {
     /* NOTE: status should equal the amount of events *added*. This number
      * isn't always known if deletions or modifications occur. We also can't
      * use an event list for it to report to us what failed otherwise we may
@@ -1603,13 +1603,13 @@ void add_events(const struct *kevent events, int length) {
     if(status == -1 && errno != EINTR)
         exit(-1); /* do a better exit */
     for(int i = 0; i < length; i++) {
-        if((kev[i].flags & EV_ERROR) && kev[i].data != EINTR) {
+        if((events[i].flags & EV_ERROR) && events[i].data != EINTR) {
             exit(-1); /* do a better exit */
         }
     }
 }
 
-JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size void *user) {
+JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     struct kevent kev[2];
     /* NOTE: NetBSD uses a different type for udata, might not work there or
@@ -1617,7 +1617,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     EV_SET(&kev[0], stream->handle, EVFILT_READ, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_READ ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
     EV_SET(&kev[1], stream->handle, EVFILT_WRITE, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
 
-    add_events(kev, 2);
+    add_kqueue_events(kev, 2);
     return state;
 }
 
@@ -1632,7 +1632,7 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
             struct kevent kev[2];
             EV_SET(&kev[0], stream->handle, EVFILT_READ, op, 0, 0, stream);
             EV_SET(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
-            add_events(kev, 2);
+            add_kqueue_events(kev, 2);
         }
     }
     janet_unlisten_impl(state, is_gc);
@@ -1651,7 +1651,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
         EV_SET(&timer, JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, timeout, &janet_vm.timer);
-        add_events(&timer, 1);
+        add_kqueue_events(&timer, 1);
     }
     janet_vm.timer_enabled = has_timeout;
 
@@ -1667,7 +1667,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         void *p = events[i].udata;
         if(&janet_vm.timer == p) {
             /* Timer expired, ignore */;
-        } else if (janet_vm.selfpipe = p) {
+        } else if (janet_vm.selfpipe == p) {
             /* Self-pipe handling */
             janet_ev_handle_selfpipe();
         } else {
@@ -1685,7 +1685,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             if (events[i].flags & EV_ERROR)
                 statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
             if ((events[i].flags & EV_EOF) && !(events[i].data > 0))
-                statuses[3] = state->maine(state, JANET_ASYNC_EVENT_HUP);
+                statuses[3] = state->machine(state, JANET_ASYNC_EVENT_HUP);
             if(statuses[0] == JANET_ASYNC_STATUS_DONE ||
                    statuses[1] == JANET_ASYNC_STATUS_DONE ||
                    statuses[2] == JANET_ASYNC_STATUS_DONE ||
@@ -1702,9 +1702,9 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent events[2];
-    EV_SET(events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, timeout, &janet_vm.timer);
-    EV_SET(events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
-    add_events(&events, 2);
+    EV_SET(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, 0, &janet_vm.timer);
+    EV_SET(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
+    add_kqueue_events(events, 2);
     return;
 error:
     JANET_EXIT("failed to initialize event loop");
@@ -1712,7 +1712,7 @@ error:
 
 void janet_ev_deinit(void) {
     janet_ev_deinit_common();
-    close(jnet_vm.kq);
+    close(janet_vm.kq);
     janet_ev_cleanup_selfpipe();
     janet_vm.kq = 0;
 }
