@@ -1704,9 +1704,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                     statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
                 }
                 if (statuses[0] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[1] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[2] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[3] == JANET_ASYNC_STATUS_DONE)
+                        statuses[1] == JANET_ASYNC_STATUS_DONE ||
+                        statuses[2] == JANET_ASYNC_STATUS_DONE ||
+                        statuses[3] == JANET_ASYNC_STATUS_DONE)
                     janet_unlisten(state, 0);
             }
         }
