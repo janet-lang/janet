@@ -1679,7 +1679,11 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
-        EV_SET(&timer, JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, timeout, &janet_vm.timer);
+        EV_SET(&timer,
+               JANET_KQUEUE_TIMER_IDENT,
+               EVFILT_TIMER,
+               EV_ADD | EV_ENABLE | EV_CLEAR,
+               NOTE_MSECONDS | NOTE_ABSTIME, timeout, &janet_vm.timer);
         add_kqueue_events(&timer, 1);
     }
     janet_vm.timer_enabled = has_timeout;
