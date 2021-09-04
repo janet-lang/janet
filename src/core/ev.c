@@ -1597,7 +1597,7 @@ void add_kqueue_events(const struct kevent *events, int length) {
      * note that kqueue actually does this. We do not do this at this time.  */
     int status;
     status = kevent(janet_vm.kq, events, length, NULL, 0, NULL);
-    if(status == -1 && errno != EINTR)
+    if (status == -1 && errno != EINTR)
         janet_panicv(janet_ev_lasterr());
 }
 
@@ -1626,9 +1626,9 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
 
 static void janet_unlisten(JanetListenerState *state, int is_gc) {
     JanetStream *stream = state->stream;
-    if(!(stream->flags & JANET_STREAM_CLOSED)) {
+    if (!(stream->flags & JANET_STREAM_CLOSED)) {
         /* Use flag to indicate state is not registered in kqueue */
-        if(!(state->_mask & (1 << JANET_ASYNC_EVENT_COMPLETE))) {
+        if (!(state->_mask & (1 << JANET_ASYNC_EVENT_COMPLETE))) {
             int is_last = (state->_next == NULL && stream->state == state);
             int op = is_last ? EV_DELETE : EV_DISABLE | EV_ADD;
             struct kevent kev[2];
@@ -1673,13 +1673,13 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     do {
         status = kevent(janet_vm.kq, NULL, 0, events, JANET_KQUEUE_MAX_EVENTS, NULL);
     } while (status == -1 && errno == EINTR);
-    if(status == -1)
+    if (status == -1)
         JANET_EXIT("failed to poll events");
 
     /* Step state machines */
-    for(int i = 0; i < status; i++) {
+    for (int i = 0; i < status; i++) {
         void *p = events[i].udata;
-        if(&janet_vm.timer == p) {
+        if (&janet_vm.timer == p) {
             /* Timer expired, ignore */;
         } else if (janet_vm.selfpipe == p) {
             /* Self-pipe handling */
@@ -1703,7 +1703,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 } else {
                     statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
                 }
-                if(statuses[0] == JANET_ASYNC_STATUS_DONE ||
+                if (statuses[0] == JANET_ASYNC_STATUS_DONE ||
                    statuses[1] == JANET_ASYNC_STATUS_DONE ||
                    statuses[2] == JANET_ASYNC_STATUS_DONE ||
                    statuses[3] == JANET_ASYNC_STATUS_DONE)
