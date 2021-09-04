@@ -1646,8 +1646,21 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
             int is_last = (state->_next == NULL && stream->state == state);
             int op = is_last ? EV_DELETE : EV_DISABLE | EV_ADD;
             struct kevent kev[2];
+            /* Disabled, may be incorrect
             EV_SET(&kev[0], stream->handle, EVFILT_READ, op, 0, 0, stream);
             EV_SET(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
+            */
+
+            int length = 0;
+            if (stream->_mask & JANET_ASYNC_EVENT_WRITE) {
+                EV_SET(&kev[length], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
+                length++;
+            }
+            if (stream->_mask & JANET_ASYNC_EVENT_READ) {
+                EV_SET(&kev[length], stream->handle, EVFILT_READ, op, 0, 0, stream);
+                length++;
+            }
+
             add_kqueue_events(kev, 2);
         }
     }
@@ -1703,9 +1716,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             if ((events[i].flags & EV_EOF) && !(events[i].data > 0))
                 statuses[3] = state->machine(state, JANET_ASYNC_EVENT_HUP);
             if(statuses[0] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[1] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[2] == JANET_ASYNC_STATUS_DONE ||
-                   statuses[3] == JANET_ASYNC_STATUS_DONE)
+               statuses[1] == JANET_ASYNC_STATUS_DONE ||
+               statuses[2] == JANET_ASYNC_STATUS_DONE ||
+               statuses[3] == JANET_ASYNC_STATUS_DONE)
                 janet_unlisten(state, 0);
         }
     }
