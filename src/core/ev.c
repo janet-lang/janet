@@ -1661,7 +1661,7 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
                 length++;
             }
 
-            add_kqueue_events(kev, 2);
+            add_kqueue_events(kev, length);
         }
     }
     janet_unlisten_impl(state, is_gc);
