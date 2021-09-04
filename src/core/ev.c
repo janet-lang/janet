@@ -1571,13 +1571,9 @@ void janet_ev_deinit(void) {
  */
 
 #elif defined(JANET_EV_KQUEUE)
-/*
- * NOTE: need to touch up janet.h & state.h to have specifics for kqueue.
- */
 
 /* TODO: make this available be we using kqueue or epoll, instead of
- * redefinining it for kqueue and epoll separately.
- */
+ * redefinining it for kqueue and epoll separately? */
 static JanetTimestamp ts_now(void) {
     struct timespec now;
     janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
@@ -1587,39 +1583,30 @@ static JanetTimestamp ts_now(void) {
 }
 
 void add_kqueue_events(const struct kevent *events, int length) {
-    /* NOTE: status should equal the amount of events *added*. This number
-     * isn't always known if deletions or modifications occur. We also can't
-     * use an event list for it to report to us what failed otherwise we may
-     * poll in events to handle! So we'll pretend it atomic, can either
-     * succeed, or fail, nothing inbetween, without violating constraints in
-     * which case we exit.
+    /* NOTE: Status should be equal to the amount of events added, which isn't
+     * always known since deletions or modifications occur. Can't use the
+     * eventlist argument for it to report to us what failed otherwise we may
+     * poll in events to handle! This code assumes atomicity, that kqueue can
+     * either succeed or fail, but never partially (which is seemingly how it
+     * works in practice). When encountering an "inbetween" state we currently
+     * just panic!
      *
-     * The example code on the manual page shows a check against the event
-     * added itself for the error? Maybe we should do this? The description of
-     * the kevent call doesn't really say that that is where to check the
-     * error... Trying it anyway... */
+     * The FreeBSD man page kqueue(2) shows a check through the change list to
+     * check if kqueue had an error with any of the events being pushed to
+     * change. Maybe we should do this, even tho the man page also doesn't
+     * note that kqueue actually does this. We do not do this at this time.  */
     int status;
     status = kevent(janet_vm.kq, events, length, NULL, 0, NULL);
     if(status == -1 && errno != EINTR)
         janet_panicv(janet_ev_lasterr());
-    /* Disabling this for now, probably is wrong, haven't seen it done elsewhere
-    for(int i = 0; i < length; i++) {
-        if((events[i].flags & EV_ERROR) && events[i].data != EINTR) {
-            janet_panicv(janet_ev_lasterr());
-        }
-    }*/
 }
 
 JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     struct kevent kev[2];
-    /* NOTE: NetBSD uses a different type for udata, might not work there or
-     * may warn! */
-    /* Disabled, may be incorrect
-    EV_SET(&kev[0], stream->handle, EVFILT_READ, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_READ ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
-    EV_SET(&kev[1], stream->handle, EVFILT_WRITE, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
-    */
 
+    /* NOTE: NetBSD uses a different type for udata, might not work there or
+     * may warn/fail to compile (see wahern/cqueues)! */
     int length = 0;
     if (state->stream->_mask & JANET_ASYNC_LISTEN_READ) {
         EV_SET(&kev[length], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, stream);
@@ -1640,16 +1627,12 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
 static void janet_unlisten(JanetListenerState *state, int is_gc) {
     JanetStream *stream = state->stream;
     if(!(stream->flags & JANET_STREAM_CLOSED)) {
-        /* following epoll's example, might need to clarify this there, and
-         * here as to what is actually happening? */
+        /* Use flag to indicate state is not registered in kqueue */
         if(!(state->_mask & (1 << JANET_ASYNC_EVENT_COMPLETE))) {
             int is_last = (state->_next == NULL && stream->state == state);
             int op = is_last ? EV_DELETE : EV_DISABLE | EV_ADD;
             struct kevent kev[2];
-            /* Disabled, may be incorrect
-            EV_SET(&kev[0], stream->handle, EVFILT_READ, op, 0, 0, stream);
             EV_SET(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
-            */
 
             int length = 0;
             if (stream->_mask & JANET_ASYNC_EVENT_WRITE) {
@@ -1671,12 +1654,8 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
 #define JANET_KQUEUE_MAX_EVENTS 64
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
-    /* Push a timer kevent here, always use infinite timeout. Precision is in
-     * milliseconds, should it be different? is timeout a timestamp? or a
-     * timeout... we're treating it as a timeout */
-
-    /* NOTE: Probably be logic errors here! */
-
+    /* Construct our timer which is a definite time on the clock, not an
+     * interval, in milliseconds as that is `JanetTimestamp`'s precision. */
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
         EV_SET(&timer,
@@ -1688,6 +1667,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     }
     janet_vm.timer_enabled = has_timeout;
 
+    /* Poll for events */
     int status;
     struct kevent events[JANET_KQUEUE_MAX_EVENTS];
     do {
@@ -1696,6 +1676,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     if(status == -1)
         JANET_EXIT("failed to poll events");
 
+    /* Step state machines */
     for(int i = 0; i < status; i++) {
         void *p = events[i].udata;
         if(&janet_vm.timer == p) {
