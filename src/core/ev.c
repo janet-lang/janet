@@ -1702,24 +1702,28 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         } else {
             JanetStream *stream = p;
             JanetListenerState *state = stream->state;
-            state->event = events + i;
-            JanetAsyncStatus statuses[4];
-            for (int i = 0; i < 4; i++)
-                statuses[i] = JANET_ASYNC_STATUS_NOT_DONE;
+            if (NULL != state) {
+                state->event = events + i;
+                JanetAsyncStatus statuses[4];
+                for (int i = 0; i < 4; i++)
+                    statuses[i] = JANET_ASYNC_STATUS_NOT_DONE;
 
-            if (events[i].filter == EVFILT_WRITE)
-                statuses[0] = state->machine(state, JANET_ASYNC_EVENT_WRITE);
-            if (events[i].filter == EVFILT_READ)
-                statuses[1] = state->machine(state, JANET_ASYNC_EVENT_READ);
-            if (events[i].flags & EV_ERROR)
-                statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
-            if ((events[i].flags & EV_EOF) && !(events[i].data > 0))
-                statuses[3] = state->machine(state, JANET_ASYNC_EVENT_HUP);
-            if(statuses[0] == JANET_ASYNC_STATUS_DONE ||
-               statuses[1] == JANET_ASYNC_STATUS_DONE ||
-               statuses[2] == JANET_ASYNC_STATUS_DONE ||
-               statuses[3] == JANET_ASYNC_STATUS_DONE)
-                janet_unlisten(state, 0);
+                if (!(events[i].flags & EV_ERROR)) {
+                    if (events[i].filter == EVFILT_WRITE)
+                        statuses[0] = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+                    if (events[i].filter == EVFILT_READ)
+                        statuses[1] = state->machine(state, JANET_ASYNC_EVENT_READ);
+                    if ((events[i].flags & EV_EOF) && !(events[i].data > 0))
+                        statuses[3] = state->machine(state, JANET_ASYNC_EVENT_HUP);
+                } else {
+                    statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
+                }
+                if(statuses[0] == JANET_ASYNC_STATUS_DONE ||
+                   statuses[1] == JANET_ASYNC_STATUS_DONE ||
+                   statuses[2] == JANET_ASYNC_STATUS_DONE ||
+                   statuses[3] == JANET_ASYNC_STATUS_DONE)
+                    janet_unlisten(state, 0);
+            }
         }
     }
 }
