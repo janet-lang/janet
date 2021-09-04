@@ -1615,10 +1615,25 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     struct kevent kev[2];
     /* NOTE: NetBSD uses a different type for udata, might not work there or
      * may warn! */
+    /* Disabled, may be incorrect
     EV_SET(&kev[0], stream->handle, EVFILT_READ, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_READ ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
     EV_SET(&kev[1], stream->handle, EVFILT_WRITE, EV_ADD | (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE ? EV_ENABLE : EV_DISABLE), 0, 0, stream);
+    */
 
-    add_kqueue_events(kev, 2);
+    int length = 0;
+    if (state->stream->_mask & JANET_ASYNC_LISTEN_READ) {
+        EV_SET(&kev[length], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, stream);
+        length++;
+    }
+    if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE) {
+        EV_SET(&kev[length], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, stream);
+        length++;
+    }
+
+    if (length > 0) {
+        add_kqueue_events(kev, length);
+    }
+
     return state;
 }
 
