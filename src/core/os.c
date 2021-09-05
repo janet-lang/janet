@@ -158,7 +158,7 @@ JANET_CORE_FN(os_arch,
               "(os/arch)",
               "Check the ISA that janet was compiled for. Returns one of:\n\n"
               "* :x86\n\n"
-              "* :x86-64\n\n"
+              "* :x64\n\n"
               "* :arm\n\n"
               "* :aarch64\n\n"
               "* :sparc\n\n"
