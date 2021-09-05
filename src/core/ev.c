@@ -1609,8 +1609,6 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     struct kevent kev[2];
 
-    /* NOTE: NetBSD uses a different type for udata, might not work there or
-     * may warn/fail to compile (see wahern/cqueues)! */
     int length = 0;
     if (state->stream->_mask & JANET_ASYNC_LISTEN_READ) {
         EV_SETx(&kev[length], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, stream);
