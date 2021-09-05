@@ -1571,6 +1571,10 @@ void janet_ev_deinit(void) {
  */
 
 #elif defined(JANET_EV_KQUEUE)
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blob/master/src/lib/kpoll.c
+ * NetBSD uses intptr_t while others use void * for .udata */
+#define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
 
 /* TODO: make this available be we using kqueue or epoll, instead of
  * redefinining it for kqueue and epoll separately? */
@@ -1609,11 +1613,11 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
      * may warn/fail to compile (see wahern/cqueues)! */
     int length = 0;
     if (state->stream->_mask & JANET_ASYNC_LISTEN_READ) {
-        EV_SET(&kev[length], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, stream);
+        EV_SETx(&kev[length], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, stream);
         length++;
     }
     if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE) {
-        EV_SET(&kev[length], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, stream);
+        EV_SETx(&kev[length], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, stream);
         length++;
     }
 
@@ -1632,15 +1636,15 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
             int is_last = (state->_next == NULL && stream->state == state);
             int op = is_last ? EV_DELETE : EV_DISABLE | EV_ADD;
             struct kevent kev[2];
-            EV_SET(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
+            EV_SETx(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
 
             int length = 0;
             if (stream->_mask & JANET_ASYNC_EVENT_WRITE) {
-                EV_SET(&kev[length], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
+                EV_SETx(&kev[length], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
                 length++;
             }
             if (stream->_mask & JANET_ASYNC_EVENT_READ) {
-                EV_SET(&kev[length], stream->handle, EVFILT_READ, op, 0, 0, stream);
+                EV_SETx(&kev[length], stream->handle, EVFILT_READ, op, 0, 0, stream);
                 length++;
             }
 
@@ -1658,7 +1662,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
      * interval, in milliseconds as that is `JanetTimestamp`'s precision. */
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
-        EV_SET(&timer,
+        EV_SETx(&timer,
                JANET_KQUEUE_TIMER_IDENT,
                EVFILT_TIMER,
                EV_ADD | EV_ENABLE | EV_CLEAR,
@@ -1720,8 +1724,8 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent events[2];
-    EV_SET(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, 0, &janet_vm.timer);
-    EV_SET(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
+    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, 0, &janet_vm.timer);
+    EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
 error:
