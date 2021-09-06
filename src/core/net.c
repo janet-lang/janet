@@ -376,10 +376,12 @@ JANET_CORE_FN(cfun_net_sockaddr,
 }
 
 JANET_CORE_FN(cfun_net_connect,
-              "(net/connect host port &opt type)",
+              "(net/connect host port &opt type bindhost)",
               "Open a connection to communicate with a server. Returns a duplex stream "
               "that can be used to communicate with the server. Type is an optional keyword "
-              "to specify a connection type, either :stream or :datagram. The default is :stream. ") {
+              "to specify a connection type, either :stream or :datagram. The default is :stream. "
+              "Bindhost is an optional string to select from what address to make the outgoing "
+              "connection, with the default being the same as using the OS's preferred address. ") {
     janet_arity(argc, 2, 4);
 
     int socktype = janet_get_sockettype(argv, argc, 2);
