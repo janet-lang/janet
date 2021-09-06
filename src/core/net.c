@@ -720,7 +720,7 @@ static inline void *sa_aton_(void *dst, size_t lim, const char *src) {
 }
 */
 
-static JanetString janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen) {
+static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen) {
     uint8_t *hn = NULL;
     uint16_t hp = 0;
     size_t plen = SA_ADDRSTRLEN;
@@ -760,7 +760,15 @@ static JanetString janet_so_getname(const struct sockaddr_storage *ss, socklen_t
             break;
     }
 
-    return janet_string(hn, plen + 1);
+    Janet name[2];
+    int32_t len = 1;
+    name[0] = janet_wrap_string(janet_cstring((const char *)hn));
+    if (hp > 0) {
+        len++;
+        name[1] = janet_wrap_integer(hp);
+    }
+
+    return janet_wrap_tuple(janet_tuple_n(name, len));
 }
 
 JANET_CORE_FN(cfun_net_getsockname,
@@ -776,7 +784,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     if(0 != (error = getsockname(js->handle, (struct sockaddr *) &ss, &slen)))
         janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
 
-    return janet_wrap_string(janet_so_getname(&ss, slen));
+    return janet_so_getname(&ss, slen);
 }
 
 
@@ -794,7 +802,7 @@ JANET_CORE_FN(cfun_net_getpeername,
         janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
     }
 
-    return janet_wrap_string(janet_so_getname(&ss, slen));
+    return janet_so_getname(&ss, slen);
 }
 
 JANET_CORE_FN(cfun_stream_accept_loop,
