@@ -1694,7 +1694,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     /* Step state machines */
     for (int i = 0; i < status; i++) {
-        void *p = events[i].udata;
+        void *p = (void*) events[i].udata;
         if (&janet_vm.timer == p) {
             /* Timer expired, ignore */;
         } else if (janet_vm.selfpipe == p) {
@@ -1736,7 +1736,9 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent events[2];
-    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, JANET_KQUEUE_TF, NOTE_MSECONDS, JANET_KQUEUE_TS(0), &janet_vm.timer);
+    /* Don't use JANET_KQUEUE_TS here, as even under FreeBSD we use intervals
+     * here. */
+    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, JANET_KQUEUE_TF, NOTE_MSECONDS, 0, &janet_vm.timer);
     EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
