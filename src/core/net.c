@@ -445,7 +445,7 @@ JANET_CORE_FN(cfun_net_connect,
     }
     freeaddrinfo(ai);
     if (NULL == rp) {
-        janet_panic("could not bind to any sockets");
+        janet_panic("could not bind outgoing address");
     }
 
     /* Connect to socket */
