@@ -248,7 +248,9 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
 /* Adress info */
 
 static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
-    JanetKeyword stype = janet_optkeyword(argv, argc, n, NULL);
+    JanetKeyword stype = NULL;
+    if(janet_checktype(argv[n], JANET_KEYWORD))
+        stype = janet_optkeyword(argv, argc, n, NULL);
     int socktype = SOCK_DGRAM;
     if ((NULL == stype) || !janet_cstrcmp(stype, "stream")) {
         socktype = SOCK_STREAM;
