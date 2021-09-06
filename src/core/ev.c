@@ -1589,6 +1589,20 @@ void janet_ev_deinit(void) {
 #define NOTE_ABSTIME 0
 #endif
 
+/* NOTE:
+ * NetBSD fails to link when the EVSETx call is with EVFILT_TIMER and the data
+ * field is 0. I believe NetBSD supports 0 intervaled timeouts but when the
+ * value is a static value known at compile time, the macro does something
+ * that is odd enough to cause an issue unrelated to ev.c elsewhere in shell.c
+ * where linking just fails awfully. This is a kludge to fix it until someone
+ * smarter who understands why this is happening can create a better fix.
+ */
+#ifdef __NetBSD__
+#define JANET_KQUEUE_INITIAL_WAIT 1
+#else
+#define JANET_KQUEUE_INITIAL_WAIT 0
+#endif
+
 /* TODO: make this available be we using kqueue or epoll, instead of
  * redefinining it for kqueue and epoll separately? */
 static JanetTimestamp ts_now(void) {
@@ -1738,7 +1752,11 @@ void janet_ev_init(void) {
     struct kevent events[2];
     /* Don't use JANET_KQUEUE_TS here, as even under FreeBSD we use intervals
      * here. */
-    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, JANET_KQUEUE_TF, NOTE_MSECONDS, 0, &janet_vm.timer);
+    EV_SETx(&events[0],
+            JANET_KQUEUE_TIMER_IDENT,
+            EVFILT_TIMER,
+            JANET_KQUEUE_TF,
+            NOTE_MSECONDS, JANET_KQUEUE_INITIAL_WAIT, &janet_vm.timer);
     EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
