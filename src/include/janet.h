@@ -198,6 +198,16 @@ extern "C" {
 #define JANET_EV_EPOLL
 #endif
 
+/* Enable or disable kqueue on BSD */
+#if defined(JANET_BSD) && !defined(JANET_EV_NO_KQUEUE)
+#define JANET_EV_KQUEUE
+#endif
+
+/* Enable or disable kqueue on Apple */
+#if defined(JANET_APPLE) && !defined(JANET_EV_NO_KQUEUE)
+#define JANET_EV_KQUEUE
+#endif
+
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS

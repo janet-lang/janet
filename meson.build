@@ -73,6 +73,7 @@ conf.set('JANET_NO_REALPATH', not get_option('realpath'))
 conf.set('JANET_NO_PROCESSES', not get_option('processes'))
 conf.set('JANET_SIMPLE_GETLINE', get_option('simple_getline'))
 conf.set('JANET_EV_NO_EPOLL', not get_option('epoll'))
+conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_THREADS', get_option('threads'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
 if get_option('os_name') != ''
