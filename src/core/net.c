@@ -429,23 +429,25 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
-    /* Check all addrinfos in a loop for the first that we can bind to. */
-    struct addrinfo *rp = NULL;
-    for (rp = ai; rp != NULL; rp = rp->ai_next) {
+    if (ai != NULL) {
+        /* Check all addrinfos in a loop for the first that we can bind to. */
+        struct addrinfo *rp = NULL;
+        for (rp = ai; rp != NULL; rp = rp->ai_next) {
 #ifdef JANET_WINDOWS
-        sock = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+            sock = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
 #else
-        sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+            sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
-        if (!JSOCKVALID(sock)) continue;
+            if (!JSOCKVALID(sock)) continue;
 
-        /* Bind */
-        if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
-        JSOCKCLOSE(sock);
-    }
-    freeaddrinfo(ai);
-    if (NULL == rp) {
-        janet_panic("could not bind outgoing address");
+            /* Bind */
+            if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
+            JSOCKCLOSE(sock);
+        }
+        freeaddrinfo(ai);
+        if (NULL == rp) {
+            janet_panic("could not bind outgoing address");
+        }
     }
 
     /* Connect to socket */
