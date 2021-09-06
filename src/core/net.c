@@ -420,17 +420,18 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
-    ai = NULL;
+    /* Check if we're binding address */
+    struct addrinfo *binding = NULL;
     if (argc >= 3 && is_unix == 0) {
         if (argc == 4 || !janet_checktype(argv[2], JANET_KEYWORD)) {
-            ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
+            binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
         }
     }
 
-    if (ai != NULL) {
+    if (binding != NULL) {
         /* Check all addrinfos in a loop for the first that we can bind to. */
         struct addrinfo *rp = NULL;
-        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+        for (rp = binding; rp != NULL; rp = rp->ai_next) {
 #ifdef JANET_WINDOWS
             sock = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
 #else
@@ -442,7 +443,7 @@ JANET_CORE_FN(cfun_net_connect,
             if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
             JSOCKCLOSE(sock);
         }
-        freeaddrinfo(ai);
+        freeaddrinfo(binding);
         if (NULL == rp) {
             janet_panic("could not bind outgoing address");
         }
