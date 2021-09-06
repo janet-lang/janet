@@ -29,7 +29,6 @@
 #ifdef JANET_NET
 
 #include <math.h>
-#include <arpa/inet.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -39,6 +38,7 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "Advapi32.lib")
 #else
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/ioctl.h>
