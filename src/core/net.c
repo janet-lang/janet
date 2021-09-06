@@ -304,7 +304,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
          * specify from where we connect, and in general don't care about a
          * port */
         int32_t current_offset = 3;
-        if (janet_checktype(argv[3], JANET_KEYWORD)) {
+        if (janet_checktype(argv[2], JANET_KEYWORD)) {
            current_offset = 4;
         }
         host = (char *)janet_getcstring(argv, current_offset);
@@ -422,7 +422,7 @@ JANET_CORE_FN(cfun_net_connect,
 
     ai = NULL;
     if (argc >= 3 && is_unix == 0) {
-        if (argc == 4 || !janet_checktype(argv[3], JANET_KEYWORD)) {
+        if (argc == 4 || !janet_checktype(argv[2], JANET_KEYWORD)) {
             ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
         }
     }
