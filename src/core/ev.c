@@ -1575,6 +1575,19 @@ void janet_ev_deinit(void) {
  *   https://github.com/wahern/cqueues/blob/master/src/lib/kpoll.c
  * NetBSD uses intptr_t while others use void * for .udata */
 #define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
+#define JANET_KQUEUE_TF (EV_ADD | EV_ENABLE | EV_CLEAR | EV_ONESHOT)
+
+#ifdef __FreeBSD__
+#define JANET_KQUEUE_TS(timestamp) (timestamp)
+#else
+/* NOTE:
+ * NetBSD and OpenBSD expect things are always intervals, so fake that we have
+ * abstime capability by changing how a timestamp is used in all kqueue calls
+ * and defining absent macros. */
+#define JANET_KQUEUE_TS(timestamp) (timestamp - ts_now())
+#define NOTE_MSECONDS 0
+#define NOTE_ABSTIME 0
+#endif
 
 /* TODO: make this available be we using kqueue or epoll, instead of
  * redefinining it for kqueue and epoll separately? */
@@ -1663,8 +1676,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         EV_SETx(&timer,
                JANET_KQUEUE_TIMER_IDENT,
                EVFILT_TIMER,
-               EV_ADD | EV_ENABLE | EV_CLEAR,
-               NOTE_MSECONDS | NOTE_ABSTIME, timeout, &janet_vm.timer);
+               JANET_KQUEUE_TF,
+               NOTE_MSECONDS | NOTE_ABSTIME,
+               JANET_KQUEUE_TS(timeout), &janet_vm.timer);
         add_kqueue_events(&timer, 1);
     }
     janet_vm.timer_enabled = has_timeout;
@@ -1722,7 +1736,7 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent events[2];
-    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, EV_ADD | EV_ENABLE | EV_CLEAR, NOTE_MSECONDS, 0, &janet_vm.timer);
+    EV_SETx(&events[0], JANET_KQUEUE_TIMER_IDENT, EVFILT_TIMER, JANET_KQUEUE_TF, NOTE_MSECONDS, JANET_KQUEUE_TS(0), &janet_vm.timer);
     EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
