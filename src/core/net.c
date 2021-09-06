@@ -29,6 +29,7 @@
 #ifdef JANET_NET
 
 #include <math.h>
+#include <arpa/inet.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -570,6 +571,217 @@ JANET_CORE_FN(cfun_net_listen,
     }
 }
 
+#define SO_MAX(a, b) (((a) > (b))? (a) : (b))
+#define SA_PORT_NONE (&(in_port_t){ 0 })
+#define SO_MIN(a, b) (((a) < (b))? (a) : (b))
+#define SA_ADDRSTRLEN SO_MAX(INET6_ADDRSTRLEN, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#define sa_ntoa(sa)  sa_ntoa_((char [SA_ADDRSTRLEN]){ 0 }, SA_ADDRSTRLEN, (sa))
+#define sa_aton(str) sa_aton_(&(struct sockaddr_storage){ 0 }, sizeof (struct sockaddr_storage), (str))
+#define sa_family(...) sa_family(__VA_ARGS__)
+#define sa_port(...) sa_port(__VA_ARGS__)
+
+union sockaddr_arg {
+	struct sockaddr *sa;
+	const struct sockaddr *c_sa;
+
+	struct sockaddr_storage *ss;
+	struct sockaddr_storage *c_ss;
+
+	struct sockaddr_in *sin;
+	struct sockaddr_in *c_sin;
+
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in6 *c_sin6;
+
+	struct sockaddr_un *sun;
+	struct sockaddr_un *c_sun;
+	union sockaddr_any *any;
+	union sockaddr_any *c_any;
+
+	void *ptr;
+	void *c_ptr;
+};
+
+union sockaddr_any {
+	struct sockaddr sa;
+	struct sockaddr_storage ss;
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr_un sun;
+};
+
+static inline union sockaddr_arg sockaddr_ref(void* arg) {
+	return (union sockaddr_arg){ arg };
+}
+
+static inline sa_family_t *(sa_family)(void* arg) {
+	return &sockaddr_ref(arg).sa->sa_family;
+}
+
+static inline in_port_t *(sa_port)(void* arg, const in_port_t *def, int *error) {
+	switch (*sa_family(arg)) {
+	case AF_INET:
+		return &sockaddr_ref(arg).sin->sin_port;
+	case AF_INET6:
+		return &sockaddr_ref(arg).sin6->sin6_port;
+	default:
+		if (error)
+			*error = EAFNOSUPPORT;
+
+		return (in_port_t *)def;
+	}
+}
+
+size_t janet_socket_strlcpy(char *dst, const char *src, size_t lim) {
+	char *d		= dst;
+	char *e		= &dst[lim];
+	const char *s	= src;
+
+	if (d < e) {
+		do {
+			if ('\0' == (*d++ = *s++))
+				return s - src - 1;
+		} while (d < e);
+
+		d[-1]	= '\0';
+	}
+
+	while (*s++ != '\0')
+		;;
+
+	return s - src - 1;
+}
+
+char *sa_ntop(char *dst, size_t lim, const void *src, const char *def, int *_error) {
+	union sockaddr_any *any = (void *)src;
+	const char *unspec = "0.0.0.0";
+	char text[SA_ADDRSTRLEN];
+	int error;
+
+	switch (*sa_family(&any->sa)) {
+	case AF_INET:
+		unspec = "0.0.0.0";
+
+		if (!inet_ntop(AF_INET, &any->sin.sin_addr, text, sizeof text))
+			goto syerr;
+
+		break;
+	case AF_INET6:
+		unspec = "::";
+
+		if (!inet_ntop(AF_INET6, &any->sin6.sin6_addr, text, sizeof text))
+			goto syerr;
+
+		break;
+	case AF_UNIX:
+		unspec = "/nonexistent";
+
+		memset(text, 0, sizeof text);
+		memcpy(text, any->sun.sun_path, SO_MIN(sizeof text - 1, sizeof any->sun.sun_path));
+
+		break;
+	default:
+		error = EAFNOSUPPORT;
+
+		goto error;
+	}
+
+	if (janet_socket_strlcpy(dst, text, lim) >= lim) {
+		error = ENOSPC;
+
+		goto error;
+	}
+
+	return dst;
+syerr:
+	error = errno;
+error:
+	if (_error)
+		*_error = error;
+
+	/*
+	 * NOTE: Always write something in case caller ignores errors, such
+	 * as when caller is using the sa_ntoa() macro.
+	 */
+	safe_memcpy(dst, (def)? def : unspec, lim);
+
+	return (char *)def;
+}
+
+void *sa_pton(void *, size_t, const char *, const void *, int *);
+
+static inline char *sa_ntoa_(char *dst, size_t lim, const void *src) {
+	return sa_ntop(dst, lim, src, NULL, &(int){ 0 }), dst;
+}
+
+/*
+static inline void *sa_aton_(void *dst, size_t lim, const char *src) {
+	return sa_pton(dst, lim, src, NULL, &(int){ 0 }), dst;
+}
+*/
+
+static JanetString janet_name_from_socket(const struct sockaddr_storage *ss, socklen_t slen) {
+    uint8_t *hn = NULL;
+    uint16_t hp = 0;
+    size_t plen = SA_ADDRSTRLEN;
+
+    switch(ss->ss_family) {
+        case AF_INET:
+            /* fall through */
+        case AF_INET6:
+            /* hn = hostname, hp = hostport */
+            hn = (uint8_t *)sa_ntoa(ss);
+            hp = ntohs(*sa_port((void *)ss, SA_PORT_NONE, NULL));
+            break;
+        case AF_UNIX:
+            /* support nameless sockets, linux-ism */
+            if (slen > offsetof(struct sockaddr_un, sun_path)) {
+                struct sockaddr_un *sun = (struct sockaddr_un *)ss;
+                char *pe = (char *)sun + SO_MIN(sizeof *sun, slen);
+                size_t plen;
+
+                while (pe > sun->sun_path && pe[-1] == '\0')
+                    --pe;
+
+                if ((plen = pe - sun->sun_path) > 0) {
+                    hn = (uint8_t *)sun->sun_path;
+                } else {
+                    hn = (uint8_t *)"@";
+                    plen = 1;
+                }
+            } else {
+                hn = (uint8_t *)"@";
+                plen = 1;
+            }
+            break;
+        default:
+            hn = (uint8_t *)"";
+            plen = 0;
+            break;
+    }
+
+    return janet_string(hn, plen + 1);
+}
+
+JANET_CORE_FN(cfun_net_getpeername,
+              "(net/peername stream)",
+              "Document me!") {
+    janet_arity(argc, 1, 1);
+    JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
+    struct sockaddr_storage ss;
+    socklen_t slen = sizeof ss;
+	memset(&ss, 0, slen);
+
+    int error;
+    if (0 != (error = getpeername(js->handle, (struct sockaddr *)&ss, &slen))) {
+        janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
+    }
+
+    JanetString ret = janet_name_from_socket(&ss, slen);
+
+    return janet_wrap_string(ret);
+}
+
 JANET_CORE_FN(cfun_stream_accept_loop,
               "(net/accept-loop stream handler)",
               "Shorthand for running a server stream that will continuously accept new connections. "
@@ -739,6 +951,7 @@ void janet_lib_net(JanetTable *env) {
         JANET_CORE_REG("net/flush", cfun_stream_flush),
         JANET_CORE_REG("net/connect", cfun_net_connect),
         JANET_CORE_REG("net/shutdown", cfun_net_shutdown),
+        JANET_CORE_REG("net/peername", cfun_net_getpeername),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, net_cfuns);
