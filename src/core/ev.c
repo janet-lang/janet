@@ -1577,31 +1577,32 @@ void janet_ev_deinit(void) {
 #define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
 #define JANET_KQUEUE_TF (EV_ADD | EV_ENABLE | EV_CLEAR | EV_ONESHOT)
 
+/* NOTE:
+ * NetBSD doesn't like intervals less than 1 millisecond so lets make that the
+ * default anywhere JANET_KQUEUE_TS will be used. */
+#ifdef __NetBSD__
+#define JANET_KQUEUE_MIN_INTERVAL 1
+#else
+#define JANET_KQUEUE_MIN_INTERVAL 0
+#endif
+
 #ifdef __FreeBSD__
 #define JANET_KQUEUE_TS(timestamp) (timestamp)
 #else
 /* NOTE:
  * NetBSD and OpenBSD expect things are always intervals, so fake that we have
  * abstime capability by changing how a timestamp is used in all kqueue calls
- * and defining absent macros. */
-#define JANET_KQUEUE_TS(timestamp) (timestamp - ts_now())
+ * and defining absent macros. Additionally NetBSD expects intervals be
+ * greater than 1 millisecond, so correct all intervals to be at least 1
+ * millisecond under NetBSD. */
+JanetTimestamp fix_interval(const JanetTimestamp ts) {
+    return ts >= JANET_KQUEUE_MIN_INTERVAL ? ts : JANET_KQUEUE_MIN_INTERVAL;
+}
+#define JANET_KQUEUE_TS(timestamp) (fix_interval((timestamp - ts_now())))
 #define NOTE_MSECONDS 0
 #define NOTE_ABSTIME 0
 #endif
 
-/* NOTE:
- * NetBSD fails to link when the EVSETx call is with EVFILT_TIMER and the data
- * field is 0. I believe NetBSD supports 0 intervaled timeouts but when the
- * value is a static value known at compile time, the macro does something
- * that is odd enough to cause an issue unrelated to ev.c elsewhere in shell.c
- * where linking just fails awfully. This is a kludge to fix it until someone
- * smarter who understands why this is happening can create a better fix.
- */
-#ifdef __NetBSD__
-#define JANET_KQUEUE_INITIAL_WAIT 1
-#else
-#define JANET_KQUEUE_INITIAL_WAIT 0
-#endif
 
 /* TODO: make this available be we using kqueue or epoll, instead of
  * redefinining it for kqueue and epoll separately? */
@@ -1756,7 +1757,7 @@ void janet_ev_init(void) {
             JANET_KQUEUE_TIMER_IDENT,
             EVFILT_TIMER,
             JANET_KQUEUE_TF,
-            NOTE_MSECONDS, JANET_KQUEUE_INITIAL_WAIT, &janet_vm.timer);
+            NOTE_MSECONDS, JANET_KQUEUE_MIN_INTERVAL, &janet_vm.timer);
     EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
