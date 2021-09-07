@@ -301,6 +301,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         /* when is_bind is set, we're performing a connect, but wanting to
          * specify from where we connect, and in general don't care about a
          * port */
+        /* TODO: remove check, argv[3] is where our bindhost is at! */
         int32_t current_offset = 2;
         if (janet_checktype(argv[current_offset], JANET_KEYWORD)) {
            current_offset++;
@@ -382,29 +383,16 @@ JANET_CORE_FN(cfun_net_connect,
               "connection, with the default being the same as using the OS's preferred address. ") {
     janet_arity(argc, 2, 4);
 
-    int socktype = SOCK_STREAM;
-    int strict = 0;
+    int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
+    /* Where we're connecting to */
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 0);
-
-    /* figure out socket type */
-    switch (argc) {
-    case 4:
-        strict = 1;
-    case 3:
-        if(janet_checktype(argv[2], JANET_KEYWORD) || strict)
-            socktype = janet_get_sockettype(argv, argc, 2);
-        break;
-    default:
-       socktype = SOCK_STREAM;
-    }
 
     /* Check if we're binding address */
     struct addrinfo *binding = NULL;
-    if (argc >= 3 && is_unix == 0) {
-        if (argc == 4 || !janet_checktype(argv[2], JANET_KEYWORD)) {
-            binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
-        }
+    if (argc > 3 && is_unix == 0 && !janet_checktype(argv[3], JANET_NIL)) {
+        int is_bindhost_unix = 0; /* discarded value */
+        binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_bindhost_unix, 1);
     }
 
     /* Create socket */
@@ -459,7 +447,7 @@ JANET_CORE_FN(cfun_net_connect,
         }
         freeaddrinfo(binding);
         if (NULL == rp) {
-            janet_panic("could not bind outgoing address");
+            janet_panicf("could not bind outgoing address: %V", janet_ev_lasterr());
         }
     }
 
