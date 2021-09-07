@@ -574,7 +574,11 @@ JANET_CORE_FN(cfun_net_listen,
 #define SO_MAX(a, b) (((a) > (b))? (a) : (b))
 #define SA_PORT_NONE (&(in_port_t){ 0 })
 #define SO_MIN(a, b) (((a) < (b))? (a) : (b))
+#ifndef JANET_WINDOWS
 #define SA_ADDRSTRLEN SO_MAX(INET6_ADDRSTRLEN, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#else
+#define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
+#endif
 #define sa_ntoa(sa)  sa_ntoa_((char [SA_ADDRSTRLEN]){ 0 }, SA_ADDRSTRLEN, (sa))
 #define sa_family(...) sa_family(__VA_ARGS__)
 #define sa_port(...) sa_port(__VA_ARGS__)
@@ -730,6 +734,7 @@ static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen)
             hn = (uint8_t *)sa_ntoa(ss);
             hp = ntohs(*sa_port((void *)ss, SA_PORT_NONE, NULL));
             break;
+#ifndef JANET_WINDOWS
         case AF_UNIX:
             /* support nameless sockets, linux-ism */
             if (slen > offsetof(struct sockaddr_un, sun_path)) {
@@ -751,6 +756,7 @@ static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen)
                 plen = 1;
             }
             break;
+#endif
         default:
             hn = (uint8_t *)"";
             plen = 0;
