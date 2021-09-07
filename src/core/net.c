@@ -744,7 +744,6 @@ static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen)
             if (slen > offsetof(struct sockaddr_un, sun_path)) {
                 struct sockaddr_un *sun = (struct sockaddr_un *)ss;
                 char *pe = (char *)sun + SO_MIN(sizeof * sun, slen);
-                size_t plen;
 
                 while (pe > sun->sun_path && pe[-1] == '\0')
                     --pe;
