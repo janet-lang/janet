@@ -588,7 +588,9 @@ union sockaddr_arg {
     struct sockaddr_in *c_sin;
     struct sockaddr_in6 *sin6;
     struct sockaddr_in6 *c_sin6;
+#ifndef JANET_WINDOWS
     struct sockaddr_un *sun;
+#endif
     struct sockaddr_un *c_sun;
     union sockaddr_any *any;
     union sockaddr_any *c_any;
@@ -602,7 +604,9 @@ union sockaddr_any {
     struct sockaddr_storage ss;
     struct sockaddr_in sin;
     struct sockaddr_in6 sin6;
+#ifndef JANET_WINDOWS
     struct sockaddr_un sun;
+#endif
 };
 
 static inline union sockaddr_arg sockaddr_ref(void *arg) {
@@ -670,6 +674,7 @@ char *sa_ntop(char *dst, size_t lim, const void *src, const char *def, int *_err
                 goto syerr;
 
             break;
+#ifndef JANET_WINDOWS
         case AF_UNIX:
             unspec = "/nonexistent";
 
@@ -677,6 +682,7 @@ char *sa_ntop(char *dst, size_t lim, const void *src, const char *def, int *_err
             memcpy(text, any->sun.sun_path, SO_MIN(sizeof text - 1, sizeof any->sun.sun_path));
 
             break;
+#endif
         default:
             error = EAFNOSUPPORT;
 
