@@ -788,7 +788,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     memset(&ss, 0, slen);
 
     int error;
-    if (0 != (error = getsockname(js->handle, (struct sockaddr *) &ss, &slen)))
+    if (0 != (error = getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)))
         janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
 
     return janet_so_getname(&ss, slen);
@@ -805,7 +805,7 @@ JANET_CORE_FN(cfun_net_getpeername,
     memset(&ss, 0, slen);
 
     int error;
-    if (0 != (error = getpeername(js->handle, (struct sockaddr *)&ss, &slen))) {
+    if (0 != (error = getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen))) {
         janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
     }
 
