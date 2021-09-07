@@ -166,12 +166,6 @@
         (do (net/write stream to-write) (net/read stream 1024 buffer))
         (do (net/read stream 1024 buffer) (net/write stream to-write)))
       (def comparison (string/split " " buffer))
-      (printf "%s\n\t%s%q\n\t%s%q"
-              (if (= direction :write) "-->" "<--")
-              "remote view: "
-              comparison
-              "local view: "
-              [my-ip my-port remote-ip remote-port])
       (assert (and (= my-ip (get comparison 2))
                    (= (string my-port) (get comparison 3))
                    (= remote-ip (get comparison 0))
