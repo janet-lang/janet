@@ -248,9 +248,7 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
 /* Adress info */
 
 static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
-    JanetKeyword stype = NULL;
-    if(janet_checktype(argv[n], JANET_KEYWORD))
-        stype = janet_optkeyword(argv, argc, n, NULL);
+    JanetKeyword stype = janet_optkeyword(argv, argc, n, NULL);
     int socktype = SOCK_DGRAM;
     if ((NULL == stype) || !janet_cstrcmp(stype, "stream")) {
         socktype = SOCK_STREAM;
@@ -384,9 +382,30 @@ JANET_CORE_FN(cfun_net_connect,
               "connection, with the default being the same as using the OS's preferred address. ") {
     janet_arity(argc, 2, 4);
 
-    int socktype = janet_get_sockettype(argv, argc, 2);
+    int socktype = SOCK_STREAM;
+    int strict = 0;
     int is_unix = 0;
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 0);
+
+    /* figure out socket type */
+    switch (argc) {
+    case 4:
+        strict = 1;
+    case 3:
+        if(janet_checktype(argv[2], JANET_KEYWORD) || strict)
+            socktype = janet_get_sockettype(argv, argc, 2);
+        break;
+    default:
+       socktype = SOCK_STREAM;
+    }
+
+    /* Check if we're binding address */
+    struct addrinfo *binding = NULL;
+    if (argc >= 3 && is_unix == 0) {
+        if (argc == 4 || !janet_checktype(argv[2], JANET_KEYWORD)) {
+            binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
+        }
+    }
 
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
@@ -422,14 +441,7 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
-    /* Check if we're binding address */
-    struct addrinfo *binding = NULL;
-    if (argc >= 3 && is_unix == 0) {
-        if (argc == 4 || !janet_checktype(argv[2], JANET_KEYWORD)) {
-            binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 1);
-        }
-    }
-
+    /* Perform bind if binding */
     if (binding != NULL) {
         /* Check all addrinfos in a loop for the first that we can bind to. */
         struct addrinfo *rp = NULL;
