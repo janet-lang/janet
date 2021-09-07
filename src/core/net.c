@@ -582,6 +582,10 @@ JANET_CORE_FN(cfun_net_listen,
 #define sa_ntoa(sa)  sa_ntoa_((char [SA_ADDRSTRLEN]){ 0 }, SA_ADDRSTRLEN, (sa))
 #define sa_family(...) sa_family(__VA_ARGS__)
 #define sa_port(...) sa_port(__VA_ARGS__)
+#ifdef JANET_WINDOWS
+typedef short sa_family_t;
+typedef unsigned short in_port_t;
+#endif
 
 union sockaddr_arg {
     struct sockaddr *sa;
