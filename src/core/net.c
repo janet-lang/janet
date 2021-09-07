@@ -301,12 +301,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         /* when is_bind is set, we're performing a connect, but wanting to
          * specify from where we connect, and in general don't care about a
          * port */
-        /* TODO: remove check, argv[3] is where our bindhost is at! */
-        int32_t current_offset = 2;
-        if (janet_checktype(argv[current_offset], JANET_KEYWORD)) {
-           current_offset++;
-        }
-        host = (char *)janet_getcstring(argv, current_offset);
+        host = (char *)janet_getcstring(argv, 3);
         port = NULL;
         err = "could not get address info for connect bind: %s";
     }
