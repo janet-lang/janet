@@ -259,8 +259,9 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
 }
 
 /* Needs argc >= offset + 2 */
-/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1, otherwise 0 */
-static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix) {
+/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1,
+ * otherwise 0. Also, ignores is_bind when is a unix socket. */
+static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix, int is_bind) {
     /* Unix socket support - not yet supported on windows. */
 #ifndef JANET_WINDOWS
     if (janet_keyeq(argv[offset], "unix")) {
@@ -285,12 +286,24 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
     }
 #endif
     /* Get host and port */
-    const char *host = janet_getcstring(argv, offset);
-    const char *port;
-    if (janet_checkint(argv[offset + 1])) {
-        port = (const char *)janet_to_string(argv[offset + 1]);
+    char *host = NULL, *port = NULL;
+    char *err = NULL;
+    /* if is_bind is set, skip offsets and ports! */
+    if (!is_bind) {
+        host = (char *)janet_getcstring(argv, offset);
+        if (janet_checkint(argv[offset + 1])) {
+            port = (char *)janet_to_string(argv[offset + 1]);
+        } else {
+            port = (char *)janet_optcstring(argv, offset + 2, offset + 1, NULL);
+        }
+        err = "could not get address info: %s";
     } else {
-        port = janet_optcstring(argv, offset + 2, offset + 1, NULL);
+        /* when is_bind is set, we're performing a connect, but wanting to
+         * specify from where we connect, and in general don't care about a
+         * port */
+        host = (char *)janet_getcstring(argv, 3);
+        port = NULL;
+        err = "could not get address info for connect bind: %s";
     }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
@@ -301,7 +314,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
     hints.ai_flags = passive ? AI_PASSIVE : 0;
     int status = getaddrinfo(host, port, &hints, &ai);
     if (status) {
-        janet_panicf("could not get address info: %s", gai_strerror(status));
+        janet_panicf(err, gai_strerror(status));
     }
     *is_unix = 0;
     return ai;
@@ -322,7 +335,7 @@ JANET_CORE_FN(cfun_net_sockaddr,
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
     int make_arr = (argc >= 3 && janet_truthy(argv[3]));
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 0);
 #ifndef JANET_WINDOWS
     /* no unix domain socket support on windows yet */
     if (is_unix) {
@@ -357,15 +370,25 @@ JANET_CORE_FN(cfun_net_sockaddr,
 }
 
 JANET_CORE_FN(cfun_net_connect,
-              "(net/connect host port &opt type)",
+              "(net/connect host port &opt type bindhost)",
               "Open a connection to communicate with a server. Returns a duplex stream "
               "that can be used to communicate with the server. Type is an optional keyword "
-              "to specify a connection type, either :stream or :datagram. The default is :stream. ") {
-    janet_arity(argc, 2, 3);
+              "to specify a connection type, either :stream or :datagram. The default is :stream. "
+              "Bindhost is an optional string to select from what address to make the outgoing "
+              "connection, with the default being the same as using the OS's preferred address. ") {
+    janet_arity(argc, 2, 4);
 
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+    /* Where we're connecting to */
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, 0);
+
+    /* Check if we're binding address */
+    struct addrinfo *binding = NULL;
+    if (argc > 3 && is_unix == 0 && !janet_checktype(argv[3], JANET_NIL)) {
+        int is_bindhost_unix = 0; /* discarded value */
+        binding = janet_get_addrinfo(argv, 0, socktype, 0, &is_bindhost_unix, 1);
+    }
 
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
@@ -398,6 +421,28 @@ JANET_CORE_FN(cfun_net_connect,
         if (NULL == addr) {
             freeaddrinfo(ai);
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
+        }
+    }
+
+    /* Perform bind if binding */
+    if (binding != NULL) {
+        /* Check all addrinfos in a loop for the first that we can bind to. */
+        struct addrinfo *rp = NULL;
+        for (rp = binding; rp != NULL; rp = rp->ai_next) {
+#ifdef JANET_WINDOWS
+            sock = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+#else
+            sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+#endif
+            if (!JSOCKVALID(sock)) continue;
+
+            /* Bind */
+            if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) break;
+            JSOCKCLOSE(sock);
+        }
+        freeaddrinfo(binding);
+        if (NULL == rp) {
+            janet_panicf("could not bind outgoing address: %V", janet_ev_lasterr());
         }
     }
 
@@ -502,7 +547,7 @@ JANET_CORE_FN(cfun_net_listen,
     /* Get host, port, and handler*/
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix, 0);
 
     JSock sfd = JSOCKDEFAULT;
 #ifndef JANET_WINDOWS
