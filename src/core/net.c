@@ -571,6 +571,10 @@ JANET_CORE_FN(cfun_net_listen,
     }
 }
 
+/* Definitions from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h
+ *     SO_MAX, SA_PORT_NONE, SO_MIN, SA_ADDRSTRLEN, sa_ntoa, sa_family,
+ *     sa_port */
 #define SO_MAX(a, b) (((a) > (b))? (a) : (b))
 #define SA_PORT_NONE (&(in_port_t){ 0 })
 #define SO_MIN(a, b) (((a) < (b))? (a) : (b))
@@ -583,10 +587,12 @@ JANET_CORE_FN(cfun_net_listen,
 #define sa_family(...) sa_family(__VA_ARGS__)
 #define sa_port(...) sa_port(__VA_ARGS__)
 #ifdef JANET_WINDOWS
-typedef short sa_family_t;
-typedef unsigned short in_port_t;
+typedef short sa_family_t; /* added to silence warnings */
+typedef unsigned short in_port_t; /* added to silence warnings */
 #endif
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 union sockaddr_arg {
     struct sockaddr *sa;
     const struct sockaddr *c_sa;
@@ -607,6 +613,8 @@ union sockaddr_arg {
     void *c_ptr;
 };
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 union sockaddr_any {
     struct sockaddr sa;
     struct sockaddr_storage ss;
@@ -617,16 +625,22 @@ union sockaddr_any {
 #endif
 };
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 static inline union sockaddr_arg sockaddr_ref(void *arg) {
     return (union sockaddr_arg) {
         arg
     };
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 static inline sa_family_t *(sa_family)(void *arg) {
     return &sockaddr_ref(arg).sa->sa_family;
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 static inline in_port_t *(sa_port)(void *arg, const in_port_t *def, int *error) {
     switch (*sa_family(arg)) {
         case AF_INET:
@@ -641,6 +655,9 @@ static inline in_port_t *(sa_port)(void *arg, const in_port_t *def, int *error) 
     }
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c
+ * Original was dns_strlcpy */
 size_t janet_socket_strlcpy(char *dst, const char *src, size_t lim) {
     char *d     = dst;
     char *e     = &dst[lim];
@@ -661,6 +678,8 @@ size_t janet_socket_strlcpy(char *dst, const char *src, size_t lim) {
     return s - src - 1;
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c */
 char *sa_ntop(char *dst, size_t lim, const void *src, const char *def, int *_error) {
     union sockaddr_any *any = (void *)src;
     const char *unspec = "0.0.0.0";
@@ -719,12 +738,17 @@ error:
     return (char *)def;
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
 static inline char *sa_ntoa_(char *dst, size_t lim, const void *src) {
     return sa_ntop(dst, lim, src, NULL, &(int) {
         0
     }), dst;
 }
 
+/* Definition from:
+ *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c
+ * Originaly was lso_pushname */
 static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen) {
     uint8_t *hn = NULL;
     uint16_t hp = 0;
