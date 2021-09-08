@@ -369,13 +369,12 @@ JANET_CORE_FN(cfun_net_connect,
     /* Check arguments */
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
-    const char *bindhost = janet_optcstring(argv, argc, 3, NULL);
-    int bindport = 0;
+    char *bindhost = (char *) janet_optcstring(argv, argc, 3, NULL);
+    char *bindport = NULL;
     if (janet_checkint(argv[4])) {
-        bindport = janet_unwrap_integer(argv[4]);
+        bindport = (char *)janet_to_string(argv[4]);
     } else {
-        const char *portstring = (char *)janet_optcstring(argv, argc, 4, "0");
-        bindport = atoi(portstring);
+        bindport = (char *)janet_optcstring(argv, argc, 4, NULL);
     }
 
     /* Where we're connecting to */
@@ -391,10 +390,10 @@ JANET_CORE_FN(cfun_net_connect,
         /* getaddrinfo */
         struct addrinfo hints;
         memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
+        hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = socktype;
         hints.ai_flags = 0;
-        int status = getaddrinfo(bindhost, NULL, &hints, &binding);
+        int status = getaddrinfo(bindhost, bindport, &hints, &binding);
         if (status) {
             freeaddrinfo(ai);
             janet_panicf("could not get address info for bindhost: %s", gai_strerror(status));
@@ -433,24 +432,30 @@ JANET_CORE_FN(cfun_net_connect,
         }
         if (NULL == addr) {
             Janet v = janet_ev_lasterr();
+            if (binding) freeaddrinfo(binding);
             freeaddrinfo(ai);
             janet_panicf("could not create socket: %V", v);
         }
     }
 
     /* Bind to bindhost and bindport if given */
-    if (bindhost != NULL) {
-        /* Bind to a specific network interface (and optionally a specific local port) */
-        struct sockaddr_in localaddr;
-        memset(&localaddr, 0, sizeof(localaddr));
-        localaddr.sin_family = AF_INET;
-        localaddr.sin_addr.s_addr = inet_addr(bindhost);
-        localaddr.sin_port = bindport;
-        if (0 == bind(sock, (struct sockaddr *)&localaddr, sizeof(localaddr))) {
-            Janet lasterr = janet_ev_lasterr();
+    if (binding) {
+        struct addrinfo *rp = NULL;
+        int did_bind = 0;
+        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+            if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) {
+                did_bind = 1;
+                break;
+            }
+        }
+        if (!did_bind) {
+            Janet v = janet_ev_lasterr();
+            freeaddrinfo(binding);
             freeaddrinfo(ai);
             JSOCKCLOSE(sock);
-            janet_panicf("could not bind outgoing address: %V", lasterr);
+            janet_panicf("could not bind outgoing address: %V", v);
+        } else {
+            freeaddrinfo(binding);
         }
     }
 
