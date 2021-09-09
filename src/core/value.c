@@ -37,8 +37,9 @@ static void push_traversal_node(void *lhs, void *rhs, int32_t index2) {
     node.other = (JanetGCObject *) rhs;
     node.index = 0;
     node.index2 = index2;
-    if (janet_vm.traversal + 1 >= janet_vm.traversal_top) {
-        size_t oldsize = janet_vm.traversal - janet_vm.traversal_base;
+    int is_new = janet_vm.traversal_base == NULL;
+    if (is_new || (janet_vm.traversal + 1 >= janet_vm.traversal_top)) {
+        size_t oldsize = is_new ? 0 : (janet_vm.traversal - janet_vm.traversal_base);
         size_t newsize = 2 * oldsize + 1;
         if (newsize < 128) {
             newsize = 128;
