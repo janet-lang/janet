@@ -375,7 +375,7 @@ void janet_lib_math(JanetTable *env) {
     JANET_CORE_DEF(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
                    "The maximum contiguous integer represtenable by a double (-(2^53))");
 #ifdef NAN
-    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN");
+    JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN)");
 #else
     JANET_CORE_DEF(env, "math/nan", janet_wrap_number(0.0 / 0.0), "Not a number (IEEE-754 NaN)");
 #endif
