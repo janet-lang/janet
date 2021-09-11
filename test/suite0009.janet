@@ -169,7 +169,8 @@
       (assert (and (= my-ip (get comparison 2))
                    (= (string my-port) (get comparison 3))
                    (= remote-ip (get comparison 0))
-                   (= (string remote-port) (get comparison 1))))))
+                   (= (string remote-port) (get comparison 1)))
+              "localname does not match peername")))
   (defn names-handler
     "Simple handler for connections."
     [stream]
