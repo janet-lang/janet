@@ -123,6 +123,8 @@ static void janet_mark_abstract(void *adata) {
 
 /* Mark a bunch of items in memory */
 static void janet_mark_many(const Janet *values, int32_t n) {
+    if (values == NULL)
+        return;
     const Janet *end = values + n;
     while (values < end) {
         janet_mark(*values);
