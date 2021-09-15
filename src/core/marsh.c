@@ -384,6 +384,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         janet_abstract_incref(abstract);
         pushbyte(st, LB_THREADED_ABSTRACT);
         pushbytes(st, (uint8_t *) &abstract, sizeof(abstract));
+        MARK_SEEN();
         return;
     }
 #endif
