@@ -285,11 +285,12 @@ install-jpm-git: $(JANET_TARGET)
 	mkdir -p build
 	rm -rf build/jpm
 	git clone --depth=1 https://github.com/janet-lang/jpm.git build/jpm
-	cd build/jpm && PREFIX='$(DESTDIR)$(PREFIX)' \
-		JANET_MANPATH='$(DESTDIR)$(JANET_MANPATH)' \
-		JANET_HEADERPATH='$(DESTDIR)$(INCLUDEDIR)/janet' \
-		JANET_BINPATH='$(DESTDIR)$(BINDIR)' \
-		JANET_LIBPATH='$(DESTDIR)$(LIBDIR)' \
+	cd build/jpm && PREFIX='$(PREFIX)' \
+		DESTDIR=$(DESTDIR) \
+		JANET_MANPATH='$(JANET_MANPATH)' \
+		JANET_HEADERPATH='$(INCLUDEDIR)/janet' \
+		JANET_BINPATH='$(BINDIR)' \
+		JANET_LIBPATH='$(LIBDIR)' \
 		../../$(JANET_TARGET) ./bootstrap.janet
 
 uninstall:
