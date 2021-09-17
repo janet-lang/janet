@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unlreleased - ???
+- Fix some marshalling bugs.
+- Add optional Makefile target to install jpm as well.
 - Supervisor channels in threads will no longer include a wastful copy of the fiber in every
   message across a thread.
 - Allow passing a closure to `ev/thead` as well as a whole fiber.

@@ -94,19 +94,19 @@ static int32_t janet_decref(JanetAbstractHead *ab) {
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {
-    InitializeCriticalSection(mutex);
+    InitializeCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
 void janet_os_mutex_deinit(JanetOSMutex *mutex) {
-    DeleteCriticalSection(mutex);
+    DeleteCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
 void janet_os_mutex_lock(JanetOSMutex *mutex) {
-    EnterCriticalSection(mutex);
+    EnterCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
-    LeaveCriticalSection(mutex);
+    LeaveCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
 #else

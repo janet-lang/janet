@@ -330,11 +330,16 @@ typedef struct {
 /* Some extra includes if EV is enabled */
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
-#ifdef JANET_NET
-#include <winsock2.h>
-#endif
-#include <windows.h>
-typedef CRITICAL_SECTION JanetOSMutex;
+typedef struct JanetDudCriticalSection {
+    /* Avoid including windows.h here - instead, create a structure of the same size */
+    /* Needs to be same size as crtical section see WinNT.h for CRITCIAL_SECTION definition */
+    void *debug_info;
+    long lock_count
+    long recursion_count;
+    void *owning_thread;
+    void *lock_semaphore;
+    unsigned long spin_count;
+} JanetOSMutex;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t JanetOSMutex;
