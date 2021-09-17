@@ -36,6 +36,7 @@ JANET_PATH?=$(LIBDIR)/janet
 JANET_MANPATH?=$(PREFIX)/share/man/man1/
 JANET_PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 JANET_DIST_DIR?=janet-dist
+JPM_TAG?=master
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
@@ -284,7 +285,7 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 install-jpm-git: $(JANET_TARGET)
 	mkdir -p build
 	rm -rf build/jpm
-	git clone --depth=1 https://github.com/janet-lang/jpm.git build/jpm
+	git clone --depth=1 --branch='$(JPM_TAG)' https://github.com/janet-lang/jpm.git build/jpm
 	cd build/jpm && PREFIX='$(PREFIX)' \
 		DESTDIR=$(DESTDIR) \
 		JANET_MANPATH='$(JANET_MANPATH)' \
