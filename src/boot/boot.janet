@@ -3664,6 +3664,10 @@
         (put into k (x k))))
     into)
 
+  # Deprecate file/popen
+  (when-let [v (get root-env 'file/popen)]
+    (put v :deprecated true))
+
   # Deprecate thread library
   (loop [[k v] :in (pairs root-env)
          :when (symbol? k)
