@@ -334,7 +334,7 @@ typedef struct JanetDudCriticalSection {
     /* Avoid including windows.h here - instead, create a structure of the same size */
     /* Needs to be same size as crtical section see WinNT.h for CRITCIAL_SECTION definition */
     void *debug_info;
-    long lock_count
+    long lock_count;
     long recursion_count;
     void *owning_thread;
     void *lock_semaphore;
