@@ -2786,8 +2786,8 @@
   (def delimiters
     (if has-color
       {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[3;97m" "\e[39;23m"]
-       :italics ["\e[3m" "\e[23m"]
+       :code ["\e[97m" "\e[39m"]
+       :italics ["\e[4m" "\e[24m"]
        :bold ["\e[1m" "\e[22m"]}
       {:underline ["_" "_"]
        :code ["`" "`"]
@@ -2820,7 +2820,7 @@
     (c++)
     (- cursor x))
 
-  # Detection helpers - return number of characters natched
+  # Detection helpers - return number of characters matched
   (defn ul? []
     (let [x (c) x1 (cn 1)]
       (and
@@ -2953,6 +2953,14 @@
         (p-line)))
     (finish-p)
     new-indent))
+
+  # Handle first line specially for defn, defmacro, etc.
+  (when (= (chr "(") (in str 0))
+    (skipline)
+    (def first-line (string/slice str 0 (- cursor 1)))
+    (def fl-open (if has-color "\e[97m" ""))
+    (def fl-close (if has-color "\e[39m" ""))
+    (push [[(string fl-open first-line fl-close) (length first-line)]]))
 
   (parse-blocks 0)
 
