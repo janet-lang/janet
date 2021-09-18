@@ -1689,11 +1689,11 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
         EV_SETx(&timer,
-               JANET_KQUEUE_TIMER_IDENT,
-               EVFILT_TIMER,
-               JANET_KQUEUE_TF,
-               NOTE_MSECONDS | NOTE_ABSTIME,
-               JANET_KQUEUE_TS(timeout), &janet_vm.timer);
+                JANET_KQUEUE_TIMER_IDENT,
+                EVFILT_TIMER,
+                JANET_KQUEUE_TF,
+                NOTE_MSECONDS | NOTE_ABSTIME,
+                JANET_KQUEUE_TS(timeout), &janet_vm.timer);
         add_kqueue_events(&timer, 1);
     }
     janet_vm.timer_enabled = has_timeout;
@@ -1709,7 +1709,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     /* Step state machines */
     for (int i = 0; i < status; i++) {
-        void *p = (void*) events[i].udata;
+        void *p = (void *) events[i].udata;
         if (&janet_vm.timer == p) {
             /* Timer expired, ignore */;
         } else if (janet_vm.selfpipe == p) {
