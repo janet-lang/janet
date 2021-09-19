@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Remove `thread/` module.
 - Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
   scan-number function without immediate string creation.
 

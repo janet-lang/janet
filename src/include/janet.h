@@ -144,11 +144,6 @@ extern "C" {
 #define JANET_NO_UTC_MKTIME
 #endif
 
-/* Check thread library */
-#ifndef JANET_NO_THREADS
-#define JANET_THREADS
-#endif
-
 /* Define how global janet state is declared */
 /* Also enable the thread library only if not single-threaded */
 #ifdef JANET_SINGLE_THREADED
