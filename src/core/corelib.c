@@ -979,9 +979,6 @@ static void janet_load_libs(JanetTable *env) {
 #ifdef JANET_INT_TYPES
     janet_lib_inttypes(env);
 #endif
-#ifdef JANET_THREADS
-    janet_lib_thread(env);
-#endif
 #ifdef JANET_EV
     janet_lib_ev(env);
 #endif

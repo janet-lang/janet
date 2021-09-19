@@ -1557,9 +1557,6 @@ int janet_init(void) {
     janet_vm.root_fiber = NULL;
     janet_vm.stackn = 0;
 
-#ifdef JANET_THREADS
-    janet_threads_init();
-#endif
 #ifdef JANET_EV
     janet_ev_init();
 #endif
@@ -1586,9 +1583,6 @@ void janet_deinit(void) {
     janet_vm.root_fiber = NULL;
     janet_free(janet_vm.registry);
     janet_vm.registry = NULL;
-#ifdef JANET_THREADS
-    janet_threads_deinit();
-#endif
 #ifdef JANET_EV
     janet_ev_deinit();
 #endif
