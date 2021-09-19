@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
+  scan-number function without immediate string creation.
+
 ## 1.17.2 - 2021-09-18
 - Remove include of windows.h from janet.h. This caused issues on certain projects.
 - Fix formatting in doc-format to better handle special characters in signatures.

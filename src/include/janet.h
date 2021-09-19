@@ -2040,7 +2040,8 @@ typedef enum {
     RULE_READINT,      /* [(signedness << 4) | (endianess << 5) | bytewidth, tag] */
     RULE_LINE,         /* [tag] */
     RULE_COLUMN,       /* [tag] */
-    RULE_UNREF         /* [rule, tag] */
+    RULE_UNREF,        /* [rule, tag] */
+    RULE_CAPTURE_NUM   /* [rule, tag] */
 } JanetPegOpcod;
 
 typedef struct {

@@ -387,6 +387,24 @@ tail:
             return result;
         }
 
+        case RULE_CAPTURE_NUM: {
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            if (!result) return NULL;
+            /* check number parsing */
+            double x = 0.0;
+            if (janet_scan_number(text, (int32_t)(result - text), &x)) return NULL;
+            /* Specialized pushcap - avoid intermediate string creation */
+            if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
+                janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
+            } else {
+                uint32_t tag = rule[2];
+                pushcap(s, janet_wrap_number(x), tag);
+            }
+            return result;
+        }
+
         case RULE_ACCUMULATE: {
             uint32_t tag = rule[2];
             int oldmode = s->mode;
@@ -965,6 +983,9 @@ static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) 
 static void spec_capture(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_CAPTURE);
 }
+static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_CAPTURE_NUM);
+}
 static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_ACCUMULATE);
 }
@@ -1118,6 +1139,7 @@ static const SpecialPair peg_specials[] = {
     {"line", spec_line},
     {"look", spec_look},
     {"not", spec_not},
+    {"number", spec_capture_number},
     {"opt", spec_opt},
     {"position", spec_position},
     {"quote", spec_capture},
@@ -1422,6 +1444,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_ACCUMULATE:
             case RULE_GROUP:
             case RULE_CAPTURE:
+            case RULE_CAPTURE_NUM:
             case RULE_UNREF:
                 /* [rule, tag] */
                 if (rule[1] >= blen) goto bad;

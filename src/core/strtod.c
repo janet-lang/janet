@@ -246,7 +246,7 @@ static double convert(
 }
 
 /* Scan a real (double) from a string. If the string cannot be converted into
- * and integer, set *err to 1 and return 0. */
+ * and integer, return 0. */
 int janet_scan_number(
     const uint8_t *str,
     int32_t len,
