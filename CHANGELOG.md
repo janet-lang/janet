@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 - Add optional Makefile target to install jpm as well.
 - Supervisor channels in threads will no longer include a wasteful copy of the fiber in every
   message across a thread.
-- Allow passing a closure to `ev/thead` as well as a whole fiber.
+- Allow passing a closure to `ev/thread` as well as a whole fiber.
 - Allow passing a closure directly to `ev/go` to spawn fibers on the event loop.
 
 ## 1.17.1 - 2021-08-29
