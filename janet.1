@@ -3,7 +3,7 @@
 janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
-[\fB\-hvsrpnqk\fR]
+[\fB\-hvsrpnqik\fR]
 [\fB\-e\fR \fISOURCE\fR]
 [\fB\-E\fR \fISOURCE ...ARGUMENTS\fR]
 [\fB\-l\fR \fIMODULE\fR]
@@ -212,6 +212,11 @@ from a directory different than the default. The default is set when Janet is bu
 Precompiles Janet source code into an image, a binary dump that can be efficiently loaded later.
 Source should be a path to the Janet module to compile, and output should be the file path of
 resulting image. Output should usually end with the .jimage extension.
+
+.TP
+.BR \-i
+When this flag is passed, a script passed to the interpreter will be treated as a janet image file
+rather than a janet source file.
 
 .TP
 .BR \-l\ lib
