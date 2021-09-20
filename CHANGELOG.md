@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `-i` flag to janet binary to make it easier to run image files from the command line
 - Remove `thread/` module.
 - Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
   scan-number function without immediate string creation.
