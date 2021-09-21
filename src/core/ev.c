@@ -2235,7 +2235,8 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            int32_t read_limit = bytes_left > 4096 ? 4096 : bytes_left;
+            int limited = bytes_left > 4096;
+            int32_t read_limit = limited ? 4096 : bytes_left;
             janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET
@@ -2283,7 +2284,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             state->bytes_left = bytes_left;
 
             /* Resume if done */
-            if (!state->is_chunk || bytes_left == 0 || nread == 0) {
+            if ((!state->is_chunk && !limited) || bytes_left == 0 || nread == 0) {
                 Janet resume_val;
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
