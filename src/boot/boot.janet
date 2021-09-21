@@ -3690,6 +3690,10 @@
         (put into k (x k))))
     into)
 
+  # Deprecate file/popen
+  (when-let [v (get root-env 'file/popen)]
+    (put v :deprecated true))
+
   # Modify root-env to remove private symbols and
   # flatten nested tables.
   (loop [[k v] :in (pairs root-env)
