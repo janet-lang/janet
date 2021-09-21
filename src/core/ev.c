@@ -1689,11 +1689,11 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     struct kevent timer;
     if (janet_vm.timer_enabled || has_timeout) {
         EV_SETx(&timer,
-               JANET_KQUEUE_TIMER_IDENT,
-               EVFILT_TIMER,
-               JANET_KQUEUE_TF,
-               NOTE_MSECONDS | NOTE_ABSTIME,
-               JANET_KQUEUE_TS(timeout), &janet_vm.timer);
+                JANET_KQUEUE_TIMER_IDENT,
+                EVFILT_TIMER,
+                JANET_KQUEUE_TF,
+                NOTE_MSECONDS | NOTE_ABSTIME,
+                JANET_KQUEUE_TS(timeout), &janet_vm.timer);
         add_kqueue_events(&timer, 1);
     }
     janet_vm.timer_enabled = has_timeout;
@@ -1709,7 +1709,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     /* Step state machines */
     for (int i = 0; i < status; i++) {
-        void *p = (void*) events[i].udata;
+        void *p = (void *) events[i].udata;
         if (&janet_vm.timer == p) {
             /* Timer expired, ignore */;
         } else if (janet_vm.selfpipe == p) {
@@ -2235,7 +2235,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            int32_t read_limit = bytes_left > 4096 ? 4096 : bytes_left;
+            int32_t read_limit = state->is_chunk ? (bytes_left > 4096 ? 4096 : bytes_left) : bytes_left;
             janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET

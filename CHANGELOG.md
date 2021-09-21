@@ -1,18 +1,26 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unlreleased - ???
+## Unreleased - ???
+- Add `-i` flag to janet binary to make it easier to run image files from the command line
+- Remove `thread/` module.
+- Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
+  scan-number function without immediate string creation.
+
+## 1.17.2 - 2021-09-18
+- Remove include of windows.h from janet.h. This caused issues on certain projects.
+- Fix formatting in doc-format to better handle special characters in signatures.
 - Fix some marshalling bugs.
 - Add optional Makefile target to install jpm as well.
-- Supervisor channels in threads will no longer include a wastful copy of the fiber in every
+- Supervisor channels in threads will no longer include a wasteful copy of the fiber in every
   message across a thread.
-- Allow passing a closure to `ev/thead` as well as a whole fiber.
+- Allow passing a closure to `ev/thread` as well as a whole fiber.
 - Allow passing a closure directly to `ev/go` to spawn fibers on the event loop.
 
 ## 1.17.1 - 2021-08-29
 - Fix docstring typos
-- Add `make install-jpm-git` to make jpm co-install simpler if using makefile.
-- Fix bugs with starting ev/threads and fiber marshling.
+- Add `make install-jpm-git` to make jpm co-install simpler if using the Makefile.
+- Fix bugs with starting ev/threads and fiber marshaling.
 
 ## 1.17.0 - 2021-08-21
 - Add the `-E` flag for one-liners with the `short-fn` syntax for argument passing.

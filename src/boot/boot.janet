@@ -2786,8 +2786,8 @@
   (def delimiters
     (if has-color
       {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[3;97m" "\e[39;23m"]
-       :italics ["\e[3m" "\e[23m"]
+       :code ["\e[97m" "\e[39m"]
+       :italics ["\e[4m" "\e[24m"]
        :bold ["\e[1m" "\e[22m"]}
       {:underline ["_" "_"]
        :code ["`" "`"]
@@ -2820,7 +2820,7 @@
     (c++)
     (- cursor x))
 
-  # Detection helpers - return number of characters natched
+  # Detection helpers - return number of characters matched
   (defn ul? []
     (let [x (c) x1 (cn 1)]
       (and
@@ -2953,6 +2953,14 @@
         (p-line)))
     (finish-p)
     new-indent))
+
+  # Handle first line specially for defn, defmacro, etc.
+  (when (= (chr "(") (in str 0))
+    (skipline)
+    (def first-line (string/slice str 0 (- cursor 1)))
+    (def fl-open (if has-color "\e[97m" ""))
+    (def fl-close (if has-color "\e[39m" ""))
+    (push [[(string fl-open first-line fl-close) (length first-line)]]))
 
   (parse-blocks 0)
 
@@ -3500,6 +3508,12 @@
 # conditional compilation for reduced os
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
 
+(defn- run-main
+  [env subargs arg]
+  (if-let [main (get (in env 'main) :value)]
+    (let [thunk (compile [main ;subargs] env arg)]
+      (if (function? thunk) (thunk) (error (thunk :error))))))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -3507,17 +3521,18 @@
 
   (setdyn :args args)
 
-  (var *should-repl* false)
-  (var *no-file* true)
-  (var *quiet* false)
-  (var *raw-stdin* false)
-  (var *handleopts* true)
-  (var *exit-on-error* true)
-  (var *colorize* true)
-  (var *debug* false)
-  (var *compile-only* false)
-  (var *warn-level* nil)
-  (var *error-level* nil)
+  (var should-repl false)
+  (var no-file true)
+  (var quiet false)
+  (var raw-stdin false)
+  (var handleopts true)
+  (var exit-on-error true)
+  (var colorize true)
+  (var debug-flag false)
+  (var compile-only false)
+  (var warn-level nil)
+  (var error-level nil)
+  (var expect-image false)
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
@@ -3547,8 +3562,9 @@
                -k : Compile scripts but do not execute (flycheck)
                -m syspath : Set system path for loading global modules
                -c source output : Compile janet source code into an image
+               -i : Load the script argument as an image file instead of source code
                -n : Disable ANSI color output in the REPL
-               -l lib : Import a module before processing more arguments
+               -l lib : Use a module before processing more arguments
                -w level : Set the lint warning level - default is "normal"
                -x level : Set the lint error level - default is "none"
                -- : Stop handling options
@@ -3556,29 +3572,31 @@
            (os/exit 0)
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
-     "s" (fn [&] (set *raw-stdin* true) (set *should-repl* true) 1)
-     "r" (fn [&] (set *should-repl* true) 1)
-     "p" (fn [&] (set *exit-on-error* false) 1)
-     "q" (fn [&] (set *quiet* true) 1)
-     "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
-     "n" (fn [&] (set *colorize* false) 1)
+     "s" (fn [&] (set raw-stdin true) (set should-repl true) 1)
+     "r" (fn [&] (set should-repl true) 0)
+     "p" (fn [&] (set exit-on-error false) 1)
+     "q" (fn [&] (set quiet true) 1)
+     "i" (fn [&] (set expect-image true) 1)
+     "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
+     "n" (fn [&] (set colorize false) 1)
      "m" (fn [i &] (setdyn :syspath (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
-           (def e (dofile (in args (+ i 1))))
+           (def path (in args (+ i 1)))
+           (def e (dofile path))
            (spit (in args (+ i 2)) (make-image e))
-           (set *no-file* false)
+           (set no-file false)
            3)
-     "-" (fn [&] (set *handleopts* false) 1)
+     "-" (fn [&] (set handleopts false) 1)
      "l" (fn l-switch [i &]
            (import* (in args (+ i 1))
-                    :prefix "" :exit *exit-on-error*)
+                    :prefix "" :exit exit-on-error)
            2)
      "e" (fn e-switch [i &]
-           (set *no-file* false)
+           (set no-file false)
            (eval-string (in args (+ i 1)))
            2)
      "E" (fn E-switch [i &]
-           (set *no-file* false)
+           (set no-file false)
            (def subargs (array/slice args (+ i 2)))
            (def src ~|,(parse (in args (+ i 1))))
            (def thunk (compile src))
@@ -3586,9 +3604,9 @@
              ((thunk) ;subargs)
              (error (get thunk :error)))
            math/inf)
-     "d" (fn [&] (set *debug* true) 1)
-     "w" (fn [i &] (set *warn-level* (get-lint-level i)) 2)
-     "x" (fn [i &] (set *error-level* (get-lint-level i)) 2)
+     "d" (fn [&] (set debug-flag true) 1)
+     "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
+     "x" (fn [i &] (set error-level (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
 
   (defn- dohandler [n i &]
@@ -3600,29 +3618,37 @@
   (def lenargs (length args))
   (while (< i lenargs)
     (def arg (in args i))
-    (if (and *handleopts* (= "-" (string/slice arg 0 1)))
+    (if (and handleopts (= "-" (string/slice arg 0 1)))
       (+= i (dohandler (string/slice arg 1) i))
       (do
-        (set *no-file* false)
-        (def env (make-env))
         (def subargs (array/slice args i))
-        (put env :args subargs)
-        (put env :lint-error *error-level*)
-        (put env :lint-warn *warn-level*)
-        (if *compile-only*
-          (flycheck arg :exit *exit-on-error* :env env)
+        (set no-file false)
+        (if expect-image
           (do
-            (dofile arg :exit *exit-on-error* :env env)
-            (if-let [main (get (in env 'main) :value)]
-              (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
-                (if (function? thunk) (thunk) (error (thunk :error)))))))
+            (def env (load-image (slurp arg)))
+            (put env :args subargs)
+            (put env :lint-error error-level)
+            (put env :lint-warn warn-level)
+            (if debug-flag (put env :debug true))
+            (run-main env subargs arg))
+          (do
+            (def env (make-env))
+            (put env :args subargs)
+            (put env :lint-error error-level)
+            (put env :lint-warn warn-level)
+            (if debug-flag (put env :debug true))
+            (if compile-only
+              (flycheck arg :exit exit-on-error :env env)
+              (do
+                (dofile arg :exit exit-on-error :env env)
+                (run-main env subargs arg)))))
         (set i lenargs))))
 
-  (if (or *should-repl* *no-file*)
+  (if (or should-repl no-file)
     (if
-      *compile-only* (flycheck stdin :source "stdin" :exit *exit-on-error*)
+      compile-only (flycheck stdin :source "stdin" :exit exit-on-error)
       (do
-        (if-not *quiet*
+        (if-not quiet
           (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
         (flush)
         (defn getprompt [p]
@@ -3636,15 +3662,15 @@
         (when-let [profile.janet (dyn :profilepath)]
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
-        (if *debug* (put env :debug true))
-        (def getter (if *raw-stdin* getstdin getline))
+        (if debug-flag (put env :debug true))
+        (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
-        (setdyn :err-color (if *colorize* true))
-        (setdyn :doc-color (if *colorize* true))
-        (setdyn :lint-error *error-level*)
-        (setdyn :lint-warn *error-level*)
+        (setdyn :pretty-format (if colorize "%.20Q" "%.20q"))
+        (setdyn :err-color (if colorize true))
+        (setdyn :doc-color (if colorize true))
+        (setdyn :lint-error error-level)
+        (setdyn :lint-warn error-level)
         (repl getchunk nil env)))))
 
 ###
@@ -3666,12 +3692,6 @@
 
   # Deprecate file/popen
   (when-let [v (get root-env 'file/popen)]
-    (put v :deprecated true))
-
-  # Deprecate thread library
-  (loop [[k v] :in (pairs root-env)
-         :when (symbol? k)
-         :when (string/has-prefix? "thread/" k)]
     (put v :deprecated true))
 
   # Modify root-env to remove private symbols and
@@ -3758,7 +3778,6 @@
      "src/core/struct.c"
      "src/core/symcache.c"
      "src/core/table.c"
-     "src/core/thread.c"
      "src/core/tuple.c"
      "src/core/util.c"
      "src/core/value.c"

@@ -54,14 +54,6 @@ typedef struct {
     int is_error;
 } JanetTimeout;
 
-#ifdef JANET_THREADS
-typedef struct {
-    JanetMailbox *original;
-    JanetMailbox *newbox;
-    uint64_t flags;
-} JanetMailboxPair;
-#endif
-
 /* Registry table for C functions - containts metadata that can
  * be looked up by cfunction pointer. All strings here are pointing to
  * static memory not managed by Janet. */
@@ -145,13 +137,6 @@ struct JanetVM {
     JanetTraversalNode *traversal_top;
     JanetTraversalNode *traversal_base;
 
-    /* Threading */
-#ifdef JANET_THREADS
-    JanetMailbox *mailbox;
-    JanetThread *thread_current;
-    JanetTable *thread_decode;
-#endif
-
     /* Event loop and scheduler globals */
 #ifdef JANET_EV
     size_t tq_count;
@@ -185,12 +170,6 @@ struct JanetVM {
 };
 
 extern JANET_THREAD_LOCAL JanetVM janet_vm;
-
-/* Setup / teardown */
-#ifdef JANET_THREADS
-void janet_threads_init(void);
-void janet_threads_deinit(void);
-#endif
 
 #ifdef JANET_NET
 void janet_net_init(void);

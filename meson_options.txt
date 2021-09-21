@@ -1,7 +1,6 @@
 option('git_hash', type : 'string', value : 'meson')
 
 option('single_threaded', type : 'boolean', value : false)
-option('threads', type : 'boolean', value : true)
 option('nanbox', type : 'boolean', value : true)
 option('dynamic_modules', type : 'boolean', value : true)
 option('docstrings', type : 'boolean', value : true)
