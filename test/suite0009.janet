@@ -89,33 +89,33 @@
 # File piping
 
 (assert-no-error "file writing 1"
-  (with [f (file/temp)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
+                 (with [f (file/temp)]
+                   (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
 
 (assert-no-error "file writing 2"
-  (with [f (file/open "unique.txt" :w)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
-    (file/flush f)))
+                 (with [f (file/open "unique.txt" :w)]
+                   (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
+                   (file/flush f)))
 
 # Issue #593
 (assert-no-error "file writing 3"
-  (def outfile (file/open "unique.txt" :w))
-  (os/execute [janet "-e" "(pp (seq [i :range (1 10)] i))"] :p {:out outfile})
-  (file/flush outfile)
-  (file/close outfile)
-  (os/rm "unique.txt"))
+                 (def outfile (file/open "unique.txt" :w))
+                 (os/execute [janet "-e" "(pp (seq [i :range (1 10)] i))"] :p {:out outfile})
+                 (file/flush outfile)
+                 (file/close outfile)
+                 (os/rm "unique.txt"))
 
 # Ensure that the stream created by os/open works
 
 (assert-no-error "File writing 4.1"
-   (def outstream (os/open "unique.txt" :wct))
-   (defer (:close outstream)
-     (:write outstream "123\n")
-     (:write outstream "456\n"))
-   # Cast to string to enable comparison
-   (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
-   (os/rm "unique.txt"))
-     
+                 (def outstream (os/open "unique.txt" :wct))
+                 (defer (:close outstream)
+                   (:write outstream "123\n")
+                   (:write outstream "456\n"))
+                 # Cast to string to enable comparison
+                 (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
+                 (os/rm "unique.txt"))
+
 # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
@@ -151,17 +151,26 @@
 
   (:close s))
 
+(do
+  (def msg (string/repeat "0123456789" 4100))
+  (def s (net/server "localhost" 9999))
+  (def cl (net/connect "localhost" 9999))
+  (def co (:accept s))
+  (:write co msg)
+  (assert (= (string (:read cl 45111)) msg) "read 41000")
+  (:close s))
+
 # Test localname and peername
 (repeat 10
   (defn check-matching-names [stream &opt direction]
     "Checks that the remote agrees with the local about ip/port"
-    (let [[my-ip my-port]         (net/localname stream)
+    (let [[my-ip my-port] (net/localname stream)
           [remote-ip remote-port] (net/peername stream)
-          to-write                (string/join
-                                    @[my-ip (string my-port)
-                                      remote-ip (string remote-port)]
-                                    " ")
-          buffer                  @""]
+          to-write (string/join
+                     @[my-ip (string my-port)
+                       remote-ip (string remote-port)]
+                     " ")
+          buffer @""]
       (if (= direction :write)
         (do (net/write stream to-write) (net/read stream 1024 buffer))
         (do (net/read stream 1024 buffer) (net/write stream to-write)))
@@ -182,7 +191,7 @@
 
   (defn test-names []
     (with [conn (net/connect "127.0.0.1" "8000")]
-          (check-matching-names conn :write)))
+      (check-matching-names conn :write)))
 
   (test-names)
   (test-names)
@@ -208,9 +217,9 @@
 (var result nil)
 (var fiber nil)
 (set fiber
-  (ev/spawn
-    (set result (protect (ev/sleep 10)))
-    (assert (= result '(false "boop")) "ev/cancel 1")))
+     (ev/spawn
+       (set result (protect (ev/sleep 10)))
+       (assert (= result '(false "boop")) "ev/cancel 1")))
 (ev/sleep 0)
 (ev/cancel fiber "boop")
 
