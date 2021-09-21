@@ -2235,7 +2235,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_READ: {
             JanetBuffer *buffer = state->buf;
             int32_t bytes_left = state->bytes_left;
-            int32_t read_limit = bytes_left > 4096 ? 4096 : bytes_left;
+            int32_t read_limit = state->is_chunk ? (bytes_left > 4096 ? 4096 : bytes_left) : bytes_left;
             janet_buffer_extra(buffer, read_limit);
             ssize_t nread;
 #ifdef JANET_NET
