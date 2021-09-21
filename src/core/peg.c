@@ -394,12 +394,13 @@ tail:
             if (!result) return NULL;
             /* check number parsing */
             double x = 0.0;
-            if (janet_scan_number(text, (int32_t)(result - text), &x)) return NULL;
+            int32_t base = (int32_t) rule[2];
+            if (janet_scan_number_base(text, (int32_t)(result - text), base, &x)) return NULL;
             /* Specialized pushcap - avoid intermediate string creation */
             if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
                 janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
             } else {
-                uint32_t tag = rule[2];
+                uint32_t tag = rule[3];
                 pushcap(s, janet_wrap_number(x), tag);
             }
             return result;
@@ -983,9 +984,6 @@ static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) 
 static void spec_capture(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_CAPTURE);
 }
-static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
-    spec_cap1(b, argc, argv, RULE_CAPTURE_NUM);
-}
 static void spec_accumulate(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_ACCUMULATE);
 }
@@ -994,6 +992,25 @@ static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
 }
 static void spec_unref(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_UNREF);
+}
+
+static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 1, 3);
+    Reserve r = reserve(b, 4);
+    uint32_t base = 0;
+    if (argc >= 2) {
+        if (!janet_checktype(argv[1], JANET_NIL)) {
+            if (!janet_checkint(argv[1])) goto error;
+            base = (uint32_t) janet_unwrap_integer(argv[1]);
+            if (base < 2 || base > 36) goto error;
+        }
+    }
+    uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
+    uint32_t rule = peg_compile1(b, argv[0]);
+    emit_3(r, RULE_CAPTURE_NUM, rule, base, tag);
+    return;
+error:
+    peg_panicf(b, "expected integer between 2 and 36, got %v", argv[2]);
 }
 
 static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
@@ -1441,10 +1458,15 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 if (rule[1] >= clen) goto bad;
                 i += 3;
                 break;
+            case RULE_CAPTURE_NUM:
+                /* [rule, base, tag] */
+                if (rule[1] >= blen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                i += 4;
+                break;
             case RULE_ACCUMULATE:
             case RULE_GROUP:
             case RULE_CAPTURE:
-            case RULE_CAPTURE_NUM:
             case RULE_UNREF:
                 /* [rule, tag] */
                 if (rule[1] >= blen) goto bad;

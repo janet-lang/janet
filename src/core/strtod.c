@@ -247,14 +247,14 @@ static double convert(
 
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, return 0. */
-int janet_scan_number(
+int janet_scan_number_base(
     const uint8_t *str,
     int32_t len,
+    int32_t base,
     double *out) {
     const uint8_t *end = str + len;
     int seenadigit = 0;
     int ex = 0;
-    int base = 10;
     int seenpoint = 0;
     int foundexp = 0;
     int neg = 0;
@@ -278,21 +278,28 @@ int janet_scan_number(
     }
 
     /* Check for leading 0x or digit digit r */
-    if (str + 1 < end && str[0] == '0' && str[1] == 'x') {
-        base = 16;
-        str += 2;
-    } else if (str + 1 < end  &&
-               str[0] >= '0' && str[0] <= '9' &&
-               str[1] == 'r') {
-        base = str[0] - '0';
-        str += 2;
-    } else if (str + 2 < end  &&
-               str[0] >= '0' && str[0] <= '9' &&
-               str[1] >= '0' && str[1] <= '9' &&
-               str[2] == 'r') {
-        base = 10 * (str[0] - '0') + (str[1] - '0');
-        if (base < 2 || base > 36) goto error;
-        str += 3;
+    if (base == 0) {
+        if (str + 1 < end && str[0] == '0' && str[1] == 'x') {
+            base = 16;
+            str += 2;
+        } else if (str + 1 < end  &&
+                   str[0] >= '0' && str[0] <= '9' &&
+                   str[1] == 'r') {
+            base = str[0] - '0';
+            str += 2;
+        } else if (str + 2 < end  &&
+                   str[0] >= '0' && str[0] <= '9' &&
+                   str[1] >= '0' && str[1] <= '9' &&
+                   str[2] == 'r') {
+            base = 10 * (str[0] - '0') + (str[1] - '0');
+            if (base < 2 || base > 36) goto error;
+            str += 3;
+        }
+    }
+
+    /* If still base is 0, set to default (10) */
+    if (base == 0) {
+        base = 10;
     }
 
     /* Skip leading zeros */
@@ -374,6 +381,13 @@ int janet_scan_number(
 error:
     janet_free(mant.digits);
     return 1;
+}
+
+int janet_scan_number(
+    const uint8_t *str,
+    int32_t len,
+    double *out) {
+    return janet_scan_number_base(str, len, 0, out);
 }
 
 #ifdef JANET_INT_TYPES
