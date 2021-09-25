@@ -323,12 +323,13 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
  */
 
 JANET_CORE_FN(cfun_net_sockaddr,
-              "(net/address host port &opt type)",
+              "(net/address host &opt port type multi)",
               "Look up the connection information for a given hostname, port, and connection type. Returns "
               "a handle that can be used to send datagrams over network without establishing a connection. "
               "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
               "given in the port argument. On Linux, abstract "
-              "unix domain sockets are specified with a leading '@' character in port.") {
+              "unix domain sockets are specified with a leading '@' character in port. If `multi` is truthy, will "
+              "return all address that match in an array instead of just the first.") {
     janet_arity(argc, 2, 4);
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
@@ -648,7 +649,7 @@ struct sockaddr_in6 *sin6;     // IPv6 address + port
 struct sockaddr_un *sun;       // Unix Domain Socket Address
 */
 
-/* Turn a socket address into a host, port  pair (port is optional).
+/* Turn a socket address into a host, port pair (port is optional).
  * For unix domain sockets, returned tuple will have only a single element, the path string. */
 static Janet janet_so_getname(const void *sa_any) {
     const struct sockaddr *sa = sa_any;
@@ -661,7 +662,7 @@ static Janet janet_so_getname(const void *sa_any) {
             if (!inet_ntop(AF_INET, &(sai->sin_addr), buffer, sizeof(buffer))) {
                 janet_panic("unable to decode ipv4 host address");
             }
-            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(sai->sin_port)};
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai->sin_port))};
             return janet_wrap_tuple(janet_tuple_n(pair, sai->sin_port ? 2 : 1));
         }
         case AF_INET6: {
@@ -669,7 +670,7 @@ static Janet janet_so_getname(const void *sa_any) {
             if (!inet_ntop(AF_INET6, &(sai6->sin6_addr), buffer, sizeof(buffer))) {
                 janet_panic("unable to decode ipv4 host address");
             }
-            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(sai6->sin6_port)};
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai6->sin6_port))};
             return janet_wrap_tuple(janet_tuple_n(pair, sai6->sin6_port ? 2 : 1));
         }
 #ifndef JANET_WINDOWS
@@ -717,6 +718,15 @@ JANET_CORE_FN(cfun_net_getpeername,
     }
     janet_assert(slen <= sizeof(ss), "socket address truncated");
     return janet_so_getname(&ss);
+}
+
+JANET_CORE_FN(cfun_net_address_unpack,
+              "(net/address-unpack address)",
+              "Given an address returned by net/adress, return a host, port pair. Unix domain sockets "
+              "will have only the path in the returned tuple.") {
+    janet_fixarity(argc, 1);
+    struct sockaddr *sa = janet_getabstract(argv, 0, &janet_address_type);
+    return janet_so_getname(sa);
 }
 
 JANET_CORE_FN(cfun_stream_accept_loop,
@@ -890,6 +900,7 @@ void janet_lib_net(JanetTable *env) {
         JANET_CORE_REG("net/shutdown", cfun_net_shutdown),
         JANET_CORE_REG("net/peername", cfun_net_getpeername),
         JANET_CORE_REG("net/localname", cfun_net_getsockname),
+        JANET_CORE_REG("net/address-unpack", cfun_net_address_unpack),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, net_cfuns);
