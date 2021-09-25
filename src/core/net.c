@@ -74,6 +74,15 @@ const JanetAbstractType janet_address_type = {
 #endif
 #endif
 
+/* maximum number of bytes in a socket address host (post name resolution) */
+#ifdef JANET_WINDOWS
+#define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
+typedef unsigned short in_port_t;
+#else
+#define JANET_SA_MAX(a, b) (((a) > (b))? (a) : (b))
+#define SA_ADDRSTRLEN JANET_SA_MAX(INET6_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#endif
+
 static JanetStream *make_stream(JSock handle, uint32_t flags);
 
 /* We pass this flag to all send calls to prevent sigpipe */
@@ -631,21 +640,6 @@ JANET_CORE_FN(cfun_net_listen,
     }
 }
 
-#define SO_MAX(a, b) (((a) > (b))? (a) : (b))
-#define SO_MIN(a, b) (((a) < (b))? (a) : (b))
-
-/* maximum number of bytes in a socket address host (post name resolution) */
-#ifndef JANET_WINDOWS
-#define SA_ADDRSTRLEN SO_MAX(INET6_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
-#else
-#define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
-#endif
-
-/* type of port number */
-#ifdef JANET_WINDOWS
-typedef unsigned short in_port_t;
-#endif
-
 /* Types of socket's we need to deal with - relevant type puns below.
 struct sockaddr *sa;           // Common base structure
 struct sockaddr_storage *ss;   // Size of largest socket address type
@@ -663,7 +657,7 @@ static Janet janet_so_getname(const void *sa_any) {
         default:
             janet_panic("unknown address family");
         case AF_INET: {
-            const struct sockaddr_in *sai = (void *)sa;
+            const struct sockaddr_in *sai = sa_any;
             if (!inet_ntop(AF_INET, &(sai->sin_addr), buffer, sizeof(buffer))) {
                 janet_panic("unable to decode ipv4 host address");
             }
@@ -671,7 +665,7 @@ static Janet janet_so_getname(const void *sa_any) {
             return janet_wrap_tuple(janet_tuple_n(pair, sai->sin_port ? 2 : 1));
         }
         case AF_INET6: {
-            const struct sockaddr_in6 *sai6 = (void *)sa;
+            const struct sockaddr_in6 *sai6 = sa_any;
             if (!inet_ntop(AF_INET6, &(sai6->sin6_addr), buffer, sizeof(buffer))) {
                 janet_panic("unable to decode ipv4 host address");
             }
@@ -680,7 +674,7 @@ static Janet janet_so_getname(const void *sa_any) {
         }
 #ifndef JANET_WINDOWS
         case AF_UNIX: {
-            struct sockaddr_un *sun = (struct sockaddr_un *)sa;
+            const struct sockaddr_un *sun = sa_any;
             Janet pathname;
             if (sun->sun_path[0] == '\0') {
                 memcpy(buffer, sun->sun_path, sizeof(sun->sun_path));
