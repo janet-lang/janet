@@ -323,7 +323,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
  */
 
 JANET_CORE_FN(cfun_net_sockaddr,
-              "(net/address host &opt port type multi)",
+              "(net/address host port &opt type multi)",
               "Look up the connection information for a given hostname, port, and connection type. Returns "
               "a handle that can be used to send datagrams over network without establishing a connection. "
               "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
