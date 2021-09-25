@@ -631,268 +631,98 @@ JANET_CORE_FN(cfun_net_listen,
     }
 }
 
-/* Definitions from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h
- *     SO_MAX, SA_PORT_NONE, SO_MIN, SA_ADDRSTRLEN, sa_ntoa, sa_family,
- *     sa_port */
 #define SO_MAX(a, b) (((a) > (b))? (a) : (b))
-#define SA_PORT_NONE (&(in_port_t){ 0 })
 #define SO_MIN(a, b) (((a) < (b))? (a) : (b))
+
+/* maximum number of bytes in a socket address host (post name resolution) */
 #ifndef JANET_WINDOWS
-#define SA_ADDRSTRLEN SO_MAX(INET6_ADDRSTRLEN, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#define SA_ADDRSTRLEN SO_MAX(INET6_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
 #else
 #define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
 #endif
-#define sa_ntoa(sa)  sa_ntoa_((char [SA_ADDRSTRLEN]){ 0 }, SA_ADDRSTRLEN, (sa))
-#define sa_family(...) sa_family(__VA_ARGS__)
-#define sa_port(...) sa_port(__VA_ARGS__)
+
+/* type of port number */
 #ifdef JANET_WINDOWS
-typedef short sa_family_t; /* added to silence warnings */
-typedef unsigned short in_port_t; /* added to silence warnings */
+typedef unsigned short in_port_t;
 #endif
 
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-union sockaddr_arg {
-    struct sockaddr *sa;
-    const struct sockaddr *c_sa;
-    struct sockaddr_storage *ss;
-    struct sockaddr_storage *c_ss;
-    struct sockaddr_in *sin;
-    struct sockaddr_in *c_sin;
-    struct sockaddr_in6 *sin6;
-    struct sockaddr_in6 *c_sin6;
-#ifndef JANET_WINDOWS
-    struct sockaddr_un *sun;
-#endif
-    struct sockaddr_un *c_sun;
-    union sockaddr_any *any;
-    union sockaddr_any *c_any;
+/* Types of socket's we need to deal with - relevant type puns below.
+struct sockaddr *sa;           // Common base structure
+struct sockaddr_storage *ss;   // Size of largest socket address type
+struct sockaddr_in *sin;       // IPv4 address + port
+struct sockaddr_in6 *sin6;     // IPv6 address + port
+struct sockaddr_un *sun;       // Unix Domain Socket Address
+*/
 
-    void *ptr;
-    void *c_ptr;
-};
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-union sockaddr_any {
-    struct sockaddr sa;
-    struct sockaddr_storage ss;
-    struct sockaddr_in sin;
-    struct sockaddr_in6 sin6;
-#ifndef JANET_WINDOWS
-    struct sockaddr_un sun;
-#endif
-};
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-static inline union sockaddr_arg sockaddr_ref(void *arg) {
-    return (union sockaddr_arg) {
-        arg
-    };
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-static inline sa_family_t *(sa_family)(void *arg) {
-    return &sockaddr_ref(arg).sa->sa_family;
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-static inline in_port_t *(sa_port)(void *arg, const in_port_t *def, int *error) {
-    switch (*sa_family(arg)) {
-        case AF_INET:
-            return &sockaddr_ref(arg).sin->sin_port;
-        case AF_INET6:
-            return &sockaddr_ref(arg).sin6->sin6_port;
+/* Turn a socket address into a host, port  pair (port is optional).
+ * For unix domain sockets, returned tuple will have only a single element, the path string. */
+static Janet janet_so_getname(const void *sa_any) {
+    const struct sockaddr *sa = sa_any;
+    char buffer[SA_ADDRSTRLEN];
+    switch (sa->sa_family) {
         default:
-            if (error)
-                *error = EAFNOSUPPORT;
-
-            return (in_port_t *)def;
-    }
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c
- * Original was dns_strlcpy */
-size_t janet_socket_strlcpy(char *dst, const char *src, size_t lim) {
-    char *d     = dst;
-    char *e     = &dst[lim];
-    const char *s   = src;
-
-    if (d < e) {
-        do {
-            if ('\0' == (*d++ = *s++))
-                return s - src - 1;
-        } while (d < e);
-
-        d[-1]   = '\0';
-    }
-
-    while (*s++ != '\0')
-        ;;
-
-    return s - src - 1;
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c */
-char *sa_ntop(char *dst, size_t lim, const void *src, const char *def, int *_error) {
-    union sockaddr_any *any = (void *)src;
-    const char *unspec = "0.0.0.0";
-    char text[SA_ADDRSTRLEN];
-    int error;
-
-    switch (*sa_family(&any->sa)) {
-        case AF_INET:
-            unspec = "0.0.0.0";
-
-            if (!inet_ntop(AF_INET, &any->sin.sin_addr, text, sizeof text))
-                goto syerr;
-
-            break;
-        case AF_INET6:
-            unspec = "::";
-
-            if (!inet_ntop(AF_INET6, &any->sin6.sin6_addr, text, sizeof text))
-                goto syerr;
-
-            break;
-#ifndef JANET_WINDOWS
-        case AF_UNIX:
-            unspec = "/nonexistent";
-
-            memset(text, 0, sizeof text);
-            memcpy(text, any->sun.sun_path, SO_MIN(sizeof text - 1, sizeof any->sun.sun_path));
-
-            break;
-#endif
-        default:
-            error = EAFNOSUPPORT;
-
-            goto error;
-    }
-
-    if (janet_socket_strlcpy(dst, text, lim) >= lim) {
-        error = ENOSPC;
-
-        goto error;
-    }
-
-    return dst;
-syerr:
-    error = errno;
-error:
-    if (_error)
-        *_error = error;
-
-    /*
-     * NOTE: Always write something in case caller ignores errors, such
-     * as when caller is using the sa_ntoa() macro.
-     */
-    safe_memcpy(dst, (def) ? def : unspec, lim);
-
-    return (char *)def;
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.h */
-static inline char *sa_ntoa_(char *dst, size_t lim, const void *src) {
-    return sa_ntop(dst, lim, src, NULL, &(int) {
-        0
-    }), dst;
-}
-
-/* Definition from:
- *   https://github.com/wahern/cqueues/blog/master/src/lib/socket.c
- * Originaly was lso_pushname */
-static Janet janet_so_getname(const struct sockaddr_storage *ss, socklen_t slen) {
-    uint8_t *hn = NULL;
-    uint16_t hp = 0;
-    size_t plen = SA_ADDRSTRLEN;
-
-    switch (ss->ss_family) {
-        case AF_INET:
-        /* fall through */
-        case AF_INET6:
-            /* hn = hostname, hp = hostport */
-            hn = (uint8_t *)sa_ntoa(ss);
-            hp = ntohs(*sa_port((void *)ss, SA_PORT_NONE, NULL));
-            break;
-#ifndef JANET_WINDOWS
-        case AF_UNIX:
-            /* support nameless sockets, linux-ism */
-            if (slen > offsetof(struct sockaddr_un, sun_path)) {
-                struct sockaddr_un *sun = (struct sockaddr_un *)ss;
-                char *pe = (char *)sun + SO_MIN(sizeof * sun, slen);
-
-                while (pe > sun->sun_path && pe[-1] == '\0')
-                    --pe;
-
-                if ((plen = pe - sun->sun_path) > 0) {
-                    hn = (uint8_t *)sun->sun_path;
-                } else {
-                    hn = (uint8_t *)"@";
-                    plen = 1;
-                }
-            } else {
-                hn = (uint8_t *)"@";
-                plen = 1;
+            janet_panic("unknown address family");
+        case AF_INET: {
+            const struct sockaddr_in *sai = (void *)sa;
+            if (!inet_ntop(AF_INET, &(sai->sin_addr), buffer, sizeof(buffer))) {
+                janet_panic("unable to decode ipv4 host address");
             }
-            break;
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(sai->sin_port)};
+            return janet_wrap_tuple(janet_tuple_n(pair, sai->sin_port ? 2 : 1));
+        }
+        case AF_INET6: {
+            const struct sockaddr_in6 *sai6 = (void *)sa;
+            if (!inet_ntop(AF_INET6, &(sai6->sin6_addr), buffer, sizeof(buffer))) {
+                janet_panic("unable to decode ipv4 host address");
+            }
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(sai6->sin6_port)};
+            return janet_wrap_tuple(janet_tuple_n(pair, sai6->sin6_port ? 2 : 1));
+        }
+#ifndef JANET_WINDOWS
+        case AF_UNIX: {
+            struct sockaddr_un *sun = (struct sockaddr_un *)sa;
+            Janet pathname;
+            if (sun->sun_path[0] == '\0') {
+                memcpy(buffer, sun->sun_path, sizeof(sun->sun_path));
+                buffer[0] = '@';
+                pathname = janet_cstringv(buffer);
+            } else {
+                pathname = janet_cstringv(sun->sun_path);
+            }
+            return janet_wrap_tuple(janet_tuple_n(&pathname, 1));
+        }
 #endif
-        default:
-            hn = (uint8_t *)"";
-            plen = 0;
-            break;
     }
-
-    Janet name[2];
-    int32_t len = 1;
-    name[0] = janet_wrap_string(janet_cstring((const char *)hn));
-    if (hp > 0) {
-        len++;
-        name[1] = janet_wrap_integer(hp);
-    }
-
-    return janet_wrap_tuple(janet_tuple_n(name, len));
 }
 
 JANET_CORE_FN(cfun_net_getsockname,
               "(net/localname stream)",
               "Gets the local address and port in a tuple in that order.") {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
     struct sockaddr_storage ss;
-    socklen_t slen = sizeof ss;
+    socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
-
-    int error;
-    if (0 != (error = getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)))
-        janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
-
-    return janet_so_getname(&ss, slen);
+    if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
+        janet_panicf("Failed to get localname on %v: %s", argv[0], janet_ev_lasterr());
+    }
+    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    return janet_so_getname(&ss);
 }
-
 
 JANET_CORE_FN(cfun_net_getpeername,
               "(net/peername stream)",
               "Gets the remote peer's address and port in a tuple in that order.") {
-    janet_arity(argc, 1, 1);
+    janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
     struct sockaddr_storage ss;
-    socklen_t slen = sizeof ss;
+    socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
-
-    int error;
-    if (0 != (error = getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen))) {
-        janet_panicf("Failed to get peername on fd %d, error: %s", js->handle, janet_ev_lasterr());
+    if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
+        janet_panicf("Failed to get peername on %v: %s", argv[0], janet_ev_lasterr());
     }
-
-    return janet_so_getname(&ss, slen);
+    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    return janet_so_getname(&ss);
 }
 
 JANET_CORE_FN(cfun_stream_accept_loop,
