@@ -18,8 +18,14 @@
 
 @rem Set compile and link options here
 @setlocal
+
+@rem Example use asan
+@rem set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD /fsanitize=address /Zi
+@rem set JANET_LINK=link /nologo clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
+
 @set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD
 @set JANET_LINK=link /nologo
+
 @set JANET_LINK_STATIC=lib /nologo
 
 @rem Add janet build tag
@@ -81,7 +87,7 @@ exit /b 1
 @echo command prompt.
 exit /b 0
 
-@rem Clean build artifacts 
+@rem Clean build artifacts
 :CLEAN
 del *.exe *.lib *.exp
 rd /s /q build

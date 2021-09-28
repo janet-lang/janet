@@ -75,6 +75,7 @@ typedef struct {
     JanetFiber *fiber;
     Janet value;
     JanetSignal sig;
+    uint32_t expected_sched_id; /* If the fiber has been rescheduled this loop, don't run first scheduling. */
 } JanetTask;
 
 /* Wrap return value by pairing it with the callback used to handle it
@@ -447,10 +448,7 @@ const JanetAbstractType janet_stream_type = {
 
 /* Register a fiber to resume with value */
 void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
-    if (fiber->flags & JANET_FIBER_FLAG_SCHEDULED) return;
-    fiber->flags |= JANET_FIBER_FLAG_SCHEDULED;
-    fiber->sched_id++;
-    JanetTask t = { fiber, value, sig };
+    JanetTask t = { fiber, value, sig, ++fiber->sched_id };
     janet_q_push(&janet_vm.spawn, &t, sizeof(t));
 }
 
@@ -1206,9 +1204,9 @@ JanetFiber *janet_loop1(void) {
 
     /* Run scheduled fibers */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
-        JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK};
+        JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
-        task.fiber->flags &= ~JANET_FIBER_FLAG_SCHEDULED;
+        if (task.expected_sched_id != task.fiber->sched_id) continue;
         Janet res;
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
         void *sv = task.fiber->supervisor_channel;
@@ -2903,7 +2901,7 @@ JANET_CORE_FN(cfun_ev_deadline,
 
 JANET_CORE_FN(cfun_ev_cancel,
               "(ev/cancel fiber err)",
-              "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately") {
+              "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
