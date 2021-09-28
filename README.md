@@ -30,6 +30,7 @@ Lua, but smaller than GNU Guile or Python.
 
 ## Features
 
+* Configurable at build time - turn features on or off for a smaller or more featureful build
 * Minimal setup - one binary and you are good to go!
 * First-class closures
 * Garbage collection
@@ -39,6 +40,8 @@ Lua, but smaller than GNU Guile or Python.
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
 * Macros
+* Multithreading
+* Per-thread event loop for efficient evented IO
 * Byte code interpreter with an assembly interface, as well as bytecode verification
 * Tail call Optimization
 * Direct interop with C via abstract types and C functions
@@ -238,23 +241,19 @@ Gitter provides Matrix and irc bridges as well.
 
 ## FAQ
 
-### Why is my terminal spitting out junk when I run the REPL?
-
-Make sure your terminal supports ANSI escape codes. Most modern terminals will
-support these, but some older terminals, Windows consoles, or embedded terminals
-will not. If your terminal does not support ANSI escape codes, run the REPL with
-the `-n` flag, which disables color output. You can also try the `-s` if further issues
-ensue.
-
 ### Where is (favorite feature from other language)?
 
 It may exist, it may not. If you want to propose major language features, go ahead and open an issue, but
 they will likely by closed as "will not implement". Often, such features make one usecase simpler at the expense
 of 5 others by making the language more complicated.
 
-### Where is the example code?
+### Is there a language spec?
 
-In the examples directory.
+There is not currently a spec besides the documentation at https://janet-lang.org.
+
+### Is this Scheme/Common Lisp? Where are the cons cells?
+
+Nope. There are no cons cells here.
 
 ### Is this a Clojure port?
 
@@ -266,14 +265,35 @@ Internally, Janet is not at all like Clojure.
 No. They are immutable arrays and hash tables. Don't try and use them like Clojure's vectors
 and maps, instead they work well as table keys or other identifiers.
 
+### Can I do Object Oriented programming with Janet?
+
+To some extent, yes. However, it is not the recommended method of abstraction, and performance may suffer.
+That said, tables can be used to make mutable objects with inheritance and polymorphism, where object
+methods are implemeted with keywords.
+
+```
+(def Car @{:honk (fn [self msg] (print "car " self " goes " msg)) })
+(def my-car (table/setproto @{} Car))
+(:honk my-car "Beep!")
+```
+
 ### Why can't we add (feature from Clojure) into the core?
 
 Usually, one of a few reasons:
 - Often, it already exists in a different form and the Clojure port would be redundant.
 - Clojure programs often generate a lot of garbage and rely on the JVM to clean it up.
-  Janet does not run on the JVM. We admittedly have a much more primitive GC.
+  Janet does not run on the JVM, and has a more primitive garbage collector.
 - We want to keep the Janet core small. With Lisps, usually a feature can be added as a library
-  without feeling "bolted on", especially when compared to ALGOL like languages.
+  without feeling "bolted on", especially when compared to ALGOL like languages. Adding features
+  to the core also makes it a bit more difficult keep Janet maximally portable.
+
+### Why is my terminal spitting out junk when I run the REPL?
+
+Make sure your terminal supports ANSI escape codes. Most modern terminals will
+support these, but some older terminals, Windows consoles, or embedded terminals
+will not. If your terminal does not support ANSI escape codes, run the REPL with
+the `-n` flag, which disables color output. You can also try the `-s` if further issues
+ensue.
 
 ## Why is it called "Janet"?
 
