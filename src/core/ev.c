@@ -1586,22 +1586,17 @@ void janet_ev_deinit(void) {
 #define JANET_KQUEUE_MIN_INTERVAL 0
 #endif
 
-#ifdef __FreeBSD__
-#define JANET_KQUEUE_TS(timestamp) (timestamp)
-#else
 /* NOTE:
- * NetBSD and OpenBSD expect things are always intervals, so fake that we have
- * abstime capability by changing how a timestamp is used in all kqueue calls
- * and defining absent macros. Additionally NetBSD expects intervals be
- * greater than 1 millisecond, so correct all intervals to be at least 1
- * millisecond under NetBSD. */
+ * NetBSD and OpenBSD expect things are always intervals, and FreeBSD doesn't
+ * like an ABSTIME in the past so just use intervals always. Introduces a
+ * calculation to determine the minimum timeout per timeout requested of
+ * kqueue. Also note that NetBSD doesn't accept timeout intervals less than 1
+ * millisecond, so correct all intervals on that platform to be at least 1
+ * millisecond.*/
 JanetTimestamp fix_interval(const JanetTimestamp ts) {
     return ts >= JANET_KQUEUE_MIN_INTERVAL ? ts : JANET_KQUEUE_MIN_INTERVAL;
 }
 #define JANET_KQUEUE_TS(timestamp) (fix_interval((timestamp - ts_now())))
-#define NOTE_MSECONDS 0
-#define NOTE_ABSTIME 0
-#endif
 
 
 /* TODO: make this available be we using kqueue or epoll, instead of
@@ -1692,7 +1687,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 JANET_KQUEUE_TIMER_IDENT,
                 EVFILT_TIMER,
                 JANET_KQUEUE_TF,
-                NOTE_MSECONDS | NOTE_ABSTIME,
+                0,
                 JANET_KQUEUE_TS(timeout), &janet_vm.timer);
         add_kqueue_events(&timer, 1);
     }
@@ -1757,7 +1752,7 @@ void janet_ev_init(void) {
             JANET_KQUEUE_TIMER_IDENT,
             EVFILT_TIMER,
             JANET_KQUEUE_TF,
-            NOTE_MSECONDS, JANET_KQUEUE_MIN_INTERVAL, &janet_vm.timer);
+            0, JANET_KQUEUE_MIN_INTERVAL, &janet_vm.timer);
     EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(events, 2);
     return;
