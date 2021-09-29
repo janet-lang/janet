@@ -1576,15 +1576,7 @@ void janet_ev_deinit(void) {
  * NetBSD uses intptr_t while others use void * for .udata */
 #define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
 #define JANET_KQUEUE_TF (EV_ADD | EV_ENABLE | EV_CLEAR | EV_ONESHOT)
-
-/* NOTE:
- * NetBSD doesn't like intervals less than 1 millisecond so lets make that the
- * default anywhere JANET_KQUEUE_TS will be used. */
-#ifdef __NetBSD__
-#define JANET_KQUEUE_MIN_INTERVAL 1
-#else
 #define JANET_KQUEUE_MIN_INTERVAL 0
-#endif
 
 /* NOTE:
  * NetBSD and OpenBSD expect things are always intervals, and FreeBSD doesn't
@@ -1593,10 +1585,10 @@ void janet_ev_deinit(void) {
  * kqueue. Also note that NetBSD doesn't accept timeout intervals less than 1
  * millisecond, so correct all intervals on that platform to be at least 1
  * millisecond.*/
-JanetTimestamp fix_interval(const JanetTimestamp ts) {
+JanetTimestamp to_interval(const JanetTimestamp ts) {
     return ts >= JANET_KQUEUE_MIN_INTERVAL ? ts : JANET_KQUEUE_MIN_INTERVAL;
 }
-#define JANET_KQUEUE_TS(timestamp) (fix_interval((timestamp - ts_now())))
+#define JANET_KQUEUE_INTERVAL(timestamp) (to_interval((timestamp - ts_now())))
 
 
 /* TODO: make this available be we using kqueue or epoll, instead of
@@ -1607,6 +1599,12 @@ static JanetTimestamp ts_now(void) {
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
+}
+
+/* NOTE: Assumes Janet's timestamp precision is in milliseconds. */
+static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
+    t->tv_sec = ts == 0 ? 0 : ts / 1000;
+    t->tv_nsec = ts == 0 ? 0 : (ts % 1000) * 1000000;
 }
 
 void add_kqueue_events(const struct kevent *events, int length) {
@@ -1675,39 +1673,39 @@ static void janet_unlisten(JanetListenerState *state, int is_gc) {
     janet_unlisten_impl(state, is_gc);
 }
 
-#define JANET_KQUEUE_TIMER_IDENT 1
 #define JANET_KQUEUE_MAX_EVENTS 64
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
-    /* Construct our timer which is a definite time on the clock, not an
-     * interval, in milliseconds as that is `JanetTimestamp`'s precision. */
-    struct kevent timer;
-    if (janet_vm.timer_enabled || has_timeout) {
-        EV_SETx(&timer,
-                JANET_KQUEUE_TIMER_IDENT,
-                EVFILT_TIMER,
-                JANET_KQUEUE_TF,
-                0,
-                JANET_KQUEUE_TS(timeout), &janet_vm.timer);
-        add_kqueue_events(&timer, 1);
-    }
-    janet_vm.timer_enabled = has_timeout;
-
     /* Poll for events */
+    /* NOTE:
+     * We calculate the timeout interval per iteration. When the interval
+     * drops to 0 or negative, we effect a timeout of 0. Effecting a timeout
+     * of infinity will not work and could make other fibers with timeouts
+     * miss their timeouts if we did so.
+     * JANET_KQUEUE_INTERVAL insures we have a timeout of no less than 0. */
     int status;
+    struct timespec ts;
     struct kevent events[JANET_KQUEUE_MAX_EVENTS];
     do {
-        status = kevent(janet_vm.kq, NULL, 0, events, JANET_KQUEUE_MAX_EVENTS, NULL);
+        if (janet_vm.timer_enabled || has_timeout) {
+            timestamp2timespec(&ts, JANET_KQUEUE_INTERVAL(timeout));
+            status = kevent(janet_vm.kq, NULL, 0, events,
+                            JANET_KQUEUE_MAX_EVENTS, &ts);
+        } else {
+            status = kevent(janet_vm.kq, NULL, 0, events,
+                            JANET_KQUEUE_MAX_EVENTS, NULL);
+        }
     } while (status == -1 && errno == EINTR);
     if (status == -1)
         JANET_EXIT("failed to poll events");
 
+    /* Make sure timer is set accordingly. */
+    janet_vm.timer_enabled = has_timeout;
+
     /* Step state machines */
     for (int i = 0; i < status; i++) {
         void *p = (void *) events[i].udata;
-        if (&janet_vm.timer == p) {
-            /* Timer expired, ignore */;
-        } else if (janet_vm.selfpipe == p) {
+        if (janet_vm.selfpipe == p) {
             /* Self-pipe handling */
             janet_ev_handle_selfpipe();
         } else {
@@ -1745,16 +1743,9 @@ void janet_ev_init(void) {
     janet_vm.kq = kqueue();
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
-    struct kevent events[2];
-    /* Don't use JANET_KQUEUE_TS here, as even under FreeBSD we use intervals
-     * here. */
-    EV_SETx(&events[0],
-            JANET_KQUEUE_TIMER_IDENT,
-            EVFILT_TIMER,
-            JANET_KQUEUE_TF,
-            0, JANET_KQUEUE_MIN_INTERVAL, &janet_vm.timer);
-    EV_SETx(&events[1], janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
-    add_kqueue_events(events, 2);
+    struct kevent event;
+    EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
+    add_kqueue_events(&event, 1);
     return;
 error:
     JANET_EXIT("failed to initialize event loop");
