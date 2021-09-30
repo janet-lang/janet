@@ -1709,7 +1709,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         } else {
             JanetStream *stream = p;
             JanetListenerState *state = stream->state;
-            if (NULL != state) {
+            while (NULL != state) {
+                JanetListenerState *next_state = state->_next;
                 state->event = events + i;
                 JanetAsyncStatus statuses[4];
                 for (int i = 0; i < 4; i++)
@@ -1730,6 +1731,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                         statuses[2] == JANET_ASYNC_STATUS_DONE ||
                         statuses[3] == JANET_ASYNC_STATUS_DONE)
                     janet_unlisten(state, 0);
+
+                state = next_state;
             }
         }
     }
