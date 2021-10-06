@@ -241,6 +241,11 @@ JANET_CORE_FN(cfun_array_concat,
                 int32_t j, len = 0;
                 const Janet *vals = NULL;
                 janet_indexed_view(argv[i], &vals, &len);
+                if (array->data == vals) {
+                    int32_t newcount = array->count + len;
+                    janet_array_ensure(array, newcount, 2);
+                    janet_indexed_view(argv[i], &vals, &len);
+                }
                 for (j = 0; j < len; j++)
                     janet_array_push(array, vals[j]);
             }
