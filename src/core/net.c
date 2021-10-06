@@ -699,7 +699,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
     if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
-        janet_panicf("Failed to get localname on %v: %s", argv[0], janet_ev_lasterr());
+        janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= sizeof(ss), "socket address truncated");
     return janet_so_getname(&ss);
@@ -714,7 +714,7 @@ JANET_CORE_FN(cfun_net_getpeername,
     socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
     if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
-        janet_panicf("Failed to get peername on %v: %s", argv[0], janet_ev_lasterr());
+        janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= sizeof(ss), "socket address truncated");
     return janet_so_getname(&ss);
