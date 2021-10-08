@@ -1511,8 +1511,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             JanetStream *stream = p;
             int mask = events[i].events;
             JanetListenerState *state = stream->state;
-            state->event = events + i;
             while (NULL != state) {
+                state->event = events + i;
                 JanetListenerState *next_state = state->_next;
                 JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
                 JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
