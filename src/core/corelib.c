@@ -398,15 +398,21 @@ JANET_CORE_FN(janet_core_is_abstract,
 }
 
 JANET_CORE_FN(janet_core_scannumber,
-              "(scan-number str)",
+              "(scan-number str &opt base)",
               "Parse a number from a byte sequence an return that number, either and integer "
               "or a real. The number "
               "must be in the same format as numbers in janet source code. Will return nil "
-              "on an invalid number.") {
+              "on an invalid number. Optionally provide a base - if a base is provided, no "
+              "radix specifier is expected at the beginning of the number.") {
     double number;
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
-    if (janet_scan_number(view.bytes, view.len, &number))
+    int32_t base = janet_optinteger(argv, argc, 1, 0);
+    int valid = base == 0 || (base >= 2 && base <= 36);
+    if (!valid) {
+        janet_panicf("expected base between 2 and 36, got %d", base);
+    }
+    if (janet_scan_number_base(view.bytes, view.len, base, &number))
         return janet_wrap_nil();
     return janet_wrap_number(number);
 }

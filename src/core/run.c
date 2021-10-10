@@ -81,11 +81,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 ret = janet_cstringv(e);
                 int32_t line = parser.line;
                 int32_t col = parser.column;
-                if (line > 0 && col > 0) {
-                    janet_eprintf("%s:%d:%d: parse error: %s\n", sourcePath, line, col, e);
-                } else {
-                    janet_eprintf("%s: parse error: %s\n", sourcePath, e);
-                }
+                janet_eprintf("%s:%d:%d: parse error: %s\n", sourcePath, line, col, e);
                 done = 1;
                 break;
             }
