@@ -3573,7 +3573,7 @@
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
      "s" (fn [&] (set raw-stdin true) (set should-repl true) 1)
-     "r" (fn [&] (set should-repl true) 0)
+     "r" (fn [&] (set should-repl true) 1)
      "p" (fn [&] (set exit-on-error false) 1)
      "q" (fn [&] (set quiet true) 1)
      "i" (fn [&] (set expect-image true) 1)
