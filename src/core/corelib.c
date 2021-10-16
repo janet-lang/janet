@@ -399,7 +399,7 @@ JANET_CORE_FN(janet_core_is_abstract,
 
 JANET_CORE_FN(janet_core_scannumber,
               "(scan-number str)",
-              "Parse a number from a byte sequence an return that number, either and integer "
+              "Parse a number from a byte sequence and return that number, either an integer "
               "or a real. The number "
               "must be in the same format as numbers in janet source code. Will return nil "
               "on an invalid number.") {
