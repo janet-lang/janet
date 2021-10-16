@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.18.1 - 2021-10-16
+- Fix some documentation typos
+- Fix - Set pipes passed to subprocess to blocking mode.
+- Fix `-r` switch in repl.
+
 ## 1.18.0 - 2021-10-10
 - Allow `ev/cancel` to work on already scheduled fibers.
 - Fix bugs with ev/ module.
