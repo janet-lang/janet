@@ -218,7 +218,7 @@ JANET_CORE_FN(cfun_string_repeat,
 
 JANET_CORE_FN(cfun_string_bytes,
               "(string/bytes str)",
-              "Returns an array of integers that are the byte values of the string.") {
+              "Returns a tuple of integers that are the byte values of the string.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     Janet *tup = janet_tuple_begin(view.len);

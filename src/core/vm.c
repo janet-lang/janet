@@ -1493,7 +1493,9 @@ JanetSignal janet_pcall(
 
 Janet janet_mcall(const char *name, int32_t argc, Janet *argv) {
     /* At least 1 argument */
-    if (argc < 1) janet_panicf("method :%s expected at least 1 argument");
+    if (argc < 1) {
+        janet_panicf("method :%s expected at least 1 argument", name);
+    }
     /* Find method */
     Janet method = janet_method_lookup(argv[0], name);
     if (janet_checktype(method, JANET_NIL)) {

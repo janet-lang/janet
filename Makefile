@@ -67,6 +67,10 @@ ifeq ($(UNAME), Haiku)
 	LDCONFIG:=true
 	LDFLAGS=-Wl,--export-dynamic
 endif
+# For Android (termux)
+ifeq ($(shell uname -o), Android)
+	CLIBS:=$(CLIBS) -landroid-spawn
+endif
 
 $(shell mkdir -p build/core build/c build/boot)
 all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h

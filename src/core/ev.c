@@ -1511,8 +1511,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             JanetStream *stream = p;
             int mask = events[i].events;
             JanetListenerState *state = stream->state;
-            state->event = events + i;
             while (NULL != state) {
+                state->event = events + i;
                 JanetListenerState *next_state = state->_next;
                 JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
                 JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
@@ -2558,15 +2558,16 @@ void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, in
 static volatile long PipeSerialNumber;
 #endif
 
+/*
+ * mode = 0: both sides non-blocking.
+ * mode = 1: only read side non-blocking: write side sent to subprocess
+ * mode = 2: only write side non-blocking: read side sent to subprocess
+ */
 int janet_make_pipe(JanetHandle handles[2], int mode) {
 #ifdef JANET_WINDOWS
     /*
      * On windows, the built in CreatePipe function doesn't support overlapped IO
      * so we lift from the windows source code and modify for our own version.
-     *
-     * mode = 0: both sides non-blocking.
-     * mode = 1: only read side non-blocking: write side sent to subprocess
-     * mode = 2: only write side non-blocking: read side sent to subprocess
      */
     JanetHandle shandle, chandle;
     UCHAR PipeNameBuffer[MAX_PATH];
@@ -2616,10 +2617,9 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
     }
     return 0;
 #else
-    (void) mode;
     if (pipe(handles)) return -1;
-    if (fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
-    if (fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;
+    if (mode != 2 && fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
+    if (mode != 1 && fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;
     return 0;
 error:
     close(handles[0]);

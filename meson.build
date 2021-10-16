@@ -30,6 +30,7 @@ header_path = join_paths(get_option('prefix'), get_option('includedir'), 'janet'
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
+android_spawn_dep = cc.find_library('android-spawn', required : false)
 thread_dep = dependency('threads')
 
 # Link options
@@ -160,7 +161,7 @@ mainclient_src = [
 janet_boot = executable('janet-boot', core_src, boot_src,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
-  dependencies : [m_dep, dl_dep, thread_dep],
+  dependencies : [m_dep, dl_dep, thread_dep, android_spawn_dep],
   native : true)
 
 # Build janet.c
@@ -173,7 +174,7 @@ janetc = custom_target('janetc',
     'JANET_PATH', janet_path
   ])
 
-janet_dependencies = [m_dep, dl_dep]
+janet_dependencies = [m_dep, dl_dep, android_spawn_dep]
 if not get_option('single_threaded')
   janet_dependencies += thread_dep
 endif

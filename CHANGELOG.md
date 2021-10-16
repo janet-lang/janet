@@ -1,7 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.18.0 - 2021-10-10
+- Allow `ev/cancel` to work on already scheduled fibers.
+- Fix bugs with ev/ module.
+- Add optional `base` argument to scan-number
 - Add `-i` flag to janet binary to make it easier to run image files from the command line
 - Remove `thread/` module.
 - Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
