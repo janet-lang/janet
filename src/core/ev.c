@@ -1180,13 +1180,13 @@ JanetFiber *janet_loop1(void) {
         if (to.curr_fiber != NULL) {
             /* This is a deadline (for a fiber, not a function call) */
             JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
-            int isFinished = s == (JANET_STATUS_DEAD ||
-                                   s == JANET_STATUS_ERROR ||
-                                   s == JANET_STATUS_USER0 ||
-                                   s == JANET_STATUS_USER1 ||
-                                   s == JANET_STATUS_USER2 ||
-                                   s == JANET_STATUS_USER3 ||
-                                   s == JANET_STATUS_USER4);
+            int isFinished = (s == JANET_STATUS_DEAD ||
+                    s == JANET_STATUS_ERROR ||
+                    s == JANET_STATUS_USER0 ||
+                    s == JANET_STATUS_USER1 ||
+                    s == JANET_STATUS_USER2 ||
+                    s == JANET_STATUS_USER3 ||
+                    s == JANET_STATUS_USER4);
             if (!isFinished) {
                 janet_cancel(to.fiber, janet_cstringv("deadline expired"));
             }
