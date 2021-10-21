@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Deadlocked channels will no longer exit early - instead they will hang, which is more intuitive.
+
 ## 1.18.1 - 2021-10-16
 - Fix some documentation typos
 - Fix - Set pipes passed to subprocess to blocking mode.
