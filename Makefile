@@ -69,7 +69,7 @@ ifeq ($(UNAME), Haiku)
 	LDFLAGS=-Wl,--export-dynamic
 endif
 # For Android (termux)
-ifeq ($(UNAME), Linux)
+ifeq ($(UNAME), Linux) # uname on Darwin doesn't recognise -o
 ifeq ($(shell uname -o), Android)
 	CLIBS:=$(CLIBS) -landroid-spawn
 endif
