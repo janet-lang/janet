@@ -62,14 +62,17 @@ ifeq ($(UNAME), Darwin)
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
+
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
 	LDCONFIG:=true
 	LDFLAGS=-Wl,--export-dynamic
 endif
 # For Android (termux)
+ifeq ($(UNAME), Linux) # uname on Darwin doesn't recognise -o
 ifeq ($(shell uname -o), Android)
 	CLIBS:=$(CLIBS) -landroid-spawn
+endif
 endif
 
 $(shell mkdir -p build/core build/c build/boot)
