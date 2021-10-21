@@ -830,8 +830,8 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
             pending.mode = mode ? JANET_CP_MODE_CHOICE_WRITE : JANET_CP_MODE_WRITE;
             janet_q_push(&channel->write_pending, &pending, sizeof(pending));
             janet_chan_unlock(channel);
+            janet_ev_inc_refcount();
             if (is_threaded) {
-                janet_ev_inc_refcount();
                 janet_gcroot(janet_wrap_fiber(pending.fiber));
             }
             return 1;
@@ -848,6 +848,7 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode) {
             msg.argj = x;
             janet_ev_post_event(vm, janet_thread_chan_cb, msg);
         } else {
+            janet_ev_dec_refcount();
             if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                 janet_schedule(reader.fiber, make_read_result(channel, x));
             } else {
@@ -880,8 +881,8 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) 
         pending.mode = is_choice ? JANET_CP_MODE_CHOICE_READ : JANET_CP_MODE_READ;
         janet_q_push(&channel->read_pending, &pending, sizeof(pending));
         janet_chan_unlock(channel);
+        janet_ev_inc_refcount();
         if (is_threaded) {
-            janet_ev_inc_refcount();
             janet_gcroot(janet_wrap_fiber(pending.fiber));
         }
         return 0;
@@ -899,6 +900,7 @@ static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice) 
             msg.argj = janet_wrap_nil();
             janet_ev_post_event(vm, janet_thread_chan_cb, msg);
         } else {
+            janet_ev_dec_refcount();
             if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                 janet_schedule(writer.fiber, make_write_result(channel));
             } else {
@@ -1102,6 +1104,7 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
+                janet_ev_dec_refcount();
                 if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                     janet_schedule(writer.fiber, janet_wrap_nil());
                 } else {
@@ -1121,6 +1124,7 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
+                janet_ev_dec_refcount();
                 if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                     janet_schedule(reader.fiber, janet_wrap_nil());
                 } else {
@@ -1192,12 +1196,12 @@ JanetFiber *janet_loop1(void) {
             /* This is a deadline (for a fiber, not a function call) */
             JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
             int isFinished = (s == JANET_STATUS_DEAD ||
-                    s == JANET_STATUS_ERROR ||
-                    s == JANET_STATUS_USER0 ||
-                    s == JANET_STATUS_USER1 ||
-                    s == JANET_STATUS_USER2 ||
-                    s == JANET_STATUS_USER3 ||
-                    s == JANET_STATUS_USER4);
+                              s == JANET_STATUS_ERROR ||
+                              s == JANET_STATUS_USER0 ||
+                              s == JANET_STATUS_USER1 ||
+                              s == JANET_STATUS_USER2 ||
+                              s == JANET_STATUS_USER3 ||
+                              s == JANET_STATUS_USER4);
             if (!isFinished) {
                 janet_cancel(to.fiber, janet_cstringv("deadline expired"));
             }
