@@ -86,7 +86,7 @@ void janet_debug_find(
                 }
             }
         }
-        current = current->next;
+        current = current->data.next;
     }
     if (best_def) {
         *def_out = best_def;

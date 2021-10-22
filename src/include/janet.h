@@ -866,7 +866,7 @@ struct JanetGCObject {
     union {
         JanetGCObject *next;
         int32_t refcount; /* For threaded abstract types */
-    };
+    } data;
 };
 
 /* A lightweight green thread in janet. Does not correspond to
