@@ -63,8 +63,8 @@ void *janet_abstract_begin_threaded(const JanetAbstractType *atype, size_t size)
     }
     janet_vm.next_collection += size + sizeof(JanetAbstractHead);
     header->gc.flags = JANET_MEMORY_THREADED_ABSTRACT;
-    header->gc.next = NULL; /* Clear memory for address sanitizers */
-    header->gc.refcount = 1;
+    header->gc.data.next = NULL; /* Clear memory for address sanitizers */
+    header->gc.data.refcount = 1;
     header->size = size;
     header->type = atype;
     void *abstract = (void *) & (header->data);
@@ -86,11 +86,11 @@ void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size) {
 #ifdef JANET_WINDOWS
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
-    return InterlockedIncrement(&ab->gc.refcount);
+    return InterlockedIncrement(&ab->gc.data.refcount);
 }
 
 static int32_t janet_decref(JanetAbstractHead *ab) {
-    return InterlockedDecrement(&ab->gc.refcount);
+    return InterlockedDecrement(&ab->gc.data.refcount);
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {
@@ -112,11 +112,11 @@ void janet_os_mutex_unlock(JanetOSMutex *mutex) {
 #else
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
-    return __atomic_add_fetch(&ab->gc.refcount, 1, __ATOMIC_RELAXED);
+    return __atomic_add_fetch(&ab->gc.data.refcount, 1, __ATOMIC_RELAXED);
 }
 
 static int32_t janet_decref(JanetAbstractHead *ab) {
-    return __atomic_add_fetch(&ab->gc.refcount, -1, __ATOMIC_RELAXED);
+    return __atomic_add_fetch(&ab->gc.data.refcount, -1, __ATOMIC_RELAXED);
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {

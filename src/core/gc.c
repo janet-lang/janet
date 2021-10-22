@@ -323,7 +323,7 @@ void janet_sweep() {
     JanetGCObject *current = janet_vm.blocks;
     JanetGCObject *next;
     while (NULL != current) {
-        next = current->next;
+        next = current->data.next;
         if (current->flags & (JANET_MEM_REACHABLE | JANET_MEM_DISABLED)) {
             previous = current;
             current->flags &= ~JANET_MEM_REACHABLE;
@@ -331,7 +331,7 @@ void janet_sweep() {
             janet_vm.block_count--;
             janet_deinit_block(current);
             if (NULL != previous) {
-                previous->next = next;
+                previous->data.next = next;
             } else {
                 janet_vm.blocks = next;
             }
@@ -395,7 +395,7 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 
     /* Prepend block to heap list */
     janet_vm.next_collection += size;
-    mem->next = janet_vm.blocks;
+    mem->data.next = janet_vm.blocks;
     janet_vm.blocks = mem;
     janet_vm.block_count++;
 
@@ -532,7 +532,7 @@ void janet_clear_memory(void) {
     JanetGCObject *current = janet_vm.blocks;
     while (NULL != current) {
         janet_deinit_block(current);
-        JanetGCObject *next = current->next;
+        JanetGCObject *next = current->data.next;
         janet_free(current);
         current = next;
     }
