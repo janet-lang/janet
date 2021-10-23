@@ -1253,6 +1253,18 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             emit_bytes(b, RULE_LITERAL, len, str);
             break;
         }
+        case JANET_TABLE: {
+            /* Build grammar table */
+            JanetTable *new_grammar = janet_table_clone(janet_unwrap_table(peg));
+            new_grammar->proto = grammar;
+            b->grammar = grammar = new_grammar;
+            /* Run the main rule */
+            Janet main_rule = janet_table_rawget(grammar, janet_ckeywordv("main"));
+            if (janet_checktype(main_rule, JANET_NIL))
+                peg_panic(b, "grammar requires :main rule");
+            rule = peg_compile1(b, main_rule);
+            break;
+        }
         case JANET_STRUCT: {
             /* Build grammar table */
             const JanetKV *st = janet_unwrap_struct(peg);
