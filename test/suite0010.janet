@@ -167,4 +167,7 @@
 (assert (= (get-in t [:side :note] "dflt") "dflt")
         "get-in with false value and default")
 
+(assert (= (math/gcd 462 1071) 21) "math/gcd 1")
+(assert (= (math/lcm 462 1071) 23562) "math/lcm 1")
+
 (end-suite)

@@ -309,6 +309,42 @@ JANET_CORE_FN(janet_not, "(not x)", "Returns the boolean inverse of x.") {
     return janet_wrap_boolean(!janet_truthy(argv[0]));
 }
 
+static double janet_gcd(double x, double y) {
+    if (isnan(x) || isnan(y)) {
+#ifdef NAN
+        return NAN;
+#else
+        return 0.0 \ 0.0;
+#endif
+    }
+    if (isinf(x) || isinf(y)) return INFINITY;
+    while (y != 0) {
+        double temp = y;
+        y = fmod(x, y);
+        x = temp;
+    }
+    return x;
+}
+
+static double janet_lcm(double x, double y) {
+    return (x / janet_gcd(x, y)) * y;
+}
+
+JANET_CORE_FN(janet_cfun_gcd, "(math/gcd x y)",
+        "Returns the greatest common divisor between x and y.") {
+    janet_fixarity(argc, 2);
+    double x = janet_getnumber(argv, 0);
+    double y = janet_getnumber(argv, 1);
+    return janet_wrap_number(janet_gcd(x, y));
+}
+
+JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
+        "Returns the least common multiple of x and y.") {
+    janet_fixarity(argc, 2);
+    double x = janet_getnumber(argv, 0);
+    double y = janet_getnumber(argv, 1);
+    return janet_wrap_number(janet_lcm(x, y));
+}
 
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
@@ -353,6 +389,8 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/trunc", janet_trunc),
         JANET_CORE_REG("math/round", janet_round),
         JANET_CORE_REG("math/next", janet_nextafter),
+        JANET_CORE_REG("math/gcd", janet_cfun_gcd),
+        JANET_CORE_REG("math/lcm", janet_cfun_lcm),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, math_cfuns);
