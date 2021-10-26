@@ -698,6 +698,14 @@
   "Returns the numeric minimum of the arguments."
   [& args] (extreme < args))
 
+(defn max-of
+  "Returns the numeric maximum of the argument sequence."
+  [args] (extreme > args))
+
+(defn min-of
+  "Returns the numeric minimum of the argument sequence."
+  [args] (extreme < args))
+
 (defn first
   "Get the first element from an indexed data structure."
   [xs]

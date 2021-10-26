@@ -234,6 +234,9 @@ static void add_timeout(JanetTimeout to) {
 
 /* Create a new event listener */
 static JanetListenerState *janet_listen_impl(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
+    if (stream->flags & JANET_STREAM_CLOSED) {
+        janet_panic("cannot listen on closed stream");
+    }
     if (stream->_mask & mask) {
         janet_panic("cannot listen for duplicate event on stream");
     }
@@ -344,8 +347,10 @@ static void janet_stream_close_impl(JanetStream *stream, int is_gc) {
     {
         CloseHandle(stream->handle);
     }
+    stream->handle = INVALID_HANDLE_VALUE;
 #else
     close(stream->handle);
+    stream->handle = -1;
 #endif
 }
 
