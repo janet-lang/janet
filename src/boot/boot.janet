@@ -51,7 +51,7 @@
   ``Use a function or macro literal `f` as a macro. This lets
   any function be used as a macro. Inside a quasiquote, the
   idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
-  to avoid unwanted variable capture.``
+  to avoid unwanted variable capture of `my-custom-macro`.``
   [f & args]
   (f ;args))
 
