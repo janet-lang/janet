@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -26,6 +26,7 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "state.h"
 #endif
 
 #include <stdio.h>
@@ -48,20 +49,16 @@
 } while (0)
 #endif
 
+#define JANET_MARSHAL_DECREF 0x40000
+
 #define janet_assert(c, m) do { \
     if (!(c)) JANET_EXIT((m)); \
 } while (0)
 
-/* Omit docstrings in some builds */
-#ifndef JANET_BOOTSTRAP
-#define JDOC(x) NULL
-#define JANET_NO_BOOTSTRAP
-#else
-#define JDOC(x) x
-#endif
-
 /* Utils */
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
+int janet_valid_utf8(const uint8_t *str, int32_t len);
+int janet_is_symbol_char(uint8_t c);
 extern const char janet_base64[65];
 int32_t janet_array_calchash(const Janet *array, int32_t len);
 int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len);
@@ -87,14 +84,29 @@ void janet_buffer_format(
     Janet *argv);
 Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 
+/* Registry functions */
+void janet_registry_put(
+    JanetCFunction key,
+    const char *name,
+    const char *name_prefix,
+    const char *source_file,
+    int32_t source_line);
+JanetCFunRegistry *janet_registry_get(JanetCFunction key);
+
 /* Inside the janet core, defining globals is different
  * at bootstrap time and normal runtime */
 #ifdef JANET_BOOTSTRAP
-#define janet_core_def janet_def
-#define janet_core_cfuns janet_cfuns
+#define JANET_CORE_REG JANET_REG
+#define JANET_CORE_FN JANET_FN
+#define JANET_CORE_DEF JANET_DEF
+#define janet_core_def_sm janet_def_sm
+#define janet_core_cfuns_ext janet_cfuns_ext
 #else
-void janet_core_def(JanetTable *env, const char *name, Janet x, const void *p);
-void janet_core_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns);
+#define JANET_CORE_REG JANET_REG_S
+#define JANET_CORE_FN JANET_FN_S
+#define JANET_CORE_DEF(ENV, NAME, X, DOC) janet_core_def_sm(ENV, NAME, X, DOC, NULL, 0)
+void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p, const void *sf, int32_t sl);
+void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns);
 #endif
 
 /* Clock gettime */
@@ -135,9 +147,6 @@ void janet_lib_typed_array(JanetTable *env);
 #endif
 #ifdef JANET_INT_TYPES
 void janet_lib_inttypes(JanetTable *env);
-#endif
-#ifdef JANET_THREADS
-void janet_lib_thread(JanetTable *env);
 #endif
 #ifdef JANET_NET
 void janet_lib_net(JanetTable *env);

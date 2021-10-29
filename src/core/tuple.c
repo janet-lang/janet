@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -55,19 +55,35 @@ const Janet *janet_tuple_n(const Janet *values, int32_t n) {
 
 /* C Functions */
 
-static Janet cfun_tuple_brackets(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_tuple_brackets,
+              "(tuple/brackets & xs)",
+              "Creates a new bracketed tuple containing the elements xs.") {
     const Janet *tup = janet_tuple_n(argv, argc);
     janet_tuple_flag(tup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
     return janet_wrap_tuple(tup);
 }
 
-static Janet cfun_tuple_slice(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_tuple_slice,
+              "(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])",
+              "Take a sub sequence of an array or tuple from index start "
+              "inclusive to index end exclusive. If start or end are not provided, "
+              "they default to 0 and the length of arrtup respectively. "
+              "'start' and 'end' can also be negative to indicate indexing "
+              "from the end of the input. Note that index -1 is synonymous with "
+              "index '(length arrtup)' to allow a full negative slice range. "
+              "Returns the new tuple.") {
     JanetView view = janet_getindexed(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
-static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_tuple_type,
+              "(tuple/type tup)",
+              "Checks how the tuple was constructed. Will return the keyword "
+              ":brackets if the tuple was parsed with brackets, and :parens "
+              "otherwise. The two types of tuples will behave the same most of "
+              "the time, but will print differently and be treated differently by "
+              "the compiler.") {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
     if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) {
@@ -77,7 +93,10 @@ static Janet cfun_tuple_type(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_tuple_sourcemap(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_tuple_sourcemap,
+              "(tuple/sourcemap tup)",
+              "Returns the sourcemap metadata attached to a tuple, "
+              " which is another tuple (line, column).") {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
     Janet contents[2];
@@ -86,7 +105,10 @@ static Janet cfun_tuple_sourcemap(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_n(contents, 2));
 }
 
-static Janet cfun_tuple_setmap(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_tuple_setmap,
+              "(tuple/setmap tup line column)",
+              "Set the sourcemap metadata on a tuple. line and column indicate "
+              "should be integers.") {
     janet_fixarity(argc, 3);
     const Janet *tup = janet_gettuple(argv, 0);
     janet_tuple_head(tup)->sm_line = janet_getinteger(argv, 1);
@@ -94,48 +116,15 @@ static Janet cfun_tuple_setmap(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static const JanetReg tuple_cfuns[] = {
-    {
-        "tuple/brackets", cfun_tuple_brackets,
-        JDOC("(tuple/brackets & xs)\n\n"
-             "Creates a new bracketed tuple containing the elements xs.")
-    },
-    {
-        "tuple/slice", cfun_tuple_slice,
-        JDOC("(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])\n\n"
-             "Take a sub sequence of an array or tuple from index start "
-             "inclusive to index end exclusive. If start or end are not provided, "
-             "they default to 0 and the length of arrtup respectively. "
-             "'start' and 'end' can also be negative to indicate indexing "
-             "from the end of the input. Note that index -1 is synonymous with "
-             "index '(length arrtup)' to allow a full negative slice range. "
-             "Returns the new tuple.")
-    },
-    {
-        "tuple/type", cfun_tuple_type,
-        JDOC("(tuple/type tup)\n\n"
-             "Checks how the tuple was constructed. Will return the keyword "
-             ":brackets if the tuple was parsed with brackets, and :parens "
-             "otherwise. The two types of tuples will behave the same most of "
-             "the time, but will print differently and be treated differently by "
-             "the compiler.")
-    },
-    {
-        "tuple/sourcemap", cfun_tuple_sourcemap,
-        JDOC("(tuple/sourcemap tup)\n\n"
-             "Returns the sourcemap metadata attached to a tuple, "
-             " which is another tuple (line, column).")
-    },
-    {
-        "tuple/setmap", cfun_tuple_setmap,
-        JDOC("(tuple/setmap tup line column)\n\n"
-             "Set the sourcemap metadata on a tuple. line and column indicate "
-             "should be integers.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the tuple module */
 void janet_lib_tuple(JanetTable *env) {
-    janet_core_cfuns(env, NULL, tuple_cfuns);
+    JanetRegExt tuple_cfuns[] = {
+        JANET_CORE_REG("tuple/brackets", cfun_tuple_brackets),
+        JANET_CORE_REG("tuple/slice", cfun_tuple_slice),
+        JANET_CORE_REG("tuple/type", cfun_tuple_type),
+        JANET_CORE_REG("tuple/sourcemap", cfun_tuple_sourcemap),
+        JANET_CORE_REG("tuple/setmap", cfun_tuple_setmap),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, tuple_cfuns);
 }

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -942,8 +942,12 @@ Janet janet_disasm(JanetFuncDef *def) {
     return janet_wrap_struct(janet_table_to_struct(ret));
 }
 
-/* C Function for assembly */
-static Janet cfun_asm(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_asm,
+              "(asm assembly)",
+              "Returns a new function that is the compiled result of the assembly.\n"
+              "The syntax for the assembly can be found on the Janet website, and should correspond\n"
+              "to the return value of disasm. Will throw an\n"
+              "error on invalid assembly.") {
     janet_fixarity(argc, 1);
     JanetAssembleResult res;
     res = janet_asm(argv[0], 0);
@@ -953,7 +957,24 @@ static Janet cfun_asm(int32_t argc, Janet *argv) {
     return janet_wrap_function(janet_thunk(res.funcdef));
 }
 
-static Janet cfun_disasm(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_disasm,
+              "(disasm func &opt field)",
+              "Returns assembly that could be used to compile the given function. "
+              "func must be a function, not a c function. Will throw on error on a badly "
+              "typed argument. If given a field name, will only return that part of the function assembly. "
+              "Possible fields are:\n\n"
+              "* :arity - number of required and optional arguments.\n"
+              "* :min-arity - minimum number of arguments function can be called with.\n"
+              "* :max-arity - maximum number of arguments function can be called with.\n"
+              "* :vararg - true if function can take a variable number of arguments.\n"
+              "* :bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n"
+              "* :source - name of source file that this function was compiled from.\n"
+              "* :name - name of function.\n"
+              "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
+              "* :constants - an array of constants referenced by this function.\n"
+              "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
+              "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"
+              "* :defs - other function definitions that this function may instantiate.\n") {
     janet_arity(argc, 1, 2);
     JanetFunction *f = janet_getfunction(argv, 0);
     if (argc == 2) {
@@ -976,41 +997,14 @@ static Janet cfun_disasm(int32_t argc, Janet *argv) {
     }
 }
 
-static const JanetReg asm_cfuns[] = {
-    {
-        "asm", cfun_asm,
-        JDOC("(asm assembly)\n\n"
-             "Returns a new function that is the compiled result of the assembly.\n"
-             "The syntax for the assembly can be found on the Janet website, and should correspond\n"
-             "to the return value of disasm. Will throw an\n"
-             "error on invalid assembly.")
-    },
-    {
-        "disasm", cfun_disasm,
-        JDOC("(disasm func &opt field)\n\n"
-             "Returns assembly that could be used to compile the given function.\n"
-             "func must be a function, not a c function. Will throw on error on a badly\n"
-             "typed argument. If given a field name, will only return that part of the function assembly.\n"
-             "Possible fields are:\n\n"
-             "* :arity - number of required and optional arguments.\n\n"
-             "* :min-arity - minimum number of arguments function can be called with.\n\n"
-             "* :max-arity - maximum number of arguments function can be called with.\n\n"
-             "* :vararg - true if function can take a variable number of arguments.\n\n"
-             "* :bytecode - array of parsed bytecode instructions. Each instruction is a tuple.\n\n"
-             "* :source - name of source file that this function was compiled from.\n\n"
-             "* :name - name of function.\n\n"
-             "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n\n"
-             "* :constants - an array of constants referenced by this function.\n\n"
-             "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n\n"
-             "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n\n"
-             "* :defs - other function definitions that this function may instantiate.\n")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the library */
 void janet_lib_asm(JanetTable *env) {
-    janet_core_cfuns(env, NULL, asm_cfuns);
+    JanetRegExt asm_cfuns[] = {
+        JANET_CORE_REG("asm", cfun_asm),
+        JANET_CORE_REG("disasm", cfun_disasm),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, asm_cfuns);
 }
 
 #endif

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -167,17 +167,12 @@ Janet janet_struct_rawget(const JanetKV *st, Janet key) {
 
 /* Get an item from a struct */
 Janet janet_struct_get(const JanetKV *st, Janet key) {
-    const JanetKV *kv = janet_struct_find(st, key);
-    if (NULL != kv)
-        return kv->value;
-    /* Check prototypes */
-    {
-        int i = JANET_MAX_PROTO_DEPTH;
-        for (st = janet_struct_proto(st); st && i; st = janet_struct_proto(st), --i) {
-            kv = janet_struct_find(st, key);
-            if (NULL != kv)
-                return kv->value;
-        }
+    int i = JANET_MAX_PROTO_DEPTH;
+    for (; st && i; --i) {
+        const JanetKV *kv = janet_struct_find(st, key);
+        if (NULL != kv)
+            return kv->value;
+        st = janet_struct_proto(st);
     }
     return janet_wrap_nil();
 }
@@ -216,20 +211,25 @@ JanetTable *janet_struct_to_table(const JanetKV *st) {
 
 /* C Functions */
 
-static Janet cfun_struct_with_proto(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_struct_with_proto,
+              "(struct/with-proto proto & kvs)",
+              "Create a structure, as with the usual struct constructor but set the "
+              "struct prototype as well.") {
     janet_arity(argc, 1, -1);
     JanetStruct proto = janet_optstruct(argv, argc, 0, NULL);
     if (!(argc & 1))
         janet_panic("expected odd number of arguments");
     JanetKV *st = janet_struct_begin(argc / 2);
-    janet_struct_proto(st) = proto;
     for (int32_t i = 1; i < argc; i += 2) {
         janet_struct_put(st, argv[i], argv[i + 1]);
     }
+    janet_struct_proto(st) = proto;
     return janet_wrap_struct(janet_struct_end(st));
 }
 
-static Janet cfun_struct_getproto(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_struct_getproto,
+              "(struct/getproto st)",
+              "Return the prototype of a struct, or nil if it doesn't have one.") {
     janet_fixarity(argc, 1);
     JanetStruct st = janet_getstruct(argv, 0);
     return janet_struct_proto(st)
@@ -237,7 +237,10 @@ static Janet cfun_struct_getproto(int32_t argc, Janet *argv) {
            : janet_wrap_nil();
 }
 
-static Janet cfun_struct_flatten(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_struct_flatten,
+              "(struct/proto-flatten st)",
+              "Convert a struct with prototypes to a struct with no prototypes by merging "
+              "all key value pairs from recursive prototypes into one new struct.") {
     janet_fixarity(argc, 1);
     JanetStruct st = janet_getstruct(argv, 0);
 
@@ -267,7 +270,10 @@ static Janet cfun_struct_flatten(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(accum));
 }
 
-static Janet cfun_struct_to_table(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_struct_to_table,
+              "(struct/to-table st &opt recursive)",
+              "Convert a struct to a table. If recursive is true, also convert the "
+              "table's prototypes into the new struct's prototypes as well.") {
     janet_arity(argc, 1, 2);
     JanetStruct st = janet_getstruct(argv, 0);
     int recursive = argc > 1 && janet_truthy(argv[1]);
@@ -295,34 +301,14 @@ static Janet cfun_struct_to_table(int32_t argc, Janet *argv) {
     return janet_wrap_table(tab);
 }
 
-static const JanetReg struct_cfuns[] = {
-    {
-        "struct/with-proto", cfun_struct_with_proto,
-        JDOC("(struct/with-proto proto & kvs)\n\n"
-             "Create a structure, as with the usual struct constructor but set the "
-             "struct prototype as well.")
-    },
-    {
-        "struct/getproto", cfun_struct_getproto,
-        JDOC("(struct/getproto st)\n\n"
-             "Get the prototype of a struct, or nil if it doesn't have one.")
-    },
-    {
-        "struct/proto-flatten", cfun_struct_flatten,
-        JDOC("(struct/proto-flatten st)\n\n"
-             "Convert a struct with prototypes to a struct with no prototypes by merging "
-             "all key value pairs from recursive prototypes into one new struct.")
-    },
-    {
-        "struct/to-table", cfun_struct_to_table,
-        JDOC("(struct/to-table st &opt recursive)\n\n"
-             "Convert a struct to a table. If recursive is true, also convert the "
-             "table's prototypes into the new struct's prototypes as well.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the struct module */
 void janet_lib_struct(JanetTable *env) {
-    janet_core_cfuns(env, NULL, struct_cfuns);
+    JanetRegExt struct_cfuns[] = {
+        JANET_CORE_REG("struct/with-proto", cfun_struct_with_proto),
+        JANET_CORE_REG("struct/getproto", cfun_struct_getproto),
+        JANET_CORE_REG("struct/proto-flatten", cfun_struct_flatten),
+        JANET_CORE_REG("struct/to-table", cfun_struct_to_table),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, struct_cfuns);
 }

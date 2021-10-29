@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -55,10 +55,11 @@ enum JanetMemoryType {
     JANET_MEMORY_FUNCTION,
     JANET_MEMORY_ABSTRACT,
     JANET_MEMORY_FUNCENV,
-    JANET_MEMORY_FUNCDEF
+    JANET_MEMORY_FUNCDEF,
+    JANET_MEMORY_THREADED_ABSTRACT,
 };
 
-/* To allocate collectable memory, one must calk janet_alloc, initialize the memory,
+/* To allocate collectable memory, one must call janet_alloc, initialize the memory,
  * and then call when janet_enablegc when it is initailize and reachable by the gc (on the JANET stack) */
 void *janet_gcalloc(enum JanetMemoryType type, size_t size);
 

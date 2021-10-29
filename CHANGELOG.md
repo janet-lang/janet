@@ -2,9 +2,74 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Deadlocked channels will no longer exit early - instead they will hang, which is more intuitive.
+
+## 1.18.1 - 2021-10-16
+- Fix some documentation typos
+- Fix - Set pipes passed to subprocess to blocking mode.
+- Fix `-r` switch in repl.
+
+## 1.18.0 - 2021-10-10
+- Allow `ev/cancel` to work on already scheduled fibers.
+- Fix bugs with ev/ module.
+- Add optional `base` argument to scan-number
+- Add `-i` flag to janet binary to make it easier to run image files from the command line
+- Remove `thread/` module.
+- Add `(number ...)` pattern to peg for more efficient number parsing using Janet's
+  scan-number function without immediate string creation.
+
+## 1.17.2 - 2021-09-18
+- Remove include of windows.h from janet.h. This caused issues on certain projects.
+- Fix formatting in doc-format to better handle special characters in signatures.
+- Fix some marshalling bugs.
+- Add optional Makefile target to install jpm as well.
+- Supervisor channels in threads will no longer include a wasteful copy of the fiber in every
+  message across a thread.
+- Allow passing a closure to `ev/thread` as well as a whole fiber.
+- Allow passing a closure directly to `ev/go` to spawn fibers on the event loop.
+
+## 1.17.1 - 2021-08-29
+- Fix docstring typos
+- Add `make install-jpm-git` to make jpm co-install simpler if using the Makefile.
+- Fix bugs with starting ev/threads and fiber marshaling.
+
+## 1.17.0 - 2021-08-21
+- Add the `-E` flag for one-liners with the `short-fn` syntax for argument passing.
+- Add support for threaded abstract types. Threaded abstract types can easily be shared between threads.
+- Deprecate the `thread` library. Use threaded channels and ev instead.
+- Channels can now be marshalled.
+- Add the ability to close channels with `ev/chan-close` (or `:close`).
+- Add threaded channels with `ev/thread-chan`.
+- Add `JANET_FN` and `JANET_REG` macros to more easily define C functions that export their source mapping information.
+- Add `janet_interpreter_interupt` and `janet_loop1_interrupt` to interrupt the interpreter while running.
+- Add `table/clear`
+- Add build option to disable the threading library without disabling all threads.
+- Remove JPM from the main Janet distribution. Instead, JPM must be installed
+  separately like any other package.
+- Fix issue with `ev/go` when called with an initial value and supervisor.
+- Add the C API functions `janet_vm_save` and `janet_vm_load` to allow
+saving and restoring the entire VM state.
+
+## 1.16.1 - 2021-06-09
+- Add `maclintf` - a utility for adding linting messages when inside macros.
+- Print source code of offending line on compiler warnings and errors.
+- Fix some issues with linting and re-add missing `make docs`.
+- Allow controlling linting with dynamic bindings `:lint-warn`, `:lint-error`, and `:lint-levels`.
+- Add `-w` and `-x` command line flags to the `janet` binary to set linting thresholds.
+  linting thresholds are as follows:
+    - :none - will never be trigger.
+    - :relaxed - will only trigger on `:relaxed` lints.
+    - :normal - will trigger on `:relaxed` and `:normal` lints.
+    - :strict - will trigger on `:strict`, `:normal`, and `:relaxed` lints. This will catch the most issues
+      but can be distracting.
+
+## 1.16.0 - 2021-05-30
+- Add color documentation to the `doc` macro - enable/disable with `(dyn :doc-color)`.
+- Remove simpler HTML docs from distribution - use website or built-in documentation instead.
+- Add compiler warnings and deprecation levels.
 - Add `as-macro` to make using macros within quasiquote easier to do hygienically.
 - Expose `JANET_OUT_OF_MEMORY` as part of the Janet API.
-- Add `native-deps` option to `decalre-native` in `jpm`. This lets native libraries link to other
+- Add `native-deps` option to `declare-native` in `jpm`. This lets native libraries link to other
   native libraries when building with jpm.
 - Remove the `tarray` module. The functionality of typed arrays will be moved to an external module
   that can be installed via `jpm`.

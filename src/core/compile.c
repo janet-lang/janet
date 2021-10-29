@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -51,6 +51,36 @@ void janetc_error(JanetCompiler *c, const uint8_t *m) {
 /* Throw an error with a message in a cstring */
 void janetc_cerror(JanetCompiler *c, const char *m) {
     janetc_error(c, janet_cstring(m));
+}
+
+static const char *janet_lint_level_names[] = {
+    "relaxed",
+    "normal",
+    "strict"
+};
+
+/* Emit compiler linter messages */
+void janetc_lintf(JanetCompiler *c, JanetCompileLintLevel level, const char *format, ...) {
+    if (NULL != c->lints) {
+        /* format message */
+        va_list args;
+        JanetBuffer buffer;
+        int32_t len = 0;
+        while (format[len]) len++;
+        janet_buffer_init(&buffer, len);
+        va_start(args, format);
+        janet_formatbv(&buffer, format, args);
+        va_end(args);
+        const uint8_t *str = janet_string(buffer.data, buffer.count);
+        janet_buffer_deinit(&buffer);
+        /* construct linting payload */
+        Janet *payload = janet_tuple_begin(4);
+        payload[0] = janet_ckeywordv(janet_lint_level_names[level]);
+        payload[1] = c->current_mapping.line == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.line);
+        payload[2] = c->current_mapping.column == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.column);
+        payload[3] = janet_wrap_string(str);
+        janet_array_push(c->lints, janet_wrap_tuple(janet_tuple_end(payload)));
+    }
 }
 
 /* Free a slot */
@@ -199,24 +229,41 @@ JanetSlot janetc_resolve(
 
     /* Symbol not found - check for global */
     {
-        Janet check;
-        JanetBindingType btype = janet_resolve(c->env, sym, &check);
-        switch (btype) {
+        JanetBinding binding = janet_resolve_ext(c->env, sym);
+        switch (binding.type) {
             default:
             case JANET_BINDING_NONE:
                 janetc_error(c, janet_formatc("unknown symbol %q", janet_wrap_symbol(sym)));
                 return janetc_cslot(janet_wrap_nil());
             case JANET_BINDING_DEF:
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
-                return janetc_cslot(check);
+                ret = janetc_cslot(binding.value);
+                break;
             case JANET_BINDING_VAR: {
-                JanetSlot ret = janetc_cslot(check);
-                /* TODO save type info */
+                ret = janetc_cslot(binding.value);
                 ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOT_MUTABLE | JANET_SLOTTYPE_ANY;
                 ret.flags &= ~JANET_SLOT_CONSTANT;
-                return ret;
+                break;
             }
         }
+        JanetCompileLintLevel depLevel = JANET_C_LINT_RELAXED;
+        switch (binding.deprecation) {
+            case JANET_BINDING_DEP_NONE:
+                break;
+            case JANET_BINDING_DEP_RELAXED:
+                depLevel = JANET_C_LINT_RELAXED;
+                break;
+            case JANET_BINDING_DEP_NORMAL:
+                depLevel = JANET_C_LINT_NORMAL;
+                break;
+            case JANET_BINDING_DEP_STRICT:
+                depLevel = JANET_C_LINT_STRICT;
+                break;
+        }
+        if (binding.deprecation != JANET_BINDING_DEP_NONE) {
+            janetc_lintf(c, depLevel, "%q is deprecated", janet_wrap_symbol(sym));
+        }
+        return ret;
     }
 
     /* Symbol was found */
@@ -399,6 +446,7 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     int32_t mapbufstart = janet_v_count(c->mapbuffer);
     janetc_scope(&unusedScope, c, JANET_SCOPE_UNUSED, "unusued");
     janetc_value(opts, x);
+    janetc_lintf(c, JANET_C_LINT_STRICT, "dead code, consider removing %.2q", x);
     janetc_popscope(c);
     if (c->buffer) {
         janet_v__cnt(c->buffer) = bufstart;
@@ -631,6 +679,9 @@ static int macroexpand1(
     Janet tempOut;
     JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &tempOut);
     janet_table_put(c->env, mf_kw, janet_wrap_nil());
+    if (c->lints) {
+        janet_table_put(c->env, janet_ckeywordv("macro-lints"), janet_wrap_array(c->lints));
+    }
     janet_gcunlock(lock);
     if (status != JANET_SIGNAL_OK) {
         const uint8_t *es = janet_formatc("(macro) %V", tempOut);
@@ -825,7 +876,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
 }
 
 /* Initialize a compiler */
-static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where) {
+static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where, JanetArray *lints) {
     c->scope = NULL;
     c->buffer = NULL;
     c->mapbuffer = NULL;
@@ -834,6 +885,7 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where)
     c->source = where;
     c->current_mapping.line = -1;
     c->current_mapping.column = -1;
+    c->lints = lints;
     /* Init result */
     c->result.error = NULL;
     c->result.status = JANET_COMPILE_OK;
@@ -851,12 +903,13 @@ static void janetc_deinit(JanetCompiler *c) {
 }
 
 /* Compile a form. */
-JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *where) {
+JanetCompileResult janet_compile_lint(Janet source,
+                                      JanetTable *env, const uint8_t *where, JanetArray *lints) {
     JanetCompiler c;
     JanetScope rootscope;
     JanetFopts fopts;
 
-    janetc_init(&c, env, where);
+    janetc_init(&c, env, where, lints);
 
     /* Push a function scope */
     janetc_scope(&rootscope, &c, JANET_SCOPE_FUNCTION | JANET_SCOPE_TOP, "root");
@@ -884,19 +937,31 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
     return c.result;
 }
 
+JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *where) {
+    return janet_compile_lint(source, env, where, NULL);
+}
+
 /* C Function for compiling */
-static Janet cfun(int32_t argc, Janet *argv) {
-    janet_arity(argc, 1, 3);
-    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm_fiber->env;
+JANET_CORE_FN(cfun,
+              "(compile ast &opt env source lints)",
+              "Compiles an Abstract Syntax Tree (ast) into a function. "
+              "Pair the compile function with parsing functionality to implement "
+              "eval. Returns a new function and does not modify ast. Returns an error "
+              "struct with keys :line, :column, and :error if compilation fails. "
+              "If a `lints` array is given, linting messages will be appended to the array. "
+              "Each message will be a tuple of the form `(level line col message)`.") {
+    janet_arity(argc, 1, 4);
+    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm.fiber->env;
     if (NULL == env) {
         env = janet_table(0);
-        janet_vm_fiber->env = env;
+        janet_vm.fiber->env = env;
     }
     const uint8_t *source = NULL;
-    if (argc == 3) {
+    if (argc >= 3) {
         source = janet_getstring(argv, 2);
     }
-    JanetCompileResult res = janet_compile(argv[0], env, source);
+    JanetArray *lints = (argc >= 4) ? janet_getarray(argv, 3) : NULL;
+    JanetCompileResult res = janet_compile_lint(argv[0], env, source, lints);
     if (res.status == JANET_COMPILE_OK) {
         return janet_wrap_function(janet_thunk(res.funcdef));
     } else {
@@ -915,18 +980,10 @@ static Janet cfun(int32_t argc, Janet *argv) {
     }
 }
 
-static const JanetReg compile_cfuns[] = {
-    {
-        "compile", cfun,
-        JDOC("(compile ast &opt env source)\n\n"
-             "Compiles an Abstract Syntax Tree (ast) into a function. "
-             "Pair the compile function with parsing functionality to implement "
-             "eval. Returns a new function and does not modify ast. Returns an error "
-             "struct with keys :line, :column, and :error if compilation fails.")
-    },
-    {NULL, NULL, NULL}
-};
-
 void janet_lib_compile(JanetTable *env) {
-    janet_core_cfuns(env, NULL, compile_cfuns);
+    JanetRegExt cfuns[] = {
+        JANET_CORE_REG("compile", cfun),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, cfuns);
 }

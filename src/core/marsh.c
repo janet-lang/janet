@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -65,6 +65,9 @@ enum {
     LB_UNSAFE_CFUNCTION, /* 221 */
     LB_UNSAFE_POINTER, /* 222 */
     LB_STRUCT_PROTO, /* 223 */
+#ifdef JANET_EV
+    LB_THREADED_ABSTRACT/* 224 */
+#endif
 } LeadBytes;
 
 /* Helper to look inside an entry in an environment */
@@ -326,6 +329,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     }
     if (fiber->child)
         marshal_one(st, janet_wrap_fiber(fiber->child), flags + 1);
+    marshal_one(st, fiber->last_value, flags + 1);
 }
 
 void janet_marshal_size(JanetMarshalContext *ctx, size_t value) {
@@ -370,6 +374,21 @@ void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
+#ifdef JANET_EV
+    /* Threaded abstract types get passed through as pointers in the unsafe mode */
+    if ((flags & JANET_MARSHAL_UNSAFE) &&
+            (JANET_MEMORY_THREADED_ABSTRACT == (janet_abstract_head(abstract)->gc.flags & JANET_MEM_TYPEBITS))) {
+
+        /* Increment refcount before sending message. This prevents a "death in transit" problem
+         * where a message is garbage collected while in transit between two threads - i.e., the sending threads
+         * loses the reference and runs a garbage collection before the receiving thread gets the message. */
+        janet_abstract_incref(abstract);
+        pushbyte(st, LB_THREADED_ABSTRACT);
+        pushbytes(st, (uint8_t *) &abstract, sizeof(abstract));
+        MARK_SEEN();
+        return;
+    }
+#endif
     const JanetAbstractType *at = janet_abstract_type(abstract);
     if (at->marshal) {
         pushbyte(st, LB_ABSTRACT);
@@ -377,7 +396,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
     } else {
-        janet_panicf("try to marshal unregistered abstract type, cannot marshal %p", x);
+        janet_panicf("cannot marshal %p", x);
     }
 }
 
@@ -545,9 +564,9 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_FUNCTION: {
             pushbyte(st, LB_FUNCTION);
             JanetFunction *func = janet_unwrap_function(x);
+            pushint(st, func->def->environments_length);
             /* Mark seen before reading def */
             MARK_SEEN();
-            pushint(st, func->def->environments_length);
             marshal_one_def(st, func->def, flags);
             for (int32_t i = 0; i < func->def->environments_length; i++)
                 marshal_one_env(st, func->envs[i], flags + 1);
@@ -938,6 +957,7 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->data = NULL;
     fiber->child = NULL;
     fiber->env = NULL;
+    fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
     fiber->waiting = NULL;
     fiber->sched_id = 0;
@@ -1049,6 +1069,9 @@ static const uint8_t *unmarshal_one_fiber(
         fiber->child = janet_unwrap_fiber(fiberv);
     }
 
+    /* Get the fiber last value */
+    data = unmarshal_one(st, data, &fiber->last_value, flags + 1);
+
     /* We have valid fiber, finally construct remaining fields. */
     fiber->frame = frame;
     fiber->flags = fiber_flags;
@@ -1106,14 +1129,18 @@ Janet janet_unmarshal_janet(JanetMarshalContext *ctx) {
     return ret;
 }
 
-void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
+void janet_unmarshal_abstract_reuse(JanetMarshalContext *ctx, void *p) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     if (ctx->at == NULL) {
         janet_panicf("janet_unmarshal_abstract called more than once");
     }
-    void *p = janet_abstract(ctx->at, size);
     janet_v_push(st->lookup, janet_wrap_abstract(p));
     ctx->at = NULL;
+}
+
+void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
+    void *p = janet_abstract(ctx->at, size);
+    janet_unmarshal_abstract_reuse(ctx, p);
     return p;
 }
 
@@ -1121,17 +1148,16 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);
     const JanetAbstractType *at = janet_get_abstract_type(key);
-    if (at == NULL) goto oops;
+    if (at == NULL) janet_panic("unknown abstract type");
     if (at->unmarshal) {
         JanetMarshalContext context = {NULL, st, flags, data, at};
         *out = janet_wrap_abstract(at->unmarshal(&context));
         if (context.at != NULL) {
-            janet_panicf("janet_unmarshal_abstract not called");
+            janet_panic("janet_unmarshal_abstract not called");
         }
         return context.data;
     }
-oops:
-    janet_panic("invalid abstract type");
+    janet_panic("invalid abstract type - no unmarshal function pointer");
 }
 
 static const uint8_t *unmarshal_one(
@@ -1236,18 +1262,16 @@ static const uint8_t *unmarshal_one(
             data++;
             int32_t len = readnat(st, &data);
             if (len > 255) {
-                janet_panicf("invalid function");
+                janet_panicf("invalid function - too many environments (%d)", len);
             }
             func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) +
                                  len * sizeof(JanetFuncEnv));
+            func->def = NULL;
             *out = janet_wrap_function(func);
             janet_v_push(st->lookup, *out);
             data = unmarshal_one_def(st, data, &def, flags + 1);
-            if (def->environments_length != len) {
-                janet_panicf("invalid function");
-            }
             func->def = def;
-            for (int32_t i = 0; i < def->environments_length; i++) {
+            for (int32_t i = 0; i < len; i++) {
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
             }
             return data;
@@ -1367,6 +1391,42 @@ static const uint8_t *unmarshal_one(
             janet_v_push(st->lookup, *out);
             return data;
         }
+#ifdef JANET_EV
+        case LB_THREADED_ABSTRACT: {
+            MARSH_EOS(st, data + sizeof(void *));
+            data++;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) {
+                janet_panicf("unsafe flag not given, "
+                             "will not unmarshal threaded abstract pointer at index %d",
+                             (int)(data - st->start));
+            }
+            union {
+                void *ptr;
+                uint8_t bytes[sizeof(void *)];
+            } u;
+            memcpy(u.bytes, data, sizeof(void *));
+            data += sizeof(void *);
+
+            if (flags & JANET_MARSHAL_DECREF) {
+                /* Decrement immediately and don't bother putting into heap */
+                janet_abstract_decref(u.ptr);
+                *out = janet_wrap_nil();
+            } else {
+                *out = janet_wrap_abstract(u.ptr);
+                Janet check = janet_table_get(&janet_vm.threaded_abstracts, *out);
+                if (janet_checktype(check, JANET_NIL)) {
+                    /* Transfers reference from threaded channel buffer to current heap */
+                    janet_table_put(&janet_vm.threaded_abstracts, *out, janet_wrap_false());
+                } else {
+                    /* Heap reference already accounted for, remove threaded channel reference. */
+                    janet_abstract_decref(u.ptr);
+                }
+            }
+
+            janet_v_push(st->lookup, *out);
+            return data;
+        }
+#endif
         default: {
             janet_panicf("unknown byte %x at index %d",
                          *data,
@@ -1374,7 +1434,6 @@ static const uint8_t *unmarshal_one(
             return NULL;
         }
     }
-#undef EXTRA
 }
 
 Janet janet_unmarshal(
@@ -1401,13 +1460,24 @@ Janet janet_unmarshal(
 
 /* C functions */
 
-static Janet cfun_env_lookup(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_env_lookup,
+              "(env-lookup env)",
+              "Creates a forward lookup table for unmarshalling from an environment. "
+              "To create a reverse lookup table, use the invert function to swap keys "
+              "and values in the returned table.") {
     janet_fixarity(argc, 1);
     JanetTable *env = janet_gettable(argv, 0);
     return janet_wrap_table(janet_env_lookup(env));
 }
 
-static Janet cfun_marshal(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_marshal,
+              "(marshal x &opt reverse-lookup buffer)",
+              "Marshal a value into a buffer and return the buffer. The buffer "
+              "can then later be unmarshalled to reconstruct the initial value. "
+              "Optionally, one can pass in a reverse lookup table to not marshal "
+              "aliased values that are found in the table. Then a forward "
+              "lookup table can be used to recover the original value when "
+              "unmarshalling.") {
     janet_arity(argc, 1, 3);
     JanetBuffer *buffer;
     JanetTable *rreg = NULL;
@@ -1423,7 +1493,11 @@ static Janet cfun_marshal(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
-static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_unmarshal,
+              "(unmarshal buffer &opt lookup)",
+              "Unmarshal a value from a buffer. An optional lookup table "
+              "can be provided to allow for aliases to be resolved. Returns the value "
+              "unmarshalled from the buffer.") {
     janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetTable *reg = NULL;
@@ -1433,35 +1507,13 @@ static Janet cfun_unmarshal(int32_t argc, Janet *argv) {
     return janet_unmarshal(view.bytes, (size_t) view.len, 0, reg, NULL);
 }
 
-static const JanetReg marsh_cfuns[] = {
-    {
-        "marshal", cfun_marshal,
-        JDOC("(marshal x &opt reverse-lookup buffer)\n\n"
-             "Marshal a value into a buffer and return the buffer. The buffer "
-             "can then later be unmarshalled to reconstruct the initial value. "
-             "Optionally, one can pass in a reverse lookup table to not marshal "
-             "aliased values that are found in the table. Then a forward "
-             "lookup table can be used to recover the original value when "
-             "unmarshalling.")
-    },
-    {
-        "unmarshal", cfun_unmarshal,
-        JDOC("(unmarshal buffer &opt lookup)\n\n"
-             "Unmarshal a value from a buffer. An optional lookup table "
-             "can be provided to allow for aliases to be resolved. Returns the value "
-             "unmarshalled from the buffer.")
-    },
-    {
-        "env-lookup", cfun_env_lookup,
-        JDOC("(env-lookup env)\n\n"
-             "Creates a forward lookup table for unmarshalling from an environment. "
-             "To create a reverse lookup table, use the invert function to swap keys "
-             "and values in the returned table.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_marsh(JanetTable *env) {
-    janet_core_cfuns(env, NULL, marsh_cfuns);
+    JanetRegExt marsh_cfuns[] = {
+        JANET_CORE_REG("marshal", cfun_marshal),
+        JANET_CORE_REG("unmarshal", cfun_unmarshal),
+        JANET_CORE_REG("env-lookup", cfun_env_lookup),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, marsh_cfuns);
 }

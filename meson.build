@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Calvin Rose and contributors
+# Copyright (c) 2021 Calvin Rose and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.16.0')
+  version : '1.18.2')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -30,6 +30,7 @@ header_path = join_paths(get_option('prefix'), get_option('includedir'), 'janet'
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
+android_spawn_dep = cc.find_library('android-spawn', required : false)
 thread_dep = dependency('threads')
 
 # Link options
@@ -72,7 +73,9 @@ conf.set('JANET_NO_UMASK', not get_option('umask'))
 conf.set('JANET_NO_REALPATH', not get_option('realpath'))
 conf.set('JANET_NO_PROCESSES', not get_option('processes'))
 conf.set('JANET_SIMPLE_GETLINE', get_option('simple_getline'))
-conf.set('JANET_EV_EPOLL', get_option('epoll'))
+conf.set('JANET_EV_NO_EPOLL', not get_option('epoll'))
+conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
+conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif
@@ -127,12 +130,12 @@ core_src = [
   'src/core/regalloc.c',
   'src/core/run.c',
   'src/core/specials.c',
+  'src/core/state.c',
   'src/core/string.c',
   'src/core/strtod.c',
   'src/core/struct.c',
   'src/core/symcache.c',
   'src/core/table.c',
-  'src/core/thread.c',
   'src/core/tuple.c',
   'src/core/util.c',
   'src/core/value.c',
@@ -158,7 +161,7 @@ mainclient_src = [
 janet_boot = executable('janet-boot', core_src, boot_src,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
-  dependencies : [m_dep, dl_dep, thread_dep],
+  dependencies : [m_dep, dl_dep, thread_dep, android_spawn_dep],
   native : true)
 
 # Build janet.c
@@ -168,10 +171,10 @@ janetc = custom_target('janetc',
   capture : true,
   command : [
     janet_boot, meson.current_source_dir(),
-    'JANET_PATH', janet_path, 'JANET_HEADERPATH', header_path
+    'JANET_PATH', janet_path
   ])
 
-janet_dependencies = [m_dep, dl_dep]
+janet_dependencies = [m_dep, dl_dep, android_spawn_dep]
 if not get_option('single_threaded')
   janet_dependencies += thread_dep
 endif
@@ -260,16 +263,3 @@ patched_janet = custom_target('patched-janeth',
   build_by_default : true,
   output : ['janet.h'],
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
-if get_option('peg') and not get_option('reduced_os') and get_option('processes')
-  install_man('jpm.1')
-  patched_jpm = custom_target('patched-jpm',
-    input : ['tools/patch-jpm.janet', 'jpm'],
-    install : true,
-    install_dir : get_option('bindir'),
-    build_by_default : true,
-    output : ['jpm'],
-    command : [janet_nativeclient, '@INPUT@', '@OUTPUT@',
-      '--binpath=' + join_paths(get_option('prefix'), get_option('bindir')),
-      '--libpath=' + join_paths(get_option('prefix'), get_option('libdir')),
-      '--headerpath=' + join_paths(get_option('prefix'), get_option('includedir'))])
-endif

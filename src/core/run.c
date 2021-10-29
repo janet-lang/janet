@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -79,7 +79,9 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 const char *e = janet_parser_error(&parser);
                 errflags |= 0x04;
                 ret = janet_cstringv(e);
-                janet_eprintf("parse error in %s: %s\n", sourcePath, e);
+                int32_t line = parser.line;
+                int32_t col = parser.column;
+                janet_eprintf("%s:%d:%d: parse error: %s\n", sourcePath, line, col, e);
                 done = 1;
                 break;
             }
@@ -108,3 +110,19 @@ int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Jan
     return janet_dobytes(env, (const uint8_t *)str, len, sourcePath, out);
 }
 
+/* Run a fiber to completion (use event loop if enabled). Return the status. */
+int janet_loop_fiber(JanetFiber *fiber) {
+    int status;
+#ifdef JANET_EV
+    janet_schedule(fiber, janet_wrap_nil());
+    janet_loop();
+    status = janet_fiber_status(fiber);
+#else
+    Janet out;
+    status = janet_continue(fiber, janet_wrap_nil(), &out);
+    if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
+        janet_stacktrace(fiber, out);
+    }
+#endif
+    return status;
+}

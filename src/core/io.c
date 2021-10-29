@@ -114,7 +114,12 @@ static void *makef(FILE *f, int32_t flags) {
 
 /* Open a process */
 #ifndef JANET_NO_PROCESSES
-static Janet cfun_io_popen(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_popen,
+              "(file/popen command &opt mode) (DEPRECATED for os/spawn)",
+              "Open a file that is backed by a process. The file must be opened in either "
+              "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
+              "process can be read from the file. In :w mode, the stdin of the process "
+              "can be written to. Returns the new file.") {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode = NULL;
@@ -143,7 +148,10 @@ static Janet cfun_io_popen(int32_t argc, Janet *argv) {
 }
 #endif
 
-static Janet cfun_io_temp(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_temp,
+              "(file/temp)",
+              "Open an anonymous temporary file that is removed on close. "
+              "Raises an error on failure.") {
     (void)argv;
     janet_fixarity(argc, 0);
     // XXX use mkostemp when we can to avoid CLOEXEC race.
@@ -153,7 +161,20 @@ static Janet cfun_io_temp(int32_t argc, Janet *argv) {
     return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
 
-static Janet cfun_io_fopen(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fopen,
+              "(file/open path &opt mode)",
+              "Open a file. `path` is an absolute or relative path, and "
+              "`mode` is a set of flags indicating the mode to open the file in. "
+              "`mode` is a keyword where each character represents a flag. If the file "
+              "cannot be opened, returns nil, otherwise returns the new file handle. "
+              "Mode flags:\n\n"
+              "* r - allow reading from the file\n\n"
+              "* w - allow writing to the file\n\n"
+              "* a - append to the file\n\n"
+              "Following one of the initial flags, 0 or more of the following flags can be appended:\n\n"
+              "* b - open the file in binary mode (rather than text mode)\n\n"
+              "* + - append to the file instead of overwriting it\n\n"
+              "* n - error if the file cannot be opened instead of returning nil") {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
@@ -184,7 +205,16 @@ static void read_chunk(JanetFile *iof, JanetBuffer *buffer, int32_t nBytesMax) {
 }
 
 /* Read a certain number of bytes into memory */
-static Janet cfun_io_fread(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fread,
+              "(file/read f what &opt buf)",
+              "Read a number of bytes from a file `f` into a buffer. A buffer `buf` can "
+              "be provided as an optional third argument, otherwise a new buffer "
+              "is created. `what` can either be an integer or a keyword. Returns the "
+              "buffer with file contents. "
+              "Values for `what`:\n\n"
+              "* :all - read the whole file\n\n"
+              "* :line - read up to and including the next newline character\n\n"
+              "* n (integer) - read up to n bytes from the file") {
     janet_arity(argc, 2, 3);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED) janet_panic("file is closed");
@@ -224,7 +254,10 @@ static Janet cfun_io_fread(int32_t argc, Janet *argv) {
 }
 
 /* Write bytes to a file */
-static Janet cfun_io_fwrite(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fwrite,
+              "(file/write f bytes)",
+              "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
+              "file.") {
     janet_arity(argc, 1, -1);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
@@ -247,7 +280,10 @@ static Janet cfun_io_fwrite(int32_t argc, Janet *argv) {
 }
 
 /* Flush the bytes in the file */
-static Janet cfun_io_fflush(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fflush,
+              "(file/flush f)",
+              "Flush any buffered bytes to the file system. In most files, writes are "
+              "buffered for efficiency reasons. Returns the file handle.") {
     janet_fixarity(argc, 1);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
@@ -291,7 +327,12 @@ static int cfun_io_gc(void *p, size_t len) {
 }
 
 /* Close a file */
-static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fclose,
+              "(file/close f)",
+              "Close a file and release all related resources. When you are "
+              "done reading a file, close it to prevent a resource leak and let "
+              "other processes read the file. If the file is the result of a file/popen "
+              "call, close waits for and returns the process exit status.") {
     janet_fixarity(argc, 1);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
@@ -318,7 +359,15 @@ static Janet cfun_io_fclose(int32_t argc, Janet *argv) {
 }
 
 /* Seek a file */
-static Janet cfun_io_fseek(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_fseek,
+              "(file/seek f &opt whence n)",
+              "Jump to a relative location in the file `f`. `whence` must be one of:\n\n"
+              "* :cur - jump relative to the current file location\n\n"
+              "* :set - jump relative to the beginning of the file\n\n"
+              "* :end - jump relative to the end of the file\n\n"
+              "By default, `whence` is :cur. Optionally a value `n` may be passed "
+              "for the relative number of bytes to seek in the file. `n` may be a real "
+              "number to handle large files of more than 4GB. Returns the file handle.") {
     janet_arity(argc, 2, 3);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
@@ -480,28 +529,47 @@ static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
     return cfun_io_print_impl_x(argc, argv, newline, dflt_file, 0, x);
 }
 
-static Janet cfun_io_print(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_print,
+              "(print & xs)",
+              "Print values to the console (standard out). Value are converted "
+              "to strings if they are not already. After printing all values, a "
+              "newline character is printed. Use the value of (dyn :out stdout) to determine "
+              "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
+              "a buffer. Returns nil.") {
     return cfun_io_print_impl(argc, argv, 1, "out", stdout);
 }
 
-static Janet cfun_io_prin(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_prin,
+              "(prin & xs)",
+              "Same as print, but does not add trailing newline.") {
     return cfun_io_print_impl(argc, argv, 0, "out", stdout);
 }
 
-static Janet cfun_io_eprint(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_eprint,
+              "(eprint & xs)",
+              "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).") {
     return cfun_io_print_impl(argc, argv, 1, "err", stderr);
 }
 
-static Janet cfun_io_eprin(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_eprin,
+              "(eprin & xs)",
+              "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).") {
     return cfun_io_print_impl(argc, argv, 0, "err", stderr);
 }
 
-static Janet cfun_io_xprint(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_xprint,
+              "(xprint to & xs)",
+              "Print to a file or other value explicitly (no dynamic bindings) with a trailing "
+              "newline character. The value to print "
+              "to is the first argument, and is otherwise the same as print. Returns nil.") {
     janet_arity(argc, 1, -1);
     return cfun_io_print_impl_x(argc, argv, 1, NULL, 1, argv[0]);
 }
 
-static Janet cfun_io_xprin(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_xprin,
+              "(xprin to & xs)",
+              "Print to a file or other value explicitly (no dynamic bindings). The value to print "
+              "to is the first argument, and is otherwise the same as prin. Returns nil.") {
     janet_arity(argc, 1, -1);
     return cfun_io_print_impl_x(argc, argv, 0, NULL, 1, argv[0]);
 }
@@ -557,28 +625,40 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
 
 }
 
-static Janet cfun_io_printf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_printf,
+              "(printf fmt & xs)",
+              "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 1, "out", stdout);
 }
 
-static Janet cfun_io_prinf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_prinf,
+              "(prinf fmt & xs)",
+              "Like printf but with no trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 0, "out", stdout);
 }
 
-static Janet cfun_io_eprintf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_eprintf,
+              "(eprintf fmt & xs)",
+              "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 1, "err", stderr);
 }
 
-static Janet cfun_io_eprinf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_eprinf,
+              "(eprinf fmt & xs)",
+              "Like eprintf but with no trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 0, "err", stderr);
 }
 
-static Janet cfun_io_xprintf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_xprintf,
+              "(xprintf to fmt & xs)",
+              "Like printf but prints to an explicit file or value to. Returns nil.") {
     janet_arity(argc, 2, -1);
     return cfun_io_printf_impl_x(argc, argv, 1, NULL, 1, argv[0]);
 }
 
-static Janet cfun_io_xprinf(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_xprinf,
+              "(xprinf to fmt & xs)",
+              "Like prinf but prints to an explicit file or value to. Returns nil.") {
     janet_arity(argc, 2, -1);
     return cfun_io_printf_impl_x(argc, argv, 0, NULL, 1, argv[0]);
 }
@@ -601,14 +681,18 @@ static void janet_flusher(const char *name, FILE *dflt_file) {
     }
 }
 
-static Janet cfun_io_flush(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_flush,
+              "(flush)",
+              "Flush (dyn :out stdout) if it is a file, otherwise do nothing.") {
     janet_fixarity(argc, 0);
     (void) argv;
     janet_flusher("out", stdout);
     return janet_wrap_nil();
 }
 
-static Janet cfun_io_eflush(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_io_eflush,
+              "(eflush)",
+              "Flush (dyn :err stderr) if it is a file, otherwise do nothing.") {
     janet_fixarity(argc, 0);
     (void) argv;
     janet_flusher("err", stderr);
@@ -651,162 +735,6 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
     return;
 }
 
-static const JanetReg io_cfuns[] = {
-    {
-        "print", cfun_io_print,
-        JDOC("(print & xs)\n\n"
-             "Print values to the console (standard out). Value are converted "
-             "to strings if they are not already. After printing all values, a "
-             "newline character is printed. Use the value of (dyn :out stdout) to determine "
-             "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
-             "a buffer. Returns nil.")
-    },
-    {
-        "prin", cfun_io_prin,
-        JDOC("(prin & xs)\n\n"
-             "Same as print, but does not add trailing newline.")
-    },
-    {
-        "printf", cfun_io_printf,
-        JDOC("(printf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.")
-    },
-    {
-        "prinf", cfun_io_prinf,
-        JDOC("(prinf fmt & xs)\n\n"
-             "Like printf but with no trailing newline.")
-    },
-    {
-        "eprin", cfun_io_eprin,
-        JDOC("(eprin & xs)\n\n"
-             "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).")
-    },
-    {
-        "eprint", cfun_io_eprint,
-        JDOC("(eprint & xs)\n\n"
-             "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).")
-    },
-    {
-        "eprintf", cfun_io_eprintf,
-        JDOC("(eprintf fmt & xs)\n\n"
-             "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.")
-    },
-    {
-        "eprinf", cfun_io_eprinf,
-        JDOC("(eprinf fmt & xs)\n\n"
-             "Like eprintf but with no trailing newline.")
-    },
-    {
-        "xprint", cfun_io_xprint,
-        JDOC("(xprint to & xs)\n\n"
-             "Print to a file or other value explicitly (no dynamic bindings) with a trailing "
-             "newline character. The value to print "
-             "to is the first argument, and is otherwise the same as print. Returns nil.")
-    },
-    {
-        "xprin", cfun_io_xprin,
-        JDOC("(xprin to & xs)\n\n"
-             "Print to a file or other value explicitly (no dynamic bindings). The value to print "
-             "to is the first argument, and is otherwise the same as prin. Returns nil.")
-    },
-    {
-        "xprintf", cfun_io_xprintf,
-        JDOC("(xprint to fmt & xs)\n\n"
-             "Like printf but prints to an explicit file or value to. Returns nil.")
-    },
-    {
-        "xprinf", cfun_io_xprinf,
-        JDOC("(xprin to fmt & xs)\n\n"
-             "Like prinf but prints to an explicit file or value to. Returns nil.")
-    },
-    {
-        "flush", cfun_io_flush,
-        JDOC("(flush)\n\n"
-             "Flush (dyn :out stdout) if it is a file, otherwise do nothing.")
-    },
-    {
-        "eflush", cfun_io_eflush,
-        JDOC("(eflush)\n\n"
-             "Flush (dyn :err stderr) if it is a file, otherwise do nothing.")
-    },
-    {
-        "file/temp", cfun_io_temp,
-        JDOC("(file/temp)\n\n"
-             "Open an anonymous temporary file that is removed on close. "
-             "Raises an error on failure.")
-    },
-    {
-        "file/open", cfun_io_fopen,
-        JDOC("(file/open path &opt mode)\n\n"
-             "Open a file. `path` is an absolute or relative path, and "
-             "`mode` is a set of flags indicating the mode to open the file in. "
-             "`mode` is a keyword where each character represents a flag. If the file "
-             "cannot be opened, returns nil, otherwise returns the new file handle. "
-             "Mode flags:\n\n"
-             "* r - allow reading from the file\n\n"
-             "* w - allow writing to the file\n\n"
-             "* a - append to the file\n\n"
-             "Following one of the initial flags, 0 or more of the following flags can be appended:\n\n"
-             "* b - open the file in binary mode (rather than text mode)\n\n"
-             "* + - append to the file instead of overwriting it\n\n"
-             "* n - error if the file cannot be opened instead of returning nil")
-    },
-    {
-        "file/close", cfun_io_fclose,
-        JDOC("(file/close f)\n\n"
-             "Close a file and release all related resources. When you are "
-             "done reading a file, close it to prevent a resource leak and let "
-             "other processes read the file. If the file is the result of a file/popen "
-             "call, close waits for and returns the process exit status.")
-    },
-    {
-        "file/read", cfun_io_fread,
-        JDOC("(file/read f what &opt buf)\n\n"
-             "Read a number of bytes from a file `f` into a buffer. A buffer `buf` can "
-             "be provided as an optional third argument, otherwise a new buffer "
-             "is created. `what` can either be an integer or a keyword. Returns the "
-             "buffer with file contents. "
-             "Values for `what`:\n\n"
-             "* :all - read the whole file\n\n"
-             "* :line - read up to and including the next newline character\n\n"
-             "* n (integer) - read up to n bytes from the file")
-    },
-    {
-        "file/write", cfun_io_fwrite,
-        JDOC("(file/write f bytes)\n\n"
-             "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
-             "file.")
-    },
-    {
-        "file/flush", cfun_io_fflush,
-        JDOC("(file/flush f)\n\n"
-             "Flush any buffered bytes to the file system. In most files, writes are "
-             "buffered for efficiency reasons. Returns the file handle.")
-    },
-    {
-        "file/seek", cfun_io_fseek,
-        JDOC("(file/seek f &opt whence n)\n\n"
-             "Jump to a relative location in the file `f`. `whence` must be one of:\n\n"
-             "* :cur - jump relative to the current file location\n\n"
-             "* :set - jump relative to the beginning of the file\n\n"
-             "* :end - jump relative to the end of the file\n\n"
-             "By default, `whence` is :cur. Optionally a value `n` may be passed "
-             "for the relative number of bytes to seek in the file. `n` may be a real "
-             "number to handle large files of more than 4GB. Returns the file handle.")
-    },
-#ifndef JANET_NO_PROCESSES
-    {
-        "file/popen", cfun_io_popen,
-        JDOC("(file/popen command &opt mode) (DEPRECATED for os/spawn)\n\n"
-             "Open a file that is backed by a process. The file must be opened in either "
-             "the :r (read) or the :w (write) mode. In :r mode, the stdout of the "
-             "process can be read from the file. In :w mode, the stdin of the process "
-             "can be written to. Returns the new file.")
-    },
-#endif
-    {NULL, NULL, NULL}
-};
-
 /* C API */
 
 JanetFile *janet_getjfile(const Janet *argv, int32_t n) {
@@ -839,20 +767,47 @@ FILE *janet_unwrapfile(Janet j, int *flags) {
 
 /* Module entry point */
 void janet_lib_io(JanetTable *env) {
-    janet_core_cfuns(env, NULL, io_cfuns);
+    JanetRegExt io_cfuns[] = {
+        JANET_CORE_REG("print", cfun_io_print),
+        JANET_CORE_REG("prin", cfun_io_prin),
+        JANET_CORE_REG("printf", cfun_io_printf),
+        JANET_CORE_REG("prinf", cfun_io_prinf),
+        JANET_CORE_REG("eprin", cfun_io_eprin),
+        JANET_CORE_REG("eprint", cfun_io_eprint),
+        JANET_CORE_REG("eprintf", cfun_io_eprintf),
+        JANET_CORE_REG("eprinf", cfun_io_eprinf),
+        JANET_CORE_REG("xprint", cfun_io_xprint),
+        JANET_CORE_REG("xprin", cfun_io_xprin),
+        JANET_CORE_REG("xprintf", cfun_io_xprintf),
+        JANET_CORE_REG("xprinf", cfun_io_xprinf),
+        JANET_CORE_REG("flush", cfun_io_flush),
+        JANET_CORE_REG("eflush", cfun_io_eflush),
+        JANET_CORE_REG("file/temp", cfun_io_temp),
+        JANET_CORE_REG("file/open", cfun_io_fopen),
+        JANET_CORE_REG("file/close", cfun_io_fclose),
+        JANET_CORE_REG("file/read", cfun_io_fread),
+        JANET_CORE_REG("file/write", cfun_io_fwrite),
+        JANET_CORE_REG("file/flush", cfun_io_fflush),
+        JANET_CORE_REG("file/seek", cfun_io_fseek),
+#ifndef JANET_NO_PROCESSES
+        JANET_CORE_REG("file/popen", cfun_io_popen),
+#endif
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, io_cfuns);
     janet_register_abstract_type(&janet_file_type);
     int default_flags = JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE;
     /* stdout */
-    janet_core_def(env, "stdout",
+    JANET_CORE_DEF(env, "stdout",
                    janet_makefile(stdout, JANET_FILE_APPEND | default_flags),
-                   JDOC("The standard output file."));
+                   "The standard output file.");
     /* stderr */
-    janet_core_def(env, "stderr",
+    JANET_CORE_DEF(env, "stderr",
                    janet_makefile(stderr, JANET_FILE_APPEND | default_flags),
-                   JDOC("The standard error file."));
+                   "The standard error file.");
     /* stdin */
-    janet_core_def(env, "stdin",
+    JANET_CORE_DEF(env, "stdin",
                    janet_makefile(stdin, JANET_FILE_READ | default_flags),
-                   JDOC("The standard input file."));
+                   "The standard input file.");
 
 }

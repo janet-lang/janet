@@ -1,4 +1,4 @@
-#- Copyright (c) 2020 Calvin Rose & contributors
+# Copyright (c) 2021 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -161,10 +161,14 @@
            ([err] :caught))))
     "regression #638"))
 
+
 # Struct prototypes
 (def x (struct/with-proto {1 2 3 4} 5 6))
 (def y (-> x marshal unmarshal))
 (def z {1 2 3 4})
+(assert (= 2 (get x 1)) "struct get proto value 1")
+(assert (= 4 (get x 3)) "struct get proto value 2")
+(assert (= 6 (get x 5)) "struct get proto value 3")
 (assert (= x y) "struct proto marshal equality 1")
 (assert (= (getproto x) (getproto y)) "struct proto marshal equality 2")
 (assert (= 0 (cmp x y)) "struct proto comparison 1")
@@ -178,5 +182,14 @@
 (assert (deep= x y) "struct proto deep= 1")
 (assert (deep-not= x z) "struct proto deep= 2")
 (assert (deep-not= y z) "struct proto deep= 3")
+
+# Issue #751
+(def t {:side false})
+(assert (nil? (get-in t [:side :note])) "get-in with false value")
+(assert (= (get-in t [:side :note] "dflt") "dflt")
+        "get-in with false value and default")
+
+(assert (= (math/gcd 462 1071) 21) "math/gcd 1")
+(assert (= (math/lcm 462 1071) 23562) "math/lcm 1")
 
 (end-suite)

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -410,7 +410,9 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
         right = janetc_value(bodyopts, truebody);
         if (!drop && !tail) janetc_copy(c, target, right);
         janetc_popscope(c);
-        janetc_throwaway(bodyopts, falsebody);
+        if (!janet_checktype(falsebody, JANET_NIL)) {
+            janetc_throwaway(bodyopts, falsebody);
+        }
         janetc_popscope(c);
         return target;
     }

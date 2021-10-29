@@ -9,4 +9,3 @@ tasks:
     gmake
     gmake test
     sudo gmake install
-    gmake test-install

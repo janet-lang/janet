@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -51,15 +51,15 @@ JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
 }
 
 void janet_signalv(JanetSignal sig, Janet message) {
-    if (janet_vm_return_reg != NULL) {
-        *janet_vm_return_reg = message;
-        if (NULL != janet_vm_fiber) {
-            janet_vm_fiber->flags |= JANET_FIBER_DID_LONGJUMP;
+    if (janet_vm.return_reg != NULL) {
+        *janet_vm.return_reg = message;
+        if (NULL != janet_vm.fiber) {
+            janet_vm.fiber->flags |= JANET_FIBER_DID_LONGJUMP;
         }
 #if defined(JANET_BSD) || defined(JANET_APPLE)
-        _longjmp(*janet_vm_jmp_buf, sig);
+        _longjmp(*janet_vm.signal_buf, sig);
 #else
-        longjmp(*janet_vm_jmp_buf, sig);
+        longjmp(*janet_vm.signal_buf, sig);
 #endif
     } else {
         const char *str = (const char *)janet_formatc("janet top level signal - %v\n", message);
@@ -212,7 +212,7 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
     const uint8_t *jstr = janet_getstring(argv, n);
     const char *cstr = (const char *)jstr;
     if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
-        janet_panicf("string %v contains embedded 0s");
+        janet_panic("string contains embedded 0s");
     }
     return cstr;
 }
@@ -358,26 +358,26 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
 }
 
 Janet janet_dyn(const char *name) {
-    if (!janet_vm_fiber) {
-        if (!janet_vm_top_dyns) return janet_wrap_nil();
-        return janet_table_get(janet_vm_top_dyns, janet_ckeywordv(name));
+    if (!janet_vm.fiber) {
+        if (!janet_vm.top_dyns) return janet_wrap_nil();
+        return janet_table_get(janet_vm.top_dyns, janet_ckeywordv(name));
     }
-    if (janet_vm_fiber->env) {
-        return janet_table_get(janet_vm_fiber->env, janet_ckeywordv(name));
+    if (janet_vm.fiber->env) {
+        return janet_table_get(janet_vm.fiber->env, janet_ckeywordv(name));
     } else {
         return janet_wrap_nil();
     }
 }
 
 void janet_setdyn(const char *name, Janet value) {
-    if (!janet_vm_fiber) {
-        if (!janet_vm_top_dyns) janet_vm_top_dyns = janet_table(10);
-        janet_table_put(janet_vm_top_dyns, janet_ckeywordv(name), value);
+    if (!janet_vm.fiber) {
+        if (!janet_vm.top_dyns) janet_vm.top_dyns = janet_table(10);
+        janet_table_put(janet_vm.top_dyns, janet_ckeywordv(name), value);
     } else {
-        if (!janet_vm_fiber->env) {
-            janet_vm_fiber->env = janet_table(1);
+        if (!janet_vm.fiber->env) {
+            janet_vm.fiber->env = janet_table(1);
         }
-        janet_table_put(janet_vm_fiber->env, janet_ckeywordv(name), value);
+        janet_table_put(janet_vm.fiber->env, janet_ckeywordv(name), value);
     }
 }
 

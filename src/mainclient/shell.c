@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1021,7 +1021,6 @@ int main(int argc, char **argv) {
     janet_init_hash_key(hash_key);
 #endif
 
-
     /* Set up VM */
     janet_init();
 
@@ -1048,18 +1047,8 @@ int main(int argc, char **argv) {
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(mainfun), 64, 1, mainargs);
     fiber->env = env;
 
-#ifdef JANET_EV
-    janet_gcroot(janet_wrap_fiber(fiber));
-    janet_schedule(fiber, janet_wrap_nil());
-    janet_loop();
-    status = janet_fiber_status(fiber);
-#else
-    Janet out;
-    status = janet_continue(fiber, janet_wrap_nil(), &out);
-    if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
-        janet_stacktrace(fiber, out);
-    }
-#endif
+    /* Run the fiber in an event loop */
+    status = janet_loop_fiber(fiber);
 
     /* Deinitialize vm */
     janet_deinit();

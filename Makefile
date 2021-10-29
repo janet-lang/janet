@@ -36,6 +36,7 @@ JANET_PATH?=$(LIBDIR)/janet
 JANET_MANPATH?=$(PREFIX)/share/man/man1/
 JANET_PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 JANET_DIST_DIR?=janet-dist
+JPM_TAG?=master
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
@@ -61,10 +62,17 @@ ifeq ($(UNAME), Darwin)
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
 endif
+
 # For other unix likes, add flags here!
 ifeq ($(UNAME), Haiku)
 	LDCONFIG:=true
 	LDFLAGS=-Wl,--export-dynamic
+endif
+# For Android (termux)
+ifeq ($(UNAME), Linux) # uname on Darwin doesn't recognise -o
+ifeq ($(shell uname -o), Android)
+	CLIBS:=$(CLIBS) -landroid-spawn
+endif
 endif
 
 $(shell mkdir -p build/core build/c build/boot)
@@ -113,12 +121,12 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/regalloc.c \
 				   src/core/run.c \
 				   src/core/specials.c \
+				   src/core/state.c \
 				   src/core/string.c \
 				   src/core/strtod.c \
 				   src/core/struct.c \
 				   src/core/symcache.c \
 				   src/core/table.c \
-				   src/core/thread.c \
 				   src/core/tuple.c \
 				   src/core/util.c \
 				   src/core/value.c \
@@ -157,7 +165,7 @@ build/c/janet.c: build/janet_boot src/boot/boot.janet
 ##### Amalgamation #####
 ########################
 
-SONAME=libjanet.so.1.16
+SONAME=libjanet.so.1.18
 
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
@@ -205,12 +213,10 @@ valgrind: $(JANET_TARGET)
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
-	./$(JANET_TARGET) -k jpm
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
-	$(VALGRIND_COMMAND) ./$(JANET_TARGET) -k jpm
 
 callgrind: $(JANET_TARGET)
 	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
@@ -223,29 +229,32 @@ dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	build/janet.h \
-	jpm.1 janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
-	README.md build/c/janet.c build/c/shell.c jpm
+	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
+	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
-	cp jpm build/$(JANET_DIST_DIR)/bin/
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
 	cp $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/$(JANET_DIST_DIR)/lib/
 	mkdir -p build/$(JANET_DIST_DIR)/man/man1/
-	cp janet.1 jpm.1 build/$(JANET_DIST_DIR)/man/man1/
 	mkdir -p build/$(JANET_DIST_DIR)/src/
 	cp build/c/janet.c build/c/shell.c build/$(JANET_DIST_DIR)/src/
 	cp CONTRIBUTING.md LICENSE README.md build/$(JANET_DIST_DIR)/
 	cd build && tar -czvf ../$@ ./$(JANET_DIST_DIR)
 
+#########################
+##### Documentation #####
+#########################
+
+docs: build/doc.html
+
+build/doc.html: $(JANET_TARGET) tools/gendoc.janet
+	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
+
 ########################
 ##### Installation #####
 ########################
-
-build/jpm: jpm $(JANET_TARGET)
-	$(JANET_TARGET) tools/patch-jpm.janet jpm build/jpm "--libpath=$(LIBDIR)" "--headerpath=$(INCLUDEDIR)/janet" "--binpath=$(BINDIR)"
-	chmod +x build/jpm
 
 .INTERMEDIATE: build/janet.pc
 build/janet.pc: $(JANET_TARGET)
@@ -262,7 +271,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
 
-install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/jpm build/janet.h
+install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
@@ -273,22 +282,30 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
 	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
 	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
-	cp -rf build/jpm '$(DESTDIR)$(BINDIR)'
 	mkdir -p '$(DESTDIR)$(JANET_MANPATH)'
 	cp janet.1 '$(DESTDIR)$(JANET_MANPATH)'
-	cp jpm.1 '$(DESTDIR)$(JANET_MANPATH)'
 	mkdir -p '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
 	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || true
 
+install-jpm-git: $(JANET_TARGET)
+	mkdir -p build
+	rm -rf build/jpm
+	git clone --depth=1 --branch='$(JPM_TAG)' https://github.com/janet-lang/jpm.git build/jpm
+	cd build/jpm && PREFIX='$(PREFIX)' \
+		DESTDIR=$(DESTDIR) \
+		JANET_MANPATH='$(JANET_MANPATH)' \
+		JANET_HEADERPATH='$(INCLUDEDIR)/janet' \
+		JANET_BINPATH='$(BINDIR)' \
+		JANET_LIBPATH='$(LIBDIR)' \
+		../../$(JANET_TARGET) ./bootstrap.janet
+
 uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/janet'
-	-rm '$(DESTDIR)$(BINDIR)/jpm'
 	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet'
 	-rm -rf '$(DESTDIR)$(LIBDIR)'/libjanet.*
 	-rm '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
 	-rm '$(DESTDIR)$(JANET_MANPATH)/janet.1'
-	-rm '$(DESTDIR)$(JANET_MANPATH)/jpm.1'
 	# -rm -rf '$(DESTDIR)$(JANET_PATH)'/* - err on the side of correctness here
 
 #################
@@ -311,18 +328,7 @@ clean:
 	-rm -rf test/install/build test/install/modpath
 
 test-install:
-	cd test/install \
-		&& rm -rf build .cache .manifests \
-		&& jpm --verbose build \
-		&& jpm --verbose test \
-		&& build/testexec \
-		&& jpm --verbose quickbin testexec.janet build/testexec2 \
-		&& build/testexec2 \
-		&& mkdir -p modpath \
-		&& jpm --verbose --testdeps --modpath=./modpath install https://github.com/janet-lang/json.git
-	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/jhydro.git
-	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/path.git
-	cd test/install && jpm --verbose --test --modpath=./modpath install https://github.com/janet-lang/argparse.git
+	echo "JPM has been removed from default install."
 
 help:
 	@echo

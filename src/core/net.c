@@ -38,6 +38,7 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "Advapi32.lib")
 #else
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/ioctl.h>
@@ -71,6 +72,15 @@ const JanetAbstractType janet_address_type = {
 #else
 #define JSOCKFLAGS 0
 #endif
+#endif
+
+/* maximum number of bytes in a socket address host (post name resolution) */
+#ifdef JANET_WINDOWS
+#define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
+typedef unsigned short in_port_t;
+#else
+#define JANET_SA_MAX(a, b) (((a) > (b))? (a) : (b))
+#define SA_ADDRSTRLEN JANET_SA_MAX(INET6_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
 #endif
 
 static JanetStream *make_stream(JSock handle, uint32_t flags);
@@ -259,7 +269,8 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
 }
 
 /* Needs argc >= offset + 2 */
-/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1, otherwise 0 */
+/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1,
+ * otherwise 0. Also, ignores is_bind when is a unix socket. */
 static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix) {
     /* Unix socket support - not yet supported on windows. */
 #ifndef JANET_WINDOWS
@@ -285,12 +296,12 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
     }
 #endif
     /* Get host and port */
-    const char *host = janet_getcstring(argv, offset);
-    const char *port;
+    char *host = (char *)janet_getcstring(argv, offset);
+    char *port = NULL;
     if (janet_checkint(argv[offset + 1])) {
-        port = (const char *)janet_to_string(argv[offset + 1]);
+        port = (char *)janet_to_string(argv[offset + 1]);
     } else {
-        port = janet_optcstring(argv, offset + 2, offset + 1, NULL);
+        port = (char *)janet_optcstring(argv, offset + 2, offset + 1, NULL);
     }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
@@ -311,7 +322,14 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
  * C Funs
  */
 
-static Janet cfun_net_sockaddr(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_net_sockaddr,
+              "(net/address host port &opt type multi)",
+              "Look up the connection information for a given hostname, port, and connection type. Returns "
+              "a handle that can be used to send datagrams over network without establishing a connection. "
+              "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
+              "given in the port argument. On Linux, abstract "
+              "unix domain sockets are specified with a leading '@' character in port. If `multi` is truthy, will "
+              "return all address that match in an array instead of just the first.") {
     janet_arity(argc, 2, 4);
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
@@ -350,12 +368,48 @@ static Janet cfun_net_sockaddr(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_net_connect(int32_t argc, Janet *argv) {
-    janet_arity(argc, 2, 3);
+JANET_CORE_FN(cfun_net_connect,
+              "(net/connect host port &opt type bindhost bindport)",
+              "Open a connection to communicate with a server. Returns a duplex stream "
+              "that can be used to communicate with the server. Type is an optional keyword "
+              "to specify a connection type, either :stream or :datagram. The default is :stream. "
+              "Bindhost is an optional string to select from what address to make the outgoing "
+              "connection, with the default being the same as using the OS's preferred address. ") {
+    janet_arity(argc, 2, 5);
 
+    /* Check arguments */
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
+    char *bindhost = (char *) janet_optcstring(argv, argc, 3, NULL);
+    char *bindport = NULL;
+    if (janet_checkint(argv[4])) {
+        bindport = (char *)janet_to_string(argv[4]);
+    } else {
+        bindport = (char *)janet_optcstring(argv, argc, 4, NULL);
+    }
+
+    /* Where we're connecting to */
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+
+    /* Check if we're binding address */
+    struct addrinfo *binding = NULL;
+    if (bindhost != NULL) {
+        if (is_unix) {
+            freeaddrinfo(ai);
+            janet_panic("bindhost not supported for unix domain sockets");
+        }
+        /* getaddrinfo */
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = socktype;
+        hints.ai_flags = 0;
+        int status = getaddrinfo(bindhost, bindport, &hints, &binding);
+        if (status) {
+            freeaddrinfo(ai);
+            janet_panicf("could not get address info for bindhost: %s", gai_strerror(status));
+        }
+    }
 
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
@@ -365,7 +419,9 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
     if (is_unix) {
         sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
         if (!JSOCKVALID(sock)) {
-            janet_panicf("could not create socket: %V", janet_ev_lasterr());
+            Janet v = janet_ev_lasterr();
+            janet_free(ai);
+            janet_panicf("could not create socket: %V", v);
         }
         addr = (void *) ai;
         addrlen = sizeof(struct sockaddr_un);
@@ -386,17 +442,42 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
             }
         }
         if (NULL == addr) {
+            Janet v = janet_ev_lasterr();
+            if (binding) freeaddrinfo(binding);
             freeaddrinfo(ai);
-            janet_panicf("could not create socket: %V", janet_ev_lasterr());
+            janet_panicf("could not create socket: %V", v);
+        }
+    }
+
+    /* Bind to bindhost and bindport if given */
+    if (binding) {
+        struct addrinfo *rp = NULL;
+        int did_bind = 0;
+        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+            if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) {
+                did_bind = 1;
+                break;
+            }
+        }
+        if (!did_bind) {
+            Janet v = janet_ev_lasterr();
+            freeaddrinfo(binding);
+            freeaddrinfo(ai);
+            JSOCKCLOSE(sock);
+            janet_panicf("could not bind outgoing address: %V", v);
+        } else {
+            freeaddrinfo(binding);
         }
     }
 
     /* Connect to socket */
 #ifdef JANET_WINDOWS
     int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
+    Janet lasterr = janet_ev_lasterr();
     freeaddrinfo(ai);
 #else
     int status = connect(sock, addr, addrlen);
+    Janet lasterr = janet_ev_lasterr();
     if (is_unix) {
         janet_free(ai);
     } else {
@@ -406,7 +487,7 @@ static Janet cfun_net_connect(int32_t argc, Janet *argv) {
 
     if (status == -1) {
         JSOCKCLOSE(sock);
-        janet_panicf("could not connect to socket: %V", janet_ev_lasterr());
+        janet_panicf("could not connect socket: %V", lasterr);
     }
 
     /* Set up the socket for non-blocking IO after connect - TODO - non-blocking connect? */
@@ -442,7 +523,14 @@ static const char *serverify_socket(JSock sfd) {
 #define JANET_SHUTDOWN_W SHUT_WR
 #endif
 
-static Janet cfun_net_shutdown(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_net_shutdown,
+              "(net/shutdown stream &opt mode)",
+              "Stop communication on this socket in a graceful manner, either in both directions or just "
+              "reading/writing from the stream. The `mode` parameter controls which communication to stop on the socket. "
+              "\n\n* `:wr` is the default and prevents both reading new data from the socket and writing new data to the socket.\n"
+              "* `:r` disables reading new data from the socket.\n"
+              "* `:w` disable writing data to the socket.\n\n"
+              "Returns the original socket.") {
     janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);
@@ -473,7 +561,13 @@ static Janet cfun_net_shutdown(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_net_listen(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_net_listen,
+              "(net/listen host port &opt type)",
+              "Creates a server. Returns a new stream that is neither readable nor "
+              "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
+              "The type parameter specifies the type of network connection, either "
+              "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
+              ":stream. The host and port arguments are the same as in net/address.") {
     janet_arity(argc, 2, 3);
 
     /* Get host, port, and handler*/
@@ -547,7 +641,98 @@ static Janet cfun_net_listen(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_stream_accept_loop(int32_t argc, Janet *argv) {
+/* Types of socket's we need to deal with - relevant type puns below.
+struct sockaddr *sa;           // Common base structure
+struct sockaddr_storage *ss;   // Size of largest socket address type
+struct sockaddr_in *sin;       // IPv4 address + port
+struct sockaddr_in6 *sin6;     // IPv6 address + port
+struct sockaddr_un *sun;       // Unix Domain Socket Address
+*/
+
+/* Turn a socket address into a host, port pair (port is optional).
+ * For unix domain sockets, returned tuple will have only a single element, the path string. */
+static Janet janet_so_getname(const void *sa_any) {
+    const struct sockaddr *sa = sa_any;
+    char buffer[SA_ADDRSTRLEN];
+    switch (sa->sa_family) {
+        default:
+            janet_panic("unknown address family");
+        case AF_INET: {
+            const struct sockaddr_in *sai = sa_any;
+            if (!inet_ntop(AF_INET, &(sai->sin_addr), buffer, sizeof(buffer))) {
+                janet_panic("unable to decode ipv4 host address");
+            }
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai->sin_port))};
+            return janet_wrap_tuple(janet_tuple_n(pair, sai->sin_port ? 2 : 1));
+        }
+        case AF_INET6: {
+            const struct sockaddr_in6 *sai6 = sa_any;
+            if (!inet_ntop(AF_INET6, &(sai6->sin6_addr), buffer, sizeof(buffer))) {
+                janet_panic("unable to decode ipv4 host address");
+            }
+            Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai6->sin6_port))};
+            return janet_wrap_tuple(janet_tuple_n(pair, sai6->sin6_port ? 2 : 1));
+        }
+#ifndef JANET_WINDOWS
+        case AF_UNIX: {
+            const struct sockaddr_un *sun = sa_any;
+            Janet pathname;
+            if (sun->sun_path[0] == '\0') {
+                memcpy(buffer, sun->sun_path, sizeof(sun->sun_path));
+                buffer[0] = '@';
+                pathname = janet_cstringv(buffer);
+            } else {
+                pathname = janet_cstringv(sun->sun_path);
+            }
+            return janet_wrap_tuple(janet_tuple_n(&pathname, 1));
+        }
+#endif
+    }
+}
+
+JANET_CORE_FN(cfun_net_getsockname,
+              "(net/localname stream)",
+              "Gets the local address and port in a tuple in that order.") {
+    janet_fixarity(argc, 1);
+    JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
+    struct sockaddr_storage ss;
+    socklen_t slen = sizeof(ss);
+    memset(&ss, 0, slen);
+    if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
+        janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
+    }
+    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    return janet_so_getname(&ss);
+}
+
+JANET_CORE_FN(cfun_net_getpeername,
+              "(net/peername stream)",
+              "Gets the remote peer's address and port in a tuple in that order.") {
+    janet_fixarity(argc, 1);
+    JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
+    struct sockaddr_storage ss;
+    socklen_t slen = sizeof(ss);
+    memset(&ss, 0, slen);
+    if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
+        janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
+    }
+    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    return janet_so_getname(&ss);
+}
+
+JANET_CORE_FN(cfun_net_address_unpack,
+              "(net/address-unpack address)",
+              "Given an address returned by net/adress, return a host, port pair. Unix domain sockets "
+              "will have only the path in the returned tuple.") {
+    janet_fixarity(argc, 1);
+    struct sockaddr *sa = janet_getabstract(argv, 0, &janet_address_type);
+    return janet_so_getname(sa);
+}
+
+JANET_CORE_FN(cfun_stream_accept_loop,
+              "(net/accept-loop stream handler)",
+              "Shorthand for running a server stream that will continuously accept new connections. "
+              "Blocks the current fiber until the stream is closed, and will return the stream.") {
     janet_fixarity(argc, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_ACCEPTABLE | JANET_STREAM_SOCKET);
@@ -555,7 +740,11 @@ static Janet cfun_stream_accept_loop(int32_t argc, Janet *argv) {
     janet_sched_accept(stream, fun);
 }
 
-static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_accept,
+              "(net/accept stream &opt timeout)",
+              "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
+              "Takes an optional timeout in seconds, after which will return nil. "
+              "Returns a new duplex stream which represents a connection to the client.") {
     janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_ACCEPTABLE | JANET_STREAM_SOCKET);
@@ -564,7 +753,13 @@ static Janet cfun_stream_accept(int32_t argc, Janet *argv) {
     janet_sched_accept(stream, NULL);
 }
 
-static Janet cfun_stream_read(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_read,
+              "(net/read stream nbytes &opt buf timeout)",
+              "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
+              "`n` can also be the keyword `:all` to read into the buffer until end of stream. "
+              "If less than n bytes are available (and more than 0), will push those bytes and return early. "
+              "Takes an optional timeout in seconds, after which will return nil. "
+              "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
@@ -581,7 +776,10 @@ static Janet cfun_stream_read(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_chunk,
+              "(net/chunk stream nbytes &opt buf timeout)",
+              "Same a net/read, but will wait for all n bytes to arrive rather than return early. "
+              "Takes an optional timeout in seconds, after which will return nil.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
@@ -593,7 +791,10 @@ static Janet cfun_stream_chunk(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_recv_from(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_recv_from,
+              "(net/recv-from stream nbytes buf &opt timoeut)",
+              "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
+              "packet came from. Takes an optional timeout in seconds, after which will return nil.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
@@ -605,7 +806,11 @@ static Janet cfun_stream_recv_from(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_write(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_write,
+              "(net/write stream data &opt timeout)",
+              "Write data to a stream, suspending the current fiber until the write "
+              "completes. Takes an optional timeout in seconds, after which will return nil. "
+              "Returns nil, or raises an error if the write failed.") {
     janet_arity(argc, 2, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
@@ -621,7 +826,11 @@ static Janet cfun_stream_write(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_send_to,
+              "(net/send-to stream dest data &opt timeout)",
+              "Writes a datagram to a server stream. dest is a the destination address of the packet. "
+              "Takes an optional timeout in seconds, after which will return nil. "
+              "Returns stream.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
@@ -638,7 +847,10 @@ static Janet cfun_stream_send_to(int32_t argc, Janet *argv) {
     janet_await();
 }
 
-static Janet cfun_stream_flush(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_stream_flush,
+              "(net/flush stream)",
+              "Make sure that a stream is not buffering any data. This temporarily disables Nagle's algorithm. "
+              "Use this to make sure data is sent without delay. Returns stream.") {
     janet_fixarity(argc, 1);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
@@ -660,7 +872,6 @@ static const JanetMethod net_stream_methods[] = {
     {"accept-loop", cfun_stream_accept_loop},
     {"send-to", cfun_stream_send_to},
     {"recv-from", cfun_stream_recv_from},
-    {"recv-from", cfun_stream_recv_from},
     {"evread", janet_cfun_stream_read},
     {"evchunk", janet_cfun_stream_chunk},
     {"evwrite", janet_cfun_stream_write},
@@ -672,101 +883,27 @@ static JanetStream *make_stream(JSock handle, uint32_t flags) {
     return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
 }
 
-static const JanetReg net_cfuns[] = {
-    {
-        "net/address", cfun_net_sockaddr,
-        JDOC("(net/address host port &opt type)\n\n"
-             "Look up the connection information for a given hostname, port, and connection type. Returns "
-             "a handle that can be used to send datagrams over network without establishing a connection. "
-             "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
-             "given in the port argument. On Linux, abstract "
-             "unix domain sockets are specified with a leading '@' character in port.")
-    },
-    {
-        "net/listen", cfun_net_listen,
-        JDOC("(net/listen host port &opt type)\n\n"
-             "Creates a server. Returns a new stream that is neither readable nor "
-             "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
-             "The type parameter specifies the type of network connection, either "
-             "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
-             ":stream. The host and port arguments are the same as in net/address.")
-    },
-    {
-        "net/accept", cfun_stream_accept,
-        JDOC("(net/accept stream &opt timeout)\n\n"
-             "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
-             "Takes an optional timeout in seconds, after which will return nil. "
-             "Returns a new duplex stream which represents a connection to the client.")
-    },
-    {
-        "net/accept-loop", cfun_stream_accept_loop,
-        JDOC("(net/accept-loop stream handler)\n\n"
-             "Shorthand for running a server stream that will continuously accept new connections. "
-             "Blocks the current fiber until the stream is closed, and will return the stream.")
-    },
-    {
-        "net/read", cfun_stream_read,
-        JDOC("(net/read stream nbytes &opt buf timeout)\n\n"
-             "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
-             "`n` can also be the keyword `:all` to read into the buffer until end of stream. "
-             "If less than n bytes are available (and more than 0), will push those bytes and return early. "
-             "Takes an optional timeout in seconds, after which will return nil. "
-             "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.")
-    },
-    {
-        "net/chunk", cfun_stream_chunk,
-        JDOC("(net/chunk stream nbytes &opt buf timeout)\n\n"
-             "Same a net/read, but will wait for all n bytes to arrive rather than return early. "
-             "Takes an optional timeout in seconds, after which will return nil.")
-    },
-    {
-        "net/write", cfun_stream_write,
-        JDOC("(net/write stream data &opt timeout)\n\n"
-             "Write data to a stream, suspending the current fiber until the write "
-             "completes. Takes an optional timeout in seconds, after which will return nil. "
-             "Returns nil, or raises an error if the write failed.")
-    },
-    {
-        "net/send-to", cfun_stream_send_to,
-        JDOC("(net/send-to stream dest data &opt timeout)\n\n"
-             "Writes a datagram to a server stream. dest is a the destination address of the packet. "
-             "Takes an optional timeout in seconds, after which will return nil. "
-             "Returns stream.")
-    },
-    {
-        "net/recv-from", cfun_stream_recv_from,
-        JDOC("(net/recv-from stream nbytes buf &opt timoeut)\n\n"
-             "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
-             "packet came from. Takes an optional timeout in seconds, after which will return nil.")
-    },
-    {
-        "net/flush", cfun_stream_flush,
-        JDOC("(net/flush stream)\n\n"
-             "Make sure that a stream is not buffering any data. This temporarily disables Nagle's algorithm. "
-             "Use this to make sure data is sent without delay. Returns stream.")
-    },
-    {
-        "net/connect", cfun_net_connect,
-        JDOC("(net/connect host port &opt type)\n\n"
-             "Open a connection to communicate with a server. Returns a duplex stream "
-             "that can be used to communicate with the server. Type is an optional keyword "
-             "to specify a connection type, either :stream or :datagram. The default is :stream. ")
-    },
-    {
-        "net/shutdown", cfun_net_shutdown,
-        JDOC("(net/shutdown stream &opt mode)\n\n"
-             "Stop communication on this socket in a graceful manner, either in both directions or just "
-             "reading/writing from the stream. The `mode` parameter controls which communication to stop on the socket. "
-             "\n\n* `:wr` is the default and prevents both reading new data from the socket and writing new data to the socket.\n"
-             "* `:r` disables reading new data from the socket.\n"
-             "* `:w` disable writing data to the socket.\n\n"
-             "Returns the original socket.")
-    },
-    {NULL, NULL, NULL}
-};
 
 void janet_lib_net(JanetTable *env) {
-    janet_core_cfuns(env, NULL, net_cfuns);
+    JanetRegExt net_cfuns[] = {
+        JANET_CORE_REG("net/address", cfun_net_sockaddr),
+        JANET_CORE_REG("net/listen", cfun_net_listen),
+        JANET_CORE_REG("net/accept", cfun_stream_accept),
+        JANET_CORE_REG("net/accept-loop", cfun_stream_accept_loop),
+        JANET_CORE_REG("net/read", cfun_stream_read),
+        JANET_CORE_REG("net/chunk", cfun_stream_chunk),
+        JANET_CORE_REG("net/write", cfun_stream_write),
+        JANET_CORE_REG("net/send-to", cfun_stream_send_to),
+        JANET_CORE_REG("net/recv-from", cfun_stream_recv_from),
+        JANET_CORE_REG("net/flush", cfun_stream_flush),
+        JANET_CORE_REG("net/connect", cfun_net_connect),
+        JANET_CORE_REG("net/shutdown", cfun_net_shutdown),
+        JANET_CORE_REG("net/peername", cfun_net_getpeername),
+        JANET_CORE_REG("net/localname", cfun_net_getsockname),
+        JANET_CORE_REG("net/address-unpack", cfun_net_address_unpack),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, net_cfuns);
 }
 
 void janet_net_init(void) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Calvin Rose & contributors
+# Copyright (c) 2021 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -343,5 +343,9 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= @[] (peg/match '(any 1) (string))) "peg empty pattern 4")
 (assert (deep= @[] (peg/match '(* "test" (any 1)) @"test")) "peg empty pattern 5")
 (assert (deep= @[] (peg/match '(* "test" (any 1)) (buffer "test"))) "peg empty pattern 6")
+
+# number pattern
+(assert (deep= @[111] (peg/match '(number :d+) "111")) "simple number capture 1")
+(assert (deep= @[255] (peg/match '(number :w+) "0xff")) "simple number capture 2")
 
 (end-suite)

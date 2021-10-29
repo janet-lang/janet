@@ -84,7 +84,6 @@ time_t timegm(struct tm *tm);
  * setenv/getenv are not thread safe. */
 #ifdef JANET_THREADS
 # ifdef JANET_WINDOWS
-static int env_lock_initialized = 0;
 static CRITICAL_SECTION env_lock;
 static void janet_lock_environ(void) {
     EnterCriticalSection(&env_lock);
@@ -117,7 +116,18 @@ static void janet_unlock_environ(void) {
 #define janet_stringify1(x) #x
 #define janet_stringify(x) janet_stringify1(x)
 
-static Janet os_which(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_which,
+              "(os/which)",
+              "Check the current operating system. Returns one of:\n\n"
+              "* :windows\n\n"
+              "* :macos\n\n"
+              "* :web - Web assembly (emscripten)\n\n"
+              "* :linux\n\n"
+              "* :freebsd\n\n"
+              "* :openbsd\n\n"
+              "* :netbsd\n\n"
+              "* :posix - A POSIX compatible system (default)\n\n"
+              "May also return a custom keyword specified at build time.") {
     janet_fixarity(argc, 0);
     (void) argv;
 #if defined(JANET_OS_NAME)
@@ -144,7 +154,16 @@ static Janet os_which(int32_t argc, Janet *argv) {
 }
 
 /* Detect the ISA we are compiled for */
-static Janet os_arch(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_arch,
+              "(os/arch)",
+              "Check the ISA that janet was compiled for. Returns one of:\n\n"
+              "* :x86\n\n"
+              "* :x64\n\n"
+              "* :arm\n\n"
+              "* :aarch64\n\n"
+              "* :sparc\n\n"
+              "* :wasm\n\n"
+              "* :unknown\n") {
     janet_fixarity(argc, 0);
     (void) argv;
     /* Check 64-bit vs 32-bit */
@@ -172,7 +191,10 @@ static Janet os_arch(int32_t argc, Janet *argv) {
 #undef janet_stringify1
 #undef janet_stringify
 
-static Janet os_exit(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_exit,
+              "(os/exit &opt x)",
+              "Exit from janet with an exit code equal to x. If x is not an integer, "
+              "the exit with status equal the hash of x.") {
     janet_arity(argc, 0, 1);
     int status;
     if (argc == 0) {
@@ -353,6 +375,7 @@ static const JanetAbstractType ProcAT;
 #define JANET_PROC_OWNS_STDIN 16
 #define JANET_PROC_OWNS_STDOUT 32
 #define JANET_PROC_OWNS_STDERR 64
+#define JANET_PROC_ALLOW_ZOMBIE 128
 typedef struct {
     int flags;
 #ifdef JANET_WINDOWS
@@ -410,6 +433,7 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
 
 /* Callback that is called in main thread when subroutine completes. */
 static void janet_proc_wait_cb(JanetEVGenericMessage args) {
+    janet_ev_dec_refcount();
     int status = args.argi;
     JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {
@@ -434,11 +458,14 @@ static int janet_proc_gc(void *p, size_t s) {
     JanetProc *proc = (JanetProc *) p;
 #ifdef JANET_WINDOWS
     if (!(proc->flags & JANET_PROC_CLOSED)) {
+        if (!(proc->flags & JANET_PROC_ALLOW_ZOMBIE)) {
+            TerminateProcess(proc->pHandle, 1);
+        }
         CloseHandle(proc->pHandle);
         CloseHandle(proc->tHandle);
     }
 #else
-    if (!(proc->flags & JANET_PROC_WAITED)) {
+    if (!(proc->flags & (JANET_PROC_WAITED | JANET_PROC_ALLOW_ZOMBIE))) {
         /* Kill and wait to prevent zombies */
         kill(proc->pid, SIGKILL);
         int status;
@@ -497,7 +524,9 @@ os_proc_wait_impl(JanetProc *proc) {
 #endif
 }
 
-static Janet os_proc_wait(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_proc_wait,
+              "(os/proc-wait proc)",
+              "Block until the subprocess completes. Returns the subprocess return code.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -508,7 +537,11 @@ static Janet os_proc_wait(int32_t argc, Janet *argv) {
 #endif
 }
 
-static Janet os_proc_kill(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_proc_kill,
+              "(os/proc-kill proc &opt wait)",
+              "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
+              "handle on windows. If wait is truthy, will wait for the process to finsih and "
+              "returns the exit code. Otherwise, returns proc.") {
     janet_arity(argc, 1, 2);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
@@ -519,6 +552,7 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
         janet_panicf("cannot close process handle that is already closed");
     }
     proc->flags |= JANET_PROC_CLOSED;
+    TerminateProcess(proc->pHandle, 1);
     CloseHandle(proc->pHandle);
     CloseHandle(proc->tHandle);
 #else
@@ -540,7 +574,10 @@ static Janet os_proc_kill(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet os_proc_close(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_proc_close,
+              "(os/proc-close proc)",
+              "Wait on a process if it has not been waited on, and close pipes created by `os/spawn` "
+              "if they have not been closed. Returns nil.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -757,7 +794,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
-        flags = janet_getflags(argv, 1, "epx");
+        flags = janet_getflags(argv, 1, "epxd");
     }
 
     /* Get environment */
@@ -775,7 +812,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
     int pipe_errflag = 0; /* Track errors setting up pipes */
-    int pipe_owner_flags = 0;
+    int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
 
     /* Get optional redirections */
     if (argc > 2) {
@@ -991,11 +1028,32 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     }
 }
 
-static Janet os_execute(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_execute,
+              "(os/execute args &opt flags env)",
+              "Execute a program on the system and pass it string arguments. `flags` "
+              "is a keyword that modifies how the program will execute.\n"
+              "* :e - enables passing an environment to the program. Without :e, the "
+              "current environment is inherited.\n"
+              "* :p - allows searching the current PATH for the binary to execute. "
+              "Without this flag, binaries must use absolute paths.\n"
+              "* :x - raise error if exit code is non-zero.\n"
+              "* :d - Don't try and terminate the process on garbage collection (allow spawning zombies).\n"
+              "`env` is a table or struct mapping environment variables to values. It can also "
+              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
+              "These arguments should be core/file values. "
+              "One can also pass in the :pipe keyword "
+              "for these arguments to create files that will read (for :err and :out) or write (for :in) "
+              "to the file descriptor of the subprocess. This is only useful in `os/spawn`, which takes "
+              "the same parameters as `os/execute`, but will return an object that contains references to these "
+              "files via (return-value :in), (return-value :out), and (return-value :err). "
+              "Returns the exit status of the program.") {
     return os_execute_impl(argc, argv, 0);
 }
 
-static Janet os_spawn(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_spawn,
+              "(os/spawn args &opt flags env)",
+              "Execute a program on the system and return a handle to the process. Otherwise, the "
+              "same arguments as os/execute. Does not wait for the process.") {
     return os_execute_impl(argc, argv, 1);
 }
 
@@ -1014,7 +1072,9 @@ static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
 }
 #endif
 
-static Janet os_shell(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_shell,
+              "(os/shell str)",
+              "Pass a command string str directly to the system shell.") {
     janet_arity(argc, 0, 1);
     const char *cmd = argc
                       ? janet_getcstring(argv, 0)
@@ -1031,7 +1091,9 @@ static Janet os_shell(int32_t argc, Janet *argv) {
 
 #endif /* JANET_NO_PROCESSES */
 
-static Janet os_environ(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_environ,
+              "(os/environ)",
+              "Get a copy of the os environment table.") {
     (void) argv;
     janet_fixarity(argc, 0);
     int32_t nenv = 0;
@@ -1060,7 +1122,9 @@ static Janet os_environ(int32_t argc, Janet *argv) {
     return janet_wrap_table(t);
 }
 
-static Janet os_getenv(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_getenv,
+              "(os/getenv variable &opt dflt)",
+              "Get the string value of an environment variable.") {
     janet_arity(argc, 1, 2);
     const char *cstr = janet_getcstring(argv, 0);
     const char *res = getenv(cstr);
@@ -1074,7 +1138,9 @@ static Janet os_getenv(int32_t argc, Janet *argv) {
     return ret;
 }
 
-static Janet os_setenv(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_setenv,
+              "(os/setenv variable value)",
+              "Set an environment variable.") {
 #ifdef JANET_WINDOWS
 #define SETENV(K,V) _putenv_s(K, V)
 #define UNSETENV(K) _putenv_s(K, "")
@@ -1095,14 +1161,20 @@ static Janet os_setenv(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_time(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_time,
+              "(os/time)",
+              "Get the current time expressed as the number of whole seconds since "
+              "January 1, 1970, the Unix epoch. Returns a real number.") {
     janet_fixarity(argc, 0);
     (void) argv;
     double dtime = (double)(time(NULL));
     return janet_wrap_number(dtime);
 }
 
-static Janet os_clock(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_clock,
+              "(os/clock)",
+              "Return the number of whole + fractional seconds since some fixed point in time. The clock "
+              "is guaranteed to be non decreasing in real time.") {
     janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
@@ -1111,7 +1183,10 @@ static Janet os_clock(int32_t argc, Janet *argv) {
     return janet_wrap_number(dtime);
 }
 
-static Janet os_sleep(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_sleep,
+              "(os/sleep n)",
+              "Suspend the program for n seconds. 'nsec' can be a real number. Returns "
+              "nil.") {
     janet_fixarity(argc, 1);
     double delay = janet_getnumber(argv, 0);
     if (delay < 0) janet_panic("invalid argument to sleep");
@@ -1129,7 +1204,9 @@ static Janet os_sleep(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_cwd(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_cwd,
+              "(os/cwd)",
+              "Returns the current working directory.") {
     janet_fixarity(argc, 0);
     (void) argv;
     char buf[FILENAME_MAX];
@@ -1143,7 +1220,9 @@ static Janet os_cwd(int32_t argc, Janet *argv) {
     return janet_cstringv(ptr);
 }
 
-static Janet os_cryptorand(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_cryptorand,
+              "(os/cryptorand n &opt buf)",
+              "Get or append n bytes of good quality random data provided by the OS. Returns a new buffer or buf.") {
     JanetBuffer *buffer;
     janet_arity(argc, 1, 2);
     int32_t offset;
@@ -1165,7 +1244,21 @@ static Janet os_cryptorand(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buffer);
 }
 
-static Janet os_date(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_date,
+              "(os/date &opt time local)",
+              "Returns the given time as a date struct, or the current time if `time` is not given. "
+              "Returns a struct with following key values. Note that all numbers are 0-indexed. "
+              "Date is given in UTC unless `local` is truthy, in which case the date is formatted for "
+              "the local timezone.\n\n"
+              "* :seconds - number of seconds [0-61]\n\n"
+              "* :minutes - number of minutes [0-59]\n\n"
+              "* :hours - number of hours [0-23]\n\n"
+              "* :month-day - day of month [0-30]\n\n"
+              "* :month - month of year [0, 11]\n\n"
+              "* :year - years since year 0 (e.g. 2019)\n\n"
+              "* :week-day - day of the week [0-6]\n\n"
+              "* :year-day - day of the year [0-365]\n\n"
+              "* :dst - if Day Light Savings is in effect") {
     janet_arity(argc, 0, 2);
     (void) argv;
     time_t t;
@@ -1263,7 +1356,14 @@ static timeint_t entry_getint(Janet env_entry, char *field) {
     return (timeint_t)janet_unwrap_number(i);
 }
 
-static Janet os_mktime(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_mktime,
+              "(os/mktime date-struct &opt local)",
+              "Get the broken down date-struct time expressed as the number "
+              " of seconds since January 1, 1970, the Unix epoch. "
+              "Returns a real number. "
+              "Date is given in UTC unless local is truthy, in which case the "
+              "date is computed for the local timezone.\n\n"
+              "Inverse function to os/date.") {
     janet_arity(argc, 1, 2);
     time_t t;
     struct tm t_info;
@@ -1309,7 +1409,12 @@ static Janet os_mktime(int32_t argc, Janet *argv) {
 #define j_symlink symlink
 #endif
 
-static Janet os_link(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_link,
+              "(os/link oldpath newpath &opt symlink)",
+              "Create a link at newpath that points to oldpath and returns nil. "
+              "Iff symlink is truthy, creates a symlink. "
+              "Iff symlink is falsey or not provided, "
+              "creates a hard link. Does not work on Windows.") {
     janet_arity(argc, 2, 3);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1325,7 +1430,9 @@ static Janet os_link(int32_t argc, Janet *argv) {
 #endif
 }
 
-static Janet os_symlink(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_symlink,
+              "(os/symlink oldpath newpath)",
+              "Create a symlink from oldpath to newpath, returning nil. Same as (os/link oldpath newpath true).") {
     janet_fixarity(argc, 2);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1343,7 +1450,11 @@ static Janet os_symlink(int32_t argc, Janet *argv) {
 
 #undef j_symlink
 
-static Janet os_mkdir(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_mkdir,
+              "(os/mkdir path)",
+              "Create a new directory. The path will be relative to the current directory if relative, otherwise "
+              "it will be an absolute path. Returns true if the directory was created, false if the directory already exists, and "
+              "errors otherwise.") {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1356,7 +1467,9 @@ static Janet os_mkdir(int32_t argc, Janet *argv) {
     janet_panicf("%s: %s", strerror(errno), path);
 }
 
-static Janet os_rmdir(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_rmdir,
+              "(os/rmdir path)",
+              "Delete a directory. The directory must be empty to succeed.") {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1368,7 +1481,9 @@ static Janet os_rmdir(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_cd(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_cd,
+              "(os/cd path)",
+              "Change current directory to path. Returns nil on success, errors on failure.") {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1380,7 +1495,10 @@ static Janet os_cd(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_touch(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_touch,
+              "(os/touch path &opt actime modtime)",
+              "Update the access time and modification times for a file. By default, sets "
+              "times to the current time.") {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
     struct utimbuf timebuf, *bufp;
@@ -1400,7 +1518,9 @@ static Janet os_touch(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_remove(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_remove,
+              "(os/rm path)",
+              "Delete a file. Returns nil.") {
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
     int status = remove(path);
@@ -1409,7 +1529,9 @@ static Janet os_remove(int32_t argc, Janet *argv) {
 }
 
 #ifndef JANET_NO_SYMLINKS
-static Janet os_readlink(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_readlink,
+              "(os/readlink path)",
+              "Read the contents of a symbolic link. Does not work on Windows.\n") {
     janet_fixarity(argc, 1);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1674,15 +1796,39 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
     }
 }
 
-static Janet os_stat(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_stat,
+              "(os/stat path &opt tab|key)",
+              "Gets information about a file or directory. Returns a table if the second argument is a keyword, returns "
+              " only that information from stat. If the file or directory does not exist, returns nil. The keys are:\n\n"
+              "* :dev - the device that the file is on\n\n"
+              "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
+              "* :int-permissions - A Unix permission integer like 8r744\n\n"
+              "* :permissions - A Unix permission string like \"rwxr--r--\"\n\n"
+              "* :uid - File uid\n\n"
+              "* :gid - File gid\n\n"
+              "* :nlink - number of links to file\n\n"
+              "* :rdev - Real device of file. 0 on windows.\n\n"
+              "* :size - size of file in bytes\n\n"
+              "* :blocks - number of blocks in file. 0 on windows\n\n"
+              "* :blocksize - size of blocks in file. 0 on windows\n\n"
+              "* :accessed - timestamp when file last accessed\n\n"
+              "* :changed - timestamp when file last changed (permissions changed)\n\n"
+              "* :modified - timestamp when file last modified (content changed)\n") {
     return os_stat_or_lstat(0, argc, argv);
 }
 
-static Janet os_lstat(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_lstat,
+              "(os/lstat path &opt tab|key)",
+              "Like os/stat, but don't follow symlinks.\n") {
     return os_stat_or_lstat(1, argc, argv);
 }
 
-static Janet os_chmod(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_chmod,
+              "(os/chmod path mode)",
+              "Change file permissions, where mode is a permission string as returned by "
+              "os/perm-string, or an integer as returned by os/perm-int. "
+              "When mode is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
+              "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.") {
     janet_fixarity(argc, 2);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1695,7 +1841,9 @@ static Janet os_chmod(int32_t argc, Janet *argv) {
 }
 
 #ifndef JANET_NO_UMASK
-static Janet os_umask(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_umask,
+              "(os/umask mask)",
+              "Set a new umask, returns the old umask.") {
     janet_fixarity(argc, 1);
     int mask = (int) os_getmode(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1707,7 +1855,10 @@ static Janet os_umask(int32_t argc, Janet *argv) {
 }
 #endif
 
-static Janet os_dir(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_dir,
+              "(os/dir dir &opt array)",
+              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
+              "with only the file name or directory name and no prefix.") {
     janet_arity(argc, 1, 2);
     const char *dir = janet_getcstring(argv, 0);
     JanetArray *paths = (argc == 2) ? janet_getarray(argv, 1) : janet_array(0);
@@ -1742,7 +1893,9 @@ static Janet os_dir(int32_t argc, Janet *argv) {
     return janet_wrap_array(paths);
 }
 
-static Janet os_rename(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_rename,
+              "(os/rename oldname newname)",
+              "Rename a file on disk to a new path. Returns nil.") {
     janet_fixarity(argc, 2);
     const char *src = janet_getcstring(argv, 0);
     const char *dest = janet_getcstring(argv, 1);
@@ -1753,7 +1906,10 @@ static Janet os_rename(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet os_realpath(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_realpath,
+              "(os/realpath path)",
+              "Get the absolute path for a given path, following ../, ./, and symlinks. "
+              "Returns an absolute path as a string. Will raise an error on Windows.") {
     janet_fixarity(argc, 1);
     const char *src = janet_getcstring(argv, 0);
 #ifdef JANET_NO_REALPATH
@@ -1771,12 +1927,19 @@ static Janet os_realpath(int32_t argc, Janet *argv) {
 #endif
 }
 
-static Janet os_permission_string(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_permission_string,
+              "(os/perm-string int)",
+              "Convert a Unix octal permission value from a permission integer as returned by os/stat "
+              "to a human readable string, that follows the formatting "
+              "of unix tools like ls. Returns the string as a 9 character string of r, w, x and - characters. Does not "
+              "include the file/directory/symlink character as rendered by `ls`.") {
     janet_fixarity(argc, 1);
     return os_make_permstring(os_get_unix_mode(argv, 0));
 }
 
-static Janet os_permission_int(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_permission_int,
+              "(os/perm-int bytes)",
+              "Parse a 9 character permission string and return an integer that can be used by chmod.") {
     janet_fixarity(argc, 1);
     return janet_wrap_integer(os_get_unix_mode(argv, 0));
 }
@@ -1792,7 +1955,31 @@ static jmode_t os_optmode(int32_t argc, const Janet *argv, int32_t n, int32_t df
     return janet_perm_from_unix(dflt);
 }
 
-static Janet os_open(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_open,
+              "(os/open path &opt flags mode)",
+              "Create a stream from a file, like the POSIX open system call. Returns a new stream. "
+              "mode should be a file mode as passed to os/chmod, but only if the create flag is given. "
+              "The default mode is 8r666. "
+              "Allowed flags are as follows:\n\n"
+              "  * :r - open this file for reading\n"
+              "  * :w - open this file for writing\n"
+              "  * :c - create a new file (O_CREATE)\n"
+              "  * :e - fail if the file exists (O_EXCL)\n"
+              "  * :t - shorten an existing file to length 0 (O_TRUNC)\n\n"
+              "Posix only flags:\n\n"
+              "  * :a - append to a file (O_APPEND)\n"
+              "  * :x - O_SYNC\n"
+              "  * :C - O_NOCTTY\n\n"
+              "Windows only flags:\n\n"
+              "  * :R - share reads (FILE_SHARE_READ)\n"
+              "  * :W - share writes (FILE_SHARE_WRITE)\n"
+              "  * :D - share deletes (FILE_SHARE_DELETE)\n"
+              "  * :H - FILE_ATTRIBUTE_HIDDEN\n"
+              "  * :O - FILE_ATTRIBUTE_READONLY\n"
+              "  * :F - FILE_ATTRIBUTE_OFFLINE\n"
+              "  * :T - FILE_ATTRIBUTE_TEMPORARY\n"
+              "  * :d - FILE_FLAG_DELETE_ON_CLOSE\n"
+              "  * :b - FILE_FLAG_NO_BUFFERING\n") {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
     const uint8_t *opt_flags = janet_optkeyword(argv, argc, 1, (const uint8_t *) "r");
@@ -1934,7 +2121,11 @@ static Janet os_open(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(janet_stream(fd, stream_flags, NULL));
 }
 
-static Janet os_pipe(int32_t argc, Janet *argv) {
+JANET_CORE_FN(os_pipe,
+              "(os/pipe)",
+              "Create a readable stream and a writable stream that are connected. Returns a two element "
+              "tuple where the first element is a readable stream and the second element is the writable "
+              "stream.") {
     (void) argv;
     janet_fixarity(argc, 0);
     JanetHandle fds[2];
@@ -1949,330 +2140,75 @@ static Janet os_pipe(int32_t argc, Janet *argv) {
 
 #endif /* JANET_REDUCED_OS */
 
-static const JanetReg os_cfuns[] = {
-    {
-        "os/exit", os_exit,
-        JDOC("(os/exit &opt x)\n\n"
-             "Exit from janet with an exit code equal to x. If x is not an integer, "
-             "the exit with status equal the hash of x.")
-    },
-    {
-        "os/which", os_which,
-        JDOC("(os/which)\n\n"
-             "Check the current operating system. Returns one of:\n\n"
-             "* :windows\n\n"
-             "* :macos\n\n"
-             "* :web - Web assembly (emscripten)\n\n"
-             "* :linux\n\n"
-             "* :freebsd\n\n"
-             "* :openbsd\n\n"
-             "* :netbsd\n\n"
-             "* :posix - A POSIX compatible system (default)\n\n"
-             "May also return a custom keyword specified at build time.")
-    },
-    {
-        "os/arch", os_arch,
-        JDOC("(os/arch)\n\n"
-             "Check the ISA that janet was compiled for. Returns one of:\n\n"
-             "* :x86\n\n"
-             "* :x86-64\n\n"
-             "* :arm\n\n"
-             "* :aarch64\n\n"
-             "* :sparc\n\n"
-             "* :wasm\n\n"
-             "* :unknown\n")
-    },
-#ifndef JANET_REDUCED_OS
-    {
-        "os/environ", os_environ,
-        JDOC("(os/environ)\n\n"
-             "Get a copy of the os environment table.")
-    },
-    {
-        "os/getenv", os_getenv,
-        JDOC("(os/getenv variable &opt dflt)\n\n"
-             "Get the string value of an environment variable.")
-    },
-    {
-        "os/dir", os_dir,
-        JDOC("(os/dir dir &opt array)\n\n"
-             "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
-             "with only the file name or directory name and no prefix.")
-    },
-    {
-        "os/stat", os_stat,
-        JDOC("(os/stat path &opt tab|key)\n\n"
-             "Gets information about a file or directory. Returns a table if the second argument is a keyword, returns "
-             " only that information from stat. If the file or directory does not exist, returns nil. The keys are:\n\n"
-             "* :dev - the device that the file is on\n\n"
-             "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
-             "* :int-permissions - A Unix permission integer like 8r744\n\n"
-             "* :permissions - A Unix permission string like \"rwxr--r--\"\n\n"
-             "* :uid - File uid\n\n"
-             "* :gid - File gid\n\n"
-             "* :nlink - number of links to file\n\n"
-             "* :rdev - Real device of file. 0 on windows.\n\n"
-             "* :size - size of file in bytes\n\n"
-             "* :blocks - number of blocks in file. 0 on windows\n\n"
-             "* :blocksize - size of blocks in file. 0 on windows\n\n"
-             "* :accessed - timestamp when file last accessed\n\n"
-             "* :changed - timestamp when file last changed (permissions changed)\n\n"
-             "* :modified - timestamp when file last modified (content changed)\n")
-    },
-    {
-        "os/lstat", os_lstat,
-        JDOC("(os/lstat path &opt tab|key)\n\n"
-             "Like os/stat, but don't follow symlinks.\n")
-    },
-    {
-        "os/chmod", os_chmod,
-        JDOC("(os/chmod path mode)\n\n"
-             "Change file permissions, where mode is a permission string as returned by "
-             "os/perm-string, or an integer as returned by os/perm-int. "
-             "When mode is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
-             "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.")
-    },
-    {
-        "os/touch", os_touch,
-        JDOC("(os/touch path &opt actime modtime)\n\n"
-             "Update the access time and modification times for a file. By default, sets "
-             "times to the current time.")
-    },
-    {
-        "os/cd", os_cd,
-        JDOC("(os/cd path)\n\n"
-             "Change current directory to path. Returns nil on success, errors on failure.")
-    },
-#ifndef JANET_NO_UMASK
-    {
-        "os/umask", os_umask,
-        JDOC("(os/umask mask)\n\n"
-             "Set a new umask, returns the old umask.")
-    },
-#endif
-    {
-        "os/mkdir", os_mkdir,
-        JDOC("(os/mkdir path)\n\n"
-             "Create a new directory. The path will be relative to the current directory if relative, otherwise "
-             "it will be an absolute path. Returns true if the directory was created, false if the directory already exists, and "
-             "errors otherwise.")
-    },
-    {
-        "os/rmdir", os_rmdir,
-        JDOC("(os/rmdir path)\n\n"
-             "Delete a directory. The directory must be empty to succeed.")
-    },
-    {
-        "os/rm", os_remove,
-        JDOC("(os/rm path)\n\n"
-             "Delete a file. Returns nil.")
-    },
-    {
-        "os/link", os_link,
-        JDOC("(os/link oldpath newpath &opt symlink)\n\n"
-             "Create a link at newpath that points to oldpath and returns nil. "
-             "Iff symlink is truthy, creates a symlink. "
-             "Iff symlink is falsey or not provided, "
-             "creates a hard link. Does not work on Windows.")
-    },
-#ifndef JANET_NO_SYMLINKS
-    {
-        "os/symlink", os_symlink,
-        JDOC("(os/symlink oldpath newpath)\n\n"
-             "Create a symlink from oldpath to newpath, returning nil. Same as (os/link oldpath newpath true).")
-    },
-    {
-        "os/readlink", os_readlink,
-        JDOC("(os/readlink path)\n\n"
-             "Read the contents of a symbolic link. Does not work on Windows.\n")
-    },
-#endif
-#ifndef JANET_NO_PROCESSES
-    {
-        "os/execute", os_execute,
-        JDOC("(os/execute args &opt flags env)\n\n"
-             "Execute a program on the system and pass it string arguments. `flags` "
-             "is a keyword that modifies how the program will execute.\n\n"
-             "* :e - enables passing an environment to the program. Without :e, the "
-             "current environment is inherited.\n\n"
-             "* :p - allows searching the current PATH for the binary to execute. "
-             "Without this flag, binaries must use absolute paths.\n\n"
-             "* :x - raise error if exit code is non-zero.\n\n"
-             "`env` is a table or struct mapping environment variables to values. It can also "
-             "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
-             "These arguments should be core/file values. "
-             "One can also pass in the :pipe keyword "
-             "for these arguments to create files that will read (for :err and :out) or write (for :in) "
-             "to the file descriptor of the subprocess. This is only useful in `os/spawn`, which takes "
-             "the same parameters as `os/execute`, but will return an object that contains references to these "
-             "files via (return-value :in), (return-value :out), and (return-value :err). "
-             "Returns the exit status of the program.")
-    },
-    {
-        "os/spawn", os_spawn,
-        JDOC("(os/spawn args &opt flags env)\n\n"
-             "Execute a program on the system and return a handle to the process. Otherwise, the "
-             "same arguments as os/execute. Does not wait for the process.")
-    },
-    {
-        "os/shell", os_shell,
-        JDOC("(os/shell str)\n\n"
-             "Pass a command string str directly to the system shell.")
-    },
-    {
-        "os/proc-wait", os_proc_wait,
-        JDOC("(os/proc-wait proc)\n\n"
-             "Block until the subprocess completes. Returns the subprocess return code.")
-    },
-    {
-        "os/proc-kill", os_proc_kill,
-        JDOC("(os/proc-kill proc &opt wait)\n\n"
-             "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-             "handle on windows. If wait is truthy, will wait for the process to finsih and "
-             "returns the exit code. Otherwise, returns proc.")
-    },
-    {
-        "os/proc-close", os_proc_close,
-        JDOC("(os/proc-close proc)\n\n"
-             "Wait on a process if it has not been waited on, and close pipes created by `os/spawn` "
-             "if they have not been closed. Returns nil.")
-    },
-#endif
-    {
-        "os/setenv", os_setenv,
-        JDOC("(os/setenv variable value)\n\n"
-             "Set an environment variable.")
-    },
-    {
-        "os/time", os_time,
-        JDOC("(os/time)\n\n"
-             "Get the current time expressed as the number of seconds since "
-             "January 1, 1970, the Unix epoch. Returns a real number.")
-    },
-    {
-        "os/mktime", os_mktime,
-        JDOC("(os/mktime date-struct &opt local)\n\n"
-             "Get the broken down date-struct time expressed as the number "
-             " of seconds since January 1, 1970, the Unix epoch. "
-             "Returns a real number. "
-             "Date is given in UTC unless local is truthy, in which case the "
-             "date is computed for the local timezone.\n\n"
-             "Inverse function to os/date.")
-    },
-    {
-        "os/clock", os_clock,
-        JDOC("(os/clock)\n\n"
-             "Return the number of seconds since some fixed point in time. The clock "
-             "is guaranteed to be non decreasing in real time.")
-    },
-    {
-        "os/sleep", os_sleep,
-        JDOC("(os/sleep n)\n\n"
-             "Suspend the program for n seconds. 'nsec' can be a real number. Returns "
-             "nil.")
-    },
-    {
-        "os/cwd", os_cwd,
-        JDOC("(os/cwd)\n\n"
-             "Returns the current working directory.")
-    },
-    {
-        "os/cryptorand", os_cryptorand,
-        JDOC("(os/cryptorand n &opt buf)\n\n"
-             "Get or append n bytes of good quality random data provided by the OS. Returns a new buffer or buf.")
-    },
-    {
-        "os/date", os_date,
-        JDOC("(os/date &opt time local)\n\n"
-             "Returns the given time as a date struct, or the current time if `time` is not given. "
-             "Returns a struct with following key values. Note that all numbers are 0-indexed. "
-             "Date is given in UTC unless `local` is truthy, in which case the date is formatted for "
-             "the local timezone.\n\n"
-             "* :seconds - number of seconds [0-61]\n\n"
-             "* :minutes - number of minutes [0-59]\n\n"
-             "* :hours - number of hours [0-23]\n\n"
-             "* :month-day - day of month [0-30]\n\n"
-             "* :month - month of year [0, 11]\n\n"
-             "* :year - years since year 0 (e.g. 2019)\n\n"
-             "* :week-day - day of the week [0-6]\n\n"
-             "* :year-day - day of the year [0-365]\n\n"
-             "* :dst - if Day Light Savings is in effect")
-    },
-    {
-        "os/rename", os_rename,
-        JDOC("(os/rename oldname newname)\n\n"
-             "Rename a file on disk to a new path. Returns nil.")
-    },
-    {
-        "os/realpath", os_realpath,
-        JDOC("(os/realpath path)\n\n"
-             "Get the absolute path for a given path, following ../, ./, and symlinks. "
-             "Returns an absolute path as a string. Will raise an error on Windows.")
-    },
-    {
-        "os/perm-string", os_permission_string,
-        JDOC("(os/perm-string int)\n\n"
-             "Convert a Unix octal permission value from a permission integer as returned by os/stat "
-             "to a human readable string, that follows the formatting "
-             "of unix tools like ls. Returns the string as a 9 character string of r, w, x and - characters. Does not "
-             "include the file/directory/symlink character as rendered by `ls`.")
-    },
-    {
-        "os/perm-int", os_permission_int,
-        JDOC("(os/perm-int bytes)\n\n"
-             "Parse a 9 character permission string and return an integer that can be used by chmod.")
-    },
-#ifdef JANET_EV
-    {
-        "os/open", os_open,
-        JDOC("(os/open path &opt flags mode)\n\n"
-             "Create a stream from a file, like the POSIX open system call. Returns a new stream. "
-             "mode should be a file mode as passed to os/chmod, but only if the create flag is given. "
-             "The default mode is 8r666. "
-             "Allowed flags are as follows:\n\n"
-             "  * :r - open this file for reading\n"
-             "  * :w - open this file for writing\n"
-             "  * :c - create a new file (O_CREATE)\n"
-             "  * :e - fail if the file exists (O_EXCL)\n"
-             "  * :t - shorten an existing file to length 0 (O_TRUNC)\n\n"
-             "Posix only flags:\n\n"
-             "  * :a - append to a file (O_APPEND)\n"
-             "  * :x - O_SYNC\n"
-             "  * :C - O_NOCTTY\n\n"
-             "Windows only flags:\n\n"
-             "  * :R - share reads (FILE_SHARE_READ)\n"
-             "  * :W - share writes (FILE_SHARE_WRITE)\n"
-             "  * :D - share deletes (FILE_SHARE_DELETE)\n"
-             "  * :H - FILE_ATTRIBUTE_HIDDEN\n"
-             "  * :O - FILE_ATTRIBUTE_READONLY\n"
-             "  * :F - FILE_ATTRIBUTE_OFFLINE\n"
-             "  * :T - FILE_ATTRIBUTE_TEMPORARY\n"
-             "  * :d - FILE_FLAG_DELETE_ON_CLOSE\n"
-             "  * :b - FILE_FLAG_NO_BUFFERING\n")
-    },
-    {
-        "os/pipe", os_pipe,
-        JDOC("(os/pipe)\n\n"
-             "Create a readable stream and a writable stream that are connected. Returns a two element "
-             "tuple where the first element is a readable stream and the second element is the writable "
-             "stream.")
-    },
-#endif
-#endif
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_os(JanetTable *env) {
 #if !defined(JANET_REDUCED_OS) && defined(JANET_WINDOWS) && defined(JANET_THREADS)
     /* During start up, the top-most abstract machine (thread)
      * in the thread tree sets up the critical section. */
-    if (!env_lock_initialized) {
+    static volatile long env_lock_initializing = 0;
+    static volatile long env_lock_initialized = 0;
+    if (!InterlockedExchange(&env_lock_initializing, 1)) {
         InitializeCriticalSection(&env_lock);
-        env_lock_initialized = 1;
+        InterlockedOr(&env_lock_initialized, 1);
+    } else {
+        while (!InterlockedOr(&env_lock_initialized, 0)) {
+            Sleep(0);
+        }
     }
+
 #endif
 #ifndef JANET_NO_PROCESSES
 #endif
-    janet_core_cfuns(env, NULL, os_cfuns);
+    JanetRegExt os_cfuns[] = {
+        JANET_CORE_REG("os/exit", os_exit),
+        JANET_CORE_REG("os/which", os_which),
+        JANET_CORE_REG("os/arch", os_arch),
+#ifndef JANET_REDUCED_OS
+        JANET_CORE_REG("os/environ", os_environ),
+        JANET_CORE_REG("os/getenv", os_getenv),
+        JANET_CORE_REG("os/dir", os_dir),
+        JANET_CORE_REG("os/stat", os_stat),
+        JANET_CORE_REG("os/lstat", os_lstat),
+        JANET_CORE_REG("os/chmod", os_chmod),
+        JANET_CORE_REG("os/touch", os_touch),
+        JANET_CORE_REG("os/cd", os_cd),
+#ifndef JANET_NO_UMASK
+        JANET_CORE_REG("os/umask", os_umask),
+#endif
+        JANET_CORE_REG("os/mkdir", os_mkdir),
+        JANET_CORE_REG("os/rmdir", os_rmdir),
+        JANET_CORE_REG("os/rm", os_remove),
+        JANET_CORE_REG("os/link", os_link),
+#ifndef JANET_NO_SYMLINKS
+        JANET_CORE_REG("os/symlink", os_symlink),
+        JANET_CORE_REG("os/readlink", os_readlink),
+#endif
+#ifndef JANET_NO_PROCESSES
+        JANET_CORE_REG("os/execute", os_execute),
+        JANET_CORE_REG("os/spawn", os_spawn),
+        JANET_CORE_REG("os/shell", os_shell),
+        JANET_CORE_REG("os/proc-wait", os_proc_wait),
+        JANET_CORE_REG("os/proc-kill", os_proc_kill),
+        JANET_CORE_REG("os/proc-close", os_proc_close),
+#endif
+        JANET_CORE_REG("os/setenv", os_setenv),
+        JANET_CORE_REG("os/time", os_time),
+        JANET_CORE_REG("os/mktime", os_mktime),
+        JANET_CORE_REG("os/clock", os_clock),
+        JANET_CORE_REG("os/sleep", os_sleep),
+        JANET_CORE_REG("os/cwd", os_cwd),
+        JANET_CORE_REG("os/cryptorand", os_cryptorand),
+        JANET_CORE_REG("os/date", os_date),
+        JANET_CORE_REG("os/rename", os_rename),
+        JANET_CORE_REG("os/realpath", os_realpath),
+        JANET_CORE_REG("os/perm-string", os_permission_string),
+        JANET_CORE_REG("os/perm-int", os_permission_int),
+#ifdef JANET_EV
+        JANET_CORE_REG("os/open", os_open),
+        JANET_CORE_REG("os/pipe", os_pipe),
+#endif
+#endif
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, os_cfuns);
 }

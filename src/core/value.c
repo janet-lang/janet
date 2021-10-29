@@ -31,31 +31,28 @@
 
 #include <math.h>
 
-JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal = NULL;
-JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_top = NULL;
-JANET_THREAD_LOCAL JanetTraversalNode *janet_vm_traversal_base = NULL;
-
 static void push_traversal_node(void *lhs, void *rhs, int32_t index2) {
     JanetTraversalNode node;
     node.self = (JanetGCObject *) lhs;
     node.other = (JanetGCObject *) rhs;
     node.index = 0;
     node.index2 = index2;
-    if (janet_vm_traversal + 1 >= janet_vm_traversal_top) {
-        size_t oldsize = janet_vm_traversal - janet_vm_traversal_base;
+    int is_new = janet_vm.traversal_base == NULL;
+    if (is_new || (janet_vm.traversal + 1 >= janet_vm.traversal_top)) {
+        size_t oldsize = is_new ? 0 : (janet_vm.traversal - janet_vm.traversal_base);
         size_t newsize = 2 * oldsize + 1;
         if (newsize < 128) {
             newsize = 128;
         }
-        JanetTraversalNode *tn = janet_realloc(janet_vm_traversal_base, newsize * sizeof(JanetTraversalNode));
+        JanetTraversalNode *tn = janet_realloc(janet_vm.traversal_base, newsize * sizeof(JanetTraversalNode));
         if (tn == NULL) {
             JANET_OUT_OF_MEMORY;
         }
-        janet_vm_traversal_base = tn;
-        janet_vm_traversal_top = janet_vm_traversal_base + newsize;
-        janet_vm_traversal = janet_vm_traversal_base + oldsize;
+        janet_vm.traversal_base = tn;
+        janet_vm.traversal_top = janet_vm.traversal_base + newsize;
+        janet_vm.traversal = janet_vm.traversal_base + oldsize;
     }
-    *(++janet_vm_traversal) = node;
+    *(++janet_vm.traversal) = node;
 }
 
 /*
@@ -67,8 +64,8 @@ static void push_traversal_node(void *lhs, void *rhs, int32_t index2) {
  * 3 - early stop - lhs > rhs
  */
 static int traversal_next(Janet *x, Janet *y) {
-    JanetTraversalNode *t = janet_vm_traversal;
-    while (t && t > janet_vm_traversal_base) {
+    JanetTraversalNode *t = janet_vm.traversal;
+    while (t && t > janet_vm.traversal_base) {
         JanetGCObject *self = t->self;
         JanetTupleHead *tself = (JanetTupleHead *)self;
         JanetStructHead *sself = (JanetStructHead *)self;
@@ -81,7 +78,7 @@ static int traversal_next(Janet *x, Janet *y) {
                 int32_t index = t->index++;
                 *x = tself->data[index];
                 *y = tother->data[index];
-                janet_vm_traversal = t;
+                janet_vm.traversal = t;
                 return 0;
             }
             if (t->index2 && tself->length != tother->length) {
@@ -94,14 +91,14 @@ static int traversal_next(Janet *x, Janet *y) {
                 int32_t index = t->index++;
                 *x = sself->data[index].value;
                 *y = sother->data[index].value;
-                janet_vm_traversal = t;
+                janet_vm.traversal = t;
                 return 0;
             }
             for (int32_t i = t->index; i < sself->capacity; i++) {
                 t->index2 = 1;
                 *x = sself->data[t->index].key;
                 *y = sother->data[t->index].key;
-                janet_vm_traversal = t;
+                janet_vm.traversal = t;
                 return 0;
             }
             /* Traverse prototype */
@@ -112,13 +109,13 @@ static int traversal_next(Janet *x, Janet *y) {
             if (oproto && sproto) {
                 *x = janet_wrap_struct(sproto);
                 *y = janet_wrap_struct(oproto);
-                janet_vm_traversal = t - 1;
+                janet_vm.traversal = t - 1;
                 return 0;
             }
         }
         t--;
     }
-    janet_vm_traversal = t;
+    janet_vm.traversal = t;
     return 2;
 }
 
@@ -207,17 +204,17 @@ Janet janet_next_impl(Janet ds, Janet key, int is_interpreter) {
                     status == JANET_STATUS_USER4) {
                 return janet_wrap_nil();
             }
-            janet_vm_fiber->child = child;
+            janet_vm.fiber->child = child;
             JanetSignal sig = janet_continue(child, janet_wrap_nil(), &retreg);
             if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
                 if (is_interpreter) {
                     janet_signalv(sig, retreg);
                 } else {
-                    janet_vm_fiber->child = NULL;
+                    janet_vm.fiber->child = NULL;
                     janet_panicv(retreg);
                 }
             }
-            janet_vm_fiber->child = NULL;
+            janet_vm.fiber->child = NULL;
             if (sig == JANET_SIGNAL_OK ||
                     sig == JANET_SIGNAL_ERROR ||
                     sig == JANET_SIGNAL_USER0 ||
@@ -250,7 +247,7 @@ static int janet_compare_abstract(JanetAbstract xx, JanetAbstract yy) {
 }
 
 int janet_equals(Janet x, Janet y) {
-    janet_vm_traversal = janet_vm_traversal_base;
+    janet_vm.traversal = janet_vm.traversal_base;
     do {
         if (janet_type(x) != janet_type(y)) return 0;
         switch (janet_type(x)) {
@@ -360,7 +357,7 @@ int32_t janet_hash(Janet x) {
  * If y is less, returns 1. All types are comparable
  * and should have strict ordering, excepts NaNs. */
 int janet_compare(Janet x, Janet y) {
-    janet_vm_traversal = janet_vm_traversal_base;
+    janet_vm.traversal = janet_vm.traversal_base;
     int status;
     do {
         JanetType tx = janet_type(x);

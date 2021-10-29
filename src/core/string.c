@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -170,25 +170,37 @@ static int32_t kmp_next(struct kmp_state *state) {
 
 /* CFuns */
 
-static Janet cfun_string_slice(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_slice,
+              "(string/slice bytes &opt start end)",
+              "Returns a substring from a byte sequence. The substring is from "
+              "index start inclusive to index end exclusive. All indexing "
+              "is from 0. 'start' and 'end' can also be negative to indicate indexing "
+              "from the end of the string. Note that index -1 is synonymous with "
+              "index (length bytes) to allow a full negative slice range. ") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
 }
 
-static Janet cfun_symbol_slice(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_symbol_slice,
+              "(symbol/slice bytes &opt start end)",
+              "Same a string/slice, but returns a symbol.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_symbolv(view.bytes + range.start, range.end - range.start);
 }
 
-static Janet cfun_keyword_slice(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_keyword_slice,
+              "(keyword/slice bytes &opt start end)",
+              "Same a string/slice, but returns a keyword.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_keywordv(view.bytes + range.start, range.end - range.start);
 }
 
-static Janet cfun_string_repeat(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_repeat,
+              "(string/repeat bytes n)",
+              "Returns a string that is n copies of bytes concatenated.") {
     janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     int32_t rep = janet_getinteger(argv, 1);
@@ -204,7 +216,9 @@ static Janet cfun_string_repeat(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(newbuf));
 }
 
-static Janet cfun_string_bytes(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_bytes,
+              "(string/bytes str)",
+              "Returns a tuple of integers that are the byte values of the string.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     Janet *tup = janet_tuple_begin(view.len);
@@ -215,7 +229,10 @@ static Janet cfun_string_bytes(int32_t argc, Janet *argv) {
     return janet_wrap_tuple(janet_tuple_end(tup));
 }
 
-static Janet cfun_string_frombytes(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_frombytes,
+              "(string/from-bytes & byte-vals)",
+              "Creates a string from integer parameters with byte values. All integers "
+              "will be coerced to the range of 1 byte 0-255.") {
     int32_t i;
     uint8_t *buf = janet_string_begin(argc);
     for (i = 0; i < argc; i++) {
@@ -225,7 +242,11 @@ static Janet cfun_string_frombytes(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static Janet cfun_string_asciilower(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_asciilower,
+              "(string/ascii-lower str)",
+              "Returns a new string where all bytes are replaced with the "
+              "lowercase version of themselves in ASCII. Does only a very simple "
+              "case check, meaning no unicode support.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
@@ -240,7 +261,11 @@ static Janet cfun_string_asciilower(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static Janet cfun_string_asciiupper(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_asciiupper,
+              "(string/ascii-upper str)",
+              "Returns a new string where all bytes are replaced with the "
+              "uppercase version of themselves in ASCII. Does only a very simple "
+              "case check, meaning no unicode support.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
@@ -255,7 +280,9 @@ static Janet cfun_string_asciiupper(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static Janet cfun_string_reverse(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_reverse,
+              "(string/reverse str)",
+              "Returns a string that is the reversed version of str.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
@@ -279,7 +306,11 @@ static void findsetup(int32_t argc, Janet *argv, struct kmp_state *s, int32_t ex
     s->i = start;
 }
 
-static Janet cfun_string_find(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_find,
+              "(string/find patt str &opt start-index)",
+              "Searches for the first instance of pattern patt in string "
+              "str. Returns the index of the first character in patt if found, "
+              "otherwise returns nil.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
@@ -290,7 +321,9 @@ static Janet cfun_string_find(int32_t argc, Janet *argv) {
            : janet_wrap_integer(result);
 }
 
-static Janet cfun_string_hasprefix(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_hasprefix,
+              "(string/has-prefix? pfx str)",
+              "Tests whether str starts with pfx.") {
     janet_fixarity(argc, 2);
     JanetByteView prefix = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
@@ -299,7 +332,9 @@ static Janet cfun_string_hasprefix(int32_t argc, Janet *argv) {
            : janet_wrap_boolean(memcmp(prefix.bytes, str.bytes, prefix.len) == 0);
 }
 
-static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_hassuffix,
+              "(string/has-suffix? sfx str)",
+              "Tests whether str ends with sfx.") {
     janet_fixarity(argc, 2);
     JanetByteView suffix = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
@@ -310,7 +345,12 @@ static Janet cfun_string_hassuffix(int32_t argc, Janet *argv) {
                                        suffix.len) == 0);
 }
 
-static Janet cfun_string_findall(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_findall,
+              "(string/find-all patt str &opt start-index)",
+              "Searches for all instances of pattern patt in string "
+              "str. Returns an array of all indices of found patterns. Overlapping "
+              "instances of the pattern are counted individually, meaning a byte in str "
+              "may contribute to multiple found patterns.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
@@ -344,7 +384,10 @@ static void replacesetup(int32_t argc, Janet *argv, struct replace_state *s) {
     s->substlen = subst.len;
 }
 
-static Janet cfun_string_replace(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_replace,
+              "(string/replace patt subst str)",
+              "Replace the first occurrence of patt with subst in the string str. "
+              "Will return the new string if patt is found, otherwise returns str.") {
     int32_t result;
     struct replace_state s;
     uint8_t *buf;
@@ -364,7 +407,11 @@ static Janet cfun_string_replace(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static Janet cfun_string_replaceall(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_replaceall,
+              "(string/replace-all patt subst str)",
+              "Replace all instances of patt with subst in the string str. Overlapping "
+              "matches will not be counted, only the first match in such a span will be replaced. "
+              "Will return the new string if patt is found, otherwise returns str.") {
     int32_t result;
     struct replace_state s;
     JanetBuffer b;
@@ -384,7 +431,13 @@ static Janet cfun_string_replaceall(int32_t argc, Janet *argv) {
     return janet_wrap_string(ret);
 }
 
-static Janet cfun_string_split(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_split,
+              "(string/split delim str &opt start limit)",
+              "Splits a string str with delimiter delim and returns an array of "
+              "substrings. The substrings will not contain the delimiter delim. If delim "
+              "is not found, the returned array will have one element. Will start searching "
+              "for delim at the index start (if provided), and return up to a maximum "
+              "of limit results (if provided).") {
     int32_t result;
     JanetArray *array;
     struct kmp_state state;
@@ -406,7 +459,11 @@ static Janet cfun_string_split(int32_t argc, Janet *argv) {
     return janet_wrap_array(array);
 }
 
-static Janet cfun_string_checkset(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_checkset,
+              "(string/check-set set str)",
+              "Checks that the string str only contains bytes that appear in the string set. "
+              "Returns true if all bytes in str appear in set, false if some bytes in str do "
+              "not appear in set.") {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);
@@ -428,7 +485,10 @@ static Janet cfun_string_checkset(int32_t argc, Janet *argv) {
     return janet_wrap_true();
 }
 
-static Janet cfun_string_join(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_join,
+              "(string/join parts &opt sep)",
+              "Joins an array of strings into one string, optionally separated by "
+              "a separator string sep.") {
     janet_arity(argc, 1, 2);
     JanetView parts = janet_getindexed(argv, 0);
     JanetByteView joiner;
@@ -468,7 +528,10 @@ static Janet cfun_string_join(int32_t argc, Janet *argv) {
     return janet_wrap_string(janet_string_end(buf));
 }
 
-static Janet cfun_string_format(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_format,
+              "(string/format format & values)",
+              "Similar to snprintf, but specialized for operating with Janet values. Returns "
+              "a new string.") {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);
     const char *strfrmt = (const char *) janet_getstring(argv, 0);
@@ -508,7 +571,10 @@ static void trim_help_args(int32_t argc, Janet *argv, JanetByteView *str, JanetB
     }
 }
 
-static Janet cfun_string_trim(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_trim,
+              "(string/trim str &opt set)",
+              "Trim leading and trailing whitespace from a byte sequence. If the argument "
+              "set is provided, consider only characters in set to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -518,163 +584,52 @@ static Janet cfun_string_trim(int32_t argc, Janet *argv) {
     return janet_stringv(str.bytes + left_edge, right_edge - left_edge);
 }
 
-static Janet cfun_string_triml(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_triml,
+              "(string/triml str &opt set)",
+              "Trim leading whitespace from a byte sequence. If the argument "
+              "set is provided, consider only characters in set to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
     return janet_stringv(str.bytes + left_edge, str.len - left_edge);
 }
 
-static Janet cfun_string_trimr(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_string_trimr,
+              "(string/trimr str &opt set)",
+              "Trim trailing whitespace from a byte sequence. If the argument "
+              "set is provided, consider only characters in set to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t right_edge = trim_help_rightedge(str, set);
     return janet_stringv(str.bytes, right_edge);
 }
 
-static const JanetReg string_cfuns[] = {
-    {
-        "string/slice", cfun_string_slice,
-        JDOC("(string/slice bytes &opt start end)\n\n"
-             "Returns a substring from a byte sequence. The substring is from "
-             "index start inclusive to index end exclusive. All indexing "
-             "is from 0. 'start' and 'end' can also be negative to indicate indexing "
-             "from the end of the string. Note that index -1 is synonymous with "
-             "index (length bytes) to allow a full negative slice range. ")
-    },
-    {
-        "keyword/slice", cfun_keyword_slice,
-        JDOC("(keyword/slice bytes &opt start end)\n\n"
-             "Same a string/slice, but returns a keyword.")
-    },
-    {
-        "symbol/slice", cfun_symbol_slice,
-        JDOC("(symbol/slice bytes &opt start end)\n\n"
-             "Same a string/slice, but returns a symbol.")
-    },
-    {
-        "string/repeat", cfun_string_repeat,
-        JDOC("(string/repeat bytes n)\n\n"
-             "Returns a string that is n copies of bytes concatenated.")
-    },
-    {
-        "string/bytes", cfun_string_bytes,
-        JDOC("(string/bytes str)\n\n"
-             "Returns an array of integers that are the byte values of the string.")
-    },
-    {
-        "string/from-bytes", cfun_string_frombytes,
-        JDOC("(string/from-bytes & byte-vals)\n\n"
-             "Creates a string from integer parameters with byte values. All integers "
-             "will be coerced to the range of 1 byte 0-255.")
-    },
-    {
-        "string/ascii-lower", cfun_string_asciilower,
-        JDOC("(string/ascii-lower str)\n\n"
-             "Returns a new string where all bytes are replaced with the "
-             "lowercase version of themselves in ASCII. Does only a very simple "
-             "case check, meaning no unicode support.")
-    },
-    {
-        "string/ascii-upper", cfun_string_asciiupper,
-        JDOC("(string/ascii-upper str)\n\n"
-             "Returns a new string where all bytes are replaced with the "
-             "uppercase version of themselves in ASCII. Does only a very simple "
-             "case check, meaning no unicode support.")
-    },
-    {
-        "string/reverse", cfun_string_reverse,
-        JDOC("(string/reverse str)\n\n"
-             "Returns a string that is the reversed version of str.")
-    },
-    {
-        "string/find", cfun_string_find,
-        JDOC("(string/find patt str &opt start-index)\n\n"
-             "Searches for the first instance of pattern patt in string "
-             "str. Returns the index of the first character in patt if found, "
-             "otherwise returns nil.")
-    },
-    {
-        "string/find-all", cfun_string_findall,
-        JDOC("(string/find-all patt str &opt start-index)\n\n"
-             "Searches for all instances of pattern patt in string "
-             "str. Returns an array of all indices of found patterns. Overlapping "
-             "instances of the pattern are counted individually, meaning a byte in str "
-             "may contribute to multiple found patterns.")
-    },
-    {
-        "string/has-prefix?", cfun_string_hasprefix,
-        JDOC("(string/has-prefix? pfx str)\n\n"
-             "Tests whether str starts with pfx.")
-    },
-    {
-        "string/has-suffix?", cfun_string_hassuffix,
-        JDOC("(string/has-suffix? sfx str)\n\n"
-             "Tests whether str ends with sfx.")
-    },
-    {
-        "string/replace", cfun_string_replace,
-        JDOC("(string/replace patt subst str)\n\n"
-             "Replace the first occurrence of patt with subst in the string str. "
-             "Will return the new string if patt is found, otherwise returns str.")
-    },
-    {
-        "string/replace-all", cfun_string_replaceall,
-        JDOC("(string/replace-all patt subst str)\n\n"
-             "Replace all instances of patt with subst in the string str. Overlapping "
-             "matches will not be counted, only the first match in such a span will be replaced. "
-             "Will return the new string if patt is found, otherwise returns str.")
-    },
-    {
-        "string/split", cfun_string_split,
-        JDOC("(string/split delim str &opt start limit)\n\n"
-             "Splits a string str with delimiter delim and returns an array of "
-             "substrings. The substrings will not contain the delimiter delim. If delim "
-             "is not found, the returned array will have one element. Will start searching "
-             "for delim at the index start (if provided), and return up to a maximum "
-             "of limit results (if provided).")
-    },
-    {
-        "string/check-set", cfun_string_checkset,
-        JDOC("(string/check-set set str)\n\n"
-             "Checks that the string str only contains bytes that appear in the string set. "
-             "Returns true if all bytes in str appear in set, false if some bytes in str do "
-             "not appear in set.")
-    },
-    {
-        "string/join", cfun_string_join,
-        JDOC("(string/join parts &opt sep)\n\n"
-             "Joins an array of strings into one string, optionally separated by "
-             "a separator string sep.")
-    },
-    {
-        "string/format", cfun_string_format,
-        JDOC("(string/format format & values)\n\n"
-             "Similar to snprintf, but specialized for operating with Janet values. Returns "
-             "a new string.")
-    },
-    {
-        "string/trim", cfun_string_trim,
-        JDOC("(string/trim str &opt set)\n\n"
-             "Trim leading and trailing whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
-    },
-    {
-        "string/triml", cfun_string_triml,
-        JDOC("(string/triml str &opt set)\n\n"
-             "Trim leading whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
-    },
-    {
-        "string/trimr", cfun_string_trimr,
-        JDOC("(string/trimr str &opt set)\n\n"
-             "Trim trailing whitespace from a byte sequence. If the argument "
-             "set is provided, consider only characters in set to be whitespace.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Module entry point */
 void janet_lib_string(JanetTable *env) {
-    janet_core_cfuns(env, NULL, string_cfuns);
+    JanetRegExt string_cfuns[] = {
+        JANET_CORE_REG("string/slice", cfun_string_slice),
+        JANET_CORE_REG("keyword/slice", cfun_keyword_slice),
+        JANET_CORE_REG("symbol/slice", cfun_symbol_slice),
+        JANET_CORE_REG("string/repeat", cfun_string_repeat),
+        JANET_CORE_REG("string/bytes", cfun_string_bytes),
+        JANET_CORE_REG("string/from-bytes", cfun_string_frombytes),
+        JANET_CORE_REG("string/ascii-lower", cfun_string_asciilower),
+        JANET_CORE_REG("string/ascii-upper", cfun_string_asciiupper),
+        JANET_CORE_REG("string/reverse", cfun_string_reverse),
+        JANET_CORE_REG("string/find", cfun_string_find),
+        JANET_CORE_REG("string/find-all", cfun_string_findall),
+        JANET_CORE_REG("string/has-prefix?", cfun_string_hasprefix),
+        JANET_CORE_REG("string/has-suffix?", cfun_string_hassuffix),
+        JANET_CORE_REG("string/replace", cfun_string_replace),
+        JANET_CORE_REG("string/replace-all", cfun_string_replaceall),
+        JANET_CORE_REG("string/split", cfun_string_split),
+        JANET_CORE_REG("string/check-set", cfun_string_checkset),
+        JANET_CORE_REG("string/join", cfun_string_join),
+        JANET_CORE_REG("string/format", cfun_string_format),
+        JANET_CORE_REG("string/trim", cfun_string_trim),
+        JANET_CORE_REG("string/triml", cfun_string_triml),
+        JANET_CORE_REG("string/trimr", cfun_string_trimr),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, string_cfuns);
 }

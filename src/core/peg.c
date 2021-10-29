@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -383,6 +383,25 @@ tail:
             } else {
                 uint32_t tag = rule[2];
                 pushcap(s, janet_stringv(text, (int32_t)(result - text)), tag);
+            }
+            return result;
+        }
+
+        case RULE_CAPTURE_NUM: {
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            if (!result) return NULL;
+            /* check number parsing */
+            double x = 0.0;
+            int32_t base = (int32_t) rule[2];
+            if (janet_scan_number_base(text, (int32_t)(result - text), base, &x)) return NULL;
+            /* Specialized pushcap - avoid intermediate string creation */
+            if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
+                janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
+            } else {
+                uint32_t tag = rule[3];
+                pushcap(s, janet_wrap_number(x), tag);
             }
             return result;
         }
@@ -975,6 +994,25 @@ static void spec_unref(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_UNREF);
 }
 
+static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 1, 3);
+    Reserve r = reserve(b, 4);
+    uint32_t base = 0;
+    if (argc >= 2) {
+        if (!janet_checktype(argv[1], JANET_NIL)) {
+            if (!janet_checkint(argv[1])) goto error;
+            base = (uint32_t) janet_unwrap_integer(argv[1]);
+            if (base < 2 || base > 36) goto error;
+        }
+    }
+    uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
+    uint32_t rule = peg_compile1(b, argv[0]);
+    emit_3(r, RULE_CAPTURE_NUM, rule, base, tag);
+    return;
+error:
+    peg_panicf(b, "expected integer between 2 and 36, got %v", argv[2]);
+}
+
 static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 1, 2);
     Reserve r = reserve(b, 3);
@@ -1118,6 +1156,7 @@ static const SpecialPair peg_specials[] = {
     {"line", spec_line},
     {"look", spec_look},
     {"not", spec_not},
+    {"number", spec_capture_number},
     {"opt", spec_opt},
     {"position", spec_position},
     {"quote", spec_capture},
@@ -1212,6 +1251,18 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             const uint8_t *str = janet_unwrap_string(peg);
             int32_t len = janet_string_length(str);
             emit_bytes(b, RULE_LITERAL, len, str);
+            break;
+        }
+        case JANET_TABLE: {
+            /* Build grammar table */
+            JanetTable *new_grammar = janet_table_clone(janet_unwrap_table(peg));
+            new_grammar->proto = grammar;
+            b->grammar = grammar = new_grammar;
+            /* Run the main rule */
+            Janet main_rule = janet_table_rawget(grammar, janet_ckeywordv("main"));
+            if (janet_checktype(main_rule, JANET_NIL))
+                peg_panic(b, "grammar requires :main rule");
+            rule = peg_compile1(b, main_rule);
             break;
         }
         case JANET_STRUCT: {
@@ -1419,6 +1470,12 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 if (rule[1] >= clen) goto bad;
                 i += 3;
                 break;
+            case RULE_CAPTURE_NUM:
+                /* [rule, base, tag] */
+                if (rule[1] >= blen) goto bad;
+                op_flags[rule[1]] |= 0x01;
+                i += 4;
+                break;
             case RULE_ACCUMULATE:
             case RULE_GROUP:
             case RULE_CAPTURE:
@@ -1541,7 +1598,11 @@ static JanetPeg *compile_peg(Janet x) {
  * C Functions
  */
 
-static Janet cfun_peg_compile(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_compile,
+              "(peg/compile peg)",
+              "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
+              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to suppliment "
+              "the grammar of the peg for otherwise undefined peg keywords.") {
     janet_fixarity(argc, 1);
     JanetPeg *peg = compile_peg(argv[0]);
     return janet_wrap_abstract(peg);
@@ -1604,13 +1665,18 @@ static void peg_call_reset(PegCall *c) {
     c->s.tags->count = 0;
 }
 
-static Janet cfun_peg_match(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_match,
+              "(peg/match peg text &opt start & args)",
+              "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
+              "Returns nil if text does not match the language defined by peg. The syntax of PEGs is documented on the Janet website.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
     const uint8_t *result = peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + c.start);
     return result ? janet_wrap_array(c.s.captures) : janet_wrap_nil();
 }
 
-static Janet cfun_peg_find(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_find,
+              "(peg/find peg text &opt start & args)",
+              "Find first index where the peg matches in text. Returns an integer, or nil if not found.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
     for (int32_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
@@ -1620,7 +1686,9 @@ static Janet cfun_peg_find(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_peg_find_all(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_find_all,
+              "(peg/find-all peg text &opt start & args)",
+              "Find all indexes where the peg matches in text. Returns an array of integers.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
     JanetArray *ret = janet_array(0);
     for (int32_t i = c.start; i < c.bytes.len; i++) {
@@ -1659,11 +1727,16 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
     return janet_wrap_buffer(ret);
 }
 
-static Janet cfun_peg_replace_all(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_replace_all,
+              "(peg/replace-all peg repl text &opt start & args)",
+              "Replace all matches of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement.") {
     return cfun_peg_replace_generic(argc, argv, 0);
 }
 
-static Janet cfun_peg_replace(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_peg_replace,
+              "(peg/replace peg repl text &opt start & args)",
+              "Replace first match of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement. "
+              "If no matches are found, returns the input string in a new buffer.") {
     return cfun_peg_replace_generic(argc, argv, 1);
 }
 
@@ -1688,47 +1761,18 @@ static Janet peg_next(void *p, Janet key) {
     return janet_nextmethod(peg_methods, key);
 }
 
-static const JanetReg peg_cfuns[] = {
-    {
-        "peg/compile", cfun_peg_compile,
-        JDOC("(peg/compile peg)\n\n"
-             "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-             "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to suppliment "
-             "the grammar of the peg for otherwise undefined peg keywords.")
-    },
-    {
-        "peg/match", cfun_peg_match,
-        JDOC("(peg/match peg text &opt start & args)\n\n"
-             "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
-             "Returns nil if text does not match the language defined by peg. The syntax of PEGs is documented on the Janet website.")
-    },
-    {
-        "peg/find", cfun_peg_find,
-        JDOC("(peg/find peg text &opt start & args)\n\n"
-             "Find first index where the peg matches in text. Returns an integer, or nil if not found.")
-    },
-    {
-        "peg/find-all", cfun_peg_find_all,
-        JDOC("(peg/find-all peg text &opt start & args)\n\n"
-             "Find all indexes where the peg matches in text. Returns an array of integers.")
-    },
-    {
-        "peg/replace", cfun_peg_replace,
-        JDOC("(peg/replace peg repl text &opt start & args)\n\n"
-             "Replace first match of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement. "
-             "If no matches are found, returns the input string in a new buffer.")
-    },
-    {
-        "peg/replace-all", cfun_peg_replace_all,
-        JDOC("(peg/replace-all peg repl text &opt start & args)\n\n"
-             "Replace all matches of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the peg module */
 void janet_lib_peg(JanetTable *env) {
-    janet_core_cfuns(env, NULL, peg_cfuns);
+    JanetRegExt cfuns[] = {
+        JANET_CORE_REG("peg/compile", cfun_peg_compile),
+        JANET_CORE_REG("peg/match", cfun_peg_match),
+        JANET_CORE_REG("peg/find", cfun_peg_find),
+        JANET_CORE_REG("peg/find-all", cfun_peg_find_all),
+        JANET_CORE_REG("peg/replace", cfun_peg_replace),
+        JANET_CORE_REG("peg/replace-all", cfun_peg_replace_all),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, cfuns);
     janet_register_abstract_type(&janet_peg_type);
 }
 

@@ -3,11 +3,14 @@
 janet \- run the Janet language abstract machine
 .SH SYNOPSIS
 .B janet
-[\fB\-hvsrpnqk\fR]
+[\fB\-hvsrpnqik\fR]
 [\fB\-e\fR \fISOURCE\fR]
+[\fB\-E\fR \fISOURCE ...ARGUMENTS\fR]
 [\fB\-l\fR \fIMODULE\fR]
 [\fB\-m\fR \fIPATH\fR]
 [\fB\-c\fR \fIMODULE JIMAGE\fR]
+[\fB\-w\fR \fILEVEL\fR]
+[\fB\-x\fR \fILEVEL\fR]
 [\fB\-\-\fR]
 .BR script
 .BR args ...
@@ -161,6 +164,11 @@ Execute a string of Janet source. Source code is executed in the order it is enc
 arguments are executed before later ones.
 
 .TP
+.BR \-E\ code arguments
+Execute a single Janet expression as a Janet short-fn, passing the remaining command line arguments to the expression. This allows
+more concise one-liners with command line arguments.
+
+.TP
 .BR \-d
 Enable debug mode. On all terminating signals as well the debug signal, this will
 cause the debugger to come up in the REPL. Same as calling (setdyn :debug true) in a
@@ -206,11 +214,27 @@ Source should be a path to the Janet module to compile, and output should be the
 resulting image. Output should usually end with the .jimage extension.
 
 .TP
+.BR \-i
+When this flag is passed, a script passed to the interpreter will be treated as a janet image file
+rather than a janet source file.
+
+.TP
 .BR \-l\ lib
 Import a Janet module before running a script or repl. Multiple files can be loaded
 in this manner, and exports from each file will be made available to the script
 or repl.
-
+.TP
+.BR \-w\ level
+Set the warning linting level for Janet.
+This linting level should be one of :relaxed, :none, :strict, :normal, or a
+Janet number. Any linting message that is of a greater lint level than this setting will be displayed as
+a warning, but not stop compilation or execution.
+.TP
+.BR \-x\ level
+Set the error linting level for Janet.
+This linting level should be one of :relaxed, :none, :strict, :normal, or a
+Janet number. Any linting message that is of a greater lint level will cause a compilation error
+and stop compilation.
 .TP
 .BR \-\-
 Stop parsing command line arguments. All arguments after this one will be considered file names

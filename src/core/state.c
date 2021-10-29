@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose and contributors
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -20,23 +20,42 @@
 * IN THE SOFTWARE.
 */
 
-/* A very simple native module */
-
+#ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
-#include <iostream>
+#include "state.h"
+#endif
 
-static Janet cfun_get_nine(int32_t argc, Janet *argv) {
-    (void) argv;
-    janet_fixarity(argc, 0);
-    std::cout << "Hello!" << std::endl;
-    return janet_wrap_number(9.0);
+JANET_THREAD_LOCAL JanetVM janet_vm;
+
+JanetVM *janet_local_vm(void) {
+    return &janet_vm;
 }
 
-static const JanetReg array_cfuns[] = {
-    {"get9", cfun_get_nine, NULL},
-    {NULL, NULL, NULL}
-};
+JanetVM *janet_vm_alloc(void) {
+    JanetVM *mem = janet_malloc(sizeof(JanetVM));
+    if (NULL == mem) {
+        JANET_OUT_OF_MEMORY;
+    }
+    return mem;
+}
 
-JANET_MODULE_ENTRY(JanetTable *env) {
-    janet_cfuns(env, NULL, array_cfuns);
+void janet_vm_free(JanetVM *vm) {
+    janet_free(vm);
+}
+
+void janet_vm_save(JanetVM *into) {
+    *into = janet_vm;
+}
+
+void janet_vm_load(JanetVM *from) {
+    janet_vm = *from;
+}
+
+/* Trigger suspension of the Janet vm by trying to
+ * exit the interpeter loop when convenient. You can optionally
+ * use NULL to interrupt the current VM when convenient */
+void janet_interpreter_interrupt(JanetVM *vm) {
+    vm = vm ? vm : &janet_vm;
+    vm->auto_suspend = 1;
 }

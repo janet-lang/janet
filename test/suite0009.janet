@@ -47,6 +47,11 @@
   (assert-no-error "pipe stdin to process 2" (os/proc-wait p))
   (assert (= "hello!" (string/trim x)) "round trip pipeline in process"))
 
+(let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+  (os/proc-kill p)
+  (def retval (os/proc-wait p))
+  (assert (not= retval 24) "Process was *not* terminated by parent"))
+
 # Parallel subprocesses
 
 (defn calc-1
@@ -100,6 +105,17 @@
   (file/close outfile)
   (os/rm "unique.txt"))
 
+# Ensure that the stream created by os/open works
+
+(assert-no-error "File writing 4.1"
+   (def outstream (os/open "unique.txt" :wct))
+   (defer (:close outstream)
+     (:write outstream "123\n")
+     (:write outstream "456\n"))
+   # Cast to string to enable comparison
+   (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
+   (os/rm "unique.txt"))
+     
 # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
@@ -135,6 +151,38 @@
 
   (:close s))
 
+# Test localname and peername
+(repeat 20
+
+  (defn check-matching-names [stream]
+    (def [my-ip my-port] (net/localname stream))
+    (def [remote-ip remote-port] (net/peername stream))
+    (def msg (string my-ip " " my-port " " remote-ip " " remote-port))
+    (def buf @"")
+    (ev/gather
+      (net/write stream msg)
+      (net/read stream 1024 buf))
+    (def comparison (string/split " " buf))
+    (assert (and (= my-ip (get comparison 2))
+                 (= (string my-port) (get comparison 3))
+                 (= remote-ip (get comparison 0))
+                 (= (string remote-port) (get comparison 1)))
+            "localname should match peername"))
+
+  # Test on both server and client
+  (defn names-handler
+    [stream]
+    (defer (:close stream)
+      (check-matching-names stream)))
+  (with [s (net/server "127.0.0.1" "8000" names-handler)]
+    (defn test-names []
+      (with [conn (net/connect "127.0.0.1" "8000")]
+        (check-matching-names conn)))
+    (test-names)
+    (test-names))
+
+  (gccollect))
+
 # Create pipe
 
 (var pipe-counter 0)
@@ -162,5 +210,47 @@
 (ev/cancel fiber "boop")
 
 (assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+
+# Test some channel
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/chan-close c2))
+(for i 0 1000
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/take c2)
+(assert (= (slice arr) (slice (range 1000))) "ev/chan-close 1")
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/sleep 0.1)
+  (ev/chan-close c2))
+(for i 0 100
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/select c2)
+(assert (= (slice arr) (slice (range 100))) "ev/chan-close 2")
+
+(def c1 (ev/chan))
+(def c2 (ev/chan))
+(def arr @[])
+(ev/spawn
+  (while (def x (ev/take c1))
+    (array/push arr x))
+  (ev/chan-close c2))
+(for i 0 100
+  (ev/give c1 i))
+(ev/chan-close c1)
+(ev/rselect c2)
+(assert (= (slice arr) (slice (range 100))) "ev/chan-close 3")
 
 (end-suite)

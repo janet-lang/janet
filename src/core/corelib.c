@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -33,6 +33,13 @@
 #ifndef JANET_BOOTSTRAP
 extern const unsigned char *janet_core_image;
 extern size_t janet_core_image_size;
+#endif
+
+/* Docstrings should only exist during bootstrap */
+#ifdef JANET_BOOTSTRAP
+#define JDOC(x) (x)
+#else
+#define JDOC(x) NULL
 #endif
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
@@ -130,7 +137,7 @@ static const char *janet_dyncstring(const char *name, const char *dflt) {
     const uint8_t *jstr = janet_unwrap_string(x);
     const char *cstr = (const char *)jstr;
     if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
-        janet_panicf("string %v contains embedded 0s");
+        janet_panicf("string %v contains embedded 0s", x);
     }
     return cstr;
 }
@@ -143,7 +150,18 @@ static int is_path_sep(char c) {
 }
 
 /* Used for module system. */
-static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_expand_path,
+              "(module/expand-path path template)",
+              "Expands a path template as found in `module/paths` for `module/find`. "
+              "This takes in a path (the argument to require) and a template string, "
+              "to expand the path to a path that can be "
+              "used for importing files. The replacements are as follows:\n\n"
+              "* :all: -- the value of path verbatim\n\n"
+              "* :cur: -- the current file, or (dyn :current-file)\n\n"
+              "* :dir: -- the directory containing the current file\n\n"
+              "* :name: -- the name component of path, with extension if given\n\n"
+              "* :native: -- the extension used to load natives, .so or .dll\n\n"
+              "* :sys: -- the system path, or (dyn :syspath)") {
     janet_fixarity(argc, 2);
     const char *input = janet_getcstring(argv, 0);
     const char *template = janet_getcstring(argv, 1);
@@ -266,11 +284,13 @@ static Janet janet_core_expand_path(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(out);
 }
 
-static Janet janet_core_dyn(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_dyn,
+              "(dyn key &opt default)",
+              "Get a dynamic binding. Returns the default value (or nil) if no binding found.") {
     janet_arity(argc, 1, 2);
     Janet value;
-    if (janet_vm_fiber->env) {
-        value = janet_table_get(janet_vm_fiber->env, argv[0]);
+    if (janet_vm.fiber->env) {
+        value = janet_table_get(janet_vm.fiber->env, argv[0]);
     } else {
         value = janet_wrap_nil();
     }
@@ -280,16 +300,24 @@ static Janet janet_core_dyn(int32_t argc, Janet *argv) {
     return value;
 }
 
-static Janet janet_core_setdyn(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_setdyn,
+              "(setdyn key value)",
+              "Set a dynamic binding. Returns value.") {
     janet_fixarity(argc, 2);
-    if (!janet_vm_fiber->env) {
-        janet_vm_fiber->env = janet_table(2);
+    if (!janet_vm.fiber->env) {
+        janet_vm.fiber->env = janet_table(2);
     }
-    janet_table_put(janet_vm_fiber->env, argv[0], argv[1]);
+    janet_table_put(janet_vm.fiber->env, argv[0], argv[1]);
     return argv[1];
 }
 
-static Janet janet_core_native(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_native,
+              "(native path &opt env)",
+              "Load a native module from the given path. The path "
+              "must be an absolute or relative path on the file system, and is "
+              "usually a .so file on Unix systems, and a .dll file on Windows. "
+              "Returns an environment table that contains functions and other values "
+              "from the native module.") {
     JanetModule init;
     janet_arity(argc, 1, 2);
     const uint8_t *path = janet_getstring(argv, 0);
@@ -309,67 +337,104 @@ static Janet janet_core_native(int32_t argc, Janet *argv) {
     return janet_wrap_table(env);
 }
 
-static Janet janet_core_describe(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_describe,
+              "(describe x)",
+              "Returns a string that is a human-readable description of a value x.") {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
         janet_description_b(b, argv[i]);
     return janet_stringv(b->data, b->count);
 }
 
-static Janet janet_core_string(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_string,
+              "(string & xs)",
+              "Creates a string by concatenating the elements of `xs` together. If an "
+              "element is not a byte sequence, it is converted to bytes via `describe`. "
+              "Returns the new string.") {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
         janet_to_string_b(b, argv[i]);
     return janet_stringv(b->data, b->count);
 }
 
-static Janet janet_core_symbol(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_symbol,
+              "(symbol & xs)",
+              "Creates a symbol by concatenating the elements of `xs` together. If an "
+              "element is not a byte sequence, it is converted to bytes via `describe`. "
+              "Returns the new symbol.") {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
         janet_to_string_b(b, argv[i]);
     return janet_symbolv(b->data, b->count);
 }
 
-static Janet janet_core_keyword(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_keyword,
+              "(keyword & xs)",
+              "Creates a keyword by concatenating the elements of `xs` together. If an "
+              "element is not a byte sequence, it is converted to bytes via `describe`. "
+              "Returns the new keyword.") {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
         janet_to_string_b(b, argv[i]);
     return janet_keywordv(b->data, b->count);
 }
 
-static Janet janet_core_buffer(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_buffer,
+              "(buffer & xs)",
+              "Creates a buffer by concatenating the elements of `xs` together. If an "
+              "element is not a byte sequence, it is converted to bytes via `describe`. "
+              "Returns the new buffer.") {
     JanetBuffer *b = janet_buffer(0);
     for (int32_t i = 0; i < argc; ++i)
         janet_to_string_b(b, argv[i]);
     return janet_wrap_buffer(b);
 }
 
-static Janet janet_core_is_abstract(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_is_abstract,
+              "(abstract? x)",
+              "Check if x is an abstract type.") {
     janet_fixarity(argc, 1);
     return janet_wrap_boolean(janet_checktype(argv[0], JANET_ABSTRACT));
 }
 
-static Janet janet_core_scannumber(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_scannumber,
+              "(scan-number str &opt base)",
+              "Parse a number from a byte sequence and return that number, either an integer "
+              "or a real. The number "
+              "must be in the same format as numbers in janet source code. Will return nil "
+              "on an invalid number. Optionally provide a base - if a base is provided, no "
+              "radix specifier is expected at the beginning of the number.") {
     double number;
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
-    if (janet_scan_number(view.bytes, view.len, &number))
+    int32_t base = janet_optinteger(argv, argc, 1, 0);
+    int valid = base == 0 || (base >= 2 && base <= 36);
+    if (!valid) {
+        janet_panicf("expected base between 2 and 36, got %d", base);
+    }
+    if (janet_scan_number_base(view.bytes, view.len, base, &number))
         return janet_wrap_nil();
     return janet_wrap_number(number);
 }
 
-static Janet janet_core_tuple(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_tuple,
+              "(tuple & items)",
+              "Creates a new tuple that contains items. Returns the new tuple.") {
     return janet_wrap_tuple(janet_tuple_n(argv, argc));
 }
 
-static Janet janet_core_array(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_array,
+              "(array & items)",
+              "Create a new array that contains items. Returns the new array.") {
     JanetArray *array = janet_array(argc);
     array->count = argc;
     safe_memcpy(array->data, argv, argc * sizeof(Janet));
     return janet_wrap_array(array);
 }
 
-static Janet janet_core_slice(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_slice,
+              "(slice x &opt start end)",
+              "Extract a sub-range of an indexed data structure or byte sequence.") {
     JanetRange range;
     JanetByteView bview;
     JanetView iview;
@@ -384,7 +449,12 @@ static Janet janet_core_slice(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet janet_core_table(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_table,
+              "(table & kvs)",
+              "Creates a new table from a variadic number of keys and values. "
+              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+              "an odd number of elements, an error will be thrown. Returns the "
+              "new table.") {
     int32_t i;
     if (argc & 1)
         janet_panic("expected even number of arguments");
@@ -395,7 +465,9 @@ static Janet janet_core_table(int32_t argc, Janet *argv) {
     return janet_wrap_table(table);
 }
 
-static Janet janet_core_getproto(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_getproto,
+              "(getproto x)",
+              "Get the prototype of a table or struct. Will return nil if `x` has no prototype.") {
     janet_fixarity(argc, 1);
     if (janet_checktype(argv[0], JANET_TABLE)) {
         JanetTable *t = janet_unwrap_table(argv[0]);
@@ -412,10 +484,16 @@ static Janet janet_core_getproto(int32_t argc, Janet *argv) {
     janet_panicf("expected struct|table, got %v", argv[0]);
 }
 
-static Janet janet_core_struct(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_struct,
+              "(struct & kvs)",
+              "Create a new struct from a sequence of key value pairs. "
+              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
+              "an odd number of elements, an error will be thrown. Returns the "
+              "new struct.") {
     int32_t i;
-    if (argc & 1)
+    if (argc & 1) {
         janet_panic("expected even number of arguments");
+    }
     JanetKV *st = janet_struct_begin(argc >> 1);
     for (i = 0; i < argc; i += 2) {
         janet_struct_put(st, argv[i], argv[i + 1]);
@@ -423,20 +501,30 @@ static Janet janet_core_struct(int32_t argc, Janet *argv) {
     return janet_wrap_struct(janet_struct_end(st));
 }
 
-static Janet janet_core_gensym(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_gensym,
+              "(gensym)",
+              "Returns a new symbol that is unique across the runtime. This means it "
+              "will not collide with any already created symbols during compilation, so "
+              "it can be used in macros to generate automatic bindings.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_symbol(janet_symbol_gen());
 }
 
-static Janet janet_core_gccollect(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_gccollect,
+              "(gccollect)",
+              "Run garbage collection. You should probably not call this manually.") {
     (void) argv;
     (void) argc;
     janet_collect();
     return janet_wrap_nil();
 }
 
-static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_gcsetinterval,
+              "(gcsetinterval interval)",
+              "Set an integer number of bytes to allocate before running garbage collection. "
+              "Low values for interval will be slower but use less memory. "
+              "High values will be faster but use more memory.") {
     janet_fixarity(argc, 1);
     size_t s = janet_getsize(argv, 0);
     /* limit interval to 48 bits */
@@ -445,17 +533,37 @@ static Janet janet_core_gcsetinterval(int32_t argc, Janet *argv) {
         janet_panic("interval too large");
     }
 #endif
-    janet_vm_gc_interval = s;
+    janet_vm.gc_interval = s;
     return janet_wrap_nil();
 }
 
-static Janet janet_core_gcinterval(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_gcinterval,
+              "(gcinterval)",
+              "Returns the integer number of bytes to allocate before running an iteration "
+              "of garbage collection.") {
     (void) argv;
     janet_fixarity(argc, 0);
-    return janet_wrap_number((double) janet_vm_gc_interval);
+    return janet_wrap_number((double) janet_vm.gc_interval);
 }
 
-static Janet janet_core_type(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_type,
+              "(type x)",
+              "Returns the type of `x` as a keyword. `x` is one of:\n\n"
+              "* :nil\n\n"
+              "* :boolean\n\n"
+              "* :number\n\n"
+              "* :array\n\n"
+              "* :tuple\n\n"
+              "* :table\n\n"
+              "* :struct\n\n"
+              "* :string\n\n"
+              "* :buffer\n\n"
+              "* :symbol\n\n"
+              "* :keyword\n\n"
+              "* :function\n\n"
+              "* :cfunction\n\n"
+              "* :fiber\n\n"
+              "or another keyword for an abstract type.") {
     janet_fixarity(argc, 1);
     JanetType t = janet_type(argv[0]);
     if (t == JANET_ABSTRACT) {
@@ -465,12 +573,21 @@ static Janet janet_core_type(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet janet_core_hash(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_hash,
+              "(hash value)",
+              "Gets a hash for any value. The hash is an integer can be used "
+              "as a cheap hash function for all values. If two values are strictly equal, "
+              "then they will have the same hash value.") {
     janet_fixarity(argc, 1);
     return janet_wrap_number(janet_hash(argv[0]));
 }
 
-static Janet janet_core_getline(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_getline,
+              "(getline &opt prompt buf env)",
+              "Reads a line of input into a buffer, including the newline character, using a prompt. "
+              "An optional environment table can be provided for auto-complete. "
+              "Returns the modified buffer. "
+              "Use this function to implement a simple interface for a terminal program.") {
     FILE *in = janet_dynfile("in", stdin);
     FILE *out = janet_dynfile("out", stdout);
     janet_arity(argc, 0, 3);
@@ -495,21 +612,27 @@ static Janet janet_core_getline(int32_t argc, Janet *argv) {
     return janet_wrap_buffer(buf);
 }
 
-static Janet janet_core_trace(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_trace,
+              "(trace func)",
+              "Enable tracing on a function. Returns the function.") {
     janet_fixarity(argc, 1);
     JanetFunction *func = janet_getfunction(argv, 0);
     func->gc.flags |= JANET_FUNCFLAG_TRACE;
     return argv[0];
 }
 
-static Janet janet_core_untrace(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_untrace,
+              "(untrace func)",
+              "Disables tracing on a function. Returns the function.") {
     janet_fixarity(argc, 1);
     JanetFunction *func = janet_getfunction(argv, 0);
     func->gc.flags &= ~JANET_FUNCFLAG_TRACE;
     return argv[0];
 }
 
-static Janet janet_core_check_int(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_check_int,
+              "(int? x)",
+              "Check if x can be exactly represented as a 32 bit signed two's complement integer.") {
     janet_fixarity(argc, 1);
     if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
     double num = janet_unwrap_number(argv[0]);
@@ -518,7 +641,9 @@ ret_false:
     return janet_wrap_false();
 }
 
-static Janet janet_core_check_nat(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_check_nat,
+              "(nat? x)",
+              "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.") {
     janet_fixarity(argc, 1);
     if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
     double num = janet_unwrap_number(argv[0]);
@@ -527,7 +652,9 @@ ret_false:
     return janet_wrap_false();
 }
 
-static Janet janet_core_signal(int32_t argc, Janet *argv) {
+JANET_CORE_FN(janet_core_signal,
+              "(signal what x)",
+              "Raise a signal with payload x. ") {
     janet_arity(argc, 1, 2);
     int sig;
     if (janet_checkint(argv[0])) {
@@ -551,210 +678,6 @@ static Janet janet_core_signal(int32_t argc, Janet *argv) {
     Janet payload = argc == 2 ? argv[1] : janet_wrap_nil();
     janet_signalv(sig, payload);
 }
-
-static const JanetReg corelib_cfuns[] = {
-    {
-        "native", janet_core_native,
-        JDOC("(native path &opt env)\n\n"
-             "Load a native module from the given path. The path "
-             "must be an absolute or relative path on the file system, and is "
-             "usually a .so file on Unix systems, and a .dll file on Windows. "
-             "Returns an environment table that contains functions and other values "
-             "from the native module.")
-    },
-    {
-        "describe", janet_core_describe,
-        JDOC("(describe x)\n\n"
-             "Returns a string that is a human-readable description of a value x.")
-    },
-    {
-        "string", janet_core_string,
-        JDOC("(string & xs)\n\n"
-             "Creates a string by concatenating the elements of `xs` together. If an "
-             "element is not a byte sequence, it is converted to bytes via `describe`. "
-             "Returns the new string.")
-    },
-    {
-        "symbol", janet_core_symbol,
-        JDOC("(symbol & xs)\n\n"
-             "Creates a symbol by concatenating the elements of `xs` together. If an "
-             "element is not a byte sequence, it is converted to bytes via `describe`. "
-             "Returns the new symbol.")
-    },
-    {
-        "keyword", janet_core_keyword,
-        JDOC("(keyword & xs)\n\n"
-             "Creates a keyword by concatenating the elements of `xs` together. If an "
-             "element is not a byte sequence, it is converted to bytes via `describe`. "
-             "Returns the new keyword.")
-    },
-    {
-        "buffer", janet_core_buffer,
-        JDOC("(buffer & xs)\n\n"
-             "Creates a buffer by concatenating the elements of `xs` together. If an "
-             "element is not a byte sequence, it is converted to bytes via `describe`. "
-             "Returns the new buffer.")
-    },
-    {
-        "abstract?", janet_core_is_abstract,
-        JDOC("(abstract? x)\n\n"
-             "Check if x is an abstract type.")
-    },
-    {
-        "table", janet_core_table,
-        JDOC("(table & kvs)\n\n"
-             "Creates a new table from a variadic number of keys and values. "
-             "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-             "an odd number of elements, an error will be thrown. Returns the "
-             "new table.")
-    },
-    {
-        "array", janet_core_array,
-        JDOC("(array & items)\n\n"
-             "Create a new array that contains items. Returns the new array.")
-    },
-    {
-        "scan-number", janet_core_scannumber,
-        JDOC("(scan-number str)\n\n"
-             "Parse a number from a byte sequence an return that number, either and integer "
-             "or a real. The number "
-             "must be in the same format as numbers in janet source code. Will return nil "
-             "on an invalid number.")
-    },
-    {
-        "tuple", janet_core_tuple,
-        JDOC("(tuple & items)\n\n"
-             "Creates a new tuple that contains items. Returns the new tuple.")
-    },
-    {
-        "struct", janet_core_struct,
-        JDOC("(struct & kvs)\n\n"
-             "Create a new struct from a sequence of key value pairs. "
-             "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-             "an odd number of elements, an error will be thrown. Returns the "
-             "new struct.")
-    },
-    {
-        "gensym", janet_core_gensym,
-        JDOC("(gensym)\n\n"
-             "Returns a new symbol that is unique across the runtime. This means it "
-             "will not collide with any already created symbols during compilation, so "
-             "it can be used in macros to generate automatic bindings.")
-    },
-    {
-        "gccollect", janet_core_gccollect,
-        JDOC("(gccollect)\n\n"
-             "Run garbage collection. You should probably not call this manually.")
-    },
-    {
-        "gcsetinterval", janet_core_gcsetinterval,
-        JDOC("(gcsetinterval interval)\n\n"
-             "Set an integer number of bytes to allocate before running garbage collection. "
-             "Low values for interval will be slower but use less memory. "
-             "High values will be faster but use more memory.")
-    },
-    {
-        "gcinterval", janet_core_gcinterval,
-        JDOC("(gcinterval)\n\n"
-             "Returns the integer number of bytes to allocate before running an iteration "
-             "of garbage collection.")
-    },
-    {
-        "type", janet_core_type,
-        JDOC("(type x)\n\n"
-             "Returns the type of `x` as a keyword. `x` is one of:\n\n"
-             "* :nil\n\n"
-             "* :boolean\n\n"
-             "* :number\n\n"
-             "* :array\n\n"
-             "* :tuple\n\n"
-             "* :table\n\n"
-             "* :struct\n\n"
-             "* :string\n\n"
-             "* :buffer\n\n"
-             "* :symbol\n\n"
-             "* :keyword\n\n"
-             "* :function\n\n"
-             "* :cfunction\n\n"
-             "* :fiber\n\n"
-             "or another keyword for an abstract type.")
-    },
-    {
-        "hash", janet_core_hash,
-        JDOC("(hash value)\n\n"
-             "Gets a hash for any value. The hash is an integer can be used "
-             "as a cheap hash function for all values. If two values are strictly equal, "
-             "then they will have the same hash value.")
-    },
-    {
-        "getline", janet_core_getline,
-        JDOC("(getline &opt prompt buf env)\n\n"
-             "Reads a line of input into a buffer, including the newline character, using a prompt. "
-             "An optional environment table can be provided for auto-complete. "
-             "Returns the modified buffer. "
-             "Use this function to implement a simple interface for a terminal program.")
-    },
-    {
-        "dyn", janet_core_dyn,
-        JDOC("(dyn key &opt default)\n\n"
-             "Get a dynamic binding. Returns the default value (or nil) if no binding found.")
-    },
-    {
-        "setdyn", janet_core_setdyn,
-        JDOC("(setdyn key value)\n\n"
-             "Set a dynamic binding. Returns value.")
-    },
-    {
-        "trace", janet_core_trace,
-        JDOC("(trace func)\n\n"
-             "Enable tracing on a function. Returns the function.")
-    },
-    {
-        "untrace", janet_core_untrace,
-        JDOC("(untrace func)\n\n"
-             "Disables tracing on a function. Returns the function.")
-    },
-    {
-        "module/expand-path", janet_core_expand_path,
-        JDOC("(module/expand-path path template)\n\n"
-             "Expands a path template as found in `module/paths` for `module/find`. "
-             "This takes in a path (the argument to require) and a template string, "
-             "to expand the path to a path that can be "
-             "used for importing files. The replacements are as follows:\n\n"
-             "* :all: -- the value of path verbatim\n\n"
-             "* :cur: -- the current file, or (dyn :current-file)\n\n"
-             "* :dir: -- the directory containing the current file\n\n"
-             "* :name: -- the name component of path, with extension if given\n\n"
-             "* :native: -- the extension used to load natives, .so or .dll\n\n"
-             "* :sys: -- the system path, or (dyn :syspath)")
-    },
-    {
-        "int?", janet_core_check_int,
-        JDOC("(int? x)\n\n"
-             "Check if x can be exactly represented as a 32 bit signed two's complement integer.")
-    },
-    {
-        "nat?", janet_core_check_nat,
-        JDOC("(nat? x)\n\n"
-             "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.")
-    },
-    {
-        "slice", janet_core_slice,
-        JDOC("(slice x &opt start end)\n\n"
-             "Extract a sub-range of an indexed data structure or byte sequence.")
-    },
-    {
-        "signal", janet_core_signal,
-        JDOC("(signal what x)\n\n"
-             "Raise a signal with payload x. ")
-    },
-    {
-        "getproto", janet_core_getproto,
-        JDOC("(getproto x)\n\n"
-             "Get the prototype of a table or struct. Will return nil if `x` has no prototype.")
-    },
-    {NULL, NULL, NULL}
-};
 
 #ifdef JANET_BOOTSTRAP
 
@@ -1028,7 +951,39 @@ static const uint32_t cmp_asm[] = {
  */
 
 static void janet_load_libs(JanetTable *env) {
-    janet_core_cfuns(env, NULL, corelib_cfuns);
+    JanetRegExt corelib_cfuns[] = {
+        JANET_CORE_REG("native", janet_core_native),
+        JANET_CORE_REG("describe", janet_core_describe),
+        JANET_CORE_REG("string", janet_core_string),
+        JANET_CORE_REG("symbol", janet_core_symbol),
+        JANET_CORE_REG("keyword", janet_core_keyword),
+        JANET_CORE_REG("buffer", janet_core_buffer),
+        JANET_CORE_REG("abstract?", janet_core_is_abstract),
+        JANET_CORE_REG("table", janet_core_table),
+        JANET_CORE_REG("array", janet_core_array),
+        JANET_CORE_REG("scan-number", janet_core_scannumber),
+        JANET_CORE_REG("tuple", janet_core_tuple),
+        JANET_CORE_REG("struct", janet_core_struct),
+        JANET_CORE_REG("gensym", janet_core_gensym),
+        JANET_CORE_REG("gccollect", janet_core_gccollect),
+        JANET_CORE_REG("gcsetinterval", janet_core_gcsetinterval),
+        JANET_CORE_REG("gcinterval", janet_core_gcinterval),
+        JANET_CORE_REG("type", janet_core_type),
+        JANET_CORE_REG("hash", janet_core_hash),
+        JANET_CORE_REG("getline", janet_core_getline),
+        JANET_CORE_REG("dyn", janet_core_dyn),
+        JANET_CORE_REG("setdyn", janet_core_setdyn),
+        JANET_CORE_REG("trace", janet_core_trace),
+        JANET_CORE_REG("untrace", janet_core_untrace),
+        JANET_CORE_REG("module/expand-path", janet_core_expand_path),
+        JANET_CORE_REG("int?", janet_core_check_int),
+        JANET_CORE_REG("nat?", janet_core_check_nat),
+        JANET_CORE_REG("slice", janet_core_slice),
+        JANET_CORE_REG("signal", janet_core_signal),
+        JANET_CORE_REG("getproto", janet_core_getproto),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, corelib_cfuns);
     janet_lib_io(env);
     janet_lib_math(env);
     janet_lib_array(env);
@@ -1051,9 +1006,6 @@ static void janet_load_libs(JanetTable *env) {
 #endif
 #ifdef JANET_INT_TYPES
     janet_lib_inttypes(env);
-#endif
-#ifdef JANET_THREADS
-    janet_lib_thread(env);
 #endif
 #ifdef JANET_EV
     janet_lib_ev(env);
@@ -1238,8 +1190,8 @@ JanetTable *janet_core_env(JanetTable *replacements) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     /* Memoize core env, ignoring replacements the second time around. */
-    if (NULL != janet_vm_core_env) {
-        return janet_vm_core_env;
+    if (NULL != janet_vm.core_env) {
+        return janet_vm.core_env;
     }
 
     JanetTable *dict = janet_core_lookup_table(replacements);
@@ -1255,7 +1207,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Memoize */
     janet_gcroot(marsh_out);
     JanetTable *env = janet_unwrap_table(marsh_out);
-    janet_vm_core_env = env;
+    janet_vm.core_env = env;
 
     /* Invert image dict manually here. We can't do this in boot.janet as it
      * breaks deterministic builds */
@@ -1287,9 +1239,7 @@ JanetTable *janet_core_lookup_table(JanetTable *replacements) {
             JanetKV kv = replacements->data[i];
             if (!janet_checktype(kv.key, JANET_NIL)) {
                 janet_table_put(dict, kv.key, kv.value);
-                if (janet_checktype(kv.value, JANET_CFUNCTION)) {
-                    janet_table_put(janet_vm_registry, kv.value, kv.key);
-                }
+                /* Add replacement functions to registry? */
             }
         }
     }

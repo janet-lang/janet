@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -227,12 +227,14 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         }
         return;
         case JANET_CFUNCTION: {
-            Janet check = janet_table_get(janet_vm_registry, x);
-            if (janet_checktype(check, JANET_SYMBOL)) {
+            JanetCFunRegistry *reg = janet_registry_get(janet_unwrap_cfunction(x));
+            if (NULL != reg) {
                 janet_buffer_push_cstring(buffer, "<cfunction ");
-                janet_buffer_push_bytes(buffer,
-                                        janet_unwrap_symbol(check),
-                                        janet_string_length(janet_unwrap_symbol(check)));
+                if (NULL != reg->name_prefix) {
+                    janet_buffer_push_cstring(buffer, reg->name_prefix);
+                    janet_buffer_push_u8(buffer, '/');
+                }
+                janet_buffer_push_cstring(buffer, reg->name);
                 janet_buffer_push_u8(buffer, '>');
                 break;
             }
@@ -259,21 +261,13 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
 
 /* See parse.c for full table */
 
-static const uint32_t pp_symchars[8] = {
-    0x00000000, 0xf7ffec72, 0xc7ffffff, 0x07fffffe,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000
-};
-
-static int pp_is_symbol_char(uint8_t c) {
-    return pp_symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
-}
-
 /* Check if a symbol or keyword contains no symbol characters */
 static int contains_bad_chars(const uint8_t *sym, int issym) {
     int32_t len = janet_string_length(sym);
     if (len && issym && sym[0] >= '0' && sym[0] <= '9') return 1;
+    if (!janet_valid_utf8(sym, len)) return 1;
     for (int32_t i = 0; i < len; i++) {
-        if (!pp_is_symbol_char(sym[i])) return 1;
+        if (!janet_is_symbol_char(sym[i])) return 1;
     }
     return 0;
 }
@@ -898,7 +892,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 }
             }
             if (nb >= MAX_ITEM)
-                janet_panicf("format buffer overflow", form);
+                janet_panic("format buffer overflow");
             if (nb > 0)
                 janet_buffer_push_bytes(b, (uint8_t *) item, nb);
         }
@@ -1050,7 +1044,7 @@ void janet_buffer_format(
                 }
             }
             if (nb >= MAX_ITEM)
-                janet_panicf("format buffer overflow", form);
+                janet_panic("format buffer overflow");
             if (nb > 0)
                 janet_buffer_push_bytes(b, (uint8_t *) item, nb);
         }

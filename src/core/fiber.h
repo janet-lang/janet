@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2020 Calvin Rose
+* Copyright (c) 2021 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -47,7 +47,6 @@
 #define JANET_FIBER_MASK_USER 0x3FF0
 
 #define JANET_FIBER_STATUS_MASK 0x3F0000
-#define JANET_FIBER_FLAG_SCHEDULED 0x800000
 #define JANET_FIBER_RESUME_SIGNAL 0x400000
 #define JANET_FIBER_STATUS_OFFSET 16
 
@@ -56,8 +55,6 @@
 #define JANET_FIBER_RESUME_NO_SKIP   0x4000000
 #define JANET_FIBER_DID_LONGJUMP     0x8000000
 #define JANET_FIBER_FLAG_MASK        0xF000000
-
-extern JANET_THREAD_LOCAL JanetFiber *janet_vm_fiber;
 
 #define janet_fiber_set_status(f, s) do {\
     (f)->flags &= ~JANET_FIBER_STATUS_MASK;\

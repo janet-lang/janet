@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2020 © Calvin Rose
+# Copyright 2021 © Calvin Rose
 
 ###
 ###
@@ -51,7 +51,7 @@
   ``Use a function or macro literal `f` as a macro. This lets
   any function be used as a macro. Inside a quasiquote, the
   idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
-  to avoid unwanted variable capture.``
+  to avoid unwanted variable capture of `my-custom-macro`.``
   [f & args]
   (f ;args))
 
@@ -149,10 +149,15 @@
 (defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
 
-(defn assert
-  "Throw an error if x is not truthy."
+(defmacro assert
+  "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
   [x &opt err]
-  (if x x (error (if err err "assert failure"))))
+  (def v (gensym))
+  ~(do
+     (def ,v ,x)
+     (if ,v
+       ,v
+       (,error ,(if err err "assert failure")))))
 
 (defn errorf
   "A combination of error and string/format. Equivalent to (error (string/format fmt ;args))"
@@ -588,9 +593,14 @@
   ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) :yi)."
+  "A wrapper for making fibers that may yield multiple values (coroutine). Same as (fiber/new (fn [] ;body) :yi)."
   [& body]
   (tuple fiber/new (tuple 'fn '[] ;body) :yi))
+
+(defmacro fiber-fn
+  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) flags)."
+  [flags & body]
+  (tuple fiber/new (tuple 'fn '[] ;body) flags))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -687,6 +697,14 @@
 (defn min
   "Returns the numeric minimum of the arguments."
   [& args] (extreme < args))
+
+(defn max-of
+  "Returns the numeric maximum of the argument sequence."
+  [args] (extreme > args))
+
+(defn min-of
+  "Returns the numeric minimum of the argument sequence."
+  [args] (extreme < args))
 
 (defn first
   "Get the first element from an indexed data structure."
@@ -1026,35 +1044,65 @@
     (set k (next ind k)))
   ret)
 
-(defn take
-  "Take first n elements in an indexed type. Returns new indexed instance."
-  [n ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+(defn- take-n-fallback
+  [n xs]
+  (def res @[])
+  (when (> n 0)
+    (var left n)
+    (each x xs
+      (array/push res x)
+      (-- left)
+      (if (= 0 left) (break))))
+  res)
+
+(defn- take-until-fallback
+  [pred xs]
+  (def res @[])
+  (each x xs
+    (if (pred x) (break))
+    (array/push res x))
+  res)
+
+(defn- slice-n
+  [f n ind]
   (def len (length ind))
   # make sure end is in [0, len]
   (def m (if (> n 0) n 0))
   (def end (if (> m len) len m))
   (f ind 0 end))
 
-(defn take-until
-  "Same as (take-while (complement pred) ind)."
-  [pred ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+(defn take
+  "Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string, respectively."
+  [n ind]
+  (cond
+    (bytes? ind) (slice-n string/slice n ind)
+    (indexed? ind) (slice-n tuple/slice n ind)
+    (take-n-fallback n ind)))
+
+(defn- slice-until
+  [f pred ind]
   (def len (length ind))
   (def i (find-index pred ind))
   (def end (if (nil? i) len i))
   (f ind 0 end))
 
+(defn take-until
+  "Same as `(take-while (complement pred) ind)`."
+  [pred ind]
+  (cond
+    (bytes? ind) (slice-until string/slice pred ind)
+    (indexed? ind) (slice-until tuple/slice pred ind)
+    (take-until-fallback pred ind)))
+
 (defn take-while
-  `Given a predicate, take only elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array.`
+  `Given a predicate, take only elements from a fiber, indexed or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new array, tuple or string, respectively.`
   [pred ind]
   (take-until (complement pred) ind))
 
 (defn drop
-  "Drop first n elements in an indexed type. Returns new indexed instance."
+  ``Drop the first n elements in an indexed or bytes type. Returns a new tuple or string
+  instance, respectively.``
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1065,7 +1113,7 @@
   (f ind start -1))
 
 (defn drop-until
-  "Same as (drop-while (complement pred) ind)."
+  "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
@@ -1075,8 +1123,8 @@
   (f ind start))
 
 (defn drop-while
-  `Given a predicate, remove elements from an indexed type that satisfy
-  the predicate, and abort on first failure. Returns a new array.`
+  `Given a predicate, remove elements from an indexed or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new tuple or string, respectively.`
   [pred ind]
   (drop-until (complement pred) ind))
 
@@ -1316,9 +1364,10 @@
   ret)
 
 (defn invert
-  `Returns a table where the keys of an associative data structure
-  are the values, and the values of the keys. If multiple keys have the same
-  value, one key will be ignored.`
+  ``Returns a table where the keys of an associative data structure
+  are the values, and the values are the keys. If multiple keys in `ds`
+  are mapped to the same value, only one of those values will
+  become a key in the returned table.``
   [ds]
   (def ret @{})
   (loop [k :keys ds]
@@ -1345,7 +1394,7 @@
   a sequence of keys.`
   [ds ks &opt dflt]
   (var d ds)
-  (loop [k :in ks :while d] (set d (get d k)))
+  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
   (if (= nil d) dflt d))
 
 (defn update-in
@@ -1628,8 +1677,12 @@
   * tuple -- a tuple pattern will match if its first element matches, and the
     following elements are treated as predicates and are true.
 
-  * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
+  * `\_` symbol -- the last special case is the `\_` symbol, which is a wildcard
     that will match any value without creating a binding.
+
+  While a symbol pattern will ordinarily match any value, the pattern `(@ <sym>)`,
+  where <sym> is any symbol, will attempt to match `x` against a value
+  already bound to `<sym>`, rather than matching and rebinding it.
 
   Any other value pattern will only match if it is equal to `x`.
   ```
@@ -1783,6 +1836,20 @@
 ### Macro Expansion
 ###
 ###
+
+(defn maclintf
+  ``When inside a macro, call this function to add a linter warning. Takes
+  a `fmt` argument like `string/format` which is used to format the message.``
+  [level fmt & args]
+  (def lints (dyn :macro-lints))
+  (when lints
+    (def form (dyn :macro-form))
+    (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
+    (def l (if-not (= -1 l) l))
+    (def c (if-not (= -1 c) c))
+    (def msg (string/format fmt ;args))
+    (array/push lints [level l c msg]))
+  nil)
 
 (defn macex1
   ``Expand macros in a form, but do not recursively expand macros.
@@ -2065,11 +2132,10 @@
 ###
 ###
 
-# Initialize syspath and header path
+# Initialize syspath
 (each [k v] (partition 2 (tuple/slice boot/args 2))
   (case k
-    "JANET_PATH" (setdyn :syspath v)
-    "JANET_HEADERPATH" (setdyn :headerpath v)))
+    "JANET_PATH" (setdyn :syspath v)))
 
 (defn make-env
   `Create a new environment table. The new environment
@@ -2097,6 +2163,43 @@
     (if ec "\e[0m" ""))
   (eflush))
 
+(defn- print-line-col
+  "Print the source code at a line, column in a source file. If unable to open
+  the file, prints nothing."
+  [where line col]
+  (if-not line (break))
+  (when-with [f (file/open where :r)]
+    (def source-code (file/read f :all))
+    (var index 0)
+    (repeat (dec line)
+       (if-not index (break))
+       (set index (inc (string/find "\n" source-code index))))
+    (when index
+      (def line-end (string/find "\n" source-code index))
+      (eprint "  " (string/slice source-code index line-end))
+      (when col
+        (+= index col)
+        (eprint (string/repeat " " (inc col)) "^"))
+      (eflush))))
+
+(defn warn-compile
+  "Default handler for a compile warning"
+  [msg level where &opt line col]
+  (def ec (dyn :err-color))
+  (eprin
+    (if ec "\e[33m" "")
+    where
+    ":"
+    line
+    ":"
+    col
+    ": compile warning (" level "): ")
+  (eprint msg)
+  (when ec
+    (print-line-col where line col)
+    (eprin "\e[0m"))
+  (eflush))
+
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where &opt line col]
@@ -2111,7 +2214,10 @@
     ": compile error: ")
   (if macrof
     (debug/stacktrace macrof msg)
-    (eprint msg (if ec "\e[0m" "")))
+    (eprint msg))
+  (when ec
+    (print-line-col where line col)
+    (eprin "\e[0m"))
   (eflush))
 
 (defn curenv
@@ -2121,6 +2227,13 @@
   (var e (fiber/getenv (fiber/current)))
   (if n (repeat n (if (= nil e) (break)) (set e (table/getproto e))))
   e)
+
+(def- lint-levels
+  {:none 0
+   :relaxed 1
+   :normal 2
+   :strict 3
+   :all math/inf})
 
 (defn run-context
   ```
@@ -2134,6 +2247,7 @@
     * `:env` - the environment to compile against - default is the current env
     * `:source` - string path of source for better errors - default is "<anonymous>"
     * `:on-compile-error` - callback when compilation fails - default is bad-compile
+    * `:on-compile-warning` - callback for any linting error - default is warn-compile
     * `:evaluator` - callback that executes thunks. Signature is (evaluator thunk source env where)
     * `:on-status` - callback when a value is evaluated - default is debug/stacktrace.
     * `:fiber-flags` - what flags to wrap the compilation fiber with. Default is :ia.
@@ -2148,6 +2262,7 @@
         :chunks chunks
         :on-status onstatus
         :on-compile-error on-compile-error
+        :on-compile-warning on-compile-warning
         :on-parse-error on-parse-error
         :fiber-flags guard
         :evaluator evaluator
@@ -2159,6 +2274,7 @@
   (default chunks (fn [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
+  (default on-compile-warning warn-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
   (default default-where "<anonymous>")
@@ -2167,6 +2283,7 @@
   (var where default-where)
 
   # Evaluate 1 source form in a protected manner
+  (def lints @[])
   (defn eval1 [source &opt l c]
     (def source (if expand (expand source) source))
     (var good true)
@@ -2174,13 +2291,29 @@
     (def f
       (fiber/new
         (fn []
-          (def res (compile source env where))
-          (if (= (type res) :function)
-            (evaluator res source env where)
-            (do
-              (set good false)
-              (def {:error err :line line :column column :fiber errf} res)
-              (on-compile-error err errf where (or line l) (or column c)))))
+          (array/clear lints)
+          (def res (compile source env where lints))
+          (unless (empty? lints)
+            # Convert lint levels to numbers.
+            (def levels (get env :lint-levels lint-levels))
+            (def lint-error (get env :lint-error))
+            (def lint-warning (get env :lint-warn))
+            (def lint-error (or (get levels lint-error lint-error) 0))
+            (def lint-warning (or (get levels lint-warning lint-warning) 2))
+            (each [level line col msg] lints
+              (def lvl (get lint-levels level 0))
+              (cond
+                (<= lvl lint-error) (do
+                                      (set good false)
+                                      (on-compile-error msg nil where (or line l) (or col c)))
+                (<= lvl lint-warning) (on-compile-warning msg level where (or line l) (or col c)))))
+          (when good
+            (if (= (type res) :function)
+              (evaluator res source env where)
+              (do
+                (set good false)
+                (def {:error err :line line :column column :fiber errf} res)
+                (on-compile-error err errf where (or line l) (or column c))))))
         guard))
     (fiber/setenv f env)
     (while (fiber/can-resume? f)
@@ -2254,6 +2387,7 @@
     (when (= (p-status p) :error)
       (parse-err p where)))
 
+  (put env :exit nil)
   (in env :exit-value env))
 
 (defn quit
@@ -2298,7 +2432,7 @@
   (def res (compile form (fiber/getenv (fiber/current)) "eval"))
   (if (= (type res) :function)
     (res)
-    (error (res :error))))
+    (error (get res :error))))
 
 (defn parse
   `Parse a string and return the first value. For complex parsing, such as for a repl with error handling,
@@ -2660,8 +2794,8 @@
   (def delimiters
     (if has-color
       {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[3;97m" "\e[39;23m"]
-       :italics ["\e[3m" "\e[23m"]
+       :code ["\e[97m" "\e[39m"]
+       :italics ["\e[4m" "\e[24m"]
        :bold ["\e[1m" "\e[22m"]}
       {:underline ["_" "_"]
        :code ["`" "`"]
@@ -2694,7 +2828,7 @@
     (c++)
     (- cursor x))
 
-  # Detection helpers - return number of characters natched
+  # Detection helpers - return number of characters matched
   (defn ul? []
     (let [x (c) x1 (cn 1)]
       (and
@@ -2827,6 +2961,14 @@
         (p-line)))
     (finish-p)
     new-indent))
+
+  # Handle first line specially for defn, defmacro, etc.
+  (when (= (chr "(") (in str 0))
+    (skipline)
+    (def first-line (string/slice str 0 (- cursor 1)))
+    (def fl-open (if has-color "\e[97m" ""))
+    (def fl-close (if has-color "\e[39m" ""))
+    (push [[(string fl-open first-line fl-close) (length first-line)]]))
 
   (parse-blocks 0)
 
@@ -2965,10 +3107,10 @@
     (print-index identity)))
 
 (defmacro doc
-  `Shows documentation for the given symbol, or can show a list of available bindings.
-  If sym is a symbol, will look for documentation for that symbol. If sym is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment with
-  that prefix (all bindings will be shown if no prefix is given).`
+  ``Shows documentation for the given symbol, or can show a list of available bindings.
+  If `sym` is a symbol, will look for documentation for that symbol. If `sym` is a string
+  or is not provided, will show all lexical and dynamic bindings in the current environment
+  containing that string (all bindings will be shown if no string is given).``
   [&opt sym]
   ~(,doc* ',sym))
 
@@ -3234,18 +3376,23 @@
     Returns a fiber that is scheduled to run the function.
     ```
     [f & args]
-    (ev/go (fiber/new (fn [&] (f ;args)) :tp)))
+    (ev/go (fn _call [&] (f ;args))))
 
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
     [& body]
-    ~(,ev/go (fiber/new (fn _spawn [&] ,;body) :tp)))
+    ~(,ev/go (fn _spawn [&] ,;body)))
 
   (defmacro ev/do-thread
     ``Run some code in a new thread. Suspends the current fiber until the thread is complete, and
     evaluates to nil.``
     [& body]
-    ~(,ev/thread (fiber/new (fn _thread [&] ,;body) :t)))
+    ~(,ev/thread (fn _do-thread [&] ,;body)))
+
+  (defmacro ev/spawn-thread
+    ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
+    [& body]
+    ~(,ev/thread (fn _spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
     `Run a body of code with a deadline, such that if the code does not complete before
@@ -3276,7 +3423,7 @@
          (def ,res @[])
          (,wait-for-fibers ,chan
            ,(seq [[i body] :pairs bodies]
-              ~(,ev/go (,fiber/new (fn [] (put ,res ,i ,body)) :tp) nil ,chan)))
+              ~(,ev/go (fn [] (put ,res ,i ,body)) nil ,chan)))
          ,res))))
 
 (compwhen (dyn 'net/listen)
@@ -3369,6 +3516,12 @@
 # conditional compilation for reduced os
 (def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
 
+(defn- run-main
+  [env subargs arg]
+  (if-let [main (get (in env 'main) :value)]
+    (let [thunk (compile [main ;subargs] env arg)]
+      (if (function? thunk) (thunk) (error (thunk :error))))))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -3376,19 +3529,26 @@
 
   (setdyn :args args)
 
-  (var *should-repl* false)
-  (var *no-file* true)
-  (var *quiet* false)
-  (var *raw-stdin* false)
-  (var *handleopts* true)
-  (var *exit-on-error* true)
-  (var *colorize* true)
-  (var *debug* false)
-  (var *compile-only* false)
+  (var should-repl false)
+  (var no-file true)
+  (var quiet false)
+  (var raw-stdin false)
+  (var handleopts true)
+  (var exit-on-error true)
+  (var colorize true)
+  (var debug-flag false)
+  (var compile-only false)
+  (var warn-level nil)
+  (var error-level nil)
+  (var expect-image false)
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
-  (if-let [jp (getenv-alias "JANET_HEADERPATH")] (setdyn :headerpath jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
+
+  (defn- get-lint-level
+    [i]
+    (def x (in args (+ i 1)))
+    (or (scan-number x) (keyword x)))
 
   # Flag handlers
   (def handlers
@@ -3401,6 +3561,7 @@
                -v : Print the version string
                -s : Use raw stdin instead of getline like functionality
                -e code : Execute a string of janet
+               -E code arguments... : Evaluate  an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
@@ -3409,35 +3570,51 @@
                -k : Compile scripts but do not execute (flycheck)
                -m syspath : Set system path for loading global modules
                -c source output : Compile janet source code into an image
+               -i : Load the script argument as an image file instead of source code
                -n : Disable ANSI color output in the REPL
-               -l lib : Import a module before processing more arguments
+               -l lib : Use a module before processing more arguments
+               -w level : Set the lint warning level - default is "normal"
+               -x level : Set the lint error level - default is "none"
                -- : Stop handling options
              ```)
            (os/exit 0)
            1)
      "v" (fn [&] (print janet/version "-" janet/build) (os/exit 0) 1)
-     "s" (fn [&] (set *raw-stdin* true) (set *should-repl* true) 1)
-     "r" (fn [&] (set *should-repl* true) 1)
-     "p" (fn [&] (set *exit-on-error* false) 1)
-     "q" (fn [&] (set *quiet* true) 1)
-     "k" (fn [&] (set *compile-only* true) (set *exit-on-error* false) 1)
-     "n" (fn [&] (set *colorize* false) 1)
+     "s" (fn [&] (set raw-stdin true) (set should-repl true) 1)
+     "r" (fn [&] (set should-repl true) 1)
+     "p" (fn [&] (set exit-on-error false) 1)
+     "q" (fn [&] (set quiet true) 1)
+     "i" (fn [&] (set expect-image true) 1)
+     "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
+     "n" (fn [&] (set colorize false) 1)
      "m" (fn [i &] (setdyn :syspath (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
-           (def e (dofile (in args (+ i 1))))
+           (def path (in args (+ i 1)))
+           (def e (dofile path))
            (spit (in args (+ i 2)) (make-image e))
-           (set *no-file* false)
+           (set no-file false)
            3)
-     "-" (fn [&] (set *handleopts* false) 1)
+     "-" (fn [&] (set handleopts false) 1)
      "l" (fn l-switch [i &]
            (import* (in args (+ i 1))
-                    :prefix "" :exit *exit-on-error*)
+                    :prefix "" :exit exit-on-error)
            2)
      "e" (fn e-switch [i &]
-           (set *no-file* false)
+           (set no-file false)
            (eval-string (in args (+ i 1)))
            2)
-     "d" (fn [&] (set *debug* true) 1)
+     "E" (fn E-switch [i &]
+           (set no-file false)
+           (def subargs (array/slice args (+ i 2)))
+           (def src ~|,(parse (in args (+ i 1))))
+           (def thunk (compile src))
+           (if (function? thunk)
+             ((thunk) ;subargs)
+             (error (get thunk :error)))
+           math/inf)
+     "d" (fn [&] (set debug-flag true) 1)
+     "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
+     "x" (fn [i &] (set error-level (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
 
   (defn- dohandler [n i &]
@@ -3449,27 +3626,37 @@
   (def lenargs (length args))
   (while (< i lenargs)
     (def arg (in args i))
-    (if (and *handleopts* (= "-" (string/slice arg 0 1)))
+    (if (and handleopts (= "-" (string/slice arg 0 1)))
       (+= i (dohandler (string/slice arg 1) i))
       (do
-        (set *no-file* false)
-        (def env (make-env))
         (def subargs (array/slice args i))
-        (put env :args subargs)
-        (if *compile-only*
-          (flycheck arg :exit *exit-on-error* :env env)
+        (set no-file false)
+        (if expect-image
           (do
-            (dofile arg :exit *exit-on-error* :env env)
-            (if-let [main (get (in env 'main) :value)]
-              (let [thunk (compile [main ;(tuple/slice args i)] env arg)]
-                (if (function? thunk) (thunk) (error (thunk :error)))))))
+            (def env (load-image (slurp arg)))
+            (put env :args subargs)
+            (put env :lint-error error-level)
+            (put env :lint-warn warn-level)
+            (if debug-flag (put env :debug true))
+            (run-main env subargs arg))
+          (do
+            (def env (make-env))
+            (put env :args subargs)
+            (put env :lint-error error-level)
+            (put env :lint-warn warn-level)
+            (if debug-flag (put env :debug true))
+            (if compile-only
+              (flycheck arg :exit exit-on-error :env env)
+              (do
+                (dofile arg :exit exit-on-error :env env)
+                (run-main env subargs arg)))))
         (set i lenargs))))
 
-  (if (or *should-repl* *no-file*)
+  (if (or should-repl no-file)
     (if
-      *compile-only* (flycheck stdin :source "stdin" :exit *exit-on-error*)
+      compile-only (flycheck stdin :source "stdin" :exit exit-on-error)
       (do
-        (if-not *quiet*
+        (if-not quiet
           (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
         (flush)
         (defn getprompt [p]
@@ -3483,13 +3670,15 @@
         (when-let [profile.janet (dyn :profilepath)]
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
-        (if *debug* (put env :debug true))
-        (def getter (if *raw-stdin* getstdin getline))
+        (if debug-flag (put env :debug true))
+        (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn :pretty-format (if *colorize* "%.20Q" "%.20q"))
-        (setdyn :err-color (if *colorize* true))
-        (setdyn :doc-color (if *colorize* true))
+        (setdyn :pretty-format (if colorize "%.20Q" "%.20q"))
+        (setdyn :err-color (if colorize true))
+        (setdyn :doc-color (if colorize true))
+        (setdyn :lint-error error-level)
+        (setdyn :lint-warn error-level)
         (repl getchunk nil env)))))
 
 ###
@@ -3509,6 +3698,10 @@
         (put into k (x k))))
     into)
 
+  # Deprecate file/popen
+  (when-let [v (get root-env 'file/popen)]
+    (put v :deprecated true))
+
   # Modify root-env to remove private symbols and
   # flatten nested tables.
   (loop [[k v] :in (pairs root-env)
@@ -3518,6 +3711,9 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
+    # Fix directory separators on windows to make image identical between windows and non-windows
+    (when-let [sm (get flat :source-map)]
+      (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))
     (if (v :private)
       (put root-env k nil)
       (put root-env k flat)))
@@ -3547,8 +3743,8 @@
   (def feature-header "src/core/features.h")
 
   (def local-headers
-    ["src/core/util.h"
-     "src/core/state.h"
+    ["src/core/state.h"
+     "src/core/util.h"
      "src/core/gc.h"
      "src/core/vector.h"
      "src/core/fiber.h"
@@ -3584,12 +3780,12 @@
      "src/core/regalloc.c"
      "src/core/run.c"
      "src/core/specials.c"
+     "src/core/state.c"
      "src/core/string.c"
      "src/core/strtod.c"
      "src/core/struct.c"
      "src/core/symcache.c"
      "src/core/table.c"
-     "src/core/thread.c"
      "src/core/tuple.c"
      "src/core/util.c"
      "src/core/value.c"

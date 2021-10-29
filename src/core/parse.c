@@ -51,15 +51,15 @@ static const uint32_t symchars[8] = {
 };
 
 /* Check if a character is a valid symbol character
- * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_~| */
-static int is_symbol_char(uint8_t c) {
+ * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_| */
+int janet_is_symbol_char(uint8_t c) {
     return symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
 }
 
 /* Validate some utf8. Useful for identifiers. Only validates
  * the encoding, does not check for valid code points (they
  * are less well defined than the encoding). */
-static int valid_utf8(const uint8_t *str, int32_t len) {
+int janet_valid_utf8(const uint8_t *str, int32_t len) {
     int32_t i = 0;
     int32_t j;
     while (i < len) {
@@ -411,7 +411,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
     int32_t blen;
-    if (is_symbol_char(c)) {
+    if (janet_is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
         return 1;
@@ -422,7 +422,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     int start_num = start_dig || p->buf[0] == '-' || p->buf[0] == '+' || p->buf[0] == '.';
     if (p->buf[0] == ':') {
         /* Don't do full utf-8 check unless we have seen non ascii characters. */
-        int valid = (!state->argn) || valid_utf8(p->buf + 1, blen - 1);
+        int valid = (!state->argn) || janet_valid_utf8(p->buf + 1, blen - 1);
         if (!valid) {
             p->error = "invalid utf-8 in keyword";
             return 0;
@@ -442,7 +442,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
             return 0;
         } else {
             /* Don't do full utf-8 check unless we have seen non ascii characters. */
-            int valid = (!state->argn) || valid_utf8(p->buf, blen);
+            int valid = (!state->argn) || janet_valid_utf8(p->buf, blen);
             if (!valid) {
                 p->error = "invalid utf-8 in symbol";
                 return 0;
@@ -582,7 +582,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
     switch (c) {
         default:
             if (is_whitespace(c)) return 1;
-            if (!is_symbol_char(c)) {
+            if (!janet_is_symbol_char(c)) {
                 p->error = "unexpected character";
                 return 1;
             }
@@ -878,7 +878,10 @@ const JanetAbstractType janet_parser_type = {
 };
 
 /* C Function parser */
-static Janet cfun_parse_parser(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_parser,
+              "(parser/new)",
+              "Creates and returns a new parser object. Parsers are state machines "
+              "that can receive bytes, and generate a stream of values.") {
     (void) argv;
     janet_fixarity(argc, 0);
     JanetParser *p = janet_abstract(&janet_parser_type, sizeof(JanetParser));
@@ -886,7 +889,11 @@ static Janet cfun_parse_parser(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(p);
 }
 
-static Janet cfun_parse_consume(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_consume,
+              "(parser/consume parser bytes &opt index)",
+              "Input bytes into the parser and parse them. Will not throw errors "
+              "if there is a parse error. Starts at the byte index given by index. Returns "
+              "the number of bytes read.") {
     janet_arity(argc, 2, 3);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     JanetByteView view = janet_getbytes(argv, 1);
@@ -911,14 +918,20 @@ static Janet cfun_parse_consume(int32_t argc, Janet *argv) {
     return janet_wrap_integer(i);
 }
 
-static Janet cfun_parse_eof(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_eof,
+              "(parser/eof parser)",
+              "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     janet_parser_eof(p);
     return argv[0];
 }
 
-static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_insert,
+              "(parser/insert parser value)",
+              "Insert a value into the parser. This means that the parser state can be manipulated "
+              "in between chunks of bytes. This would allow a user to add extra elements to arrays "
+              "and tuples, for example. Returns the parser.") {
     janet_fixarity(argc, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     JanetParseState *s = p->states + p->statecount - 1;
@@ -957,13 +970,17 @@ static Janet cfun_parse_insert(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_parse_has_more(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_has_more,
+              "(parser/has-more parser)",
+              "Check if the parser has more values in the value queue.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     return janet_wrap_boolean(janet_parser_has_more(p));
 }
 
-static Janet cfun_parse_byte(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_byte,
+              "(parser/byte parser b)",
+              "Input a single byte into the parser byte stream. Returns the parser.") {
     janet_fixarity(argc, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     int32_t i = janet_getinteger(argv, 1);
@@ -971,7 +988,13 @@ static Janet cfun_parse_byte(int32_t argc, Janet *argv) {
     return argv[0];
 }
 
-static Janet cfun_parse_status(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_status,
+              "(parser/status parser)",
+              "Gets the current status of the parser state machine. The status will "
+              "be one of:\n\n"
+              "* :pending - a value is being parsed.\n\n"
+              "* :error - a parsing error was encountered.\n\n"
+              "* :root - the parser can either read more values or safely terminate.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     const char *stat = NULL;
@@ -992,7 +1015,12 @@ static Janet cfun_parse_status(int32_t argc, Janet *argv) {
     return janet_ckeywordv(stat);
 }
 
-static Janet cfun_parse_error(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_error,
+              "(parser/error parser)",
+              "If the parser is in the error state, returns the message associated with "
+              "that error. Otherwise, returns nil. Also flushes the parser state and parser "
+              "queue, so be sure to handle everything in the queue before calling "
+              "parser/error.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     const char *err = janet_parser_error(p);
@@ -1004,7 +1032,13 @@ static Janet cfun_parse_error(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
-static Janet cfun_parse_produce(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_produce,
+              "(parser/produce parser &opt wrap)",
+              "Dequeue the next value in the parse queue. Will return nil if "
+              "no parsed values are in the queue, otherwise will dequeue the "
+              "next value. If `wrap` is truthy, will return a 1-element tuple that "
+              "wraps the result. This tuple can be used for source-mapping "
+              "purposes.") {
     janet_arity(argc, 1, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     if (argc == 2 && janet_truthy(argv[1])) {
@@ -1014,14 +1048,22 @@ static Janet cfun_parse_produce(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_parse_flush(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_flush,
+              "(parser/flush parser)",
+              "Clears the parser state and parse queue. Can be used to reset the parser "
+              "if an error was encountered. Does not reset the line and column counter, so "
+              "to begin parsing in a new context, create a new parser.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     janet_parser_flush(p);
     return argv[0];
 }
 
-static Janet cfun_parse_where(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_where,
+              "(parser/where parser &opt line col)",
+              "Returns the current line number and column of the parser's internal state. If line is "
+              "provided, the current line number of the parser is first set to that value. If column is "
+              "also provided, the current column number of the parser is also first set to that value.") {
     janet_arity(argc, 1, 3);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     if (argc > 1) {
@@ -1162,7 +1204,16 @@ static const struct ParserStateGetter parser_state_getters[] = {
     {NULL, NULL}
 };
 
-static Janet cfun_parse_state(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_state,
+              "(parser/state parser &opt key)",
+              "Returns a representation of the internal state of the parser. If a key is passed, "
+              "only that information about the state is returned. Allowed keys are:\n\n"
+              "* :delimiters - Each byte in the string represents a nested data structure. For example, "
+              "if the parser state is '([\"', then the parser is in the middle of parsing a "
+              "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt.\n\n"
+              "* :frames - Each table in the array represents a 'frame' in the parser state. Frames "
+              "contain information about the start of the expression being parsed as well as the "
+              "type of that expression and some type-specific information.") {
     janet_arity(argc, 1, 2);
     const uint8_t *key = NULL;
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
@@ -1190,7 +1241,11 @@ static Janet cfun_parse_state(int32_t argc, Janet *argv) {
     }
 }
 
-static Janet cfun_parse_clone(int32_t argc, Janet *argv) {
+JANET_CORE_FN(cfun_parse_clone,
+              "(parser/clone p)",
+              "Creates a deep clone of a parser that is identical to the input parser. "
+              "This cloned parser can be used to continue parsing from a good checkpoint "
+              "if parsing later fails. Returns a new parser.") {
     janet_fixarity(argc, 1);
     JanetParser *src = janet_getabstract(argv, 0, &janet_parser_type);
     JanetParser *dest = janet_abstract(&janet_parser_type, sizeof(JanetParser));
@@ -1225,105 +1280,23 @@ static Janet parsernext(void *p, Janet key) {
     return janet_nextmethod(parser_methods, key);
 }
 
-static const JanetReg parse_cfuns[] = {
-    {
-        "parser/new", cfun_parse_parser,
-        JDOC("(parser/new)\n\n"
-             "Creates and returns a new parser object. Parsers are state machines "
-             "that can receive bytes, and generate a stream of values.")
-    },
-    {
-        "parser/clone", cfun_parse_clone,
-        JDOC("(parser/clone p)\n\n"
-             "Creates a deep clone of a parser that is identical to the input parser. "
-             "This cloned parser can be used to continue parsing from a good checkpoint "
-             "if parsing later fails. Returns a new parser.")
-    },
-    {
-        "parser/has-more", cfun_parse_has_more,
-        JDOC("(parser/has-more parser)\n\n"
-             "Check if the parser has more values in the value queue.")
-    },
-    {
-        "parser/produce", cfun_parse_produce,
-        JDOC("(parser/produce parser &opt wrap)\n\n"
-             "Dequeue the next value in the parse queue. Will return nil if "
-             "no parsed values are in the queue, otherwise will dequeue the "
-             "next value. If `wrap` is truthy, will return a 1-element tuple that "
-             "wraps the result. This tuple can be used for source-mapping "
-             "purposes.")
-    },
-    {
-        "parser/consume", cfun_parse_consume,
-        JDOC("(parser/consume parser bytes &opt index)\n\n"
-             "Input bytes into the parser and parse them. Will not throw errors "
-             "if there is a parse error. Starts at the byte index given by index. Returns "
-             "the number of bytes read.")
-    },
-    {
-        "parser/byte", cfun_parse_byte,
-        JDOC("(parser/byte parser b)\n\n"
-             "Input a single byte into the parser byte stream. Returns the parser.")
-    },
-    {
-        "parser/error", cfun_parse_error,
-        JDOC("(parser/error parser)\n\n"
-             "If the parser is in the error state, returns the message associated with "
-             "that error. Otherwise, returns nil. Also flushes the parser state and parser "
-             "queue, so be sure to handle everything in the queue before calling "
-             "parser/error.")
-    },
-    {
-        "parser/status", cfun_parse_status,
-        JDOC("(parser/status parser)\n\n"
-             "Gets the current status of the parser state machine. The status will "
-             "be one of:\n\n"
-             "* :pending - a value is being parsed.\n\n"
-             "* :error - a parsing error was encountered.\n\n"
-             "* :root - the parser can either read more values or safely terminate.")
-    },
-    {
-        "parser/flush", cfun_parse_flush,
-        JDOC("(parser/flush parser)\n\n"
-             "Clears the parser state and parse queue. Can be used to reset the parser "
-             "if an error was encountered. Does not reset the line and column counter, so "
-             "to begin parsing in a new context, create a new parser.")
-    },
-    {
-        "parser/state", cfun_parse_state,
-        JDOC("(parser/state parser &opt key)\n\n"
-             "Returns a representation of the internal state of the parser. If a key is passed, "
-             "only that information about the state is returned. Allowed keys are:\n\n"
-             "* :delimiters - Each byte in the string represents a nested data structure. For example, "
-             "if the parser state is '([\"', then the parser is in the middle of parsing a "
-             "string inside of square brackets inside parentheses. Can be used to augment a REPL prompt.\n\n"
-             "* :frames - Each table in the array represents a 'frame' in the parser state. Frames "
-             "contain information about the start of the expression being parsed as well as the "
-             "type of that expression and some type-specific information.")
-    },
-    {
-        "parser/where", cfun_parse_where,
-        JDOC("(parser/where parser &opt line col)\n\n"
-             "Returns the current line number and column of the parser's internal state. If line is "
-             "provided, the current line number of the parser is first set to that value. If column is "
-             "also provided, the current column number of the parser is also first set to that value.")
-    },
-    {
-        "parser/eof", cfun_parse_eof,
-        JDOC("(parser/eof parser)\n\n"
-             "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.")
-    },
-    {
-        "parser/insert", cfun_parse_insert,
-        JDOC("(parser/insert parser value)\n\n"
-             "Insert a value into the parser. This means that the parser state can be manipulated "
-             "in between chunks of bytes. This would allow a user to add extra elements to arrays "
-             "and tuples, for example. Returns the parser.")
-    },
-    {NULL, NULL, NULL}
-};
-
 /* Load the library */
 void janet_lib_parse(JanetTable *env) {
-    janet_core_cfuns(env, NULL, parse_cfuns);
+    JanetRegExt parse_cfuns[] = {
+        JANET_CORE_REG("parser/new", cfun_parse_parser),
+        JANET_CORE_REG("parser/clone", cfun_parse_clone),
+        JANET_CORE_REG("parser/has-more", cfun_parse_has_more),
+        JANET_CORE_REG("parser/produce", cfun_parse_produce),
+        JANET_CORE_REG("parser/consume", cfun_parse_consume),
+        JANET_CORE_REG("parser/byte", cfun_parse_byte),
+        JANET_CORE_REG("parser/error", cfun_parse_error),
+        JANET_CORE_REG("parser/status", cfun_parse_status),
+        JANET_CORE_REG("parser/flush", cfun_parse_flush),
+        JANET_CORE_REG("parser/state", cfun_parse_state),
+        JANET_CORE_REG("parser/where", cfun_parse_where),
+        JANET_CORE_REG("parser/eof", cfun_parse_eof),
+        JANET_CORE_REG("parser/insert", cfun_parse_insert),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, parse_cfuns);
 }
