@@ -331,7 +331,7 @@ static double janet_lcm(double x, double y) {
 }
 
 JANET_CORE_FN(janet_cfun_gcd, "(math/gcd x y)",
-        "Returns the greatest common divisor between x and y.") {
+              "Returns the greatest common divisor between x and y.") {
     janet_fixarity(argc, 2);
     double x = janet_getnumber(argv, 0);
     double y = janet_getnumber(argv, 1);
@@ -339,7 +339,7 @@ JANET_CORE_FN(janet_cfun_gcd, "(math/gcd x y)",
 }
 
 JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
-        "Returns the least common multiple of x and y.") {
+              "Returns the least common multiple of x and y.") {
     janet_fixarity(argc, 2);
     double x = janet_getnumber(argv, 0);
     double y = janet_getnumber(argv, 1);

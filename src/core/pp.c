@@ -261,21 +261,13 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
 
 /* See parse.c for full table */
 
-static const uint32_t pp_symchars[8] = {
-    0x00000000, 0xf7ffec72, 0xc7ffffff, 0x07fffffe,
-    0x00000000, 0x00000000, 0x00000000, 0x00000000
-};
-
-static int pp_is_symbol_char(uint8_t c) {
-    return pp_symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
-}
-
 /* Check if a symbol or keyword contains no symbol characters */
 static int contains_bad_chars(const uint8_t *sym, int issym) {
     int32_t len = janet_string_length(sym);
     if (len && issym && sym[0] >= '0' && sym[0] <= '9') return 1;
+    if (!janet_valid_utf8(sym, len)) return 1;
     for (int32_t i = 0; i < len; i++) {
-        if (!pp_is_symbol_char(sym[i])) return 1;
+        if (!janet_is_symbol_char(sym[i])) return 1;
     }
     return 0;
 }

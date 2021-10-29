@@ -51,15 +51,15 @@ static const uint32_t symchars[8] = {
 };
 
 /* Check if a character is a valid symbol character
- * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_~| */
-static int is_symbol_char(uint8_t c) {
+ * symbol chars are A-Z, a-z, 0-9, or one of !$&*+-./:<=>@\^_| */
+int janet_is_symbol_char(uint8_t c) {
     return symchars[c >> 5] & ((uint32_t)1 << (c & 0x1F));
 }
 
 /* Validate some utf8. Useful for identifiers. Only validates
  * the encoding, does not check for valid code points (they
  * are less well defined than the encoding). */
-static int valid_utf8(const uint8_t *str, int32_t len) {
+int janet_valid_utf8(const uint8_t *str, int32_t len) {
     int32_t i = 0;
     int32_t j;
     while (i < len) {
@@ -411,7 +411,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
     int32_t blen;
-    if (is_symbol_char(c)) {
+    if (janet_is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
         return 1;
@@ -422,7 +422,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     int start_num = start_dig || p->buf[0] == '-' || p->buf[0] == '+' || p->buf[0] == '.';
     if (p->buf[0] == ':') {
         /* Don't do full utf-8 check unless we have seen non ascii characters. */
-        int valid = (!state->argn) || valid_utf8(p->buf + 1, blen - 1);
+        int valid = (!state->argn) || janet_valid_utf8(p->buf + 1, blen - 1);
         if (!valid) {
             p->error = "invalid utf-8 in keyword";
             return 0;
@@ -442,7 +442,7 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
             return 0;
         } else {
             /* Don't do full utf-8 check unless we have seen non ascii characters. */
-            int valid = (!state->argn) || valid_utf8(p->buf, blen);
+            int valid = (!state->argn) || janet_valid_utf8(p->buf, blen);
             if (!valid) {
                 p->error = "invalid utf-8 in symbol";
                 return 0;
@@ -582,7 +582,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
     switch (c) {
         default:
             if (is_whitespace(c)) return 1;
-            if (!is_symbol_char(c)) {
+            if (!janet_is_symbol_char(c)) {
                 p->error = "unexpected character";
                 return 1;
             }

@@ -202,6 +202,7 @@
 
 #🐙🐙🐙🐙
 
+(defn foo [Θa Θb Θc] 0)
 (def 🦊 :fox)
 (def 🐮 :cow)
 (assert (= (string "🐼" 🦊 🐮) "🐼foxcow") "emojis 🙉 :)")

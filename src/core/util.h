@@ -57,6 +57,8 @@
 
 /* Utils */
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
+int janet_valid_utf8(const uint8_t *str, int32_t len);
+int janet_is_symbol_char(uint8_t c);
 extern const char janet_base64[65];
 int32_t janet_array_calchash(const Janet *array, int32_t len);
 int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len);
