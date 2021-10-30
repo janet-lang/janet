@@ -2,6 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Allow evaluating ev streams with dofile.
+- Fix `ev` related bug with operations on already closed file descriptors.
+- Add struct and table agnostic `getproto` function.
+- Add a number of functions related to structs.
+- Add prototypes to structs. Structs can now inherit from other structs, just like tables.
+- Create a struct with a prototype with `struct/with-proto`.
 - Deadlocked channels will no longer exit early - instead they will hang, which is more intuitive.
 
 ## 1.18.1 - 2021-10-16

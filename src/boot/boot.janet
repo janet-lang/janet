@@ -2590,7 +2590,7 @@
   @{})
 
 (defn dofile
-  `Evaluate a file and return the resulting environment. :env, :expander,
+  `Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
   :evaluator, :read, and :parser are passed through to the underlying
   run-context call. If exit is true, any top level errors will trigger a
   call to (os/exit 1) after printing the error.`
@@ -2602,8 +2602,9 @@
     :evaluator evaluator
     :read read
     :parser parser}]
-  (def f (if (= (type path) :core/file)
-           path
+  (def f (case (type path)
+           :core/file path
+           :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
   (default env (make-env))
@@ -2612,7 +2613,7 @@
   (put env :source (or src (if-not path-is-file spath path)))
   (var exit-error nil)
   (var exit-fiber nil)
-  (defn chunks [buf _] (file/read f 4096 buf))
+  (defn chunks [buf _] (:read f 4096 buf))
   (defn bp [&opt x y]
     (when exit
       (bad-parse x y)
@@ -2654,7 +2655,7 @@
                   :read read
                   :parser parser
                   :source (or src (if path-is-file "<anonymous>" spath))}))
-  (if-not path-is-file (file/close f))
+  (if-not path-is-file (:close f))
   (when exit-error
     (if exit-fiber
       (propagate exit-error exit-fiber)

@@ -192,4 +192,11 @@
 (assert (= (math/gcd 462 1071) 21) "math/gcd 1")
 (assert (= (math/lcm 462 1071) 23562) "math/lcm 1")
 
+# Evaluate stream with `dofile`
+(def [r w] (os/pipe))
+(:write w "(setdyn :x 10)")
+(:close w)
+(def stream-env (dofile r))
+(assert (= (stream-env :x) 10) "dofile stream 1")
+
 (end-suite)
