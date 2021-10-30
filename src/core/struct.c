@@ -167,30 +167,22 @@ Janet janet_struct_rawget(const JanetKV *st, Janet key) {
 
 /* Get an item from a struct */
 Janet janet_struct_get(const JanetKV *st, Janet key) {
-    int i = JANET_MAX_PROTO_DEPTH;
-    for (; st && i; --i) {
+    for (int i = JANET_MAX_PROTO_DEPTH; st && i; --i, st = janet_struct_proto(st)) {
         const JanetKV *kv = janet_struct_find(st, key);
-        if (NULL != kv)
+        if (NULL != kv && !janet_checktype(kv->key, JANET_NIL)) {
             return kv->value;
-        st = janet_struct_proto(st);
+        }
     }
     return janet_wrap_nil();
 }
 
 /* Get an item from a struct, and record which prototype the item came from. */
 Janet janet_struct_get_ex(const JanetKV *st, Janet key, JanetStruct *which) {
-    const JanetKV *kv = janet_struct_find(st, key);
-    if (NULL != kv)
-        return kv->value;
-    /* Check prototypes */
-    {
-        int i = JANET_MAX_PROTO_DEPTH;
-        for (st = janet_struct_proto(st); st && i; st = janet_struct_proto(st), --i) {
-            kv = janet_struct_find(st, key);
-            if (NULL != kv) {
-                *which = kv;
-                return kv->value;
-            }
+    for (int i = JANET_MAX_PROTO_DEPTH; st && i; --i, st = janet_struct_proto(st)) {
+        const JanetKV *kv = janet_struct_find(st, key);
+        if (NULL != kv && !janet_checktype(kv->key, JANET_NIL)) {
+            *which = st;
+            return kv->value;
         }
     }
     return janet_wrap_nil();

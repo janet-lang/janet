@@ -132,37 +132,21 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
 
 /* Get a value out of the table */
 Janet janet_table_get(JanetTable *t, Janet key) {
-    JanetKV *bucket = janet_table_find(t, key);
-    if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
-        return bucket->value;
-    /* Check prototypes */
-    {
-        int i;
-        for (i = JANET_MAX_PROTO_DEPTH, t = t->proto; t && i; t = t->proto, --i) {
-            bucket = janet_table_find(t, key);
-            if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
-                return bucket->value;
-        }
+    for (int i = JANET_MAX_PROTO_DEPTH; t && i; t = t->proto, --i) {
+        JanetKV *bucket = janet_table_find(t, key);
+        if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
+            return bucket->value;
     }
     return janet_wrap_nil();
 }
 
 /* Get a value out of the table, and record which prototype it was from. */
 Janet janet_table_get_ex(JanetTable *t, Janet key, JanetTable **which) {
-    JanetKV *bucket = janet_table_find(t, key);
-    if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
-        *which = t;
-        return bucket->value;
-    }
-    /* Check prototypes */
-    {
-        int i;
-        for (i = JANET_MAX_PROTO_DEPTH, t = t->proto; t && i; t = t->proto, --i) {
-            bucket = janet_table_find(t, key);
-            if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
-                *which = t;
-                return bucket->value;
-            }
+    for (int i = JANET_MAX_PROTO_DEPTH; t && i; t = t->proto, --i) {
+        JanetKV *bucket = janet_table_find(t, key);
+        if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL)) {
+            *which = t;
+            return bucket->value;
         }
     }
     return janet_wrap_nil();

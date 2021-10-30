@@ -3689,15 +3689,6 @@
 
 (do
 
-  (defn proto-flatten
-    "Flatten a table and its prototypes into a single table."
-    [into x]
-    (when x
-      (proto-flatten into (table/getproto x))
-      (loop [k :keys x]
-        (put into k (x k))))
-    into)
-
   # Deprecate file/popen
   (when-let [v (get root-env 'file/popen)]
     (put v :deprecated true))
@@ -3706,7 +3697,7 @@
   # flatten nested tables.
   (loop [[k v] :in (pairs root-env)
          :when (symbol? k)]
-    (def flat (proto-flatten @{} v))
+    (def flat (table/proto-flatten @{} v))
     (when (boot/config :no-docstrings)
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
