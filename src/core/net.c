@@ -649,7 +649,7 @@ struct sockaddr_in6 *sin6;     // IPv6 address + port
 struct sockaddr_un *sun;       // Unix Domain Socket Address
 */
 
-/* Turn a socket address into a host, port pair (port is optional).
+/* Turn a socket address into a host, port pair.
  * For unix domain sockets, returned tuple will have only a single element, the path string. */
 static Janet janet_so_getname(const void *sa_any) {
     const struct sockaddr *sa = sa_any;
@@ -663,7 +663,7 @@ static Janet janet_so_getname(const void *sa_any) {
                 janet_panic("unable to decode ipv4 host address");
             }
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai->sin_port))};
-            return janet_wrap_tuple(janet_tuple_n(pair, sai->sin_port ? 2 : 1));
+            return janet_wrap_tuple(janet_tuple_n(pair, 2));
         }
         case AF_INET6: {
             const struct sockaddr_in6 *sai6 = sa_any;
@@ -671,7 +671,7 @@ static Janet janet_so_getname(const void *sa_any) {
                 janet_panic("unable to decode ipv4 host address");
             }
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai6->sin6_port))};
-            return janet_wrap_tuple(janet_tuple_n(pair, sai6->sin6_port ? 2 : 1));
+            return janet_wrap_tuple(janet_tuple_n(pair, 2));
         }
 #ifndef JANET_WINDOWS
         case AF_UNIX: {
@@ -695,6 +695,7 @@ JANET_CORE_FN(cfun_net_getsockname,
               "Gets the local address and port in a tuple in that order.") {
     janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
+    if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss;
     socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
@@ -710,6 +711,7 @@ JANET_CORE_FN(cfun_net_getpeername,
               "Gets the remote peer's address and port in a tuple in that order.") {
     janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
+    if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss;
     socklen_t slen = sizeof(ss);
     memset(&ss, 0, slen);
