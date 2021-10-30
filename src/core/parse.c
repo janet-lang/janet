@@ -1093,8 +1093,9 @@ static Janet janet_wrap_parse_state(JanetParseState *s, Janet *args,
 
     if (s->flags & PFLAG_CONTAINER) {
         JanetArray *container_args = janet_array(s->argn);
-        container_args->count = s->argn;
-        safe_memcpy(container_args->data, args, sizeof(args[0])*s->argn);
+        for (int32_t i = 0; i < s->argn; i++) {
+            janet_array_push(container_args, args[i]);
+        }
         janet_table_put(state, janet_ckeywordv("args"),
                         janet_wrap_array(container_args));
     }
@@ -1189,11 +1190,12 @@ static Janet parser_state_frames(const JanetParser *p) {
     JanetArray *states = janet_array(count);
     states->count = count;
     uint8_t *buf = p->buf;
-    Janet *args = p->args;
+    /* Iterate arg stack backwards */
+    Janet *args = p->args + p->argcount;
     for (int32_t i = count - 1; i >= 0; --i) {
         JanetParseState *s = p->states + i;
-        states->data[i] = janet_wrap_parse_state(s, args, buf, (uint32_t) p->bufcount);
         args -= s->argn;
+        states->data[i] = janet_wrap_parse_state(s, args, buf, (uint32_t) p->bufcount);
     }
     return janet_wrap_array(states);
 }
