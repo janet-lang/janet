@@ -64,8 +64,9 @@ enum {
     LB_FUNCDEF_REF, /* 220 */
     LB_UNSAFE_CFUNCTION, /* 221 */
     LB_UNSAFE_POINTER, /* 222 */
+    LB_STRUCT_PROTO, /* 223 */
 #ifdef JANET_EV
-    LB_THREADED_ABSTRACT/* 223 */
+    LB_THREADED_ABSTRACT/* 224 */
 #endif
 } LeadBytes;
 
@@ -542,8 +543,10 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             int32_t count;
             const JanetKV *struct_ = janet_unwrap_struct(x);
             count = janet_struct_length(struct_);
-            pushbyte(st, LB_STRUCT);
+            pushbyte(st, janet_struct_proto(struct_) ? LB_STRUCT_PROTO : LB_STRUCT);
             pushint(st, count);
+            if (janet_struct_proto(struct_))
+                marshal_one(st, janet_wrap_struct(janet_struct_proto(struct_)), flags + 1);
             for (int32_t i = 0; i < janet_struct_capacity(struct_); i++) {
                 if (janet_checktype(struct_[i].key, JANET_NIL))
                     continue;
@@ -1281,6 +1284,7 @@ static const uint8_t *unmarshal_one(
         case LB_ARRAY:
         case LB_TUPLE:
         case LB_STRUCT:
+        case LB_STRUCT_PROTO:
         case LB_TABLE:
         case LB_TABLE_PROTO:
             /* Things that open with integers */
@@ -1310,9 +1314,15 @@ static const uint8_t *unmarshal_one(
                 }
                 *out = janet_wrap_tuple(janet_tuple_end(tup));
                 janet_v_push(st->lookup, *out);
-            } else if (lead == LB_STRUCT) {
+            } else if (lead == LB_STRUCT || lead == LB_STRUCT_PROTO) {
                 /* Struct */
                 JanetKV *struct_ = janet_struct_begin(len);
+                if (lead == LB_STRUCT_PROTO) {
+                    Janet proto;
+                    data = unmarshal_one(st, data, &proto, flags + 1);
+                    janet_asserttype(proto, JANET_STRUCT);
+                    janet_struct_proto(struct_) = janet_unwrap_struct(proto);
+                }
                 for (int32_t i = 0; i < len; i++) {
                     Janet key, value;
                     data = unmarshal_one(st, data, &key, flags + 1);

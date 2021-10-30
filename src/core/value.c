@@ -101,6 +101,17 @@ static int traversal_next(Janet *x, Janet *y) {
                 janet_vm.traversal = t;
                 return 0;
             }
+            /* Traverse prototype */
+            JanetStruct sproto = sself->proto;
+            JanetStruct oproto = sother->proto;
+            if (sproto && !oproto) return 3;
+            if (!sproto && oproto) return 1;
+            if (oproto && sproto) {
+                *x = janet_wrap_struct(sproto);
+                *y = janet_wrap_struct(oproto);
+                janet_vm.traversal = t - 1;
+                return 0;
+            }
         }
         t--;
     }
@@ -273,6 +284,8 @@ int janet_equals(Janet x, Janet y) {
                 if (s1 == s2) break;
                 if (janet_struct_hash(s1) != janet_struct_hash(s2)) return 0;
                 if (janet_struct_length(s1) != janet_struct_length(s2)) return 0;
+                if (janet_struct_proto(s1) && !janet_struct_proto(s2)) return 0;
+                if (!janet_struct_proto(s1) && janet_struct_proto(s2)) return 0;
                 push_traversal_node(janet_struct_head(s1), janet_struct_head(s2), 0);
                 break;
             }

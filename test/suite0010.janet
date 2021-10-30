@@ -161,6 +161,28 @@
            ([err] :caught))))
     "regression #638"))
 
+
+# Struct prototypes
+(def x (struct/with-proto {1 2 3 4} 5 6))
+(def y (-> x marshal unmarshal))
+(def z {1 2 3 4})
+(assert (= 2 (get x 1)) "struct get proto value 1")
+(assert (= 4 (get x 3)) "struct get proto value 2")
+(assert (= 6 (get x 5)) "struct get proto value 3")
+(assert (= x y) "struct proto marshal equality 1")
+(assert (= (getproto x) (getproto y)) "struct proto marshal equality 2")
+(assert (= 0 (cmp x y)) "struct proto comparison 1")
+(assert (= 0 (cmp (getproto x) (getproto y))) "struct proto comparison 2")
+(assert (not= (cmp x z) 0) "struct proto comparison 3")
+(assert (not= (cmp y z) 0) "struct proto comparison 4")
+(assert (not= x z) "struct proto comparison 5")
+(assert (not= y z) "struct proto comparison 6")
+(assert (= (x 5) 6) "struct proto get 1")
+(assert (= (y 5) 6) "struct proto get 1")
+(assert (deep= x y) "struct proto deep= 1")
+(assert (deep-not= x z) "struct proto deep= 2")
+(assert (deep-not= y z) "struct proto deep= 3")
+
 # Issue #751
 (def t {:side false})
 (assert (nil? (get-in t [:side :note])) "get-in with false value")

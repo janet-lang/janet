@@ -162,10 +162,13 @@ recur: /* Manual tail recursion */
 }
 
 static void janet_mark_struct(const JanetKV *st) {
+recur:
     if (janet_gc_reachable(janet_struct_head(st)))
         return;
     janet_gc_mark(janet_struct_head(st));
     janet_mark_kvs(st, janet_struct_capacity(st));
+    st = janet_struct_proto(st);
+    if (st) goto recur;
 }
 
 static void janet_mark_tuple(const Janet *tuple) {

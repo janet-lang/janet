@@ -465,6 +465,25 @@ JANET_CORE_FN(janet_core_table,
     return janet_wrap_table(table);
 }
 
+JANET_CORE_FN(janet_core_getproto,
+              "(getproto x)",
+              "Get the prototype of a table or struct. Will return nil if `x` has no prototype.") {
+    janet_fixarity(argc, 1);
+    if (janet_checktype(argv[0], JANET_TABLE)) {
+        JanetTable *t = janet_unwrap_table(argv[0]);
+        return t->proto
+               ? janet_wrap_table(t->proto)
+               : janet_wrap_nil();
+    }
+    if (janet_checktype(argv[0], JANET_STRUCT)) {
+        JanetStruct st = janet_unwrap_struct(argv[0]);
+        return janet_struct_proto(st)
+               ? janet_wrap_struct(janet_struct_proto(st))
+               : janet_wrap_nil();
+    }
+    janet_panicf("expected struct|table, got %v", argv[0]);
+}
+
 JANET_CORE_FN(janet_core_struct,
               "(struct & kvs)",
               "Create a new struct from a sequence of key value pairs. "
@@ -472,8 +491,9 @@ JANET_CORE_FN(janet_core_struct,
               "an odd number of elements, an error will be thrown. Returns the "
               "new struct.") {
     int32_t i;
-    if (argc & 1)
+    if (argc & 1) {
         janet_panic("expected even number of arguments");
+    }
     JanetKV *st = janet_struct_begin(argc >> 1);
     for (i = 0; i < argc; i += 2) {
         janet_struct_put(st, argv[i], argv[i + 1]);
@@ -960,6 +980,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("nat?", janet_core_check_nat),
         JANET_CORE_REG("slice", janet_core_slice),
         JANET_CORE_REG("signal", janet_core_signal),
+        JANET_CORE_REG("getproto", janet_core_getproto),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, corelib_cfuns);
@@ -969,6 +990,7 @@ static void janet_load_libs(JanetTable *env) {
     janet_lib_tuple(env);
     janet_lib_buffer(env);
     janet_lib_table(env);
+    janet_lib_struct(env);
     janet_lib_fiber(env);
     janet_lib_os(env);
     janet_lib_parse(env);
