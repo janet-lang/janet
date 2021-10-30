@@ -3697,7 +3697,7 @@
   # flatten nested tables.
   (loop [[k v] :in (pairs root-env)
          :when (symbol? k)]
-    (def flat (table/proto-flatten @{} v))
+    (def flat (table/proto-flatten v))
     (when (boot/config :no-docstrings)
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
