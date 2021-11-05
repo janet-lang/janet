@@ -2055,7 +2055,7 @@
   ```
   Shorthand for fn. Arguments are given as $n, where n is the 0-indexed
   argument of the function. $ is also an alias for the first (index 0) argument.
-  The $& symbol will make the anonymous function variadic if it apears in the
+  The $& symbol will make the anonymous function variadic if it appears in the
   body of the function - it can be combined with positional arguments.
 
   Example usage:
