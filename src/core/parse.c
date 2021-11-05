@@ -746,6 +746,7 @@ Janet janet_parser_produce(JanetParser *parser) {
     }
     parser->pending--;
     parser->argcount--;
+    parser->states[0].argn--;
     return ret;
 }
 
@@ -759,6 +760,7 @@ Janet janet_parser_produce_wrapped(JanetParser *parser) {
     }
     parser->pending--;
     parser->argcount--;
+    parser->states[0].argn--;
     return ret;
 }
 
@@ -1194,7 +1196,9 @@ static Janet parser_state_frames(const JanetParser *p) {
     Janet *args = p->args + p->argcount;
     for (int32_t i = count - 1; i >= 0; --i) {
         JanetParseState *s = p->states + i;
-        args -= s->argn;
+        if (s->flags & PFLAG_CONTAINER) {
+            args -= s->argn;
+        }
         states->data[i] = janet_wrap_parse_state(s, args, buf, (uint32_t) p->bufcount);
     }
     return janet_wrap_array(states);
