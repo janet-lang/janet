@@ -34,10 +34,10 @@
 (defn start-suite [x]
   (set suite-num x)
   (set start-time (os/clock))
-  (eprint "Running test suite " x " tests..."))
+  (eprint "Starting suite " x "..."))
 
 (defn end-suite []
   (def delta (- (os/clock) start-time))
-  (eprintf "Test suite %d finished in %.3f seconds" suite-num delta)
+  (eprinf "Finished suite %d in %.3f seconds - " suite-num delta)
   (eprint num-tests-passed " of " num-tests-run " tests passed.")
   (if (not= num-tests-passed num-tests-run) (os/exit 1)))
