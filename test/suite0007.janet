@@ -308,8 +308,9 @@
 (assert (deep= (range 4) a) "eachk 1")
 
 
-(tracev (def my-unique-var-name true))
-(assert my-unique-var-name "tracev upscopes")
+(with-dyns [:err @""]
+  (tracev (def my-unique-var-name true))
+  (assert my-unique-var-name "tracev upscopes"))
 
 (assert (pos? (length (gensym))) "gensym not empty, regression #753")
 

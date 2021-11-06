@@ -203,7 +203,7 @@
 (def step1 "(a b c d)\n")
 (def step2 "(a b)\n")
 (def p1 (parser/new))
-(pp (parser/state p1))
+(parser/state p1)
 (parser/consume p1 step1)
 (loop [v :iterate (parser/produce p1)])
 (parser/state p1)

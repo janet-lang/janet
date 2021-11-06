@@ -5,6 +5,8 @@
 (var suite-num 0)
 (var start-time 0)
 
+(def is-verbose (os/getenv "VERBOSE"))
+
 (defn assert
   "Override's the default assert with some nice error handling."
   [x &opt e]
@@ -15,7 +17,7 @@
   (def truncated
     (if (> (length e) 40) (string (string/slice e 0 35) "...") (describe e)))
   (if x
-    (eprintf "\e[32m✔\e[0m %s: %v" truncated x)
+    (when is-verbose (eprintf "\e[32m✔\e[0m %s: %v" truncated x))
     (eprintf "\n\e[31m✘\e[0m %s: %v" truncated x))
   x)
 
@@ -32,10 +34,10 @@
 (defn start-suite [x]
   (set suite-num x)
   (set start-time (os/clock))
-  (eprint "\nRunning test suite " x " tests...\n  "))
+  (eprint "Running test suite " x " tests..."))
 
 (defn end-suite []
   (def delta (- (os/clock) start-time))
-  (eprintf "\n\nTest suite %d finished in %.3f seconds" suite-num delta)
-  (eprint num-tests-passed " of " num-tests-run " tests passed.\n")
+  (eprintf "Test suite %d finished in %.3f seconds" suite-num delta)
+  (eprint num-tests-passed " of " num-tests-run " tests passed.")
   (if (not= num-tests-passed num-tests-run) (os/exit 1)))
