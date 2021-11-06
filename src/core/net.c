@@ -132,22 +132,20 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         case JANET_ASYNC_EVENT_MARK: {
             if (state->lstream) janet_mark(janet_wrap_abstract(state->lstream));
             if (state->astream) janet_mark(janet_wrap_abstract(state->astream));
-            if (state->function) janet_mark(janet_wrap_abstract(state->function));
+            if (state->function) janet_mark(janet_wrap_function(state->function));
             break;
         }
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_COMPLETE: {
-            int seconds;
-            int bytes = sizeof(seconds);
-            if (NO_ERROR != getsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_CONNECT_TIME,
-                                       (char *)&seconds, &bytes)) {
+            if (state->astream->flags & JANET_STREAM_CLOSED) {
                 janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
                 return JANET_ASYNC_STATUS_DONE;
             }
+            SOCKET lsock = (SOCKET) state->lstream->handle;
             if (NO_ERROR != setsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
-                                       (char *) & (state->lstream->handle), sizeof(SOCKET))) {
+                                       (char *) &lsock, sizeof(lsock))) {
                 janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
                 return JANET_ASYNC_STATUS_DONE;
             }
@@ -411,6 +409,7 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
+
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
     void *addr = NULL;
@@ -431,7 +430,7 @@ JANET_CORE_FN(cfun_net_connect,
         struct addrinfo *rp = NULL;
         for (rp = ai; rp != NULL; rp = rp->ai_next) {
 #ifdef JANET_WINDOWS
-            sock = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+            sock = WSASocketW(rp->ai_family, rp->ai_socktype, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
 #else
             sock = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
