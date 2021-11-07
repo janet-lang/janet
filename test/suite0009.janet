@@ -152,8 +152,10 @@
   (:close s))
 
 (defn check-matching-names [stream]
-  (def [my-ip my-port] (net/localname stream))
-  (def [remote-ip remote-port] (net/peername stream))
+  (def ln (net/localname stream))
+  (def pn (net/peername stream))
+  (def [my-ip my-port] ln)
+  (def [remote-ip remote-port] pn)
   (def msg (string my-ip " " my-port " " remote-ip " " remote-port))
   (def buf @"")
   (ev/gather
@@ -178,8 +180,7 @@
     (defn test-names []
       (with [conn (net/connect "127.0.0.1" "8000")]
         (check-matching-names conn)))
-    (test-names)
-    (test-names))
+    (repeat 20 (test-names)))
   (gccollect))
 
 # Create pipe
