@@ -348,4 +348,8 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= @[111] (peg/match '(number :d+) "111")) "simple number capture 1")
 (assert (deep= @[255] (peg/match '(number :w+) "0xff")) "simple number capture 2")
 
+# quoted match test
+(assert (= :yes (match 'john 'john :yes _ :nope)) "quoted literal match 1")
+(assert (= :nope (match 'john ''john :yes _ :nope)) "quoted literal match 2")
+
 (end-suite)

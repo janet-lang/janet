@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Allow quoted literals in the `match` macro to behave as expected in patterns.
+- Fix windows net related bug for TCP servers.
 - Allow evaluating ev streams with dofile.
 - Fix `ev` related bug with operations on already closed file descriptors.
 - Add struct and table agnostic `getproto` function.

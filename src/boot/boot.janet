@@ -1685,6 +1685,8 @@
   already bound to `<sym>`, rather than matching and rebinding it.
 
   Any other value pattern will only match if it is equal to `x`.
+  Quoting a pattern with `'` will also treat the value as a literal value to match against.
+
   ```
   [x & cases]
 
@@ -1736,6 +1738,10 @@
         (array/push x s)
         (put b2g pattern @[s]))
 
+      # match quoted literal
+      (and (= t :tuple) (= 2 (length pattern)) (= 'quote (pattern 0)))
+      (break)
+
       # match data structure template
       (or isarr (= t :struct) (= t :table))
       (do
@@ -1772,6 +1778,10 @@
 
       # match local binding
       (= t :symbol) (break)
+
+      # match quoted literal
+      (and (= t :tuple) (= 2 (length pattern)) (= 'quote (pattern 0)))
+      (array/push anda ['= s pattern])
 
       # match global unification
       (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
