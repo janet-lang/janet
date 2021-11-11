@@ -1,10 +1,10 @@
-# An example of using Janet's extensible module system
-# to import files from URL. To try this, run `janet -l examples/urlloader.janet`
-# from the repl, and then:
+# An example of using Janet's extensible module system to import files from
+# URL. To try this, run `janet -l ./examples/urlloader.janet` from the command
+# line, and then at the REPL type:
 #
 # (import https://raw.githubusercontent.com/janet-lang/janet/master/examples/colors.janet :as c)
 #
-# This will import a file using curl. You can then try
+# This will import a file using curl. You can then try:
 #
 # (print (c/color :green "Hello!"))
 #
@@ -13,9 +13,9 @@
 
 (defn- load-url
   [url args]
-  (def f (file/popen (string "curl " url)))
-  (def res (dofile f :source url ;args))
-  (try (file/close f) ([err] nil))
+  (def p (os/spawn ["curl" url "-s"] :p {:out :pipe}))
+  (def res (dofile (p :out) :source url ;args))
+  (:wait p)
   res)
 
 (defn- check-http-url
