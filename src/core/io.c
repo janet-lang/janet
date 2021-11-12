@@ -483,6 +483,19 @@ static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
                 janet_buffer_push_u8(buf, '\n');
             return janet_wrap_nil();
         }
+        case JANET_FUNCTION: {
+            /* Special case function */
+            JanetFunction *fun = janet_unwrap_function(x);
+            JanetBuffer *buf = janet_buffer(0);
+            for (int32_t i = offset; i < argc; ++i) {
+                janet_to_string_b(buf, argv[i]);
+            }
+            if (newline)
+                janet_buffer_push_u8(buf, '\n');
+            Janet args[1] = { janet_wrap_buffer(buf) };
+            janet_call(fun, 1, args);
+            return janet_wrap_nil();
+        }
         case JANET_NIL:
             f = dflt_file;
             if (f == NULL) janet_panic("cannot print to nil");
