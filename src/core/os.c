@@ -685,6 +685,12 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
         *out = (NULL == proc->err) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
         return 1;
     }
+    #ifndef JANET_WINDOWS
+    if (janet_keyeq(key, "pid")) {
+        *out = janet_wrap_number(proc->pid);
+        return 1;
+    }
+    #endif
     if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {
         *out = janet_wrap_integer(proc->return_code);
         return 1;
@@ -1053,7 +1059,9 @@ JANET_CORE_FN(os_execute,
 JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
               "Execute a program on the system and return a handle to the process. Otherwise, the "
-              "same arguments as os/execute. Does not wait for the process.") {
+              "same arguments as os/execute. Does not wait for the process. "
+              "The returned value has the fields :in, :out, :err, :return-code and "
+              "the additional field :pid on unix like platforms.") {
     return os_execute_impl(argc, argv, 1);
 }
 
