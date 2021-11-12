@@ -540,7 +540,7 @@ JANET_CORE_FN(os_proc_wait,
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait)",
               "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-              "handle on windows. If wait is truthy, will wait for the process to finsih and "
+              "handle on windows. If wait is truthy, will wait for the process to finish and "
               "returns the exit code. Otherwise, returns proc.") {
     janet_arity(argc, 1, 2);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
