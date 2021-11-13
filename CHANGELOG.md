@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Ctrl-C will now raise SIGINT.
 - Allow quoted literals in the `match` macro to behave as expected in patterns.
 - Fix windows net related bug for TCP servers.
 - Allow evaluating ev streams with dofile.

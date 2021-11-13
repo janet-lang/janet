@@ -14,11 +14,9 @@
   (++ num-tests-run)
   (when x (++ num-tests-passed))
   (def str (string e))
-  (def truncated
-    (if (> (length e) 40) (string (string/slice e 0 35) "...") (describe e)))
   (if x
-    (when is-verbose (eprintf "\e[32m✔\e[0m %s: %v" truncated x))
-    (eprintf "\n\e[31m✘\e[0m %s: %v" truncated x))
+    (when is-verbose (eprintf "\e[32m✔\e[0m %s: %v" (describe e) x))
+    (eprintf "\n\e[31m✘\e[0m %s: %v" (describe e) x))
   x)
 
 (defmacro assert-error
