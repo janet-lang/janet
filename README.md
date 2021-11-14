@@ -257,7 +257,7 @@ Nope. There are no cons cells here.
 
 ### Is this a Clojure port?
 
-No. It's similar to Clojure superficially because I like Lisps and I like the asthetics.
+No. It's similar to Clojure superficially because I like Lisps and I like the aesthetics.
 Internally, Janet is not at all like Clojure.
 
 ### Are the immutable data structures (tuples and structs) implemented as hash tries?
