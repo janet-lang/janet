@@ -757,7 +757,7 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
-                raise(SIGINT);
+                kill(getpid(), SIGINT);
                 /* fallthrough */
             case 17:    /* ctrl-q */
                 gbl_cancel_current_repl_form = 1;
