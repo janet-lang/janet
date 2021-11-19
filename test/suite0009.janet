@@ -166,7 +166,7 @@
                (= (string my-port) (get comparison 3))
                (= remote-ip (get comparison 0))
                (= (string remote-port) (get comparison 1)))
-          (string/format "localname should match peername: ln=%j, pn=%j" ln pn)))
+          (string/format "localname should match peername: msg=%j, buf=%j" msg buf)))
 
 # Test on both server and client
 (defn names-handler
