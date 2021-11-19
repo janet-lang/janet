@@ -757,6 +757,7 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
+                norawmode();
                 kill(getpid(), SIGINT);
                 /* fallthrough */
             case 17:    /* ctrl-q */
