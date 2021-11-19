@@ -429,9 +429,9 @@ static int proc_get_status(JanetProc *proc) {
 /* Function that is called in separate thread to wait on a pid */
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
+#ifdef WNOWAIT
     pid_t result;
     int status = 0;
-#ifdef WNOWAIT
     do {
         result = waitpid(proc->pid, &status, WNOWAIT);
     } while (result == -1 && errno == EINTR);
