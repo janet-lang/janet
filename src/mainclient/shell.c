@@ -136,7 +136,6 @@ static JANET_THREAD_LOCAL int gbl_cols = 80;
 static JANET_THREAD_LOCAL char *gbl_history[JANET_HISTORY_MAX];
 static JANET_THREAD_LOCAL int gbl_history_count = 0;
 static JANET_THREAD_LOCAL int gbl_historyi = 0;
-static JANET_THREAD_LOCAL int gbl_sigint_flag = 0;
 static JANET_THREAD_LOCAL struct termios gbl_termios_start;
 static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
 static JANET_THREAD_LOCAL int gbl_match_count = 0;
@@ -758,9 +757,8 @@ static int line() {
                 kleft();
                 break;
             case 3:     /* ctrl-c */
-                clearlines();
-                gbl_sigint_flag = 1;
-                return -1;
+                kill(getpid(), SIGINT);
+                /* fallthrough */
             case 17:    /* ctrl-q */
                 gbl_cancel_current_repl_form = 1;
                 clearlines();
@@ -962,11 +960,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
     }
     if (line()) {
         norawmode();
-        if (gbl_sigint_flag) {
-            raise(SIGINT);
-        } else {
-            fputc('\n', out);
-        }
+        fputc('\n', out);
         return;
     }
     fflush(stdin);

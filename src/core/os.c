@@ -544,7 +544,7 @@ JANET_CORE_FN(os_proc_wait,
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait)",
               "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-              "handle on windows. If wait is truthy, will wait for the process to finsih and "
+              "handle on windows. If wait is truthy, will wait for the process to finish and "
               "returns the exit code. Otherwise, returns proc.") {
     janet_arity(argc, 1, 2);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
@@ -689,6 +689,12 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
         *out = (NULL == proc->err) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
         return 1;
     }
+    #ifndef JANET_WINDOWS
+    if (janet_keyeq(key, "pid")) {
+        *out = janet_wrap_number(proc->pid);
+        return 1;
+    }
+    #endif
     if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {
         *out = janet_wrap_integer(proc->return_code);
         return 1;
@@ -1057,7 +1063,9 @@ JANET_CORE_FN(os_execute,
 JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
               "Execute a program on the system and return a handle to the process. Otherwise, the "
-              "same arguments as os/execute. Does not wait for the process.") {
+              "same arguments as os/execute. Does not wait for the process. "
+              "The returned value has the fields :in, :out, :err, :return-code and "
+              "the additional field :pid on unix like platforms.") {
     return os_execute_impl(argc, argv, 1);
 }
 
