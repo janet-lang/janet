@@ -409,14 +409,35 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
 
 #else /* windows check */
 
+static int proc_get_status(JanetProc *proc) {
+    /* Use POSIX shell semantics for interpreting signals */
+    int status = 0;
+    pid_t result;
+    do {
+        result = waitpid(proc->pid, &status, 0);
+    } while (result == -1 && errno == EINTR);
+    if (WIFEXITED(status)) {
+        status = WEXITSTATUS(status);
+    } else if (WIFSTOPPED(status)) {
+        status = WSTOPSIG(status) + 128;
+    } else {
+        status = WTERMSIG(status) + 128;
+    }
+    return status;
+}
+
 /* Function that is called in separate thread to wait on a pid */
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
     pid_t result;
     int status = 0;
+#ifdef WNOWAIT
     do {
         result = waitpid(proc->pid, &status, WNOWAIT);
     } while (result == -1 && errno == EINTR);
+#else
+    args.tag = proc_get_status(proc);
+#endif
     return args;
 }
 
@@ -427,20 +448,11 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
     janet_ev_dec_refcount();
     JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {
-        /* Wait again without NOWAIT.
-         * Use POSIX shell semantics for interpreting signals */
-        int status = 0;
-        pid_t result;
-        do {
-            result = waitpid(proc->pid, &status, 0);
-        } while (result == -1 && errno == EINTR);
-        if (WIFEXITED(status)) {
-            status = WEXITSTATUS(status);
-        } else if (WIFSTOPPED(status)) {
-            status = WSTOPSIG(status) + 128;
-        } else {
-            status = WTERMSIG(status) + 128;
-        }
+#ifdef WNOWAIT
+        int status = proc_get_status(proc);
+#else
+        int status = args.tag;
+#endif
         proc->return_code = (int32_t) status;
         proc->flags |= JANET_PROC_WAITED;
         proc->flags &= ~JANET_PROC_WAITING;
