@@ -464,7 +464,9 @@ const JanetAbstractType janet_stream_type = {
 
 /* Register a fiber to resume with value */
 void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
+    if (fiber->flags & JANET_FIBER_FLAG_CANCELED) return;
     JanetTask t = { fiber, value, sig, ++fiber->sched_id };
+    if (sig == JANET_SIGNAL_ERROR) fiber->flags |= JANET_FIBER_FLAG_CANCELED;
     janet_q_push(&janet_vm.spawn, &t, sizeof(t));
 }
 
@@ -1226,6 +1228,7 @@ JanetFiber *janet_loop1(void) {
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
+        task.fiber->flags &= ~JANET_FIBER_FLAG_CANCELED;
         if (task.expected_sched_id != task.fiber->sched_id) continue;
         Janet res;
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);

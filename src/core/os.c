@@ -689,12 +689,12 @@ static int janet_proc_get(void *p, Janet key, Janet *out) {
         *out = (NULL == proc->err) ? janet_wrap_nil() : janet_wrap_abstract(proc->err);
         return 1;
     }
-    #ifndef JANET_WINDOWS
+#ifndef JANET_WINDOWS
     if (janet_keyeq(key, "pid")) {
         *out = janet_wrap_number(proc->pid);
         return 1;
     }
-    #endif
+#endif
     if ((-1 != proc->return_code) && janet_keyeq(key, "return-code")) {
         *out = janet_wrap_integer(proc->return_code);
         return 1;

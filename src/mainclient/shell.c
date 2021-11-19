@@ -759,7 +759,7 @@ static int line() {
             case 3:     /* ctrl-c */
                 norawmode();
                 kill(getpid(), SIGINT);
-                /* fallthrough */
+            /* fallthrough */
             case 17:    /* ctrl-q */
                 gbl_cancel_current_repl_form = 1;
                 clearlines();
