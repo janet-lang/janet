@@ -380,7 +380,7 @@ JANET_CORE_FN(cfun_net_connect,
     int is_unix = 0;
     char *bindhost = (char *) janet_optcstring(argv, argc, 3, NULL);
     char *bindport = NULL;
-    if (janet_checkint(argv[4])) {
+    if (argc >= 5 && janet_checkint(argv[4])) {
         bindport = (char *)janet_to_string(argv[4]);
     } else {
         bindport = (char *)janet_optcstring(argv, argc, 4, NULL);
