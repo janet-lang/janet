@@ -213,4 +213,7 @@
 (loop [v :iterate (parser/produce p2)])
 (parser/state p2)
 
+# Check missing struct proto bug.
+(assert (struct/getproto (struct/with-proto {:a 1} :b 2 :c nil)) "missing struct proto")
+
 (end-suite)
