@@ -150,6 +150,7 @@ const JanetKV *janet_struct_end(JanetKV *st) {
                 janet_struct_put(newst, kv->key, kv->value);
             }
         }
+        janet_struct_proto(newst) = janet_struct_proto(st);
         st = newst;
     }
     janet_struct_hash(st) = janet_kv_calchash(st, janet_struct_capacity(st));
