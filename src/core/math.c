@@ -286,7 +286,8 @@ JANET_DEFINE_MATHOP(fabs, fabs, "Return the absolute value of x.")
 JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that is not greater than x.")
 JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
 JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
-JANET_DEFINE_MATHOP(gamma, lgamma, "Returns gamma(x).")
+JANET_DEFINE_MATHOP(gamma, tgamma, "Returns gamma(x).")
+JANET_DEFINE_MATHOP(lgamma, lgamma, "Returns log-gamma(x).")
 JANET_DEFINE_MATHOP(log1p, log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
 JANET_DEFINE_MATHOP(erf, erf, "Returns the error function of x.")
 JANET_DEFINE_MATHOP(erfc, erfc, "Returns the complementary error function of x.")
@@ -383,6 +384,7 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/exp2", janet_exp2),
         JANET_CORE_REG("math/log1p", janet_log1p),
         JANET_CORE_REG("math/gamma", janet_gamma),
+        JANET_CORE_REG("math/log-gamma", janet_lgamma),
         JANET_CORE_REG("math/erfc", janet_erfc),
         JANET_CORE_REG("math/erf", janet_erf),
         JANET_CORE_REG("math/expm1", janet_expm1),
