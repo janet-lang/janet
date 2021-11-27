@@ -2641,6 +2641,8 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
     return 0;
 #else
     if (pipe(handles)) return -1;
+    if (mode != 2 && fcntl(handles[0], F_SETFD, FD_CLOEXEC)) goto error;
+    if (mode != 1 && fcntl(handles[1], F_SETFD, FD_CLOEXEC)) goto error;
     if (mode != 2 && fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
     if (mode != 1 && fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;
     return 0;
