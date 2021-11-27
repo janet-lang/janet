@@ -165,7 +165,7 @@ build/c/janet.c: build/janet_boot src/boot/boot.janet
 ##### Amalgamation #####
 ########################
 
-SONAME=libjanet.so.1.18
+SONAME=libjanet.so.1.19
 
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@

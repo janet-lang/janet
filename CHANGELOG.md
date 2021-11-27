@@ -1,7 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.19.0 - 2021-11-27
+- Add `math/log-gamma` to replace `math/gamma`, and change `math/gamma` to be the expected gamma function.
+- Fix leaking file-descriptors in os/spawn and os/execute.
 - Ctrl-C will now raise SIGINT.
 - Allow quoted literals in the `match` macro to behave as expected in patterns.
 - Fix windows net related bug for TCP servers.
