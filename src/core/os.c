@@ -485,7 +485,9 @@ static int janet_proc_gc(void *p, size_t s) {
         /* Kill and wait to prevent zombies */
         kill(proc->pid, SIGKILL);
         int status;
-        waitpid(proc->pid, &status, 0);
+        if (!(proc->flags & JANET_PROC_WAITING)) {
+            waitpid(proc->pid, &status, 0);
+        }
     }
 #endif
     return 0;
