@@ -2292,6 +2292,8 @@
 
   (var where default-where)
 
+  (unless (= where "<anonymous>") (put env :current-file where))
+
   # Evaluate 1 source form in a protected manner
   (def lints @[])
   (defn eval1 [source &opt l c]
@@ -2370,8 +2372,12 @@
 
       [:source new-where]
       (if (string? new-where)
-        (set where new-where)
-        (set where default-where))
+        (do
+          (set where new-where)
+          (put env :current-file new-where))
+        (do
+          (set where default-where)
+          (put env :current-file nil)))
 
       (do
         (var pindex 0)
