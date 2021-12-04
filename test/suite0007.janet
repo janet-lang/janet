@@ -168,6 +168,16 @@
 (assert (= (string out-buf) "Hello\nhi") "print and prin to buffer 1")
 (assert (= (string err-buf) "Sup\nnot much.") "eprint and eprin to buffer 1")
 
+# Printing to functions
+(def out-buf @"")
+(defn prepend [x]
+  (with-dyns [:out out-buf]
+    (prin "> " x)))
+(with-dyns [:out prepend]
+  (print "Hello world"))
+
+(assert (= (string out-buf) "> Hello world\n") "print to buffer via function")
+
 (assert (= (string '()) (string [])) "empty bracket tuple literal")
 
 # with-vars
