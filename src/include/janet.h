@@ -1763,6 +1763,7 @@ JANET_API JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv);
 JANET_API Janet janet_mcall(const char *name, int32_t argc, Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
+JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix);
 
 /* Scratch Memory API */
 typedef void (*JanetScratchFinalizer)(void *);

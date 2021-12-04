@@ -2223,7 +2223,7 @@
     col
     ": compile error: ")
   (if macrof
-    (debug/stacktrace macrof msg)
+    (debug/stacktrace macrof msg "")
     (eprint msg))
   (when ec
     (print-line-col where line col)
@@ -2287,12 +2287,13 @@
   (default on-compile-warning warn-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
-  (default default-where "<anonymous>")
   (default guard :ydt)
 
   (var where default-where)
 
-  (unless (= where "<anonymous>") (put env :current-file where))
+  (if where
+    (put env :current-file where)
+    (set where "<anonymous>"))
 
   # Evaluate 1 source form in a protected manner
   (def lints @[])
@@ -2659,8 +2660,7 @@
                   :on-status (fn [f x]
                                (when (not= (fiber/status f) :dead)
                                  (when exit
-                                   (eprint x)
-                                   (debug/stacktrace f)
+                                   (debug/stacktrace f x "")
                                    (eflush)
                                    (os/exit 1))
                                  (put env :exit true)
@@ -3167,7 +3167,7 @@
   "Print the current fiber stack"
   []
   (print)
-  (with-dyns [:err-color false] (debug/stacktrace (.fiber) (.signal)))
+  (with-dyns [:err-color false] (debug/stacktrace (.fiber) (.signal) ""))
   (print))
 
 (defn .frame
@@ -3364,9 +3364,7 @@
           (printf (get e :pretty-format "%q") x)
           (flush))
         (do
-          (def ec (dyn :err-color))
-          (eprint (if ec "\e[31m" "") fs ": " x)
-          (debug/stacktrace f)
+          (debug/stacktrace f x "")
           (eflush)
           (if (e :debug) (enter-debugger f x))))))
 
@@ -3520,8 +3518,7 @@
   (try
     (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
     ([e f]
-     (eprint e)
-     (debug/stacktrace f)))
+     (debug/stacktrace f e "")))
   nil)
 
 ###

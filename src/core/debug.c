@@ -96,15 +96,18 @@ void janet_debug_find(
     }
 }
 
+void janet_stacktrace(JanetFiber *fiber, Janet err) {
+    janet_stacktrace_ext(fiber, err, NULL);
+}
+
 /* Error reporting. This can be emulated from within Janet, but for
  * consitency with the top level code it is defined once. */
-void janet_stacktrace(JanetFiber *fiber, Janet err) {
+void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
+
     int32_t fi;
     const char *errstr = (const char *)janet_to_string(err);
     JanetFiber **fibers = NULL;
-
-    /* Don't print error line if it is nil. */
-    int wrote_error = janet_checktype(err, JANET_NIL);
+    int wrote_error = !prefix;
 
     int print_color = janet_truthy(janet_dyn("err-color"));
     if (print_color) janet_eprintf("\x1b[31m");
@@ -126,9 +129,9 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
             /* Print prelude to stack frame */
             if (!wrote_error) {
                 JanetFiberStatus status = janet_fiber_status(fiber);
-                const char *prefix = status == JANET_STATUS_ERROR ? "" : "status ";
+                const char *override_prefix = prefix ? prefix : "";
                 janet_eprintf("%s%s: %s\n",
-                              prefix,
+                              override_prefix,
                               janet_status_names[status],
                               errstr);
                 wrote_error = 1;
@@ -361,14 +364,15 @@ JANET_CORE_FN(cfun_debug_stack,
 }
 
 JANET_CORE_FN(cfun_debug_stacktrace,
-              "(debug/stacktrace fiber &opt err)",
+              "(debug/stacktrace fiber &opt err prefix)",
               "Prints a nice looking stacktrace for a fiber. Can optionally provide "
               "an error value to print the stack trace with. If `err` is nil or not "
-              "provided, will skip the error line. Returns the fiber.") {
-    janet_arity(argc, 1, 2);
+              "provided, and no prefix is given, will skip the error line. Returns the fiber.") {
+    janet_arity(argc, 1, 3);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet x = argc == 1 ? janet_wrap_nil() : argv[1];
-    janet_stacktrace(fiber, x);
+    const char *prefix = janet_optcstring(argv, argc, 2, NULL);
+    janet_stacktrace_ext(fiber, x, prefix);
     return argv[0];
 }
 
