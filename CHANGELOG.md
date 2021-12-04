@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add an optional `prefix` paramater to `debug/stacktrace` to allow printing prettier error messages.
+- Remove appveyor for CI pipeline
 - Fixed a bug that prevented sending threaded abstracts over threaded channels.
 - Fix bug in the `map` function with arity at least 3.
 
