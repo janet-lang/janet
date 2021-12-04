@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fixed a bug that prevented sending threaded abstracts over threaded channels.
+- Fix bug in the `map` function with arity at least 3.
+
 ## 1.19.0 - 2021-11-27
 - Add `math/log-gamma` to replace `math/gamma`, and change `math/gamma` to be the expected gamma function.
 - Fix leaking file-descriptors in os/spawn and os/execute.
