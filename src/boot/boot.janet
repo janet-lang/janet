@@ -908,7 +908,7 @@
         (while true
           (if (= nil (set k1 (next i1 k1))) (break))
           (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i2 k3))) (break))
+          (if (= nil (set k3 (next i3 k3))) (break))
           (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3)))))
     4 (do
         (var k1 nil)
@@ -918,8 +918,8 @@
         (while true
           (if (= nil (set k1 (next i1 k1))) (break))
           (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i2 k3))) (break))
-          (if (= nil (set k4 (next i2 k4))) (break))
+          (if (= nil (set k3 (next i3 k3))) (break))
+          (if (= nil (set k4 (next i4 k4))) (break))
           (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3) (in i4 k4)))))
     (do
       (def iterkeys (array/new-filled ninds))
