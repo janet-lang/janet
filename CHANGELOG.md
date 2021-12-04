@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.19.1 - 2021-12-04
 - Add an optional `prefix` paramater to `debug/stacktrace` to allow printing prettier error messages.
 - Remove appveyor for CI pipeline
 - Fixed a bug that prevented sending threaded abstracts over threaded channels.
