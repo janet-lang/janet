@@ -7,6 +7,68 @@
 ###
 ###
 
+
+(def fn :macro
+  "Macro version of fn*. Supports multi-arity functions."
+  (fn* [& more]
+    (def make-body
+      (fn* make-body [start]
+        (def $args (gensym))
+        (def fdeclen (- (length more) start))
+        (var variadic? false)
+        (var maxargs 0)
+        (def iff
+          (fn* recur [i]
+            (def restlen (- fdeclen i))
+            (if (= 0 restlen)
+              ~(error (string "expected at most " ,maxargs " arguments, got " (length ,$args)))
+              (do
+                (def fdec (in more (+ start i)))
+                (def args (in fdec 0))
+                (def arglen (length args))
+                (var argi 0)
+                (while (< argi arglen)
+                  (def sym (in args argi))
+                  (if (= '&keys sym)
+                    (error "&keys invalid in multi-arity function"))
+                  (if (= '&opt sym)
+                    (error "&opt invalid in multi-arity function"))
+                  (if (= '& (in args argi))
+                    (if (= 1 restlen)
+                      (do
+                        (set variadic? true)
+                        (break))
+                      (error "variadic overload must be last in multi-arity function"))
+                    (set argi (+ 1 argi))))
+                (if (< maxargs arglen) (set maxargs arglen))
+                (if variadic?
+                  ~(do (def ,args ,$args) ,;(tuple/slice fdec 1))
+                  ~(if (= ,arglen (length ,$args))
+                     (do (def ,args ,$args) ,;(tuple/slice fdec 1))
+                     ,(recur (+ 1 i))))))))
+        (tuple (tuple/brackets '& $args) (iff 0))))
+    (def morelen (length more))
+    (def start
+      (if (= 0 morelen) 0 (if (= :symbol (type (in more 0))) 1 0)))
+    (def args
+      (if (not= start morelen) (in more start)))
+    (def argst (type args))
+    (def body
+      (if (= :tuple argst)
+        (if (= :brackets (tuple/type args))
+          (if (= (+ 1 start) morelen)
+            [args]
+            [args ;(tuple/slice more (+ 1 start))])
+          (make-body start))
+        [args]))
+    (if (= 0 start)
+      (if (= start morelen)
+        ~(fn*)
+        ~(fn* ,;body))
+      (if (= :nil argst)
+        ~(fn* ,(in more 0))
+        ~(fn* ,(in more 0) ,;body)))))
+
 (def defn :macro
   ```
   (defn name & more)
@@ -30,15 +92,27 @@
             (if (< i len) (recur (+ i 1)))))))
     (def start (fstart 0))
     (def args (in more start))
-    # Add function signature to docstring
-    (var index 0)
-    (def arglen (length args))
-    (def buf (buffer "(" name))
-    (while (< index arglen)
-      (buffer/push-string buf " ")
-      (buffer/format buf "%j" (in args index))
-      (set index (+ index 1)))
-    (array/push modifiers (string buf ")\n\n" docstr))
+    (def make-sig
+      (fn [args]
+        (def arglen (length args))
+        (var i 0)
+        (def buf (buffer "(" name))
+        (while (< i arglen)
+          (buffer/push-string buf " ")
+          (buffer/format buf "%j" (in args i))
+          (set i (+ i 1)))
+        (buffer/push-string buf ")\n")))
+    (if (= :brackets (tuple/type args))
+      (array/push modifiers (string (make-sig args) "\n" docstr))
+      (do
+        (def buf @"")
+        (def fdeclen (- (length more) start))
+        (var i 0)
+        (while (< i fdeclen)
+          (def fdecl (in more (+ i start)))
+          (buffer/push-string buf (make-sig (in fdecl 0)))
+          (set i (+ 1 i)))
+        (array/push modifiers (string buf "\n" docstr))))
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
@@ -1145,7 +1219,7 @@
   (def $args (gensym))
   (each f funs
     (array/push parts (tuple apply f $args)))
-  (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
+  (tuple 'fn* (tuple '& $args) (tuple/slice parts 0)))
 
 (defmacro tracev
   `Print a value and a description of the form that produced that value to

@@ -295,6 +295,12 @@
     (++ i))
   (assert (= i 6) "when macro"))
 
+# Multi-arity functions
+(def mafn-1 (fn ([x] :foo) ([x y] :bar)))
+(assert (= :bar (mafn-1 1 2)) "multi-arity function literal")
+(defn mafn-2 ([x] :foo) ([x y] :bar) ([x y & z] :qux))
+(assert (= :qux (mafn-2 1 2 3 4)) "multi-arity defn macro")
+
 # Denormal tables and structs
 
 (assert (= (length {1 2 nil 3}) 1) "nil key struct literal")
@@ -313,7 +319,7 @@
 (assert (= (length @{1 2 3 nil}) 1) "nil value table literal")
 
 # Regression Test
-(assert (= 1 (((compile '(fn [] 1) @{})))) "regression test")
+(assert (= 1 (((compile '(fn* [] 1) @{})))) "regression test")
 
 # Regression Test #137
 (def [a b c] (range 10))

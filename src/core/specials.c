@@ -872,7 +872,7 @@ static const JanetSpecial janetc_specials[] = {
     {"break", janetc_break},
     {"def", janetc_def},
     {"do", janetc_do},
-    {"fn", janetc_fn},
+    {"fn*", janetc_fn},
     {"if", janetc_if},
     {"quasiquote", janetc_quasiquote},
     {"quote", janetc_quote},
