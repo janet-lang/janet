@@ -33,3 +33,22 @@ jobs:
             build/janet.h
             build/c/janet.c
             build/c/shell.c
+
+  release-windows:
+    name: Build release binaries for windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Build the project
+        shell: cmd
+        run: build_win all
+      - name: Draft the release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            ./*.zip
+            ./*.msi
