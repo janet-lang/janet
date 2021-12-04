@@ -620,7 +620,7 @@ static int janet_chan_unpack(JanetChannel *chan, Janet *x, int is_cleanup) {
             return 1;
         case JANET_BUFFER: {
             JanetBuffer *buf = janet_unwrap_buffer(*x);
-            int flags = is_cleanup ? JANET_MARSHAL_UNSAFE : (JANET_MARSHAL_UNSAFE | JANET_MARSHAL_DECREF);
+            int flags = is_cleanup ? (JANET_MARSHAL_UNSAFE | JANET_MARSHAL_DECREF) : JANET_MARSHAL_UNSAFE;
             *x = janet_unmarshal(buf->data, buf->count, flags, NULL, NULL);
             janet_buffer_deinit(buf);
             janet_free(buf);

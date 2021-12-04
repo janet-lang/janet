@@ -27,5 +27,14 @@
 (assert (< 2605.1158 (math/log-gamma 500) 2605.1159)
         "math/log-gamma")
 
+(def ch (ev/thread-chan 2))
+(def att (ev/thread-chan 109))
+(assert att "`att` was nil after creation")
+(ev/give ch att)
+(ev/do-thread
+  (print "started thread")
+  (assert (ev/take ch) "channel packing bug for threaded abstracts on threaded channels."))
+(print "done")
+
 (end-suite)
 
