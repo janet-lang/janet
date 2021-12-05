@@ -224,13 +224,16 @@ int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
 
 #endif
 
+uint32_t janet_hash_mix(uint32_t input, uint32_t more) {
+    return input ^ ((more * 2119589369u) + 0x9e3779b9 + (input << 6) + (input >> 2));
+}
+
 /* Computes hash of an array of values */
 int32_t janet_array_calchash(const Janet *array, int32_t len) {
     const Janet *end = array + len;
-    uint32_t hash = 0;
+    uint32_t hash = 33;
     while (array < end) {
-        uint32_t elem = janet_hash(*array++);
-        hash ^= elem + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash = janet_hash_mix(hash, janet_hash(*array++));
     }
     return (int32_t) hash;
 }
@@ -238,10 +241,10 @@ int32_t janet_array_calchash(const Janet *array, int32_t len) {
 /* Computes hash of an array of values */
 int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len) {
     const JanetKV *end = kvs + len;
-    uint32_t hash = 0;
+    uint32_t hash = 33;
     while (kvs < end) {
-        hash ^= janet_hash(kvs->key) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-        hash ^= janet_hash(kvs->value) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+        hash = janet_hash_mix(hash, janet_hash(kvs->key));
+        hash = janet_hash_mix(hash, janet_hash(kvs->value));
         kvs++;
     }
     return (int32_t) hash;

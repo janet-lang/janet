@@ -50,5 +50,6 @@ jobs:
         with:
           draft: true
           files: |
+            ./dist/*.zip
             ./*.zip
             ./*.msi

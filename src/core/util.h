@@ -56,6 +56,7 @@
 } while (0)
 
 /* Utils */
+uint32_t janet_hash_mix(uint32_t input, uint32_t more);
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 int janet_valid_utf8(const uint8_t *str, int32_t len);
 int janet_is_symbol_char(uint8_t c);

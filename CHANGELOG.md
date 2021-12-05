@@ -1,8 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Update hash function.
+
 ## 1.19.1 - 2021-12-04
-- Add an optional `prefix` paramater to `debug/stacktrace` to allow printing prettier error messages.
+- Add an optional `prefix` parameter to `debug/stacktrace` to allow printing prettier error messages.
 - Remove appveyor for CI pipeline
 - Fixed a bug that prevented sending threaded abstracts over threaded channels.
 - Fix bug in the `map` function with arity at least 3.
