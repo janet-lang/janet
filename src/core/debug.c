@@ -97,7 +97,8 @@ void janet_debug_find(
 }
 
 void janet_stacktrace(JanetFiber *fiber, Janet err) {
-    janet_stacktrace_ext(fiber, err, NULL);
+    const char *prefix = janet_checktype(err, JANET_NIL) ? NULL : "";
+    janet_stacktrace_ext(fiber, err, prefix);
 }
 
 /* Error reporting. This can be emulated from within Janet, but for
@@ -129,9 +130,8 @@ void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
             /* Print prelude to stack frame */
             if (!wrote_error) {
                 JanetFiberStatus status = janet_fiber_status(fiber);
-                const char *override_prefix = prefix ? prefix : "";
                 janet_eprintf("%s%s: %s\n",
-                              override_prefix,
+                              prefix,
                               janet_status_names[status],
                               errstr);
                 wrote_error = 1;

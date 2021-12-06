@@ -1236,14 +1236,14 @@ JanetFiber *janet_loop1(void) {
         int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
         if (NULL == sv) {
             if (!is_suspended) {
-                janet_stacktrace(task.fiber, res);
+                janet_stacktrace_ext(task.fiber, res, "");
             }
         } else if (sig == JANET_SIGNAL_OK || (task.fiber->flags & (1 << sig))) {
             JanetChannel *chan = janet_channel_unwrap(sv);
             janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig],
                                task.fiber, chan->is_threaded), 2);
         } else if (!is_suspended) {
-            janet_stacktrace(task.fiber, res);
+            janet_stacktrace_ext(task.fiber, res, "");
         }
         if (sig == JANET_SIGNAL_INTERRUPT) {
             /* On interrupts, return the interrupted fiber immediately */

@@ -50,7 +50,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 fiber->env = env;
                 JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
                 if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
-                    janet_stacktrace(fiber, ret);
+                    janet_stacktrace_ext(fiber, ret, "");
                     errflags |= 0x01;
                     done = 1;
                 }
@@ -58,7 +58,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 ret = janet_wrap_string(cres.error);
                 if (cres.macrofiber) {
                     janet_eprintf("compile error in %s: ", sourcePath);
-                    janet_stacktrace(cres.macrofiber, ret);
+                    janet_stacktrace_ext(cres.macrofiber, ret, "");
                 } else {
                     janet_eprintf("compile error in %s: %s\n", sourcePath,
                                   (const char *)cres.error);
@@ -121,7 +121,7 @@ int janet_loop_fiber(JanetFiber *fiber) {
     Janet out;
     status = janet_continue(fiber, janet_wrap_nil(), &out);
     if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
-        janet_stacktrace(fiber, out);
+        janet_stacktrace_ext(fiber, out, "");
     }
 #endif
     return status;
