@@ -225,7 +225,8 @@ int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
 #endif
 
 uint32_t janet_hash_mix(uint32_t input, uint32_t more) {
-    return input ^ ((more * 2119589369u) + 0x9e3779b9 + (input << 6) + (input >> 2));
+    uint32_t mix1 = (more + 0x9e3779b9 + (input << 6) + (input >> 2));
+    return input ^ (0x9e3779b9 + (mix1 << 6) + (mix1 >> 2));
 }
 
 /* Computes hash of an array of values */
