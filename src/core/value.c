@@ -325,7 +325,7 @@ int32_t janet_hash(Janet x) {
             uint32_t lo = (uint32_t)(as.u & 0xFFFFFFFF);
             uint32_t hi = (uint32_t)(as.u >> 32);
             uint32_t hilo = (hi ^ lo) * 2654435769u;
-            hash = (int32_t)((hilo << 16) | ((hilo >> 16) & 0xFFFF));
+            hash = (int32_t)((hilo << 16) | (hilo >> 16));
             break;
         }
         case JANET_ABSTRACT: {
@@ -339,15 +339,17 @@ int32_t janet_hash(Janet x) {
         /* fallthrough */
         default:
             if (sizeof(double) == sizeof(void *)) {
-                /* Assuming 8 byte pointer */
+                /* Assuming 8 byte pointer (8 byte aligned) */
                 uint64_t i = janet_u64(x);
                 uint32_t lo = (uint32_t)(i & 0xFFFFFFFF);
                 uint32_t hi = (uint32_t)(i >> 32);
-                hash = (int32_t)(hi ^ (lo >> 3));
+                uint32_t hilo = (hi ^ lo) * 2654435769u;
+                hash = (int32_t)((hilo << 16) | (hilo >> 16));
             } else {
                 /* Assuming 4 byte pointer (or smaller) */
-                hash = (int32_t)((char *)janet_unwrap_pointer(x) - (char *)0);
-                hash >>= 2;
+                ptrdiff_t diff = ((char *)janet_unwrap_pointer(x) - (char *)0);
+                uint32_t hilo = (uint32_t) diff * 2654435769u;
+                hash = (int32_t)((hilo << 16) | (hilo >> 16));
             }
             break;
     }
