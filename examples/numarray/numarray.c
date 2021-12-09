@@ -109,6 +109,11 @@ static const JanetReg cfuns[] = {
         "(numarray/scale numarray factor)\n\n"
         "scale numarray by factor"
     },
+    {
+        "sum", num_array_sum,
+        "(numarray/sum numarray)\n\n"
+        "sums numarray"
+    },
     {NULL, NULL, NULL}
 };
 
