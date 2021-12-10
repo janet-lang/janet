@@ -1,4 +1,4 @@
-(import build/numarray)
+(import /build/numarray)
 
 (def a (numarray/new 30))
 (print (get a 20))

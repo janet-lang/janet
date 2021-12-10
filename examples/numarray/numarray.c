@@ -76,9 +76,16 @@ void num_array_put(void *p, Janet key, Janet value) {
     }
 }
 
+static Janet num_array_length(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 1);
+    num_array *array = (num_array *)janet_getabstract(argv, 0, &num_array_type);
+    return janet_wrap_number(array->size);
+}
+
 static const JanetMethod methods[] = {
     {"scale", num_array_scale},
     {"sum", num_array_sum},
+    {"length", num_array_length},
     {NULL, NULL}
 };
 
@@ -108,6 +115,11 @@ static const JanetReg cfuns[] = {
         "scale", num_array_scale,
         "(numarray/scale numarray factor)\n\n"
         "scale numarray by factor"
+    },
+    {
+        "sum", num_array_sum,
+        "(numarray/sum numarray)\n\n"
+        "sums numarray"
     },
     {NULL, NULL, NULL}
 };

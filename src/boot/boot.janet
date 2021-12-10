@@ -532,16 +532,19 @@
 
 (defmacro loop
   ```
-  A general purpose loop macro. This macro is similar to the Common Lisp
-  loop macro, although intentionally much smaller in scope.
-  The head of the loop should be a tuple that contains a sequence of
-  either bindings or conditionals. A binding is a sequence of three values
-  that define something to loop over. They are formatted like:
+  A general purpose loop macro. This macro is similar to the Common Lisp loop
+  macro, although intentionally much smaller in scope.  The head of the loop
+  should be a tuple that contains a sequence of either bindings or
+  conditionals. A binding is a sequence of three values that define something
+  to loop over. Bindings are written in the format:
 
       binding :verb object/expression
 
-  Where `binding` is a binding as passed to def, `:verb` is one of a set of
-  keywords, and `object` is any expression. The available verbs are:
+  where `binding` is a binding as passed to def, `:verb` is one of a set of
+  keywords, and `object` is any expression. Each subsequent binding creates a
+  nested loop within the loop created by the previous binding.
+
+  The available verbs are:
 
   * `:iterate` - repeatedly evaluate and bind to the expression while it is
     truthy.
@@ -565,14 +568,19 @@
   where `:modifier` is one of a set of keywords, and `argument` is keyword-dependent.
   `:modifier` can be one of:
 
-  * `:while expression` - breaks from the loop if `expression` is falsey.
-  * `:until expression` - breaks from the loop if `expression` is truthy.
-  * `:let bindings` - defines bindings inside the loop as passed to the `let` macro.
-  * `:before form` - evaluates a form for a side effect before the next inner loop.
-  * `:after form` - same as `:before`, but the side effect happens after the next inner loop.
+  * `:while expression` - breaks from the current loop if `expression` is
+    falsey.
+  * `:until expression` - breaks from the current loop if `expression` is
+    truthy.
+  * `:let bindings` - defines bindings inside the current loop as passed to the
+    `let` macro.
+  * `:before form` - evaluates a form for a side effect before the next inner
+    loop.
+  * `:after form` - same as `:before`, but the side effect happens after the
+    next inner loop.
   * `:repeat n` - repeats the next inner loop `n` times.
-    lets try putting a loop item on multiple lines.
-  * `:when condition` - only evaluates the loop body when condition is true.
+  * `:when condition` - only evaluates the current loop body when `condition`
+    is true.
 
   The `loop` macro always evaluates to nil.
   ```
