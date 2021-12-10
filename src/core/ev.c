@@ -974,23 +974,30 @@ JANET_CORE_FN(cfun_channel_choice,
             JanetChannel *chan = janet_getchannel(data, 0);
             janet_chan_lock(chan);
             if (chan->closed) {
+                janet_chan_unlock(chan);
                 return make_close_result(chan);
             }
             if (janet_q_count(&chan->items) < chan->limit) {
+                janet_chan_unlock(chan);
                 janet_channel_push(chan, data[1], 1);
                 return make_write_result(chan);
             }
+            janet_chan_unlock(chan);
         } else {
             /* Read */
             JanetChannel *chan = janet_getchannel(argv, i);
+            janet_chan_lock(chan);
             if (chan->closed) {
+                janet_chan_unlock(chan);
                 return make_close_result(chan);
             }
             if (chan->items.head != chan->items.tail) {
                 Janet item;
+                janet_chan_unlock(chan);
                 janet_channel_pop(chan, &item, 1);
                 return make_read_result(chan, item);
             }
+            janet_chan_unlock(chan);
         }
     }
 
@@ -999,13 +1006,11 @@ JANET_CORE_FN(cfun_channel_choice,
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
             /* Write */
             JanetChannel *chan = janet_getchannel(data, 0);
-            if (chan->closed) continue;
             janet_channel_push(chan, data[1], 1);
         } else {
             /* Read */
             Janet item;
             JanetChannel *chan = janet_getchannel(argv, i);
-            if (chan->closed) continue;
             janet_channel_pop(chan, &item, 1);
         }
     }
