@@ -2263,7 +2263,7 @@
     * `:chunks` - callback to read into a buffer - default is getline
     * `:on-parse-error` - callback when parsing fails - default is bad-parse
     * `:env` - the environment to compile against - default is the current env
-    * `:source` - string path of source for better errors - default is "<anonymous>"
+    * `:source` - source path for better errors (use keywords for non-paths) - default is :<anonymous>
     * `:on-compile-error` - callback when compilation fails - default is bad-compile
     * `:on-compile-warning` - callback for any linting error - default is warn-compile
     * `:evaluator` - callback that executes thunks. Signature is (evaluator thunk source env where)
@@ -2295,13 +2295,13 @@
   (default on-compile-warning warn-compile)
   (default on-parse-error bad-parse)
   (default evaluator (fn evaluate [x &] (x)))
+  (default default-where :<anonymous>)
   (default guard :ydt)
 
   (var where default-where)
 
-  (if where
-    (put env :current-file where)
-    (set where "<anonymous>"))
+  (if (string? where)
+    (put env :current-file where))
 
   # Evaluate 1 source form in a protected manner
   (def lints @[])
@@ -2380,13 +2380,10 @@
         (buffer/clear buf))
 
       [:source new-where]
-      (if (string? new-where)
-        (do
-          (set where new-where)
-          (put env :current-file new-where))
-        (do
-          (set where default-where)
-          (put env :current-file nil)))
+      (do
+        (set where new-where)
+        (if (string? new-where)
+          (put env :current-file new-where)))
 
       (do
         (var pindex 0)
@@ -2447,14 +2444,14 @@
                              (if-not (= (fiber/status f) :dead)
                                (error val))
                              (set returnval val))
-                :source "eval-string"})
+                :source :eval-string})
   returnval)
 
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
   environment is needed, use `run-context`.``
   [form]
-  (def res (compile form (fiber/getenv (fiber/current)) "eval"))
+  (def res (compile form (fiber/getenv (fiber/current)) :eval))
   (if (= (type res) :function)
     (res)
     (error (get res :error))))
@@ -2616,7 +2613,7 @@
 
 (defn dofile
   `Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
-  :evaluator, :read, and :parser are passed through to the underlying
+  :source, :evaluator, :read, and :parser are passed through to the underlying
   run-context call. If exit is true, any top level errors will trigger a
   call to (os/exit 1) after printing the error.`
   [path &keys
@@ -2634,7 +2631,6 @@
   (def path-is-file (= f path))
   (default env (make-env))
   (def spath (string path))
-  (put env :current-file (or src (if-not path-is-file spath)))
   (put env :source (or src (if-not path-is-file spath path)))
   (var exit-error nil)
   (var exit-fiber nil)
@@ -2678,7 +2674,7 @@
                   :expander expander
                   :read read
                   :parser parser
-                  :source (or src (if path-is-file "<anonymous>" spath))}))
+                  :source (or src (if path-is-file :<anonymous> spath))}))
   (if-not path-is-file (:close f))
   (when exit-error
     (if exit-fiber
@@ -3381,7 +3377,7 @@
                 :on-status (or onsignal (make-onsignal env 1))
                 :parser parser
                 :read read
-                :source "repl"}))
+                :source :repl}))
 
 ###
 ###
@@ -3676,7 +3672,7 @@
 
   (if (or should-repl no-file)
     (if
-      compile-only (flycheck stdin :source "stdin" :exit exit-on-error)
+      compile-only (flycheck stdin :source :stdin :exit exit-on-error)
       (do
         (if-not quiet
           (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))

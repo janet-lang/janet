@@ -958,7 +958,9 @@ JANET_CORE_FN(cfun,
     }
     const uint8_t *source = NULL;
     if (argc >= 3) {
-        source = janet_getstring(argv, 2);
+        source = janet_checktype(argv[2], JANET_STRING) ?
+            janet_unwrap_string(argv[2]) :
+            janet_unwrap_keyword(argv[2]);
     }
     JanetArray *lints = (argc >= 4) ? janet_getarray(argv, 3) : NULL;
     JanetCompileResult res = janet_compile_lint(argv[0], env, source, lints);
