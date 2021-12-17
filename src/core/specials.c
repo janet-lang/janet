@@ -296,15 +296,20 @@ static int varleaf(
     JanetTable *reftab) {
     if (c->scope->flags & JANET_SCOPE_TOP) {
         /* Global var, generate var */
-        JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
-        JanetArray *ref = janet_array(1);
-        janet_array_push(ref, janet_wrap_nil());
+        JanetBinding binding = janet_resolve_ext(c->env, sym);
+        JanetArray *ref;
+        if (janet_checktype(binding.value, JANET_ARRAY)) {
+            ref = janet_unwrap_array(binding.value);
+        } else {
+            ref = janet_array(1);
+            janet_array_push(ref, janet_wrap_nil());
+        }
         janet_table_put(entry, janet_ckeywordv("ref"), janet_wrap_array(ref));
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
-        refslot = janetc_cslot(janet_wrap_array(ref));
+        JanetSlot refslot = janetc_cslot(janet_wrap_array(ref));
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         return 1;
     } else {
