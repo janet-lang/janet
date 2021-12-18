@@ -295,6 +295,19 @@
     (++ i))
   (assert (= i 6) "when macro"))
 
+# Redefs
+
+(def noredef 0)
+(defn noredef-inc [] (+ 1 noredef))
+(assert (= 1 (noredef-inc)) "result before redef without :redef")
+(def noredef 1)
+(assert (= 1 (noredef-inc)) "result after redef without :redef")
+(def redef :redef 0)
+(defn redef-inc [] (+ 1 redef))
+(assert (= 1 (redef-inc)) "result before redef with :redef")
+(def redef :redef 1)
+(assert (= 2 (redef-inc)) "result before redef with :redef")
+
 # Denormal tables and structs
 
 (assert (= (length {1 2 nil 3}) 1) "nil key struct literal")

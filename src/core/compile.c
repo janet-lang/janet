@@ -239,6 +239,12 @@ JanetSlot janetc_resolve(
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
                 ret = janetc_cslot(binding.value);
                 break;
+            case JANET_BINDING_DEF_REF:
+            case JANET_BINDING_MACRO_REF:
+                ret = janetc_cslot(binding.value);
+                ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOTTYPE_ANY;
+                ret.flags &= ~JANET_SLOT_CONSTANT;
+                break;
             case JANET_BINDING_VAR: {
                 ret = janetc_cslot(binding.value);
                 ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOT_MUTABLE | JANET_SLOTTYPE_ANY;
@@ -651,7 +657,7 @@ static int macroexpand1(
     }
     Janet macroval;
     JanetBindingType btype = janet_resolve(c->env, name, &macroval);
-    if (btype != JANET_BINDING_MACRO ||
+    if (!(btype == JANET_BINDING_MACRO || btype == JANET_BINDING_MACRO_REF) ||
             !janet_checktype(macroval, JANET_FUNCTION))
         return 0;
 

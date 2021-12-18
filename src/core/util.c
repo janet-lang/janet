@@ -627,23 +627,31 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
 
-    if (!janet_checktype(
-                janet_table_get(entry_table, janet_ckeywordv("macro")),
-                JANET_NIL)) {
+    ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
+    int is_value = !janet_checktype(ref, JANET_ARRAY);
+    int is_macro = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("macro")), JANET_NIL);
+    int is_redef = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("redef")), JANET_NIL);
+
+    if (is_redef && is_value) {
+        /* invalid, return empty binding */
+        return binding;
+    } else if (is_macro && is_redef) {
+        binding.value = ref;
+        binding.type = JANET_BINDING_MACRO_REF;
+    } else if (is_macro) {
         binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
         binding.type = JANET_BINDING_MACRO;
-        return binding;
-    }
-
-    ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
-    if (janet_checktype(ref, JANET_ARRAY)) {
+    } else if (is_redef) {
+        binding.value = ref;
+        binding.type = JANET_BINDING_DEF_REF;
+    } else if (is_value) {
+        binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
+        binding.type = JANET_BINDING_DEF;
+    } else {
         binding.value = ref;
         binding.type = JANET_BINDING_VAR;
-        return binding;
     }
 
-    binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
-    binding.type = JANET_BINDING_DEF;
     return binding;
 }
 
