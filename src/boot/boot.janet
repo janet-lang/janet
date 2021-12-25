@@ -1676,8 +1676,8 @@
   * symbol -- a pattern that is a symbol will match anything, binding `x`'s
     value to that symbol.
 
-  * array -- an array will match only if all of its elements match the
-    corresponding elements in `x`.
+  * array or bracket tuple -- an array or bracket tuple will match only if
+    all of its elements match the corresponding elements in `x`.
 
   * table or struct -- a table or struct will match if all values match with
     the corresponding values in `x`.
