@@ -604,7 +604,8 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     JanetBinding binding = {
         JANET_BINDING_NONE,
         janet_wrap_nil(),
-        JANET_BINDING_DEP_NONE
+        JANET_BINDING_DEP_NONE,
+        JANET_BINDING_STATIC
     };
 
     /* Check environment for entry */
@@ -627,37 +628,39 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
 
-    ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
-    int is_value = !janet_checktype(ref, JANET_ARRAY);
-    int is_macro = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("macro")), JANET_NIL);
-    int is_redef = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("redef")), JANET_NIL);
+    binding.dynamic = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("dynamic")), JANET_NIL);
 
-    if (is_redef && is_value) {
-        /* invalid, return empty binding */
-        return binding;
-    } else if (is_macro && is_redef) {
-        binding.value = ref;
-        binding.type = JANET_BINDING_MACRO_REF;
-    } else if (is_macro) {
+    if (!janet_checktype(
+                janet_table_get(entry_table, janet_ckeywordv("macro")),
+                JANET_NIL)) {
         binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
         binding.type = JANET_BINDING_MACRO;
-    } else if (is_redef) {
-        binding.value = ref;
-        binding.type = JANET_BINDING_DEF_REF;
-    } else if (is_value) {
-        binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
-        binding.type = JANET_BINDING_DEF;
-    } else {
-        binding.value = ref;
-        binding.type = JANET_BINDING_VAR;
+        return binding;
     }
 
+    ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
+    if (janet_checktype(ref, JANET_ARRAY)) {
+        binding.value = ref;
+        binding.type = JANET_BINDING_VAR;
+        return binding;
+    }
+
+    binding.value = janet_table_get(entry_table, janet_ckeywordv("value"));
+    binding.type = JANET_BINDING_DEF;
     return binding;
 }
 
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
     JanetBinding binding = janet_resolve_ext(env, sym);
-    *out = binding.value;
+    if (binding.dynamic) {
+        if (janet_checktype(binding.value, JANET_ARRAY)) {
+            *out = janet_array_peek(janet_unwrap_array(binding.value));
+        } else {
+            *out = janet_wrap_nil();
+        }
+    } else {
+        *out = binding.value;
+    }
     return binding.type;
 }
 

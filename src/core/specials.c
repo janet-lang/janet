@@ -331,8 +331,11 @@ static int defleaf(
         JanetTable *entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
+        if (janet_truthy(janet_dyn("dynamic-defs"))) {
+            janet_table_put(entry, janet_ckeywordv("dynamic"), janet_wrap_true());
+        }
 
-        if (!janet_checktype(janet_table_get(entry, janet_ckeywordv("redef")), JANET_NIL)) {
+        if (!janet_checktype(janet_table_get(entry, janet_ckeywordv("dynamic")), JANET_NIL)) {
             JanetBinding binding = janet_resolve_ext(c->env, sym);
             JanetArray *ref;
             if (janet_checktype(binding.value, JANET_ARRAY)) {
@@ -341,7 +344,7 @@ static int defleaf(
                 ref = janet_array(1);
                 janet_array_push(ref, janet_wrap_nil());
             }
-            janet_table_put(entry, janet_ckeywordv("ref"), janet_wrap_array(ref));
+            janet_table_put(entry, janet_ckeywordv("value"), janet_wrap_array(ref));
             JanetSlot refslot = janetc_cslot(janet_wrap_array(ref));
             janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         } else {

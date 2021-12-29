@@ -295,18 +295,25 @@
     (++ i))
   (assert (= i 6) "when macro"))
 
-# Redefs
+# Dynamic defs
 
-(def noredef 0)
-(defn noredef-inc [] (+ 1 noredef))
-(assert (= 1 (noredef-inc)) "result before redef without :redef")
-(def noredef 1)
-(assert (= 1 (noredef-inc)) "result after redef without :redef")
-(def redef :redef 0)
-(defn redef-inc [] (+ 1 redef))
-(assert (= 1 (redef-inc)) "result before redef with :redef")
-(def redef :redef 1)
-(assert (= 2 (redef-inc)) "result before redef with :redef")
+(def staticdef 0)
+(defn staticdef-inc [] (+ 1 staticdef))
+(assert (= 1 (staticdef-inc)) "result before redefinition without :dynamic")
+(def staticdef 1)
+(assert (= 1 (staticdef-inc)) "result after redefinition without :dynamic")
+(def dynamicdef :dynamic 0)
+(defn dynamicdef-inc [] (+ 1 dynamicdef))
+(assert (= 1 (dynamicdef-inc)) "result before redefinition with :dynamic")
+(def dynamicdef :dynamic 1)
+(assert (= 2 (dynamicdef-inc)) "result after redefinition with :dynamic")
+(setdyn :dynamic-defs true)
+(def dynamicdef2 0)
+(defn dynamicdef2-inc [] (+ 1 dynamicdef2))
+(assert (= 1 (dynamicdef2-inc)) "result before redefinition with :dynamic-defs")
+(def dynamicdef2 1)
+(assert (= 2 (dynamicdef2-inc)) "result after redefinition with :dynamic-defs")
+(setdyn :dynamic-defs nil)
 
 # Denormal tables and structs
 

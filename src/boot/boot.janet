@@ -3581,6 +3581,7 @@
                -e code : Execute a string of janet
                -E code arguments... : Evaluate  an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
+               -D : Use dynamic def bindings
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
                -p : Keep on executing if there is a top-level error (persistent)
@@ -3631,6 +3632,7 @@
              (error (get thunk :error)))
            math/inf)
      "d" (fn [&] (set debug-flag true) 1)
+     "D" (fn [&] (setdyn :dynamic-defs true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
