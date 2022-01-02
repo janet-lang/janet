@@ -331,11 +331,17 @@ static int defleaf(
         JanetTable *entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
-        if (janet_truthy(janet_dyn("dynamic-defs"))) {
-            janet_table_put(entry, janet_ckeywordv("dynamic"), janet_wrap_true());
+
+        int is_redef = 0;
+        Janet meta_redef = janet_table_get(entry, janet_ckeywordv("redef"));
+        if (janet_truthy(meta_redef)) {
+            is_redef = 1;
+        } else if (janet_checktype(meta_redef, JANET_NIL) && janet_truthy(janet_dyn("redefs"))) {
+            janet_table_put(entry, janet_ckeywordv("redef"), janet_wrap_true());
+            is_redef = 1;
         }
 
-        if (!janet_checktype(janet_table_get(entry, janet_ckeywordv("dynamic")), JANET_NIL)) {
+        if (is_redef) {
             JanetBinding binding = janet_resolve_ext(c->env, sym);
             JanetArray *ref;
             if (janet_checktype(binding.value, JANET_ARRAY)) {

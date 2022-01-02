@@ -1952,7 +1952,7 @@
     (def h (in t 0))
     (def s (in specs h))
     (def entry (or (dyn h) {}))
-    (def m (entry :value))
+    (def m (if (entry :redef) (in (entry :value) 0) (entry :value)))
     (def m? (entry :macro))
     (cond
       s (s t)
@@ -3080,12 +3080,13 @@
               (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
               (x :macro) :macro
               (x :module) (string :module " (" (x :kind) ")")
+              (x :redef) (type (in (x :value) 0))
               (type (x :value)))
             "\n"))
   (def sm (x :source-map))
   (def d (x :doc))
   (print "\n\n"
-         (when d bind-type)
+         bind-type
          (when-let [[path line col] sm]
            (string "    " path (when (and line col) (string " on line " line ", column " col))))
          (when sm "\n")
@@ -3143,7 +3144,7 @@
   (loop [module-set :in [[root-env] module/cache]
          module :in module-set
          value :in module]
-    (let [check (or (get value :ref) (get value :value))]
+    (let [check (or (value :ref) (if (value :redef) (in (value :value) 0) (value :value)))]
       (when (= check x)
         (print-module-entry value)
         (set found true)
@@ -3536,7 +3537,8 @@
 
 (defn- run-main
   [env subargs arg]
-  (if-let [main (get (in env 'main) :value)]
+  (if-let [entry (in env 'main)
+           main (if (entry :redef) (in (entry :value) 0) (entry :value))]
     (let [thunk (compile [main ;subargs] env arg)]
       (if (function? thunk) (thunk) (error (thunk :error))))))
 
@@ -3581,7 +3583,7 @@
                -e code : Execute a string of janet
                -E code arguments... : Evaluate  an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
-               -D : Use dynamic def bindings
+               -D : Use redefinable def bindings
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
                -p : Keep on executing if there is a top-level error (persistent)
@@ -3632,7 +3634,7 @@
              (error (get thunk :error)))
            math/inf)
      "d" (fn [&] (set debug-flag true) 1)
-     "D" (fn [&] (setdyn :dynamic-defs true) 1)
+     "D" (fn [&] (setdyn :redefs true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})

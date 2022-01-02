@@ -628,7 +628,7 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
 
-    binding.dynamic = !janet_checktype(janet_table_get(entry_table, janet_ckeywordv("dynamic")), JANET_NIL);
+    binding.dynamic = janet_truthy(janet_table_get(entry_table, janet_ckeywordv("redef")));
 
     if (!janet_checktype(
                 janet_table_get(entry_table, janet_ckeywordv("macro")),
