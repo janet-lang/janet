@@ -1952,8 +1952,8 @@
     (def h (in t 0))
     (def s (in specs h))
     (def entry (or (dyn h) {}))
-    (def m (if (entry :redef) (in (entry :value) 0) (entry :value)))
-    (def m? (entry :macro))
+    (def m (do (def r (get entry :ref)) (if r (in r 0) (get entry :value))))
+    (def m? (in entry :macro))
     (cond
       s (s t)
       m? (do (setdyn :macro-form t) (m ;(tuple/slice t 1)))
@@ -2186,19 +2186,20 @@
   the file, prints nothing."
   [where line col]
   (if-not line (break))
+  (unless (string? where) (break))
   (when-with [f (file/open where :r)]
     (def source-code (file/read f :all))
     (var index 0)
     (repeat (dec line)
        (if-not index (break))
-       (set index (inc (string/find "\n" source-code index))))
+       (set index (string/find "\n" source-code index))
+       (if index (++ index)))
     (when index
       (def line-end (string/find "\n" source-code index))
       (eprint "  " (string/slice source-code index line-end))
       (when col
         (+= index col)
-        (eprint (string/repeat " " (inc col)) "^"))
-      (eflush))))
+        (eprint (string/repeat " " (inc col)) "^")))))
 
 (defn warn-compile
   "Default handler for a compile warning"
@@ -3077,10 +3078,10 @@
   (def bind-type
     (string "    "
             (cond
+              (x :redef) (type (in (x :ref) 0))
               (x :ref) (string :var " (" (type (in (x :ref) 0)) ")")
               (x :macro) :macro
               (x :module) (string :module " (" (x :kind) ")")
-              (x :redef) (type (in (x :value) 0))
               (type (x :value)))
             "\n"))
   (def sm (x :source-map))
@@ -3144,7 +3145,7 @@
   (loop [module-set :in [[root-env] module/cache]
          module :in module-set
          value :in module]
-    (let [check (or (value :ref) (if (value :redef) (in (value :value) 0) (value :value)))]
+    (let [check (or (get value :ref) (get value :value))]
       (when (= check x)
         (print-module-entry value)
         (set found true)
@@ -3538,7 +3539,7 @@
 (defn- run-main
   [env subargs arg]
   (if-let [entry (in env 'main)
-           main (if (entry :redef) (in (entry :value) 0) (entry :value))]
+           main (or (get entry :value) (in (get entry :ref) 0))]
     (let [thunk (compile [main ;subargs] env arg)]
       (if (function? thunk) (thunk) (error (thunk :error))))))
 
@@ -3583,7 +3584,6 @@
                -e code : Execute a string of janet
                -E code arguments... : Evaluate  an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
-               -D : Use redefinable def bindings
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
                -p : Keep on executing if there is a top-level error (persistent)
@@ -3634,7 +3634,6 @@
              (error (get thunk :error)))
            math/inf)
      "d" (fn [&] (set debug-flag true) 1)
-     "D" (fn [&] (setdyn :redefs true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)
      "R" (fn [&] (setdyn :profilepath nil) 1)})
@@ -3659,14 +3658,18 @@
             (put env :args subargs)
             (put env :lint-error error-level)
             (put env :lint-warn warn-level)
-            (if debug-flag (put env :debug true))
+            (when debug-flag
+              (put env :debug true)
+              (put env :redef true))
             (run-main env subargs arg))
           (do
             (def env (make-env))
             (put env :args subargs)
             (put env :lint-error error-level)
             (put env :lint-warn warn-level)
-            (if debug-flag (put env :debug true))
+            (when debug-flag
+              (put env :debug true)
+              (put env :redef true))
             (if compile-only
               (flycheck arg :exit exit-on-error :env env)
               (do
@@ -3692,7 +3695,9 @@
         (when-let [profile.janet (dyn :profilepath)]
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
-        (if debug-flag (put env :debug true))
+        (when debug-flag
+          (put env :debug true)
+          (put env :redef true))
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))

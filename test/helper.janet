@@ -16,7 +16,7 @@
   (def str (string e))
   (if x
     (when is-verbose (eprintf "\e[32m✔\e[0m %s: %v" (describe e) x))
-    (eprintf "\n\e[31m✘\e[0m %s: %v" (describe e) x))
+    (eprintf "\e[31m✘\e[0m %s: %v" (describe e) x))
   x)
 
 (defmacro assert-error
