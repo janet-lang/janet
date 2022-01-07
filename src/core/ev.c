@@ -2219,6 +2219,10 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             } else
 #endif
             {
+                // Some handles (not all) read from the offset in lopOverlapped
+                // if its not set before calling `ReadFile` these streams will always read from offset 0 
+                state->overlapped.Offset = (DWORD) state->bytes_read;
+
                 status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
                 if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
                     if (WSAGetLastError() == ERROR_BROKEN_PIPE) {
