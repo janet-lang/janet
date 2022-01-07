@@ -115,6 +115,19 @@
    # Cast to string to enable comparison
    (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
    (os/rm "unique.txt"))
+
+# Test that the stream created by os/open can be read from
+(assert-no-error "File reading 1.1"
+  (def outstream (os/open "unique.txt" :wct))
+  (defer (:close outstream)
+    (:write outstream "123\n")
+    (:write outstream "456\n"))
+    
+  (def outstream (os/open "unique.txt" :r))
+  (defer (:close outstream)
+    (assert (= "123\n456\n" (string (:read outstream :all))) "File reading 1.2"))
+  (os/rm "unique.txt"))
+     
      
 # ev/gather
 
