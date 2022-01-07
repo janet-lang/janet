@@ -295,6 +295,31 @@
     (++ i))
   (assert (= i 6) "when macro"))
 
+# Dynamic defs
+
+(def staticdef1 0)
+(defn staticdef1-inc [] (+ 1 staticdef1))
+(assert (= 1 (staticdef1-inc)) "before redefinition without :redef")
+(def staticdef1 1)
+(assert (= 1 (staticdef1-inc)) "after redefinition without :redef")
+(def dynamicdef1 :redef 0)
+(defn dynamicdef1-inc [] (+ 1 dynamicdef1))
+(assert (= 1 (dynamicdef1-inc)) "before redefinition with :redef")
+(def dynamicdef1 :redef 1)
+(assert (= 2 (dynamicdef1-inc)) "after redefinition with :redef")
+(setdyn :redefs true)
+(def staticdef2 {:redef false} 0)
+(defn staticdef2-inc [] (+ 1 staticdef2))
+(assert (= 1 (staticdef2-inc)) "before redefinition with :redef false")
+(def staticdef2 {:redef false} 1)
+(assert (= 1 (staticdef2-inc)) "after redefinition with :redef false")
+(def dynamicdef2 0)
+(defn dynamicdef2-inc [] (+ 1 dynamicdef2))
+(assert (= 1 (dynamicdef2-inc)) "before redefinition with dyn :redefs")
+(def dynamicdef2 1)
+(assert (= 2 (dynamicdef2-inc)) "after redefinition with dyn :redefs")
+(setdyn :redefs nil)
+
 # Denormal tables and structs
 
 (assert (= (length {1 2 nil 3}) 1) "nil key struct literal")

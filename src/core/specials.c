@@ -331,14 +331,36 @@ static int defleaf(
         JanetTable *entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
-        JanetSlot valsym = janetc_cslot(janet_ckeywordv("value"));
-        JanetSlot tabslot = janetc_cslot(janet_wrap_table(entry));
+
+        int is_redef = 0;
+        Janet meta_redef = janet_table_get(entry, janet_ckeywordv("redef"));
+        if (janet_truthy(meta_redef)) {
+            is_redef = 1;
+        } else if (janet_checktype(meta_redef, JANET_NIL) && janet_truthy(janet_dyn("redefs"))) {
+            janet_table_put(entry, janet_ckeywordv("redef"), janet_wrap_true());
+            is_redef = 1;
+        }
+
+        if (is_redef) {
+            JanetBinding binding = janet_resolve_ext(c->env, sym);
+            JanetArray *ref;
+            if (janet_checktype(binding.value, JANET_ARRAY)) {
+                ref = janet_unwrap_array(binding.value);
+            } else {
+                ref = janet_array(1);
+                janet_array_push(ref, janet_wrap_nil());
+            }
+            janet_table_put(entry, janet_ckeywordv("value"), janet_wrap_array(ref));
+            JanetSlot refslot = janetc_cslot(janet_wrap_array(ref));
+            janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
+        } else {
+            JanetSlot valsym = janetc_cslot(janet_ckeywordv("value"));
+            JanetSlot tabslot = janetc_cslot(janet_wrap_table(entry));
+            janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);
+        }
 
         /* Add env entry to env */
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
-
-        /* Put value in table when evaulated */
-        janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);
     }
     return namelocal(c, sym, 0, s);
 }

@@ -604,7 +604,8 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     JanetBinding binding = {
         JANET_BINDING_NONE,
         janet_wrap_nil(),
-        JANET_BINDING_DEP_NONE
+        JANET_BINDING_DEP_NONE,
+        JANET_BINDING_STATIC
     };
 
     /* Check environment for entry */
@@ -626,6 +627,8 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     } else if (!janet_checktype(deprecate, JANET_NIL)) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
+
+    binding.dynamic = janet_truthy(janet_table_get(entry_table, janet_ckeywordv("redef")));
 
     if (!janet_checktype(
                 janet_table_get(entry_table, janet_ckeywordv("macro")),
@@ -649,7 +652,15 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
 
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
     JanetBinding binding = janet_resolve_ext(env, sym);
-    *out = binding.value;
+    if (binding.dynamic) {
+        if (janet_checktype(binding.value, JANET_ARRAY)) {
+            *out = janet_array_peek(janet_unwrap_array(binding.value));
+        } else {
+            *out = janet_wrap_nil();
+        }
+    } else {
+        *out = binding.value;
+    }
     return binding.type;
 }
 

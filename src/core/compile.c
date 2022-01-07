@@ -238,6 +238,10 @@ JanetSlot janetc_resolve(
             case JANET_BINDING_DEF:
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
                 ret = janetc_cslot(binding.value);
+                if (binding.dynamic) {
+                    ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOTTYPE_ANY;
+                    ret.flags &= ~JANET_SLOT_CONSTANT;
+                }
                 break;
             case JANET_BINDING_VAR: {
                 ret = janetc_cslot(binding.value);

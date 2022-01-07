@@ -1791,6 +1791,9 @@ typedef struct {
         JANET_BINDING_DEP_NORMAL,
         JANET_BINDING_DEP_STRICT,
     } deprecation;
+    enum {
+        JANET_BINDING_STATIC,
+        JANET_BINDING_DYNAMIC } dynamic;
 } JanetBinding;
 
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);
