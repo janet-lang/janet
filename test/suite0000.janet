@@ -307,7 +307,7 @@
 (assert (= 1 (dynamicdef1-inc)) "before redefinition with :redef")
 (def dynamicdef1 :redef 1)
 (assert (= 2 (dynamicdef1-inc)) "after redefinition with :redef")
-(setdyn :redefs true)
+(setdyn :redef true)
 (def staticdef2 {:redef false} 0)
 (defn staticdef2-inc [] (+ 1 staticdef2))
 (assert (= 1 (staticdef2-inc)) "before redefinition with :redef false")
@@ -318,7 +318,7 @@
 (assert (= 1 (dynamicdef2-inc)) "before redefinition with dyn :redefs")
 (def dynamicdef2 1)
 (assert (= 2 (dynamicdef2-inc)) "after redefinition with dyn :redefs")
-(setdyn :redefs nil)
+(setdyn :redef nil)
 
 # Denormal tables and structs
 
