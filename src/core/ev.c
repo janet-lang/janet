@@ -1434,7 +1434,7 @@ static void janet_epoll_sync_callback(JanetEVGenericMessage msg) {
     JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
     if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE)
         status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
-    if (state->stream->_mask & JANET_ASYNC_LISTEN_WRITE)
+    if (state->stream->_mask & JANET_ASYNC_LISTEN_READ)
         status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
     if (status1 == JANET_ASYNC_STATUS_DONE ||
             status2 == JANET_ASYNC_STATUS_DONE) {
