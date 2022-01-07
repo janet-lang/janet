@@ -632,25 +632,25 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     Janet ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
 
     if (macro) {
-        binding.value = redef ? ref : value;
-        binding.type = redef ? JANET_BINDING_DYNAMIC_MACRO : JANET_BINDING_MACRO;
+        binding.value = value;
+        binding.type = redef ? JANET_BINDING_REDEF_MACRO : JANET_BINDING_MACRO;
         return binding;
     }
 
-    if (!redef && janet_checktype(ref, JANET_ARRAY)) {
+    if (janet_checktype(ref, JANET_ARRAY)) {
         binding.value = ref;
-        binding.type = JANET_BINDING_VAR;
+        binding.type = redef ? JANET_BINDING_REDEF_VAR : JANET_BINDING_VAR;
         return binding;
     }
 
-    binding.value = redef ? ref : value;
-    binding.type = redef ? JANET_BINDING_DYNAMIC_DEF : JANET_BINDING_DEF;
+    binding.value = value;
+    binding.type = redef ? JANET_BINDING_REDEF_DEF : JANET_BINDING_DEF;
     return binding;
 }
 
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
     JanetBinding binding = janet_resolve_ext(env, sym);
-    if (binding.type == JANET_BINDING_DYNAMIC_DEF || binding.type == JANET_BINDING_DYNAMIC_MACRO) {
+    if (binding.type == JANET_BINDING_REDEF_DEF || binding.type == JANET_BINDING_REDEF_MACRO) {
         *out = janet_array_peek(janet_unwrap_array(binding.value));
     } else {
         *out = binding.value;

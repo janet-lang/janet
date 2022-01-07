@@ -239,13 +239,14 @@ JanetSlot janetc_resolve(
             case JANET_BINDING_MACRO: /* Macro should function like defs when not in calling pos */
                 ret = janetc_cslot(binding.value);
                 break;
-            case JANET_BINDING_DYNAMIC_DEF:
-            case JANET_BINDING_DYNAMIC_MACRO:
+            case JANET_BINDING_REDEF_DEF:
+            case JANET_BINDING_REDEF_MACRO:
                 ret = janetc_cslot(binding.value);
                 ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOTTYPE_ANY;
                 ret.flags &= ~JANET_SLOT_CONSTANT;
                 break;
-            case JANET_BINDING_VAR: {
+            case JANET_BINDING_VAR:
+            case JANET_BINDING_REDEF_VAR: {
                 ret = janetc_cslot(binding.value);
                 ret.flags |= JANET_SLOT_REF | JANET_SLOT_NAMED | JANET_SLOT_MUTABLE | JANET_SLOTTYPE_ANY;
                 ret.flags &= ~JANET_SLOT_CONSTANT;
