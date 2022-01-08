@@ -298,8 +298,20 @@ static int varleaf(
         /* Global var, generate var */
         JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
-        JanetArray *ref = janet_array(1);
-        janet_array_push(ref, janet_wrap_nil());
+
+        Janet redef_kw = janet_ckeywordv("redef");
+        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
+
+        JanetArray *ref;
+        JanetBinding old_binding;
+        if (is_redef && (old_binding = janet_resolve_ext(c->env, sym),
+                         old_binding.type == JANET_BINDING_VAR)) {
+            ref = janet_unwrap_array(old_binding.value);
+        } else {
+            ref = janet_array(1);
+            janet_array_push(ref, janet_wrap_nil());
+        }
+
         janet_table_put(entry, janet_ckeywordv("ref"), janet_wrap_array(ref));
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
@@ -332,16 +344,9 @@ static int defleaf(
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
 
-        int is_redef = 0;
         Janet redef_kw = janet_ckeywordv("redef");
-        Janet meta_redef = janet_table_get(entry, redef_kw);
-        if (janet_truthy(meta_redef)) {
-            is_redef = 1;
-        } else if (janet_checktype(meta_redef, JANET_NIL) &&
-                   janet_truthy(janet_table_get(c->env, redef_kw))) {
-            janet_table_put(entry, redef_kw, janet_wrap_true());
-            is_redef = 1;
-        }
+        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
+        if (is_redef) janet_table_put(entry, redef_kw, janet_wrap_true());
 
         if (is_redef) {
             JanetBinding binding = janet_resolve_ext(c->env, sym);

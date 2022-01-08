@@ -626,10 +626,11 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
 
-    int redef = janet_truthy(janet_table_get(entry_table, janet_ckeywordv("redef")));
     int macro = janet_truthy(janet_table_get(entry_table, janet_ckeywordv("macro")));
     Janet value = janet_table_get(entry_table, janet_ckeywordv("value"));
     Janet ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
+    int ref_is_valid = janet_checktype(ref, JANET_ARRAY);
+    int redef = ref_is_valid && janet_truthy(janet_table_get(entry_table, janet_ckeywordv("redef")));
 
     if (macro) {
         binding.value = redef ? ref : value;
@@ -637,14 +638,14 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
         return binding;
     }
 
-    if (!redef && janet_checktype(ref, JANET_ARRAY)) {
+    if (ref_is_valid) {
         binding.value = ref;
-        binding.type = JANET_BINDING_VAR;
-        return binding;
+        binding.type = redef ? JANET_BINDING_DYNAMIC_DEF : JANET_BINDING_VAR;
+    } else {
+        binding.value = value;
+        binding.type = JANET_BINDING_DEF;
     }
 
-    binding.value = redef ? ref : value;
-    binding.type = redef ? JANET_BINDING_DYNAMIC_DEF : JANET_BINDING_DEF;
     return binding;
 }
 

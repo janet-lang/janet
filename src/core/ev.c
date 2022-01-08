@@ -1614,9 +1614,6 @@ JanetTimestamp to_interval(const JanetTimestamp ts) {
 }
 #define JANET_KQUEUE_INTERVAL(timestamp) (to_interval((timestamp - ts_now())))
 
-
-/* TODO: make this available be we using kqueue or epoll, instead of
- * redefinining it for kqueue and epoll separately? */
 static JanetTimestamp ts_now(void) {
     struct timespec now;
     janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
