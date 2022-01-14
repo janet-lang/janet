@@ -657,7 +657,7 @@ static int macroexpand1(
     }
     Janet macroval;
     JanetBindingType btype = janet_resolve(c->env, name, &macroval);
-    if (btype != JANET_BINDING_MACRO ||
+    if (!(btype == JANET_BINDING_MACRO || btype == JANET_BINDING_DYNAMIC_MACRO) ||
             !janet_checktype(macroval, JANET_FUNCTION))
         return 0;
 
