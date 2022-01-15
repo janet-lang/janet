@@ -137,6 +137,21 @@
   (assert (= a 1) "dictionary destructuring 3")
   (assert (= b 2) "dictionary destructuring 4")
   (assert (= c 4) "dictionary destructuring 5 - expression as key"))
+(let [test-tuple [:a :b 1 2]]
+  (def [a b one two] test-tuple)
+  (assert (= a :a) "tuple destructuring 1")
+  (assert (= b :b) "tuple destructuring 2")
+  (assert (= two 2) "tuple destructuring 3"))
+(let [test-tuple [:a :b 1 2]]
+  (def [a & rest] test-tuple)
+  (assert (= a :a) "tuple destructuring 4 - rest")
+  (assert (= rest [:b 1 2]) "tuple destructuring 5 - rest"))
+(do
+  (def [a b & rest] [:a :b nil :d])
+  (assert (= a :a) "tuple destructuring 6 - rest")
+  (assert (= b :b) "tuple destructuring 7 - rest")
+  (pp rest)
+  (assert (= rest [nil :d]) "tuple destructuring 8 - rest"))
 
 # Marshal
 

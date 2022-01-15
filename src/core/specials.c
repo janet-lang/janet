@@ -154,6 +154,45 @@ static int destructure(JanetCompiler *c,
             for (int32_t i = 0; i < len; i++) {
                 JanetSlot nextright = janetc_farslot(c);
                 Janet subval = values[i];
+
+                if (!janet_cstrcmp(janet_unwrap_symbol(subval), "&")) {
+                    JanetSlot argi = janetc_farslot(c);
+                    JanetSlot arg  = janetc_farslot(c);
+                    JanetSlot len  = janetc_farslot(c);
+
+                    janetc_emit_si(c, JOP_LOAD_INTEGER, argi, i, 0);
+                    janetc_emit_ss(c, JOP_LENGTH, len, right, 0);
+
+                    // loop condition
+                    // reuse arg slot for the condition result
+                    int32_t label_loop_start = janetc_emit_sss(c, JOP_EQUALS, arg, argi, len, 0);
+                    int32_t label_loop_cond_jump = janetc_emit_si(c, JOP_JUMP_IF, arg, 0, 0);
+
+                    // loop body
+                    janetc_emit_sss(c, JOP_GET, arg, right, argi, 0);
+                    janetc_emit_s(c, JOP_PUSH, arg, 0);
+                    janetc_emit_ssi(c, JOP_ADD_IMMEDIATE, argi, argi, 1, 0);
+
+                    // loop
+                    // jump back to the start of the loop
+                    int32_t label_loop_loop = janet_v_count(c->buffer);
+                    janetc_emit(c, JOP_JUMP);
+                    int32_t label_loop_exit = janet_v_count(c->buffer);
+
+                    c->buffer[label_loop_cond_jump] |= (label_loop_exit - label_loop_cond_jump) << 16;
+                    c->buffer[label_loop_loop] |= (label_loop_start - label_loop_loop) << 8;
+
+                    janetc_freeslot(c, argi);
+                    janetc_freeslot(c, arg);
+                    janetc_freeslot(c, len);
+
+                    janetc_emit_s(c, JOP_MAKE_TUPLE, nextright, 1);
+
+                    leaf(c, janet_unwrap_symbol(values[i + 1]), nextright, attr);
+                    janetc_freeslot(c, nextright);
+                    break;
+                }
+
                 if (i < 0x100) {
                     janetc_emit_ssu(c, JOP_GET_INDEX, nextright, right, (uint8_t) i, 1);
                 } else {
