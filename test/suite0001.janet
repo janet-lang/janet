@@ -150,7 +150,6 @@
   (def [a b & rest] [:a :b nil :d])
   (assert (= a :a) "tuple destructuring 6 - rest")
   (assert (= b :b) "tuple destructuring 7 - rest")
-  (pp rest)
   (assert (= rest [nil :d]) "tuple destructuring 8 - rest"))
 
 # Marshal
