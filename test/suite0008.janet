@@ -106,6 +106,10 @@
 (assert (= nil (match {:a :hi} {:a a :b b} a)) "match 3")
 (assert (= nil (match [1 2] [a b c] a)) "match 4")
 (assert (= 2 (match [1 2] [a b] b)) "match 5")
+(assert (= [2 :a :b] (match [1 2 :a :b] [o & rest] rest)) "match 6")
+(assert (= [] (match @[:a] @[x & r] r :fallback)) "match 7")
+(assert (= :fallback (match @[1] @[x y & r] r :fallback)) "match 8")
+(assert (= [1 2 3 4] (match @[1 2 3 4] @[x y z & r] [x y z ;r] :fallback)) "match 9")
 
 # And/or checks
 
