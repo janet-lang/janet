@@ -151,6 +151,12 @@
   (assert (= a :a) "tuple destructuring 6 - rest")
   (assert (= b :b) "tuple destructuring 7 - rest")
   (assert (= rest [nil :d]) "tuple destructuring 8 - rest"))
+(do
+  (def [[a b] x & rest] [[1 2] :a :c :b :a])
+  (assert (= a 1) "tuple destructuring 9 - rest")
+  (assert (= b 2) "tuple destructuring 10 - rest")
+  (assert (= x :a) "tuple destructuring 11 - rest")
+  (assert (= rest [:c :b :a]) "tuple destructuring 12 - rest"))
 
 # Marshal
 
