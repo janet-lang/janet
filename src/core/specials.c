@@ -155,7 +155,17 @@ static int destructure(JanetCompiler *c,
                 JanetSlot nextright = janetc_farslot(c);
                 Janet subval = values[i];
 
-                if (!janet_cstrcmp(janet_unwrap_symbol(subval), "&")) {
+                if (janet_type(subval) == JANET_SYMBOL && !janet_cstrcmp(janet_unwrap_symbol(subval), "&")) {
+                    if (i + 1 >= len) {
+                        janetc_cerror(c, "expected symbol following '& in destructuring pattern");
+                        return 1;
+                    }
+
+                    if (janet_type(values[i + 1]) != JANET_SYMBOL) {
+                        janetc_error(c, janet_formatc("expected symbol following '& in destructuring pattern, found %q", values[i + 1]));
+                        return 1;
+                    }
+
                     JanetSlot argi = janetc_farslot(c);
                     JanetSlot arg  = janetc_farslot(c);
                     JanetSlot len  = janetc_farslot(c);
