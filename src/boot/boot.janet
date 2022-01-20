@@ -1678,6 +1678,7 @@
 
   * array or bracket tuple -- an array or bracket tuple will match only if
     all of its elements match the corresponding elements in `x`.
+    Use `& rest` at the end of an array or bracketed tuple to bind all remaining values to `rest`.
 
   * table or struct -- a table or struct will match if all values match with
     the corresponding values in `x`.
