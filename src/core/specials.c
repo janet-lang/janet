@@ -161,6 +161,20 @@ static int destructure(JanetCompiler *c,
                         return 1;
                     }
 
+                    if (i + 2 < len) {
+                        int32_t num_extra = len - i - 1;
+                        Janet* extra = janet_tuple_begin(num_extra);
+                        janet_tuple_flag(extra) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+
+                        for (int32_t j = 0; j < num_extra; ++j) {
+                            extra[j] = values[j + i + 1];
+                        }
+
+                        janetc_error(c, janet_formatc("expected a single symbol follow '& in destructuring pattern, found %q", janet_wrap_tuple(janet_tuple_end(extra))));
+                        return 1;
+                    }
+
+
                     if (!janet_checktype(values[i + 1], JANET_SYMBOL)) {
                         janetc_error(c, janet_formatc("expected symbol following '& in destructuring pattern, found %q", values[i + 1]));
                         return 1;
