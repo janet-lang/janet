@@ -1760,7 +1760,15 @@
         (get-length-sym s)
         (eachp [i sub-pattern] pattern
           (when (= sub-pattern '&)
-            # TODO: check that & is followed by something
+            (when (<= (length pattern) (inc i))
+              (errorf "expected symbol following & in pattern"))
+
+            (when (< (+ i 2) (length pattern))
+              (errorf "expected a single symbol follow '& in pattern, found %q" (slice pattern (inc i))))
+
+            (when (not= (type (pattern (inc i))) :symbol)
+              (errorf "expected symbol following & in pattern, found %q" (pattern (inc i))))
+
             (put b2g (pattern (inc i)) @[[slice s i]])
             (break))
           (visit-pattern-1 b2g s i sub-pattern)))
