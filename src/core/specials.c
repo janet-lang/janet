@@ -188,8 +188,8 @@ static int destructure(JanetCompiler *c,
                     janetc_emit_ss(c, JOP_LENGTH, len, right, 0);
 
                     /* loop condition - reuse arg slot for the condition result */
-                    int32_t label_loop_start = janetc_emit_sss(c, JOP_EQUALS, arg, argi, len, 0);
-                    int32_t label_loop_cond_jump = janetc_emit_si(c, JOP_JUMP_IF, arg, 0, 0);
+                    int32_t label_loop_start = janetc_emit_sss(c, JOP_LESS_THAN, arg, argi, len, 0);
+                    int32_t label_loop_cond_jump = janetc_emit_si(c, JOP_JUMP_IF_NOT, arg, 0, 0);
 
                     /* loop body */
                     janetc_emit_sss(c, JOP_GET, arg, right, argi, 0);
