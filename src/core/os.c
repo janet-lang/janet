@@ -183,6 +183,8 @@ JANET_CORE_FN(os_arch,
     return janet_ckeywordv("sparc");
 #elif (defined(__ppc__))
     return janet_ckeywordv("ppc");
+#elif (defined(__ppc64__) || defined(_ARCH_PPC64) || defined(_M_PPC))
+    return janet_ckeywordv("ppc64");
 #else
     return janet_ckeywordv("unknown");
 #endif
