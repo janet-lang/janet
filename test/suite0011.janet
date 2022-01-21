@@ -26,5 +26,18 @@
 (assert (< 11899423.08 (math/gamma 11.5) 11899423.085) "math/gamma")
 (assert (< 2605.1158 (math/log-gamma 500) 2605.1159) "math/log-gamma")
 
+# missing symbols
+
+(def replacement 10)
+(defn lookup-symbol [sym env] (dyn 'replacement))
+
+(setdyn :missing-symbol lookup-symbol)
+
+(assert (= (eval-string "(+ a 5)") 15) "lookup missing symbol")
+
+(setdyn :missing-symbol nil)
+
+(assert-error "compile error" (eval-string "(+ a 5)"))
+
 (end-suite)
 

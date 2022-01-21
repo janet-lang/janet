@@ -2746,6 +2746,8 @@
                 (and as (string as "/"))
                 prefix
                 (string (last (string/split "/" path)) "/")))
+  (unless (zero? (length prefix))
+    (put-in env [:modules prefix] newenv))
   (merge-module env newenv prefix ep))
 
 (defmacro import

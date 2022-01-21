@@ -607,8 +607,14 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     };
 
     /* Check environment for entry */
-    if (!janet_checktype(entry, JANET_TABLE))
-        return binding;
+    if (!janet_checktype(entry, JANET_TABLE)) {
+        Janet fn_entry = janet_table_get(env, janet_ckeywordv("missing-symbol"));
+        if (janet_checktype(fn_entry, JANET_FUNCTION)) {
+            Janet args[2] = { janet_wrap_symbol(sym), janet_wrap_table(env) };
+            entry = janet_call(janet_unwrap_function(fn_entry), 2, args);
+        }
+        if (!janet_checktype(entry, JANET_TABLE)) return binding;
+    }
     entry_table = janet_unwrap_table(entry);
 
     /* deprecation check */
