@@ -411,7 +411,7 @@
       compare-poly-tests
       [[(int/s64 3) (int/u64 3) 0]
        [(int/s64 -3) (int/u64 3) -1]
-       [(int/s64 3) (int/u64 2) 1] 
+       [(int/s64 3) (int/u64 2) 1]
        [(int/s64 3) 3 0] [(int/s64 3) 4 -1] [(int/s64 3) -9 1]
        [(int/u64 3) 3 0] [(int/u64 3) 4 -1] [(int/u64 3) -9 1]
        [3 (int/s64 3) 0] [3 (int/s64 4) -1] [3 (int/s64 -5) 1]
@@ -421,7 +421,7 @@
        [(int/u64 MAX_INT_IN_DBL_STRING) (scan-number MAX_INT_IN_DBL_STRING) 0]
        [(+ 1 (int/u64 MAX_INT_IN_DBL_STRING)) (scan-number MAX_INT_IN_DBL_STRING) 1]
        [(int/s64 0) INF -1] [(int/u64 0) INF -1]
-       [MINUS_INF (int/u64 0) -1] [MINUS_INF (int/s64 0) -1] 
+       [MINUS_INF (int/u64 0) -1] [MINUS_INF (int/s64 0) -1]
        [(int/s64 1) NAN 0] [NAN (int/u64 1) 0]]]
   (each [x y c] compare-poly-tests
     (assert (= c (compare x y)) (string/format "compare polymorphic %q %q %d" x y c))))

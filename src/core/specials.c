@@ -163,7 +163,7 @@ static int destructure(JanetCompiler *c,
 
                     if (i + 2 < len) {
                         int32_t num_extra = len - i - 1;
-                        Janet* extra = janet_tuple_begin(num_extra);
+                        Janet *extra = janet_tuple_begin(num_extra);
                         janet_tuple_flag(extra) |= JANET_TUPLE_FLAG_BRACKETCTOR;
 
                         for (int32_t j = 0; j < num_extra; ++j) {
@@ -187,18 +187,16 @@ static int destructure(JanetCompiler *c,
                     janetc_emit_si(c, JOP_LOAD_INTEGER, argi, i, 0);
                     janetc_emit_ss(c, JOP_LENGTH, len, right, 0);
 
-                    // loop condition
-                    // reuse arg slot for the condition result
+                    /* loop condition - reuse arg slot for the condition result */
                     int32_t label_loop_start = janetc_emit_sss(c, JOP_EQUALS, arg, argi, len, 0);
                     int32_t label_loop_cond_jump = janetc_emit_si(c, JOP_JUMP_IF, arg, 0, 0);
 
-                    // loop body
+                    /* loop body */
                     janetc_emit_sss(c, JOP_GET, arg, right, argi, 0);
                     janetc_emit_s(c, JOP_PUSH, arg, 0);
                     janetc_emit_ssi(c, JOP_ADD_IMMEDIATE, argi, argi, 1, 0);
 
-                    // loop
-                    // jump back to the start of the loop
+                    /* loop - jump back to the start of the loop */
                     int32_t label_loop_loop = janet_v_count(c->buffer);
                     janetc_emit(c, JOP_JUMP);
                     int32_t label_loop_exit = janet_v_count(c->buffer);
