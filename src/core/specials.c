@@ -154,6 +154,69 @@ static int destructure(JanetCompiler *c,
             for (int32_t i = 0; i < len; i++) {
                 JanetSlot nextright = janetc_farslot(c);
                 Janet subval = values[i];
+
+                if (janet_checktype(subval, JANET_SYMBOL) && !janet_cstrcmp(janet_unwrap_symbol(subval), "&")) {
+                    if (i + 1 >= len) {
+                        janetc_cerror(c, "expected symbol following '& in destructuring pattern");
+                        return 1;
+                    }
+
+                    if (i + 2 < len) {
+                        int32_t num_extra = len - i - 1;
+                        Janet* extra = janet_tuple_begin(num_extra);
+                        janet_tuple_flag(extra) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+
+                        for (int32_t j = 0; j < num_extra; ++j) {
+                            extra[j] = values[j + i + 1];
+                        }
+
+                        janetc_error(c, janet_formatc("expected a single symbol follow '& in destructuring pattern, found %q", janet_wrap_tuple(janet_tuple_end(extra))));
+                        return 1;
+                    }
+
+
+                    if (!janet_checktype(values[i + 1], JANET_SYMBOL)) {
+                        janetc_error(c, janet_formatc("expected symbol following '& in destructuring pattern, found %q", values[i + 1]));
+                        return 1;
+                    }
+
+                    JanetSlot argi = janetc_farslot(c);
+                    JanetSlot arg  = janetc_farslot(c);
+                    JanetSlot len  = janetc_farslot(c);
+
+                    janetc_emit_si(c, JOP_LOAD_INTEGER, argi, i, 0);
+                    janetc_emit_ss(c, JOP_LENGTH, len, right, 0);
+
+                    // loop condition
+                    // reuse arg slot for the condition result
+                    int32_t label_loop_start = janetc_emit_sss(c, JOP_EQUALS, arg, argi, len, 0);
+                    int32_t label_loop_cond_jump = janetc_emit_si(c, JOP_JUMP_IF, arg, 0, 0);
+
+                    // loop body
+                    janetc_emit_sss(c, JOP_GET, arg, right, argi, 0);
+                    janetc_emit_s(c, JOP_PUSH, arg, 0);
+                    janetc_emit_ssi(c, JOP_ADD_IMMEDIATE, argi, argi, 1, 0);
+
+                    // loop
+                    // jump back to the start of the loop
+                    int32_t label_loop_loop = janet_v_count(c->buffer);
+                    janetc_emit(c, JOP_JUMP);
+                    int32_t label_loop_exit = janet_v_count(c->buffer);
+
+                    c->buffer[label_loop_cond_jump] |= (label_loop_exit - label_loop_cond_jump) << 16;
+                    c->buffer[label_loop_loop] |= (label_loop_start - label_loop_loop) << 8;
+
+                    janetc_freeslot(c, argi);
+                    janetc_freeslot(c, arg);
+                    janetc_freeslot(c, len);
+
+                    janetc_emit_s(c, JOP_MAKE_TUPLE, nextright, 1);
+
+                    leaf(c, janet_unwrap_symbol(values[i + 1]), nextright, attr);
+                    janetc_freeslot(c, nextright);
+                    break;
+                }
+
                 if (i < 0x100) {
                     janetc_emit_ssu(c, JOP_GET_INDEX, nextright, right, (uint8_t) i, 1);
                 } else {

@@ -1678,6 +1678,7 @@
 
   * array or bracket tuple -- an array or bracket tuple will match only if
     all of its elements match the corresponding elements in `x`.
+    Use `& rest` at the end of an array or bracketed tuple to bind all remaining values to `rest`.
 
   * table or struct -- a table or struct will match if all values match with
     the corresponding values in `x`.
@@ -1751,10 +1752,26 @@
       (break)
 
       # match data structure template
-      (or isarr (= t :struct) (= t :table))
+      (or (= t :struct) (= t :table))
+      (eachp [i sub-pattern] pattern
+        (visit-pattern-1 b2g s i sub-pattern))
+
+      isarr
       (do
-        (when isarr (get-length-sym s))
+        (get-length-sym s)
         (eachp [i sub-pattern] pattern
+          (when (= sub-pattern '&)
+            (when (<= (length pattern) (inc i))
+              (errorf "expected symbol following & in pattern"))
+
+            (when (< (+ i 2) (length pattern))
+              (errorf "expected a single symbol follow '& in pattern, found %q" (slice pattern (inc i))))
+
+            (when (not= (type (pattern (inc i))) :symbol)
+              (errorf "expected symbol following & in pattern, found %q" (pattern (inc i))))
+
+            (put b2g (pattern (inc i)) @[[slice s i]])
+            (break))
           (visit-pattern-1 b2g s i sub-pattern)))
 
       # match global unification
@@ -1774,14 +1791,24 @@
     (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
     (when isarr
       (array/push anda (get-length-sym s))
-      (array/push anda [<= (length pattern) (get-length-sym s)]))
+      (def pattern-len
+        (if-let [ rest-idx (find-index (fn [x] (= x '&)) pattern) ]
+          rest-idx
+          (length pattern)))
+      (array/push anda [<= pattern-len (get-length-sym s)]))
     (cond
 
       # match data structure template
-      (or isarr (= t :struct) (= t :table))
+      (or (= t :struct) (= t :table))
       (eachp [i sub-pattern] pattern
-        (when (not isarr)
-          (array/push anda [not= nil (get-sym s i)]))
+        (array/push anda [not= nil (get-sym s i)])
+        (visit-pattern-2 anda gun preds s i sub-pattern))
+      
+      isarr
+      (eachp [i sub-pattern] pattern
+        # stop recursing to sub-patterns if the rest sigil is found
+        (when (= sub-pattern '&)
+          (break))
         (visit-pattern-2 anda gun preds s i sub-pattern))
 
       # match local binding
