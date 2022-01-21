@@ -123,12 +123,12 @@
     (defer (:close outstream)
       (:write outstream "123\n")
       (:write outstream "456\n"))
-      
+
     (def outstream (os/open "unique.txt" :r))
     (defer (:close outstream)
       (assert (= "123\n456\n" (string (:read outstream :all))) "File reading 1.2"))
     (os/rm "unique.txt")))
-       
+
   # ev/gather
 
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
@@ -265,5 +265,14 @@
 (ev/chan-close c1)
 (ev/rselect c2)
 (assert (= (slice arr) (slice (range 100))) "ev/chan-close 3")
+
+# threaded channels
+
+(def ch (ev/thread-chan 2))
+(def att (ev/thread-chan 109))
+(assert att "`att` was nil after creation")
+(ev/give ch att)
+(ev/do-thread
+  (assert (ev/take ch) "channel packing bug for threaded abstracts on threaded channels."))
 
 (end-suite)
