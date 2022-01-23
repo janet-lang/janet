@@ -1,6 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Add `:redef` dynamic binding that will allow users to redefine top-level bindings with late binding. This
+  is intended for development use.
+- Fix a bug with reading from a stream returned by `os/open` on Windows and Linux.
+- Add `:ppc64` as a detectable OS type.
+- Add `& more` support for destructuring in the match macro.
+- Add `& more` support for destructuring in all binding forms (`def`).
+
 ## 1.19.2 - 2021-12-06
 - Fix bug with missing status lines in some stack traces.
 - Update hash function to have better statistical properties.
