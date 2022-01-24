@@ -265,11 +265,11 @@ JanetSlot janetc_resolve(
         JanetBinding binding = janet_resolve_ext(c->env, sym);
         if (binding.type == JANET_BINDING_NONE) {
             Janet handler = janet_table_get(c->env, janet_ckeywordv("missing-symbol"));
+            Janet entry;
             switch (janet_type(handler)) {
                 case JANET_NIL:
                     break;
                 case JANET_FUNCTION:
-                    Janet entry;
                     if (!lookup_missing(c, sym, janet_unwrap_function(handler), &entry))
                         return janetc_cslot(janet_wrap_nil());
                     binding = janet_binding_from_entry(entry);
