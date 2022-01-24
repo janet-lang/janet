@@ -84,6 +84,7 @@ void janet_buffer_format(
     int32_t argc,
     Janet *argv);
 Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
+JanetBinding janet_binding_from_entry(Janet entry);
 
 /* Registry functions */
 void janet_registry_put(

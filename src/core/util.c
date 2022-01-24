@@ -597,9 +597,8 @@ void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetReg
 }
 #endif
 
-JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
+JanetBinding janet_binding_from_entry(Janet entry) {
     JanetTable *entry_table;
-    Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
     JanetBinding binding = {
         JANET_BINDING_NONE,
         janet_wrap_nil(),
@@ -607,21 +606,8 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     };
 
     /* Check environment for entry */
-    if (!janet_checktype(entry, JANET_TABLE)) {
-        Janet lookup_entry = janet_table_get(env, janet_ckeywordv("missing-symbol"));
-        if (janet_checktype(lookup_entry, JANET_FUNCTION)) {
-            JanetFunction *lookup = janet_unwrap_function(lookup_entry);
-            Janet args[2] = { janet_wrap_symbol(sym), janet_wrap_table(env) };
-            JanetFiber *fiberp = janet_fiber(lookup, 64, 2, args);
-            if (NULL == fiberp) return binding;
-            fiberp->env = env;
-            int lock = janet_gclock();
-            JanetSignal status = janet_continue(fiberp, janet_wrap_nil(), &entry);
-            janet_gcunlock(lock);
-            if (status != JANET_SIGNAL_OK) return binding;
-        }
-        if (!janet_checktype(entry, JANET_TABLE)) return binding;
-    }
+    if (!janet_checktype(entry, JANET_TABLE))
+        return binding;
     entry_table = janet_unwrap_table(entry);
 
     /* deprecation check */
@@ -660,6 +646,11 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     }
 
     return binding;
+}
+
+JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
+    Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
+    return janet_binding_from_entry(entry);
 }
 
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
