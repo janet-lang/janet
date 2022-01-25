@@ -597,9 +597,8 @@ void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetReg
 }
 #endif
 
-JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
+JanetBinding janet_binding_from_entry(Janet entry) {
     JanetTable *entry_table;
-    Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
     JanetBinding binding = {
         JANET_BINDING_NONE,
         janet_wrap_nil(),
@@ -647,6 +646,11 @@ JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     }
 
     return binding;
+}
+
+JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
+    Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
+    return janet_binding_from_entry(entry);
 }
 
 JanetBindingType janet_resolve(JanetTable *env, const uint8_t *sym, Janet *out) {
