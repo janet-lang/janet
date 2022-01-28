@@ -201,18 +201,17 @@ static int lookup_missing(
     JanetCompiler *c,
     const uint8_t *sym,
     JanetFunction *handler,
-    Janet *out) {
-    Janet args[2] = { janet_wrap_symbol(sym), janet_wrap_table(c->env) };
-    JanetFiber *fiberp = janet_fiber(handler, 64, 2, args);
+    JanetBinding *out) {
+    int32_t minar = handler->def->min_arity;
+    int32_t maxar = handler->def->max_arity;
+    if (minar > 1 || maxar < 1) {
+        janetc_error(c, janet_cstring("missing symbol lookup handler must take 1 argument"));
+        return 0;
+    }
+    Janet args[1] = { janet_wrap_symbol(sym) };
+    JanetFiber *fiberp = janet_fiber(handler, 64, 1, args);
     if (NULL == fiberp) {
-        int32_t minar = handler->def->min_arity;
-        int32_t maxar = handler->def->max_arity;
-        const uint8_t *es = NULL;
-        if (minar > 2)
-            es = janet_formatc("lookup handler arity mismatch, minimum at most 2, got %d", minar);
-        if (maxar < 2)
-            es = janet_formatc("lookup handler arity mismatch, maximum at least 2, got %d", maxar);
-        janetc_error(c, es);
+        janetc_error(c, janet_cstring("failed to call missing symbol lookup handler"));
         return 0;
     }
     fiberp->env = c->env;
@@ -223,10 +222,11 @@ static int lookup_missing(
     if (status != JANET_SIGNAL_OK) {
         janetc_error(c, janet_formatc("(lookup) %V", tempOut));
         return 0;
-    } else {
-        *out = tempOut;
     }
 
+    /* Convert return value as entry. */
+    /* Alternative could use janet_resolve_ext(c->env, sym) to read result from environment. */
+    *out = janet_binding_from_entry(tempOut);
     return 1;
 }
 
@@ -265,14 +265,12 @@ JanetSlot janetc_resolve(
         JanetBinding binding = janet_resolve_ext(c->env, sym);
         if (binding.type == JANET_BINDING_NONE) {
             Janet handler = janet_table_get(c->env, janet_ckeywordv("missing-symbol"));
-            Janet entry;
             switch (janet_type(handler)) {
                 case JANET_NIL:
                     break;
                 case JANET_FUNCTION:
-                    if (!lookup_missing(c, sym, janet_unwrap_function(handler), &entry))
+                    if (!lookup_missing(c, sym, janet_unwrap_function(handler), &binding))
                         return janetc_cslot(janet_wrap_nil());
-                    binding = janet_binding_from_entry(entry);
                     break;
                 default:
                     janetc_error(c, janet_formatc("invalid lookup handler %V", handler));

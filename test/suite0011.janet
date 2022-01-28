@@ -28,14 +28,14 @@
 
 # missing symbols
 
-(def replacement 10)
-(defn lookup-symbol [sym env] (dyn 'replacement))
+(defn lookup-symbol [sym] (defglobal sym 10) (dyn sym))
 
 (setdyn :missing-symbol lookup-symbol)
 
 (assert (= (eval-string "(+ a 5)") 15) "lookup missing symbol")
 
 (setdyn :missing-symbol nil)
+(setdyn 'a nil)
 
 (assert-error "compile error" (eval-string "(+ a 5)"))
 
