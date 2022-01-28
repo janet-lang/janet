@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.20.0 - 2022-1-27
+- Add `:missing-symbol` hook to `compile` that will act as a catch-all macro for undefined symbols.
 - Add `:redef` dynamic binding that will allow users to redefine top-level bindings with late binding. This
   is intended for development use.
 - Fix a bug with reading from a stream returned by `os/open` on Windows and Linux.
