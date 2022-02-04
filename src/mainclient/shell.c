@@ -25,6 +25,7 @@
 #endif
 
 #include <janet.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -75,6 +76,9 @@ static void simpleline(JanetBuffer *buffer) {
     int c;
     for (;;) {
         c = fgetc(in);
+        if (c < 0 && !feof(in) && errno == EINTR) {
+            continue;
+        }
         if (feof(in) || c < 0) {
             break;
         }
@@ -112,7 +116,6 @@ https://github.com/antirez/linenoise/blob/master/linenoise.c
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -742,7 +745,11 @@ static int line() {
         char c;
         char seq[3];
 
-        if (read(STDIN_FILENO, &c, 1) <= 0) return -1;
+        int rc;
+        do {
+            rc = read(STDIN_FILENO, &c, 1);
+        } while (rc < 0 && errno == EINTR);
+        if (rc <= 0) return -1;
 
         switch (c) {
             default:
