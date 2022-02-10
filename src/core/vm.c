@@ -1340,16 +1340,15 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
     }
     /* If a "task" fiber is trying to be used as a normal fiber, detect that. See bug #920. */
     if (janet_vm.stackn > 0 && (fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+#ifdef JANET_EV
+        *out = janet_cstringv(is_cancel
+                              ? "cannot cancel root fiber, use ev/cancel"
+                              : "cannot resume root fiber, use ev/go");
+#else
         *out = janet_cstringv(is_cancel
                               ? "cannot cancel root fiber"
-#ifdef JANET_EV
-                              ", use ev/cancel"
+                              : "cannot resume root fiber");
 #endif
-                              : "cannot resume root fiber"
-#ifdef JANET_EV
-                              ", use ev/go"
-#endif
-                             );
         return JANET_SIGNAL_ERROR;
     }
     if (janet_vm.stackn == 0) {
