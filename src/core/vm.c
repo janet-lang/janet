@@ -1338,8 +1338,7 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
         *out = janet_cstringv("C stack recursed too deeply");
         return JANET_SIGNAL_ERROR;
     }
-    /* If a "task" fiber is trying to be used as a normal fiber, detect that and fix the reference
-     * count. See bug #920. */
+    /* If a "task" fiber is trying to be used as a normal fiber, detect that. See bug #920. */
     if (janet_vm.stackn > 0 && (fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
         *out = janet_cstringv(is_cancel
                               ? "cannot cancel root fiber"

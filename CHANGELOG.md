@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix quasiquote bug in compiler
+- Disallow use of `cancel` and `resume` on fibers scheduled or created with `ev/go`, as well as the root
+  fiber.
+
 ## 1.20.0 - 2022-1-27
 - Add `:missing-symbol` hook to `compile` that will act as a catch-all macro for undefined symbols.
 - Add `:redef` dynamic binding that will allow users to redefine top-level bindings with late binding. This
