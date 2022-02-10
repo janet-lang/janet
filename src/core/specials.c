@@ -62,6 +62,8 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
         return janetc_cslot(janet_wrap_nil());
     }
     JanetSlot *slots = NULL;
+    JanetFopts subopts = opts;
+    subopts.flags &= ~JANET_FOPTS_HINT;
     switch (janet_type(x)) {
         default:
             return janetc_cslot(x);
@@ -82,7 +84,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
                 }
             }
             for (i = 0; i < len; i++)
-                janet_v_push(slots, quasiquote(opts, tup[i], depth - 1, level));
+                janet_v_push(slots, quasiquote(subopts, tup[i], depth - 1, level));
             return qq_slots(opts, slots, (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR)
                             ? JOP_MAKE_BRACKET_TUPLE
                             : JOP_MAKE_TUPLE);
@@ -91,7 +93,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
             int32_t i;
             JanetArray *array = janet_unwrap_array(x);
             for (i = 0; i < array->count; i++)
-                janet_v_push(slots, quasiquote(opts, array->data[i], depth - 1, level));
+                janet_v_push(slots, quasiquote(subopts, array->data[i], depth - 1, level));
             return qq_slots(opts, slots, JOP_MAKE_ARRAY);
         }
         case JANET_TABLE:
@@ -100,8 +102,8 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
             int32_t len, cap = 0;
             janet_dictionary_view(x, &kvs, &len, &cap);
             while ((kv = janet_dictionary_next(kvs, cap, kv))) {
-                JanetSlot key = quasiquote(opts, kv->key, depth - 1, level);
-                JanetSlot value =  quasiquote(opts, kv->value, depth - 1, level);
+                JanetSlot key = quasiquote(subopts, kv->key, depth - 1, level);
+                JanetSlot value =  quasiquote(subopts, kv->value, depth - 1, level);
                 key.flags &= ~JANET_SLOT_SPLICED;
                 value.flags &= ~JANET_SLOT_SPLICED;
                 janet_v_push(slots, key);

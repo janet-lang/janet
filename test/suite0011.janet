@@ -39,5 +39,14 @@
 
 (assert-error "compile error" (eval-string "(+ a 5)"))
 
+# 919
+(defn test
+  []
+  (var x 1)
+  (set x ~(,x ()))
+  x)
+
+(assert (= (test) '(1 ())) "issue #919")
+
 (end-suite)
 
