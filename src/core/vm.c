@@ -1338,8 +1338,9 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
         *out = janet_cstringv("C stack recursed too deeply");
         return JANET_SIGNAL_ERROR;
     }
-    /* If a "task" fiber is trying to be used as a normal fiber, detect that. See bug #920. */
-    if (janet_vm.stackn > 0 && (fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+    /* If a "task" fiber is trying to be used as a normal fiber, detect that. See bug #920.
+     * Fibers must be marked as root fibers manually, or by the ev scheduler. */
+    if (janet_vm.fiber != NULL && (fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
 #ifdef JANET_EV
         *out = janet_cstringv(is_cancel
                               ? "cannot cancel root fiber, use ev/cancel"
@@ -1350,9 +1351,6 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
                               : "cannot resume root fiber");
 #endif
         return JANET_SIGNAL_ERROR;
-    }
-    if (janet_vm.stackn == 0) {
-        fiber->gc.flags |= JANET_FIBER_FLAG_ROOT;
     }
     if (old_status == JANET_STATUS_ALIVE ||
             old_status == JANET_STATUS_DEAD ||
