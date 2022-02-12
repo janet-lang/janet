@@ -1155,12 +1155,36 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
 
+(defmacro defdyn
+  ``Define an alias for a keyword that is used as a dynamic binding. The
+  alias is a normal, lexically scoped binding that can be used instead of
+  a keyword to prevent typos. Defdyn does not set dynamic bindings or otherwise
+  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
+  called "earmuffs".``
+  [alias & more]
+  (assert (symbol? alias) "alias must be a symbol")
+  (assert (and (> (length alias) 2) (= 42 (first alias) (last alias))) "name must have leading and trailing '*' characters")
+  (def prefix (dyn :defdyn-prefix))
+  (def kw (keyword prefix (slice alias 1 -2)))
+  ~(def ,alias :dyn ,;more ,kw))
+
+(defdyn *defdyn-prefix* "Optional namespace prefix to add to keywords declared with `defdyn`.
+  Use this to prevent keyword collisions between dynamic bindings.")
+(defdyn *out* "Where normal print functions print output to.")
+(defdyn *err* "Where error printing prints output to.")
+
+(defdyn *macro-form*
+  "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *current-file*
+  "Bound to the name of the currently compiling file.")
+
 (defmacro tracev
   `Print a value and a description of the form that produced that value to
   stderr. Evaluates to x.`
   [x]
-  (def [l c] (tuple/sourcemap (dyn :macro-form ())))
-  (def cf (dyn :current-file))
+  (def [l c] (tuple/sourcemap (dyn *macro-form* ())))
+  (def cf (dyn *current-file*))
   (def fmt-1 (if cf (string/format "trace [%s]" cf) "trace"))
   (def fmt-2 (if (or (neg? l) (neg? c)) ":" (string/format " on line %d, column %d:" l c)))
   (def fmt (string fmt-1 fmt-2 " %j is "))
@@ -1655,10 +1679,13 @@
   (file/close f)
   nil)
 
+(defdyn *pretty-format*
+  "Format specifier for the `pp` function")
+
 (defn pp
-  `Pretty print to stdout or (dyn :out). The format string used is (dyn :pretty-format "%q").`
+  `Pretty print to stdout or (dyn *out*). The format string used is (dyn *pretty-format* "%q").`
   [x]
-  (printf (dyn :pretty-format "%q") x)
+  (printf (dyn *pretty-format* "%q") x)
   (flush))
 
 ###
@@ -1882,13 +1909,17 @@
 ###
 ###
 
+(defdyn *macro-lints*
+  "Bound to an array of lint messgae that will be reported by the compiler inside a macro.
+  To indicate an error or warning, a macro author should use `maclintf`.")
+
 (defn maclintf
   ``When inside a macro, call this function to add a linter warning. Takes
   a `fmt` argument like `string/format` which is used to format the message.``
   [level fmt & args]
-  (def lints (dyn :macro-lints))
+  (def lints (dyn *macro-lints*))
   (when lints
-    (def form (dyn :macro-form))
+    (def form (dyn *macro-form*))
     (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
     (def l (if-not (= -1 l) l))
     (def c (if-not (= -1 c) c))
@@ -1983,7 +2014,7 @@
     (def m? (in entry :macro))
     (cond
       s (s t)
-      m? (do (setdyn :macro-form t) (m ;(tuple/slice t 1)))
+      m? (do (setdyn *macro-form* t) (m ;(tuple/slice t 1)))
       (tuple/slice (map recur t))))
 
   (def ret
@@ -2191,10 +2222,13 @@
   (def newenv (table/setproto @{} parent))
   newenv)
 
+(defdyn *err-color*
+  "Whether or not to turn on error coloring in stacktraces and other error messages.")
+
 (defn bad-parse
   "Default handler for a parse error."
   [p where]
-  (def ec (dyn :err-color))
+  (def ec (dyn *err-color*))
   (def [line col] (:where p))
   (eprint
     (if ec "\e[31m" "")
@@ -2231,7 +2265,7 @@
 (defn warn-compile
   "Default handler for a compile warning"
   [msg level where &opt line col]
-  (def ec (dyn :err-color))
+  (def ec (dyn *err-color*))
   (eprin
     (if ec "\e[33m" "")
     where
@@ -2249,7 +2283,7 @@
 (defn bad-compile
   "Default handler for a compile error."
   [msg macrof where &opt line col]
-  (def ec (dyn :err-color))
+  (def ec (dyn *err-color*))
   (eprin
     (if ec "\e[31m" "")
     where
@@ -2329,7 +2363,7 @@
   (var where default-where)
 
   (if (string? where)
-    (put env :current-file where))
+    (put env *current-file* where))
 
   # Evaluate 1 source form in a protected manner
   (def lints @[])
@@ -2411,7 +2445,7 @@
       (do
         (set where new-where)
         (if (string? new-where)
-          (put env :current-file new-where)))
+          (put env *current-file* new-where)))
 
       (do
         (var pindex 0)
@@ -2669,7 +2703,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [:err buf :err-color false]
+    (with-dyns [*err* buf *err-color* false]
       (bad-parse x y))
     (set exit-error (string/slice buf 0 -2)))
   (defn bc [&opt x y z a b]
@@ -2678,7 +2712,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [:err buf :err-color false]
+    (with-dyns [*err* buf *err-color* false]
       (bad-compile x nil z a b))
     (set exit-error (string/slice buf 0 -2))
     (set exit-fiber y))
@@ -2827,6 +2861,12 @@
   [&opt env local]
   (env-walk keyword? env local))
 
+(defdyn *doc-width*
+  "Width in columns to print documentation printed with `doc-format`")
+
+(defdyn *doc-color*
+  "Whether or not to colorize documentation printed with `doc-format`.")
+
 (defn doc-format
   `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
   or a subset of markdown. This allows a long single line of prose or formatted text to be
@@ -2834,10 +2874,10 @@
   [str &opt width indent colorize]
 
   (default indent 4)
-  (def max-width (- (or width (dyn :doc-width 80)) 8))
+  (def max-width (- (or width (dyn *doc-width* 80)) 8))
   (def has-color (if (not= nil colorize)
                    colorize
-                   (dyn :doc-color)))
+                   (dyn *doc-color*)))
 
   # Terminal codes for emission/tokenization
   (def delimiters
@@ -3200,7 +3240,7 @@
   "Print the current fiber stack"
   []
   (print)
-  (with-dyns [:err-color false] (debug/stacktrace (.fiber) (.signal) ""))
+  (with-dyns [*err-color* false] (debug/stacktrace (.fiber) (.signal) ""))
   (print))
 
 (defn .frame
@@ -3554,6 +3594,7 @@
      (debug/stacktrace f e "")))
   nil)
 
+
 ###
 ###
 ### CLI Tool Main
@@ -3570,12 +3611,22 @@
     (let [thunk (compile [main ;subargs] env arg)]
       (if (function? thunk) (thunk) (error (thunk :error))))))
 
+(defdyn *args*
+  "Dynamic bindings that will contain command line arguments at program start")
+
+(defdyn *executable*
+  "Name of the interpreter executable used to execute this program. Corresponds to argv[0] in the call to
+   int main(int argc, char **argv);")
+
+(defdyn *profilepath*
+  "Path to profile file loaded when starting up the repl.")
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
   [args]
 
-  (setdyn :args args)
+  (setdyn *args* args)
 
   (var should-repl false)
   (var no-file true)
@@ -3591,7 +3642,7 @@
   (var expect-image false)
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
-  (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn :profilepath jprofile))
+  (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
 
   (defn- get-lint-level
     [i]
@@ -3601,7 +3652,7 @@
   # Flag handlers
   (def handlers
     {"h" (fn [&]
-           (print "usage: " (dyn :executable "janet") " [options] script args...")
+           (print "usage: " (dyn *executable* "janet") " [options] script args...")
            (print
              ```
              Options are:
@@ -3663,7 +3714,7 @@
      "d" (fn [&] (set debug-flag true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)
-     "R" (fn [&] (setdyn :profilepath nil) 1)})
+     "R" (fn [&] (setdyn *profilepath* nil) 1)})
 
   (defn- dohandler [n i &]
     (def h (in handlers n))
@@ -3719,7 +3770,7 @@
           (file/flush stdout)
           (file/read stdin :line buf))
         (def env (make-env))
-        (when-let [profile.janet (dyn :profilepath)]
+        (when-let [profile.janet (dyn *profilepath*)]
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
         (when debug-flag
