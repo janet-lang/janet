@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- The `flycheck` function no longer pollutes the module/cache
 - Fix quasiquote bug in compiler
 - Disallow use of `cancel` and `resume` on fibers scheduled or created with `ev/go`, as well as the root
   fiber.
