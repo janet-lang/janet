@@ -34,6 +34,7 @@ local
 
 # Common test files I use.
 temp.janet
+temp*.janet
 scratch.janet
 
 # Emscripten

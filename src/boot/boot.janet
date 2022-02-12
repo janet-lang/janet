@@ -3588,10 +3588,14 @@
   arbitrary execution is possible. Other arguments are the same as dofile. `path` can also be
   a file value such as stdin. Returns nil.``
   [path &keys kwargs]
+  (def old-modcache (table/clone module/cache))
+  (table/clear module/cache)
   (try
     (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
     ([e f]
      (debug/stacktrace f e "")))
+  (table/clear module/cache)
+  (merge-into module/cache old-modcache)
   nil)
 
 
