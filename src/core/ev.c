@@ -1261,8 +1261,25 @@ JanetFiber *janet_loop1(void) {
         memset(&to, 0, sizeof(to));
         int has_timeout;
         /* Drop timeouts that are no longer needed */
-        while ((has_timeout = peek_timeout(&to)) && (to.curr_fiber == NULL) && to.fiber->sched_id != to.sched_id) {
-            pop_timeout(0);
+        while ((has_timeout = peek_timeout(&to))) {
+            if (to.curr_fiber != NULL) {
+                JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
+                int is_finished = (s == JANET_STATUS_DEAD ||
+                                   s == JANET_STATUS_ERROR ||
+                                   s == JANET_STATUS_USER0 ||
+                                   s == JANET_STATUS_USER1 ||
+                                   s == JANET_STATUS_USER2 ||
+                                   s == JANET_STATUS_USER3 ||
+                                   s == JANET_STATUS_USER4);
+                if (is_finished) {
+                    pop_timeout(0);
+                    continue;
+                }
+            } else if (to.fiber->sched_id != to.sched_id) {
+                pop_timeout(0);
+                continue;
+            }
+            break;
         }
         /* Run polling implementation only if pending timeouts or pending events */
         if (janet_vm.tq_count || janet_vm.listener_count || janet_vm.extra_listeners) {
