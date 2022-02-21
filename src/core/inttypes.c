@@ -216,23 +216,22 @@ JANET_CORE_FN(cfun_to_number,
 
         if (janet_abstract_type(abst) == &janet_s64_type) {
             int64_t value = *((int64_t*)abst);
-            if (value > INT32_MAX) {
-                janet_panicf("cannot convert %q to a number, exceededs int32 max", argv[0]);
+            if (value > JANET_INTMAX_INT64) {
+                janet_panicf("cannot convert %q to a number, must be in the range [%q, %q]", argv[0], janet_wrap_number(JANET_INTMIN_DOUBLE), janet_wrap_number(JANET_INTMAX_DOUBLE));
             }
-            if (value < INT32_MIN) {
-                janet_panicf("cannot convert %q to a number, exceededs int32 min", argv[0]);
+            if (value < -JANET_INTMAX_INT64) {
+                janet_panicf("cannot convert %q to a number, must be in the range [%q, %q]", argv[0], janet_wrap_number(JANET_INTMIN_DOUBLE), janet_wrap_number(JANET_INTMAX_DOUBLE));
             }
-
-            return janet_wrap_integer(value);
+            return janet_wrap_number((double)value);
         }
 
         if (janet_abstract_type(abst) == &janet_u64_type) {
             uint64_t value = *((uint64_t*)abst);
-            if (value > INT32_MAX) {
-                janet_panicf("cannot convert %q to a number, exceededs int32 max", argv[0]);
+            if (value > JANET_INTMAX_INT64) {
+                janet_panicf("cannot convert %q to a number, must be in the range [%q, %q]", argv[0], janet_wrap_number(JANET_INTMIN_DOUBLE), janet_wrap_number(JANET_INTMAX_DOUBLE));
             }
 
-            return janet_wrap_integer(value);
+            return janet_wrap_number((double)value);
         }
     }
 

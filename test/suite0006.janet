@@ -42,12 +42,17 @@
 # Conversion back to an int32
 (assert (= (int/to-number (u64 0xFaFa)) 0xFaFa))
 (assert (= (int/to-number (i64 0xFaFa)) 0xFaFa))
+(assert (= (int/to-number (u64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (i64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (i64 -9007199254740991)) -9007199254740991))
 
 (assert-error
-  "int64 out of bounds for int32"
-  (do
-    (int/to-number (u64 "0x7fff_ffff_ffff_ffff"))
-    (int/to-number (i64 "-0x7fff_ffff_ffff_ffff"))))
+  "u64 out of bounds for safe integer"
+  (int/to-number (u64 "9007199254740993"))
+
+(assert-error
+  "s64 out of bounds for safe integer"
+  (int/to-number (i64 "-9007199254740993"))))
 
 (assert-error
   "int/to-number fails on non-abstract types"
