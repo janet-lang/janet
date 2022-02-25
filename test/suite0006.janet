@@ -39,6 +39,25 @@
    (def c (u64 "32rvv_vv_vv_vv"))
    (def d (u64 "123456789"))))
 
+# Conversion back to an int32
+(assert (= (int/to-number (u64 0xFaFa)) 0xFaFa))
+(assert (= (int/to-number (i64 0xFaFa)) 0xFaFa))
+(assert (= (int/to-number (u64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (i64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (i64 -9007199254740991)) -9007199254740991))
+
+(assert-error
+  "u64 out of bounds for safe integer"
+  (int/to-number (u64 "9007199254740993"))
+
+(assert-error
+  "s64 out of bounds for safe integer"
+  (int/to-number (i64 "-9007199254740993"))))
+
+(assert-error
+  "int/to-number fails on non-abstract types"
+  (int/to-number 1))
+
 (assert-no-error
  "create some int64 bigints"
  (do
