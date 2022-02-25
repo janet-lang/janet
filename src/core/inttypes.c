@@ -212,10 +212,10 @@ JANET_CORE_FN(cfun_to_number,
               "Convert an int/u64 or int/s64 to a number. Fails if the number is out of range for an int32.") {
     janet_fixarity(argc, 1);
     if (janet_type(argv[0]) == JANET_ABSTRACT) {
-        void* abst = janet_unwrap_abstract(argv[0]);
+        void *abst = janet_unwrap_abstract(argv[0]);
 
         if (janet_abstract_type(abst) == &janet_s64_type) {
-            int64_t value = *((int64_t*)abst);
+            int64_t value = *((int64_t *)abst);
             if (value > JANET_INTMAX_INT64) {
                 janet_panicf("cannot convert %q to a number, must be in the range [%q, %q]", argv[0], janet_wrap_number(JANET_INTMIN_DOUBLE), janet_wrap_number(JANET_INTMAX_DOUBLE));
             }
@@ -226,7 +226,7 @@ JANET_CORE_FN(cfun_to_number,
         }
 
         if (janet_abstract_type(abst) == &janet_u64_type) {
-            uint64_t value = *((uint64_t*)abst);
+            uint64_t value = *((uint64_t *)abst);
             if (value > JANET_INTMAX_INT64) {
                 janet_panicf("cannot convert %q to a number, must be in the range [%q, %q]", argv[0], janet_wrap_number(JANET_INTMIN_DOUBLE), janet_wrap_number(JANET_INTMAX_DOUBLE));
             }
