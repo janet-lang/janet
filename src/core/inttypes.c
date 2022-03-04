@@ -238,6 +238,43 @@ JANET_CORE_FN(cfun_to_number,
     janet_panicf("expected int/u64 or int/s64, got %q", argv[0]);
 }
 
+JANET_CORE_FN(cfun_to_bytes,
+              "(int/to-bytes value &opt endianness)",
+              "Convert an `int/s64` or `int/u64` into an 8-element tuple of bytes.\n"
+              "the endianness paramater indicates the byte order:\n"
+              "- `nil` (unset): system byte order\n"
+              "- `:le`: little-endian, least significant byte first\n"
+              "- `:be`: big-endian, most significant byte first\n") {
+    janet_arity(argc, 1, 2);
+    if (janet_is_int(argv[0]) == JANET_INT_NONE) {
+        janet_panicf("int/to-bytes: expected an int/s64 or int/u64, got %q", argv[0]);
+    }
+
+    int reverse = 0;
+    if (argc > 1 && !janet_checktype(argv[1], JANET_NIL)) {
+        JanetKeyword endianness_kw = janet_getkeyword(argv, 1);
+        if (!janet_cstrcmp(endianness_kw, "le")) {
+#if JANET_BIG_ENDIAN
+            reverse = 1;
+#endif
+        } else if (!janet_cstrcmp(endianness_kw, "be")) {
+#if JANET_LITTLE_ENDIAN
+            reverse = 1;
+#endif
+        } else {
+            janet_panicf("int/to-bytes: expected endianness :le, :be or nil, got %v", argv[1]);
+        }
+    }
+
+    uint8_t *bytes = janet_unwrap_abstract(argv[0]);
+    Janet *bytes_tuple = janet_tuple_begin(8);
+    for (int i = 0; i < 8; ++i) {
+        bytes_tuple[i] = janet_wrap_integer(bytes[reverse ? 7 - i : i]);
+    }
+
+    return janet_wrap_tuple(janet_tuple_end(bytes_tuple));
+}
+
 /*
  * Code to support polymorphic comparison.
  * int/u64 and int/s64 support a "compare" method that allows
@@ -546,6 +583,7 @@ void janet_lib_inttypes(JanetTable *env) {
         JANET_CORE_REG("int/s64", cfun_it_s64_new),
         JANET_CORE_REG("int/u64", cfun_it_u64_new),
         JANET_CORE_REG("int/to-number", cfun_to_number),
+        JANET_CORE_REG("int/to-bytes", cfun_to_bytes),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, it_cfuns);

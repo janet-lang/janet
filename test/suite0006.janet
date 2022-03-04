@@ -91,6 +91,27 @@
  "trap INT64_MIN / -1"
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
+# int/s64 and int/u64 serialization
+(assert (= (int/to-bytes (u64 0)) [0 0 0 0 0 0 0 0]))
+
+(assert (= (int/to-bytes (i64 1) :le) [1 0 0 0 0 0 0 0]))
+(assert (= (int/to-bytes (i64 1) :be) [0 0 0 0 0 0 0 1]))
+(assert (= (int/to-bytes (i64 -1)) [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF]))
+(assert (= (int/to-bytes (i64 -5) :be) [0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF (- 0xFF 4)]))
+
+(assert (= (int/to-bytes (u64 1) :le) [1 0 0 0 0 0 0 0]))
+(assert (= (int/to-bytes (u64 1) :be) [0 0 0 0 0 0 0 1]))
+(assert (= (int/to-bytes (u64 300) :be) [0 0 0 0 0 0 0x01 0x2C]))
+
+(assert-error
+ "bad value passed to int/to-bytes"
+ (int/to-bytes 1))
+
+(assert-error
+  "invalid endianness passed to int/to-bytes"
+   (int/to-bytes (u64 0) :little))
+
+
 # Dynamic bindings
 (setdyn :a 10)
 (assert (= 40 (with-dyns [:a 25 :b 15] (+ (dyn :a) (dyn :b)))) "dyn usage 1")
