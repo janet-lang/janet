@@ -48,5 +48,7 @@
 
 (assert (= (test) '(1 ())) "issue #919")
 
+(assert (= (hash 0) (hash (* -1 0))) "hash -0 same as hash 0")
+
 (end-suite)
 
