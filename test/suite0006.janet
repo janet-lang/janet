@@ -91,6 +91,39 @@
  "trap INT64_MIN / -1"
  (:/ (int/s64 "-0x8000_0000_0000_0000") -1))
 
+# int/s64 and int/u64 serialization
+(assert (deep= (int/to-bytes (u64 0)) @"\x00\x00\x00\x00\x00\x00\x00\x00"))
+
+(assert (deep= (int/to-bytes (i64 1) :le) @"\x01\x00\x00\x00\x00\x00\x00\x00"))
+(assert (deep= (int/to-bytes (i64 1) :be) @"\x00\x00\x00\x00\x00\x00\x00\x01"))
+(assert (deep= (int/to-bytes (i64 -1)) @"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"))
+(assert (deep= (int/to-bytes (i64 -5) :be) @"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFB"))
+
+(assert (deep= (int/to-bytes (u64 1) :le) @"\x01\x00\x00\x00\x00\x00\x00\x00"))
+(assert (deep= (int/to-bytes (u64 1) :be) @"\x00\x00\x00\x00\x00\x00\x00\x01"))
+(assert (deep= (int/to-bytes (u64 300) :be) @"\x00\x00\x00\x00\x00\x00\x01\x2C"))
+
+# int/s64 int/u64 to existing buffer
+(let [buf1 @""
+      buf2 @"abcd"]
+  (assert (deep= (int/to-bytes (i64 1) :le buf1) @"\x01\x00\x00\x00\x00\x00\x00\x00"))
+  (assert (deep= buf1 @"\x01\x00\x00\x00\x00\x00\x00\x00"))
+  (assert (deep= (int/to-bytes (u64 300) :be buf2) @"abcd\x00\x00\x00\x00\x00\x00\x01\x2C")))
+
+# int/s64 and int/u64 paramater type checking
+(assert-error
+ "bad value passed to int/to-bytes"
+ (int/to-bytes 1))
+
+(assert-error
+  "invalid endianness passed to int/to-bytes"
+   (int/to-bytes (u64 0) :little))
+
+(assert-error
+  "invalid buffer passed to int/to-bytes"
+   (int/to-bytes (u64 0) :little :buffer))
+
+
 # Dynamic bindings
 (setdyn :a 10)
 (assert (= 40 (with-dyns [:a 25 :b 15] (+ (dyn :a) (dyn :b)))) "dyn usage 1")
