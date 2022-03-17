@@ -57,8 +57,8 @@ extern "C" {
 #define JANET_BSD 1
 #endif
 
-/* Check for Mac */
-#ifdef __APPLE__
+/* Check for macOS or OS X */
+#if defined(__APPLE__) && defined(__MACH__)
 #define JANET_APPLE 1
 #endif
 

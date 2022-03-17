@@ -68,7 +68,7 @@ extern char **environ;
 #endif
 
 /* For macos */
-#ifdef __MACH__
+#ifdef JANET_APPLE
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
