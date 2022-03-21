@@ -238,6 +238,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
 	cp $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/$(JANET_DIST_DIR)/lib/
 	mkdir -p build/$(JANET_DIST_DIR)/man/man1/
+	cp janet.1 build/$(JANET_DIST_DIR)/man/man1/janet.1
 	mkdir -p build/$(JANET_DIST_DIR)/src/
 	cp build/c/janet.c build/c/shell.c build/$(JANET_DIST_DIR)/src/
 	cp CONTRIBUTING.md LICENSE README.md build/$(JANET_DIST_DIR)/

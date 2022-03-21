@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021 Calvin Rose
+* Copyright (c) 2022 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -100,6 +100,14 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     /* Clean up and return errors */
     janet_parser_deinit(&parser);
     if (where) janet_gcunroot(janet_wrap_string(where));
+#ifdef JANET_EV
+    /* Enter the event loop if we are not already in it */
+    if (janet_vm.stack_n == 0) {
+        janet_gcroot(ret);
+        janet_loop();
+        janet_gcunroot(ret);
+    }
+#endif
     if (out) *out = ret;
     return errflags;
 }

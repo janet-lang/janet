@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- C functions `janet_dobytes` and `janet_dostring` will now enter the event loop if it is enabled.
+- Fix hashing regression - hash of negative 0 must be the same as positive 0 since they are equal.
 - The `flycheck` function no longer pollutes the module/cache
 - Fix quasiquote bug in compiler
 - Disallow use of `cancel` and `resume` on fibers scheduled or created with `ev/go`, as well as the root
