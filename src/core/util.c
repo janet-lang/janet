@@ -790,7 +790,7 @@ int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffe
 /* Clock shims for various platforms */
 #ifdef JANET_GETTIME
 /* For macos */
-#ifdef __MACH__
+#ifdef JANET_APPLE
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
@@ -806,7 +806,7 @@ int janet_gettime(struct timespec *spec) {
     spec->tv_nsec = wintime % 10000000LL * 100;
     return 0;
 }
-#elif defined(__MACH__)
+#elif defined(JANET_APPLE)
 int janet_gettime(struct timespec *spec) {
     clock_serv_t cclock;
     mach_timespec_t mts;
