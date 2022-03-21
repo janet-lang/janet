@@ -284,7 +284,7 @@ Usually, one of a few reasons:
   Janet does not run on the JVM, and has a more primitive garbage collector.
 - We want to keep the Janet core small. With Lisps, usually a feature can be added as a library
   without feeling "bolted on", especially when compared to ALGOL like languages. Adding features
-  to the core also makes it a bit more difficult keep Janet maximally portable.
+  to the core also makes it a bit more difficult to keep Janet maximally portable.
 
 ### Why is my terminal spitting out junk when I run the REPL?
 
