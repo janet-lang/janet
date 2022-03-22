@@ -63,12 +63,6 @@ extern char **environ;
 #endif
 #endif
 
-/* For macos */
-#ifdef JANET_APPLE
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
 /* Not POSIX, but all Unixes but Solaris have this function. */
 #if defined(JANET_POSIX) && !defined(__sun)
 time_t timegm(struct tm *tm);
