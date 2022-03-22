@@ -23,6 +23,7 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "state.h"
 #endif
 
 /* Run a string */
@@ -102,7 +103,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     if (where) janet_gcunroot(janet_wrap_string(where));
 #ifdef JANET_EV
     /* Enter the event loop if we are not already in it */
-    if (janet_vm.stack_n == 0) {
+    if (janet_vm.stackn == 0) {
         janet_gcroot(ret);
         janet_loop();
         janet_gcunroot(ret);
