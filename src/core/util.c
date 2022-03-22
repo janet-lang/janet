@@ -36,6 +36,10 @@
 #endif
 #endif
 
+#ifdef JANET_APPLE
+#include <AvailabilityMacros.h>
+#endif
+
 #include <inttypes.h>
 
 /* Base 64 lookup table for digits */

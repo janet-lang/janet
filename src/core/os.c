@@ -39,10 +39,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#ifdef JANET_APPLE
-#include <AvailabilityMacros.h>
-#endif
-
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
