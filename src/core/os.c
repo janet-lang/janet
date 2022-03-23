@@ -39,10 +39,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 
-#ifdef JANET_APPLE
-#include <AvailabilityMacros.h>
-#endif
-
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -65,12 +61,6 @@ extern char **environ;
 #ifdef JANET_THREADS
 #include <pthread.h>
 #endif
-#endif
-
-/* For macos */
-#ifdef JANET_APPLE
-#include <mach/clock.h>
-#include <mach/mach.h>
 #endif
 
 /* Not POSIX, but all Unixes but Solaris have this function. */
