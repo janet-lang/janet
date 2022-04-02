@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.21.1 - 2022-03-27
+## 1.21.2 - 2022-04-01
 - C functions `janet_dobytes` and `janet_dostring` will now enter the event loop if it is enabled.
 - Fix hashing regression - hash of negative 0 must be the same as positive 0 since they are equal.
 - The `flycheck` function no longer pollutes the module/cache
