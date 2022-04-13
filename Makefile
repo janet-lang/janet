@@ -58,6 +58,7 @@ UNAME:=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
 	SONAME_SETTER:=-Wl,-install_name,
+	JANET_LIBRARY=build/libjanet.dylib
 	LDCONFIG:=true
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
@@ -165,7 +166,11 @@ build/c/janet.c: build/janet_boot src/boot/boot.janet
 ##### Amalgamation #####
 ########################
 
+ifeq ($(UNAME), Darwin)
+SONAME=libjanet.1.21.dylib
+else
 SONAME=libjanet.so.1.21
+endif
 
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
@@ -279,10 +284,16 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
-	cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')'
+	if test $(UNAME) = Darwin ; then \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib' ; \
+		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.dylib' ; \
+		ln -sf libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+	else \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')' ; \
+		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so' ; \
+		ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+	fi
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
-	ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so'
-	ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME)
 	mkdir -p '$(DESTDIR)$(JANET_MANPATH)'
 	cp janet.1 '$(DESTDIR)$(JANET_MANPATH)'
 	mkdir -p '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)'
