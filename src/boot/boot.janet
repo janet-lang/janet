@@ -2208,10 +2208,13 @@
 ###
 ###
 
+(defdyn *syspath*
+  "Path of directory to load system modules from.")
+
 # Initialize syspath
 (each [k v] (partition 2 (tuple/slice boot/args 2))
   (case k
-    "JANET_PATH" (setdyn :syspath v)))
+    "JANET_PATH" (setdyn *syspath* v)))
 
 (defn make-env
   `Create a new environment table. The new environment
@@ -3645,7 +3648,7 @@
   (var error-level nil)
   (var expect-image false)
 
-  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn :syspath jp))
+  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
 
   (defn- get-lint-level
@@ -3690,7 +3693,7 @@
      "i" (fn [&] (set expect-image true) 1)
      "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
      "n" (fn [&] (set colorize false) 1)
-     "m" (fn [i &] (setdyn :syspath (in args (+ i 1))) 2)
+     "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))
            (def e (dofile path))
