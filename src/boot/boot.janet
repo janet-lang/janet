@@ -1172,9 +1172,22 @@
   Use this to prevent keyword collisions between dynamic bindings.")
 (defdyn *out* "Where normal print functions print output to.")
 (defdyn *err* "Where error printing prints output to.")
+(defdyn *redef* "When set, allow dynamically rebinding top level defs. Will slow generated code and is intended to be used for development.")
+(defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
+(defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
+(defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *lint-error*
+  "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
+
+(defdyn *lint-warn*
+  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+
+(defdyn *lint-levels*
+  "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
 
 (defdyn *current-file*
   "Bound to the name of the currently compiling file.")
@@ -2176,6 +2189,10 @@
 ###
 ###
 
+(defdyn *peg-grammar*
+  "The implicit base grammar used when compiling PEGs. Any undefined keywords
+  found when compiling a peg will use lookup in this table (if defined).")
+
 (def default-peg-grammar
   `The default grammar used for pegs. This grammar defines several common patterns
   that should make it easier to write more complex patterns.`
@@ -2200,7 +2217,7 @@
      :s* (any :s)
      :h* (any :h)})
 
-(setdyn :peg-grammar default-peg-grammar)
+(setdyn *peg-grammar* default-peg-grammar)
 
 ###
 ###
@@ -2378,9 +2395,9 @@
           (def res (compile source env where lints))
           (unless (empty? lints)
             # Convert lint levels to numbers.
-            (def levels (get env :lint-levels lint-levels))
-            (def lint-error (get env :lint-error))
-            (def lint-warning (get env :lint-warn))
+            (def levels (get env *lint-levels* lint-levels))
+            (def lint-error (get env *lint-error*))
+            (def lint-warning (get env *lint-warn*))
             (def lint-error (or (get levels lint-error lint-error) 0))
             (def lint-warning (or (get levels lint-warning lint-warning) 2))
             (each [level line col msg] lints
@@ -3737,21 +3754,21 @@
         (if expect-image
           (do
             (def env (load-image (slurp arg)))
-            (put env :args subargs)
-            (put env :lint-error error-level)
-            (put env :lint-warn warn-level)
+            (put env *args* subargs)
+            (put env *lint-error* error-level)
+            (put env *lint-warn* warn-level)
             (when debug-flag
-              (put env :debug true)
-              (put env :redef true))
+              (put env *debug* true)
+              (put env *redef* true))
             (run-main env subargs arg))
           (do
             (def env (make-env))
-            (put env :args subargs)
-            (put env :lint-error error-level)
-            (put env :lint-warn warn-level)
+            (put env *args* subargs)
+            (put env *lint-error* error-level)
+            (put env *lint-warn* warn-level)
             (when debug-flag
-              (put env :debug true)
-              (put env :redef true))
+              (put env *debug* true)
+              (put env *redef* true))
             (if compile-only
               (flycheck arg :exit exit-on-error :env env)
               (do
@@ -3778,16 +3795,16 @@
             (def new-env (dofile profile.janet :exit true))
             (merge-module env new-env "" false))
         (when debug-flag
-          (put env :debug true)
-          (put env :redef true))
+          (put env *debug* true)
+          (put env *redef* true))
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn :pretty-format (if colorize "%.20Q" "%.20q"))
-        (setdyn :err-color (if colorize true))
-        (setdyn :doc-color (if colorize true))
-        (setdyn :lint-error error-level)
-        (setdyn :lint-warn error-level)
+        (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
+        (setdyn *err-color* (if colorize true))
+        (setdyn *doc-color* (if colorize true))
+        (setdyn *lint-error* error-level)
+        (setdyn *lint-warn* error-level)
         (repl getchunk nil env)))))
 
 ###
