@@ -178,12 +178,13 @@ JANET_CORE_FN(cfun_buffer_new_filled,
               "Returns the new buffer.") {
     janet_arity(argc, 1, 2);
     int32_t count = janet_getinteger(argv, 0);
+    if (count < 0) count = 0;
     int32_t byte = 0;
     if (argc == 2) {
         byte = janet_getinteger(argv, 1) & 0xFF;
     }
     JanetBuffer *buffer = janet_buffer(count);
-    if (buffer->data)
+    if (buffer->data && count > 0)
         memset(buffer->data, byte, count);
     buffer->count = count;
     return janet_wrap_buffer(buffer);
