@@ -145,7 +145,7 @@
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
 (defmacro += "Increments the var x by n." [x n] ~(set ,x (,+ ,x ,n)))
 (defmacro -= "Decrements the var x by n." [x n] ~(set ,x (,- ,x ,n)))
-(defmacro *= "Shorthand for (set x (* x n))." [x n] ~(set ,x (,* ,x ,n)))
+(defmacro *= "Shorthand for (set x (\\* x n))." [x n] ~(set ,x (,* ,x ,n)))
 (defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
 
@@ -3155,9 +3155,9 @@
   (def bindings (filter fltr (all-bindings)))
   (def dynamics (map describe (filter fltr (all-dynamics))))
   (print)
-  (print (doc-format (string "Bindings:\n\n" (string/join bindings " "))))
+  (print (doc-format (string "Bindings:\n\n" (string/join bindings " ")) nil nil false))
   (print)
-  (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " "))))
+  (print (doc-format (string "Dynamics:\n\n" (string/join dynamics " ")) nil nil false))
   (print "\n    Use (doc sym) for more information on a binding.\n"))
 
 (defn- print-module-entry
