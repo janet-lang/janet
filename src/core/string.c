@@ -173,10 +173,10 @@ static int32_t kmp_next(struct kmp_state *state) {
 JANET_CORE_FN(cfun_string_slice,
               "(string/slice bytes &opt start end)",
               "Returns a substring from a byte sequence. The substring is from "
-              "index start inclusive to index end exclusive. All indexing "
-              "is from 0. 'start' and 'end' can also be negative to indicate indexing "
+              "index `start` inclusive to index `end`, exclusive. All indexing "
+              "is from 0. `start` and `end` can also be negative to indicate indexing "
               "from the end of the string. Note that index -1 is synonymous with "
-              "index (length bytes) to allow a full negative slice range. ") {
+              "index `(length bytes)` to allow a full negative slice range. ") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
@@ -184,7 +184,7 @@ JANET_CORE_FN(cfun_string_slice,
 
 JANET_CORE_FN(cfun_symbol_slice,
               "(symbol/slice bytes &opt start end)",
-              "Same a string/slice, but returns a symbol.") {
+              "Same as string/slice, but returns a symbol.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_symbolv(view.bytes + range.start, range.end - range.start);
@@ -192,7 +192,7 @@ JANET_CORE_FN(cfun_symbol_slice,
 
 JANET_CORE_FN(cfun_keyword_slice,
               "(keyword/slice bytes &opt start end)",
-              "Same a string/slice, but returns a keyword.") {
+              "Same as string/slice, but returns a keyword.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_keywordv(view.bytes + range.start, range.end - range.start);
@@ -200,7 +200,7 @@ JANET_CORE_FN(cfun_keyword_slice,
 
 JANET_CORE_FN(cfun_string_repeat,
               "(string/repeat bytes n)",
-              "Returns a string that is n copies of bytes concatenated.") {
+              "Returns a string that is `n` copies of `bytes` concatenated.") {
     janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     int32_t rep = janet_getinteger(argv, 1);
@@ -282,7 +282,7 @@ JANET_CORE_FN(cfun_string_asciiupper,
 
 JANET_CORE_FN(cfun_string_reverse,
               "(string/reverse str)",
-              "Returns a string that is the reversed version of str.") {
+              "Returns a string that is the reversed version of `str`.") {
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
@@ -308,8 +308,8 @@ static void findsetup(int32_t argc, Janet *argv, struct kmp_state *s, int32_t ex
 
 JANET_CORE_FN(cfun_string_find,
               "(string/find patt str &opt start-index)",
-              "Searches for the first instance of pattern patt in string "
-              "str. Returns the index of the first character in patt if found, "
+              "Searches for the first instance of pattern `patt` in string "
+              "`str`. Returns the index of the first character in `patt` if found, "
               "otherwise returns nil.") {
     int32_t result;
     struct kmp_state state;
@@ -323,7 +323,7 @@ JANET_CORE_FN(cfun_string_find,
 
 JANET_CORE_FN(cfun_string_hasprefix,
               "(string/has-prefix? pfx str)",
-              "Tests whether str starts with pfx.") {
+              "Tests whether `str` starts with `pfx`.") {
     janet_fixarity(argc, 2);
     JanetByteView prefix = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
@@ -334,7 +334,7 @@ JANET_CORE_FN(cfun_string_hasprefix,
 
 JANET_CORE_FN(cfun_string_hassuffix,
               "(string/has-suffix? sfx str)",
-              "Tests whether str ends with sfx.") {
+              "Tests whether `str` ends with `sfx`.") {
     janet_fixarity(argc, 2);
     JanetByteView suffix = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
@@ -347,9 +347,9 @@ JANET_CORE_FN(cfun_string_hassuffix,
 
 JANET_CORE_FN(cfun_string_findall,
               "(string/find-all patt str &opt start-index)",
-              "Searches for all instances of pattern patt in string "
-              "str. Returns an array of all indices of found patterns. Overlapping "
-              "instances of the pattern are counted individually, meaning a byte in str "
+              "Searches for all instances of pattern `patt` in string "
+              "`str`. Returns an array of all indices of found patterns. Overlapping "
+              "instances of the pattern are counted individually, meaning a byte in `str` "
               "may contribute to multiple found patterns.") {
     int32_t result;
     struct kmp_state state;
@@ -386,8 +386,8 @@ static void replacesetup(int32_t argc, Janet *argv, struct replace_state *s) {
 
 JANET_CORE_FN(cfun_string_replace,
               "(string/replace patt subst str)",
-              "Replace the first occurrence of patt with subst in the string str. "
-              "Will return the new string if patt is found, otherwise returns str.") {
+              "Replace the first occurrence of `patt` with `subst` in the string `str`. "
+              "Will return the new string if `patt` is found, otherwise returns `str`.") {
     int32_t result;
     struct replace_state s;
     uint8_t *buf;
@@ -409,9 +409,9 @@ JANET_CORE_FN(cfun_string_replace,
 
 JANET_CORE_FN(cfun_string_replaceall,
               "(string/replace-all patt subst str)",
-              "Replace all instances of patt with subst in the string str. Overlapping "
+              "Replace all instances of `patt` with `subst` in the string `str`. Overlapping "
               "matches will not be counted, only the first match in such a span will be replaced. "
-              "Will return the new string if patt is found, otherwise returns str.") {
+              "Will return the new string if `patt` is found, otherwise returns `str`.") {
     int32_t result;
     struct replace_state s;
     JanetBuffer b;
@@ -433,11 +433,11 @@ JANET_CORE_FN(cfun_string_replaceall,
 
 JANET_CORE_FN(cfun_string_split,
               "(string/split delim str &opt start limit)",
-              "Splits a string str with delimiter delim and returns an array of "
-              "substrings. The substrings will not contain the delimiter delim. If delim "
+              "Splits a string `str` with delimiter `delim` and returns an array of "
+              "substrings. The substrings will not contain the delimiter `delim`. If `delim` "
               "is not found, the returned array will have one element. Will start searching "
-              "for delim at the index start (if provided), and return up to a maximum "
-              "of limit results (if provided).") {
+              "for `delim` at the index `start` (if provided), and return up to a maximum "
+              "of `limit` results (if provided).") {
     int32_t result;
     JanetArray *array;
     struct kmp_state state;
@@ -461,9 +461,9 @@ JANET_CORE_FN(cfun_string_split,
 
 JANET_CORE_FN(cfun_string_checkset,
               "(string/check-set set str)",
-              "Checks that the string str only contains bytes that appear in the string set. "
-              "Returns true if all bytes in str appear in set, false if some bytes in str do "
-              "not appear in set.") {
+              "Checks that the string `str` only contains bytes that appear in the string `set`. "
+              "Returns true if all bytes in `str` appear in `set`, false if some bytes in `str` do "
+              "not appear in `set`.") {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);
@@ -488,7 +488,7 @@ JANET_CORE_FN(cfun_string_checkset,
 JANET_CORE_FN(cfun_string_join,
               "(string/join parts &opt sep)",
               "Joins an array of strings into one string, optionally separated by "
-              "a separator string sep.") {
+              "a separator string `sep`.") {
     janet_arity(argc, 1, 2);
     JanetView parts = janet_getindexed(argv, 0);
     JanetByteView joiner;
@@ -530,7 +530,7 @@ JANET_CORE_FN(cfun_string_join,
 
 JANET_CORE_FN(cfun_string_format,
               "(string/format format & values)",
-              "Similar to snprintf, but specialized for operating with Janet values. Returns "
+              "Similar to `snprintf`, but specialized for operating with Janet values. Returns "
               "a new string.") {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);
@@ -574,7 +574,7 @@ static void trim_help_args(int32_t argc, Janet *argv, JanetByteView *str, JanetB
 JANET_CORE_FN(cfun_string_trim,
               "(string/trim str &opt set)",
               "Trim leading and trailing whitespace from a byte sequence. If the argument "
-              "set is provided, consider only characters in set to be whitespace.") {
+              "`set` is provided, consider only characters in `set` to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -587,7 +587,7 @@ JANET_CORE_FN(cfun_string_trim,
 JANET_CORE_FN(cfun_string_triml,
               "(string/triml str &opt set)",
               "Trim leading whitespace from a byte sequence. If the argument "
-              "set is provided, consider only characters in set to be whitespace.") {
+              "`set` is provided, consider only characters in `set` to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -597,7 +597,7 @@ JANET_CORE_FN(cfun_string_triml,
 JANET_CORE_FN(cfun_string_trimr,
               "(string/trimr str &opt set)",
               "Trim trailing whitespace from a byte sequence. If the argument "
-              "set is provided, consider only characters in set to be whitespace.") {
+              "`set` is provided, consider only characters in `set` to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t right_edge = trim_help_rightedge(str, set);
