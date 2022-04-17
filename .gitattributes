@@ -1,5 +1,3 @@
-*.janet linguist-language=Clojure
-
 *.janet text eol=lf
 *.c text eol=lf
 *.h text eol=lf
