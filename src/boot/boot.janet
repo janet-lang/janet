@@ -11,7 +11,7 @@
   ```
   (defn name & more)
 
-  Define a function. Equivalent to (def name (fn name [args] ...)).
+  Define a function. Equivalent to `(def name (fn name [args] ...))`.
   ```
   (fn defn [name & more]
     (def len (length more))
@@ -90,7 +90,7 @@
   nil)
 
 # Basic predicates
-(defn nan? "Check if x is NaN" [x] (not= x x))
+(defn nan? "Check if x is NaN." [x] (not= x x))
 (defn number? "Check if x is a number." [x] (= (type x) :number))
 (defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
 (defn string? "Check if x is a string." [x] (= (type x) :string))
@@ -160,13 +160,13 @@
        (,error ,(if err err "assert failure")))))
 
 (defn errorf
-  "A combination of error and string/format. Equivalent to (error (string/format fmt ;args))"
+  "A combination of `error` and `string/format`. Equivalent to `(error (string/format fmt ;args))`."
   [fmt & args]
   (error (string/format fmt ;args)))
 
 (defmacro default
-  `Define a default value for an optional argument.
-  Expands to (def sym (if (= nil sym) val sym))`
+  ``Define a default value for an optional argument.
+  Expands to `(def sym (if (= nil sym) val sym))`.``
   [sym val]
   ~(def ,sym (if (= nil ,sym) ,val ,sym)))
 
@@ -175,7 +175,7 @@
   [&])
 
 (defmacro if-not
-  "Shorthand for (if (not condition) else then)."
+  "Shorthand for `(if (not condition) else then)`."
   [condition then &opt else]
   ~(if ,condition ,else ,then))
 
@@ -185,7 +185,7 @@
   ~(if ,condition (do ,;body)))
 
 (defmacro unless
-  "Shorthand for (when (not condition) ;body). "
+  "Shorthand for `(when (not condition) ;body)`. "
   [condition & body]
   ~(if ,condition nil (do ,;body)))
 
@@ -193,7 +193,7 @@
   `Evaluates conditions sequentially until the first true condition
   is found, and then executes the corresponding body. If there are an
   odd number of forms, and no forms are matched, the last expression
-  is executed. If there are no matches, return nil.`
+  is executed. If there are no matches, returns nil.`
   [& pairs]
   (defn aux [i]
     (def restlen (- (length pairs) i))
@@ -205,9 +205,9 @@
   (aux 0))
 
 (defmacro case
-  `Select the body that equals the dispatch value. When pairs
-  has an odd number of arguments, the last is the default expression.
-  If no match is found, returns nil.`
+  ``Select the body that equals the dispatch value. When `pairs`
+  is an odd number of arguments, the last is the default expression.
+  If no match is found, returns nil.``
   [dispatch & pairs]
   (def atm (idempotent? dispatch))
   (def sym (if atm dispatch (gensym)))
@@ -225,9 +225,9 @@
            (aux 0))))
 
 (defmacro let
-  `Create a scope and bind values to symbols. Each pair in bindings is
-  assigned as if with def, and the body of the let form returns the last
-  value.`
+  ``Create a scope and bind values to symbols. Each pair in `bindings` is
+  assigned as if with `def`, and the body of the `let` form returns the last
+  value.``
   [bindings & body]
   (if (odd? (length bindings)) (error "expected even number of bindings to let"))
   (def len (length bindings))
@@ -241,11 +241,11 @@
   (tuple/slice accum 0))
 
 (defmacro try
-  `Try something and catch errors. Body is any expression,
-  and catch should be a form with the first element a tuple. This tuple
+  ``Try something and catch errors. `body` is any expression,
+  and `catch` should be a form, the first element of which is a tuple. This tuple
   should contain a binding for errors and an optional binding for
-  the fiber wrapping the body. Returns the result of body if no error,
-  or the result of catch if an error.`
+  the fiber wrapping the body. Returns the result of `body` if no error,
+  or the result of `catch` if an error.``
   [body catch]
   (let [[[err fib]] catch
         f (gensym)
@@ -303,7 +303,7 @@
   ret)
 
 (defmacro with-syms
-  "Evaluates body with each symbol in syms bound to a generated, unique symbol."
+  "Evaluates `body` with each symbol in `syms` bound to a generated, unique symbol."
   [syms & body]
   (var i 0)
   (def len (length syms))
@@ -314,8 +314,8 @@
   ~(let (,;accum) ,;body))
 
 (defmacro defer
-  `Run form unconditionally after body, even if the body throws an error.
-  Will also run form if a user signal 0-4 is received.`
+  ``Run `form` unconditionally after `body`, even if the body throws an error.
+  Will also run `form` if a user signal 0-4 is received.``
   [form & body]
   (with-syms [f r]
     ~(do
@@ -327,8 +327,8 @@
          (,propagate ,r ,f)))))
 
 (defmacro edefer
-  `Run form after body in the case that body terminates abnormally (an error or user signal 0-4).
-  Otherwise, return last form in body.`
+  ``Run `form` after `body` in the case that body terminates abnormally (an error or user signal 0-4).
+  Otherwise, return last form in `body`.``
   [form & body]
   (with-syms [f r]
     ~(do
@@ -339,8 +339,8 @@
          (do ,form (,propagate ,r ,f))))))
 
 (defmacro prompt
-  `Set up a checkpoint that can be returned to. Tag should be a value
-  that is used in a return statement, like a keyword.`
+  ``Set up a checkpoint that can be returned to. `tag` should be a value
+  that is used in a `return` statement, like a keyword.``
   [tag & body]
   (with-syms [res target payload fib]
     ~(do
@@ -359,8 +359,8 @@
   (c 0))
 
 (defmacro label
-  `Set a label point that is lexically scoped. Name should be a symbol
-  that will be bound to the label.`
+  ``Set a label point that is lexically scoped. `name` should be a symbol
+  that will be bound to the label.``
   [name & body]
   ~(do
      (def ,name @"")
@@ -372,26 +372,26 @@
   (signal 0 [to value]))
 
 (defmacro with
-  `Evaluate body with some resource, which will be automatically cleaned up
-  if there is an error in body. binding is bound to the expression ctor, and
-  dtor is a function or callable that is passed the binding. If no destructor
-  (dtor) is given, will call :close on the resource.`
+  ``Evaluate `body` with some resource, which will be automatically cleaned up
+  if there is an error in `body`. `binding` is bound to the expression `ctor`, and
+  `dtor` is a function or callable that is passed the binding. If no destructor
+  (`dtor`) is given, will call :close on the resource.``
   [[binding ctor dtor] & body]
   ~(do
      (def ,binding ,ctor)
      ,(apply defer [(or dtor :close) binding] body)))
 
 (defmacro when-with
-  `Similar to with, but if binding is false or nil, returns
-  nil without evaluating the body. Otherwise, the same as with.`
+  ``Similar to with, but if binding is false or nil, returns
+  nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
   ~(if-let [,binding ,ctor]
      ,(apply defer [(or dtor :close) binding] body)))
 
 (defmacro if-with
-  `Similar to with, but if binding is false or nil, evaluates
+  ``Similar to `with`, but if binding is false or nil, evaluates
   the falsey path. Otherwise, evaluates the truthy path. In both cases,
-  ctor is bound to binding.`
+  `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
   ~(if-let [,binding ,ctor]
      ,(apply defer [(or dtor :close) binding] [truthy])
@@ -505,12 +505,12 @@
   (for-template i start stop 1 < + body))
 
 (defmacro eachk
-  "Loop over each key in ds. Returns nil."
+  "Loop over each key in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :keys body))
 
 (defmacro eachp
-  "Loop over each (key, value) pair in ds. Returns nil."
+  "Loop over each (key, value) pair in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :pairs body))
 
@@ -526,7 +526,7 @@
   ~(while true ,;body))
 
 (defmacro each
-  "Loop over each value in ds. Returns nil."
+  "Loop over each value in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :each body))
 
@@ -588,25 +588,25 @@
   (loop1 body head 0))
 
 (defmacro seq
-  `Similar to loop, but accumulates the loop body into an array and returns that.
-  See loop for details.`
+  ``Similar to `loop`, but accumulates the loop body into an array and returns that.
+  See `loop` for details.``
   [head & body]
   (def $accum (gensym))
   ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro generate
-  `Create a generator expression using the loop syntax. Returns a fiber
-  that yields all values inside the loop in order. See loop for details.`
+  ``Create a generator expression using the `loop` syntax. Returns a fiber
+  that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
   ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
-  "A wrapper for making fibers that may yield multiple values (coroutine). Same as (fiber/new (fn [] ;body) :yi)."
+  "A wrapper for making fibers that may yield multiple values (coroutine). Same as `(fiber/new (fn [] ;body) :yi)`."
   [& body]
   (tuple fiber/new (tuple 'fn '[] ;body) :yi))
 
 (defmacro fiber-fn
-  "A wrapper for making fibers. Same as (fiber/new (fn [] ;body) flags)."
+  "A wrapper for making fibers. Same as `(fiber/new (fn [] ;body) flags)`."
   [flags & body]
   (tuple fiber/new (tuple 'fn '[] ;body) flags))
 
@@ -630,9 +630,9 @@
   accum)
 
 (defmacro if-let
-  `Make multiple bindings, and if all are truthy,
-  evaluate the tru form. If any are false or nil, evaluate
-  the fal form. Bindings have the same syntax as the let macro.`
+  ``Make multiple bindings, and if all are truthy,
+  evaluate the `tru` form. If any are false or nil, evaluate
+  the `fal` form. Bindings have the same syntax as the `let` macro.``
   [bindings tru &opt fal]
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
@@ -661,7 +661,7 @@
   (aux 0))
 
 (defmacro when-let
-  "Same as (if-let bindings (do ;body))."
+  "Same as `(if-let bindings (do ;body))`."
   [bindings & body]
   ~(if-let ,bindings (do ,;body)))
 
@@ -690,9 +690,9 @@
   (fn [x] (not (f x))))
 
 (defn extreme
-  `Returns the most extreme value in args based on the function order.
-  order should take two values and return true or false (a comparison).
-  Returns nil if args is empty.`
+  ``Returns the most extreme value in `args` based on the function `order`.
+  `order` should take two values and return true or false (a comparison).
+  Returns nil if `args` is empty.``
   [order args]
   (var [ret] args)
   (each x args (if (order x ret) (set ret x)))
@@ -839,20 +839,20 @@
   (sorted ind (fn [x y] (< (f x) (f y)))))
 
 (defn reduce
-  `Reduce, also know as fold-left in many languages, transforms
-  an indexed type (array, tuple) with a function to produce a value by applying f to
-  each element in order. f is a function of 2 arguments, (f accum el), where
-  accum is the initial value and el is the next value in the indexed type ind.
-  f returns a value that will be used as accum in the next call to f. reduce
-  returns the value of the final call to f.`
+  ``Reduce, also know as fold-left in many languages, transforms
+  an indexed type (array, tuple) with a function to produce a value by applying `f` to
+  each element in order. `f` is a function of 2 arguments, `(f accum el)`, where
+  `accum` is the initial value and `el` is the next value in the indexed type `ind`.
+  `f` returns a value that will be used as `accum` in the next call to `f`. `reduce`
+  returns the value of the final call to `f`.``
   [f init ind]
   (var accum init)
   (each el ind (set accum (f accum el)))
   accum)
 
 (defn reduce2
-  `The 2-argument version of reduce that does not take an initialization value.
-  Instead, the first element of the array is used for initialization.`
+  ``The 2-argument version of `reduce` that does not take an initialization value.
+  Instead, the first element of the array is used for initialization.``
   [f ind]
   (var k (next ind))
   (if (= nil k) (break nil))
@@ -864,11 +864,11 @@
   res)
 
 (defn accumulate
-  `Similar to reduce, but accumulates intermediate values into an array.
-  The last element in the array is what would be the return value from reduce.
-  The init value is not added to the array (the return value will have the same
-  number of elements as ind).
-  Returns a new array.`
+  ``Similar to `reduce`, but accumulates intermediate values into an array.
+  The last element in the array is what would be the return value from `reduce`.
+  The `init` value is not added to the array (the return value will have the same
+  number of elements as `ind`).
+  Returns a new array.``
   [f init ind]
   (var res init)
   (def ret @[])
@@ -876,9 +876,9 @@
   ret)
 
 (defn accumulate2
-  `The 2-argument version of accumulate that does not take an initialization value.
-  The first value in ind will be added to the array as is, so the length of the
-  return value will be (length ind).`
+  ``The 2-argument version of `accumulate` that does not take an initialization value.
+  The first value in `ind` will be added to the array as is, so the length of the
+  return value will be `(length ind)`.``
   [f ind]
   (var k (next ind))
   (def ret @[])
@@ -947,8 +947,8 @@
   res)
 
 (defn mapcat
-  `Map a function over every element in an array or tuple and
-  use array to concatenate the results.`
+  ``Map a function over every element in an array or tuple and
+  use `array/concat` to concatenate the results.``
   [f ind]
   (def res @[])
   (each x ind
@@ -956,8 +956,8 @@
   res)
 
 (defn filter
-  `Given a predicate, take only elements from an array or tuple for
-  which (pred element) is truthy. Returns a new array.`
+  ``Given a predicate, take only elements from an array or tuple for
+  which `(pred element)` is truthy. Returns a new array.``
   [pred ind]
   (def res @[])
   (each item ind
@@ -966,8 +966,8 @@
   res)
 
 (defn count
-  `Count the number of items in ind for which (pred item)
-  is true.`
+  ``Count the number of items in `ind` for which `(pred item)`
+  is true.``
   [pred ind]
   (var counter 0)
   (each item ind
@@ -989,7 +989,7 @@
 
 (defn range
   `Create an array of values [start, end) with a given step.
-  With one argument returns a range [0, end). With two arguments, returns
+  With one argument, returns a range [0, end). With two arguments, returns
   a range [start, end). With three, returns a range with optional step size.`
   [& args]
   (case (length args)
@@ -1012,7 +1012,7 @@
     (error "expected 1 to 3 arguments to range")))
 
 (defn find-index
-  `Find the index of indexed type for which pred is true. Returns dflt if not found.`
+  ``Find the index of indexed type for which `pred` is true. Returns `dflt` if not found.``
   [pred ind &opt dflt]
   (var k nil)
   (var ret dflt)
@@ -1026,8 +1026,8 @@
   ret)
 
 (defn find
-  `Find the first value in an indexed collection that satisfies a predicate. Returns
-  dflt if not found.`
+  ``Find the first value in an indexed collection that satisfies a predicate. Returns
+  `dflt` if not found.``
   [pred ind &opt dflt]
   (var k nil)
   (var ret dflt)
@@ -1041,9 +1041,9 @@
   ret)
 
 (defn index-of
-  `Find the first key associated with a value x in a data structure, acting like a reverse lookup.
+  ``Find the first key associated with a value x in a data structure, acting like a reverse lookup.
   Will not look at table prototypes.
-  Returns dflt if not found.`
+  Returns `dflt` if not found.``
   [x ind &opt dflt]
   (var k (next ind nil))
   (var ret dflt)
@@ -1103,8 +1103,8 @@
     (take-until-fallback pred ind)))
 
 (defn take-while
-  `Given a predicate, take only elements from a fiber, indexed or bytes type that satisfy
-  the predicate, and abort on first failure. Returns a new array, tuple or string, respectively.`
+  `Given a predicate, take only elements from a fiber, indexed, or bytes type that satisfy
+  the predicate, and abort on first failure. Returns a new array, tuple, or string, respectively.`
   [pred ind]
   (take-until (complement pred) ind))
 
@@ -1137,8 +1137,8 @@
   (drop-until (complement pred) ind))
 
 (defn juxt*
-  `Returns the juxtaposition of functions. In other words,
-  ((juxt* a b c) x) evaluates to [(a x) (b x) (c x)].`
+  ``Returns the juxtaposition of functions. In other words,
+  `((juxt* a b c) x)` evaluates to `[(a x) (b x) (c x)]`.``
   [& funs]
   (fn [& args]
     (def ret @[])
@@ -1158,7 +1158,7 @@
 (defmacro defdyn
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
-  a keyword to prevent typos. Defdyn does not set dynamic bindings or otherwise
+  a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
   replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
   called "earmuffs".``
   [alias & more]
@@ -1168,8 +1168,8 @@
   (def kw (keyword prefix (slice alias 1 -2)))
   ~(def ,alias :dyn ,;more ,kw))
 
-(defdyn *defdyn-prefix* "Optional namespace prefix to add to keywords declared with `defdyn`.
-  Use this to prevent keyword collisions between dynamic bindings.")
+(defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
+  Use this to prevent keyword collisions between dynamic bindings.``)
 (defdyn *out* "Where normal print functions print output to.")
 (defdyn *err* "Where error printing prints output to.")
 (defdyn *redef* "When set, allow dynamically rebinding top level defs. Will slow generated code and is intended to be used for development.")
@@ -1278,10 +1278,10 @@
   ret)
 
 (defn walk
-  `Iterate over the values in ast and apply f
+  ``Iterate over the values in ast and apply `f`
   to them. Collect the results in a data structure. If ast is not a
   table, struct, array, or tuple,
-  returns form.`
+  returns form.``
   [f form]
   (case (type form)
     :table (walk-dict f form)
@@ -1294,8 +1294,8 @@
     form))
 
 (defn postwalk
-  `Do a post-order traversal of a data structure and call (f x)
-  on every visitation.`
+  ``Do a post-order traversal of a data structure and call `(f x)`
+  on every visitation.``
   [f form]
   (f (walk (fn [x] (postwalk f x)) form)))
 
