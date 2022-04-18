@@ -164,7 +164,7 @@ void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x) {
 
 JANET_CORE_FN(cfun_buffer_new,
               "(buffer/new capacity)",
-              "Creates a new, empty buffer with enough backing memory for capacity bytes. "
+              "Creates a new, empty buffer with enough backing memory for `capacity` bytes. "
               "Returns a new buffer of length 0.") {
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
@@ -174,7 +174,7 @@ JANET_CORE_FN(cfun_buffer_new,
 
 JANET_CORE_FN(cfun_buffer_new_filled,
               "(buffer/new-filled count &opt byte)",
-              "Creates a new buffer of length count filled with byte. By default, byte is 0. "
+              "Creates a new buffer of length `count` filled with `byte`. By default, `byte` is 0. "
               "Returns the new buffer.") {
     janet_arity(argc, 1, 2);
     int32_t count = janet_getinteger(argv, 0);
@@ -313,7 +313,7 @@ JANET_CORE_FN(cfun_buffer_clear,
 
 JANET_CORE_FN(cfun_buffer_popn,
               "(buffer/popn buffer n)",
-              "Removes the last n bytes from the buffer. Returns the modified buffer.") {
+              "Removes the last `n` bytes from the buffer. Returns the modified buffer.") {
     janet_fixarity(argc, 2);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int32_t n = janet_getinteger(argv, 1);
@@ -328,9 +328,9 @@ JANET_CORE_FN(cfun_buffer_popn,
 
 JANET_CORE_FN(cfun_buffer_slice,
               "(buffer/slice bytes &opt start end)",
-              "Takes a slice of a byte sequence from start to end. The range is half open, "
+              "Takes a slice of a byte sequence from `start` to `end`. The range is half open, "
               "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-              "end of the array. By default, start is 0 and end is the length of the buffer. "
+              "end of the array. By default, `start` is 0 and `end` is the length of the buffer. "
               "Returns a new buffer.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
@@ -400,9 +400,9 @@ JANET_CORE_FN(cfun_buffer_bittoggle,
 
 JANET_CORE_FN(cfun_buffer_blit,
               "(buffer/blit dest src &opt dest-start src-start src-end)",
-              "Insert the contents of src into dest. Can optionally take indices that "
-              "indicate which part of src to copy into which part of dest. Indices can be "
-              "negative to index from the end of src or dest. Returns dest.") {
+              "Insert the contents of `src` into `dest`. Can optionally take indices that "
+              "indicate which part of `src` to copy into which part of `dest`. Indices can be "
+              "negative in order to index from the end of `src` or `dest`. Returns `dest`.") {
     janet_arity(argc, 2, 5);
     JanetBuffer *dest = janet_getbuffer(argv, 0);
     JanetByteView src = janet_getbytes(argv, 1);
