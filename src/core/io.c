@@ -546,27 +546,27 @@ JANET_CORE_FN(cfun_io_print,
               "(print & xs)",
               "Print values to the console (standard out). Value are converted "
               "to strings if they are not already. After printing all values, a "
-              "newline character is printed. Use the value of (dyn :out stdout) to determine "
-              "what to push characters to. Expects (dyn :out stdout) to be either a core/file or "
+              "newline character is printed. Use the value of `(dyn :out stdout)` to determine "
+              "what to push characters to. Expects `(dyn :out stdout)` to be either a core/file or "
               "a buffer. Returns nil.") {
     return cfun_io_print_impl(argc, argv, 1, "out", stdout);
 }
 
 JANET_CORE_FN(cfun_io_prin,
               "(prin & xs)",
-              "Same as print, but does not add trailing newline.") {
+              "Same as `print`, but does not add trailing newline.") {
     return cfun_io_print_impl(argc, argv, 0, "out", stdout);
 }
 
 JANET_CORE_FN(cfun_io_eprint,
               "(eprint & xs)",
-              "Same as print, but uses (dyn :err stderr) instead of (dyn :out stdout).") {
+              "Same as `print`, but uses `(dyn :err stderr)` instead of `(dyn :out stdout)`.") {
     return cfun_io_print_impl(argc, argv, 1, "err", stderr);
 }
 
 JANET_CORE_FN(cfun_io_eprin,
               "(eprin & xs)",
-              "Same as prin, but uses (dyn :err stderr) instead of (dyn :out stdout).") {
+              "Same as `prin`, but uses `(dyn :err stderr)` instead of `(dyn :out stdout)`.") {
     return cfun_io_print_impl(argc, argv, 0, "err", stderr);
 }
 
@@ -574,7 +574,7 @@ JANET_CORE_FN(cfun_io_xprint,
               "(xprint to & xs)",
               "Print to a file or other value explicitly (no dynamic bindings) with a trailing "
               "newline character. The value to print "
-              "to is the first argument, and is otherwise the same as print. Returns nil.") {
+              "to is the first argument, and is otherwise the same as `print`. Returns nil.") {
     janet_arity(argc, 1, -1);
     return cfun_io_print_impl_x(argc, argv, 1, NULL, 1, argv[0]);
 }
@@ -582,7 +582,7 @@ JANET_CORE_FN(cfun_io_xprint,
 JANET_CORE_FN(cfun_io_xprin,
               "(xprin to & xs)",
               "Print to a file or other value explicitly (no dynamic bindings). The value to print "
-              "to is the first argument, and is otherwise the same as prin. Returns nil.") {
+              "to is the first argument, and is otherwise the same as `prin`. Returns nil.") {
     janet_arity(argc, 1, -1);
     return cfun_io_print_impl_x(argc, argv, 0, NULL, 1, argv[0]);
 }
@@ -640,38 +640,38 @@ static Janet cfun_io_printf_impl(int32_t argc, Janet *argv, int newline,
 
 JANET_CORE_FN(cfun_io_printf,
               "(printf fmt & xs)",
-              "Prints output formatted as if with (string/format fmt ;xs) to (dyn :out stdout) with a trailing newline.") {
+              "Prints output formatted as if with `(string/format fmt ;xs)` to `(dyn :out stdout)` with a trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 1, "out", stdout);
 }
 
 JANET_CORE_FN(cfun_io_prinf,
               "(prinf fmt & xs)",
-              "Like printf but with no trailing newline.") {
+              "Like `printf` but with no trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 0, "out", stdout);
 }
 
 JANET_CORE_FN(cfun_io_eprintf,
               "(eprintf fmt & xs)",
-              "Prints output formatted as if with (string/format fmt ;xs) to (dyn :err stderr) with a trailing newline.") {
+              "Prints output formatted as if with `(string/format fmt ;xs)` to `(dyn :err stderr)` with a trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 1, "err", stderr);
 }
 
 JANET_CORE_FN(cfun_io_eprinf,
               "(eprinf fmt & xs)",
-              "Like eprintf but with no trailing newline.") {
+              "Like `eprintf` but with no trailing newline.") {
     return cfun_io_printf_impl(argc, argv, 0, "err", stderr);
 }
 
 JANET_CORE_FN(cfun_io_xprintf,
               "(xprintf to fmt & xs)",
-              "Like printf but prints to an explicit file or value to. Returns nil.") {
+              "Like `printf` but prints to an explicit file or value `to`. Returns nil.") {
     janet_arity(argc, 2, -1);
     return cfun_io_printf_impl_x(argc, argv, 1, NULL, 1, argv[0]);
 }
 
 JANET_CORE_FN(cfun_io_xprinf,
               "(xprinf to fmt & xs)",
-              "Like prinf but prints to an explicit file or value to. Returns nil.") {
+              "Like `prinf` but prints to an explicit file or value `to`. Returns nil.") {
     janet_arity(argc, 2, -1);
     return cfun_io_printf_impl_x(argc, argv, 0, NULL, 1, argv[0]);
 }
@@ -696,7 +696,7 @@ static void janet_flusher(const char *name, FILE *dflt_file) {
 
 JANET_CORE_FN(cfun_io_flush,
               "(flush)",
-              "Flush (dyn :out stdout) if it is a file, otherwise do nothing.") {
+              "Flush `(dyn :out stdout)` if it is a file, otherwise do nothing.") {
     janet_fixarity(argc, 0);
     (void) argv;
     janet_flusher("out", stdout);
@@ -705,7 +705,7 @@ JANET_CORE_FN(cfun_io_flush,
 
 JANET_CORE_FN(cfun_io_eflush,
               "(eflush)",
-              "Flush (dyn :err stderr) if it is a file, otherwise do nothing.") {
+              "Flush `(dyn :err stderr)` if it is a file, otherwise do nothing.") {
     janet_fixarity(argc, 0);
     (void) argv;
     janet_flusher("err", stderr);
