@@ -231,7 +231,7 @@ static Janet janet_rng_next(void *p, Janet key) {
 /* Get a random number */
 JANET_CORE_FN(janet_rand,
               "(math/random)",
-              "Returns a uniformly distributed random number between 0 and 1") {
+              "Returns a uniformly distributed random number between 0 and 1.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_number(janet_rng_double(&janet_vm.rng));
@@ -240,7 +240,7 @@ JANET_CORE_FN(janet_rand,
 /* Seed the random number generator */
 JANET_CORE_FN(janet_srand,
               "(math/seedrandom seed)",
-              "Set the seed for the random number generator. seed should be "
+              "Set the seed for the random number generator. `seed` should be "
               "an integer or a buffer."
              ) {
     janet_fixarity(argc, 1);
@@ -261,7 +261,7 @@ JANET_CORE_FN(janet_##name, "(math/" #name " x)", doc) {\
     return janet_wrap_number(fop(x)); \
 }
 
-JANET_DEFINE_MATHOP(acos, acos, "Returns the arccosize of x.")
+JANET_DEFINE_MATHOP(acos, acos, "Returns the arccosine of x.")
 JANET_DEFINE_MATHOP(asin, asin, "Returns the arcsin of x.")
 JANET_DEFINE_MATHOP(atan, atan, "Returns the arctangent of x.")
 JANET_DEFINE_MATHOP(cos, cos, "Returns the cosine of x.")
