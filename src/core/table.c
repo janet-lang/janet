@@ -296,8 +296,8 @@ JanetTable *janet_table_proto_flatten(JanetTable *t) {
 JANET_CORE_FN(cfun_table_new,
               "(table/new capacity)",
               "Creates a new empty table with pre-allocated memory "
-              "for capacity entries. This means that if one knows the number of "
-              "entries going to go in a table on creation, extra memory allocation "
+              "for `capacity` entries. This means that if one knows the number of "
+              "entries going into a table on creation, extra memory allocation "
               "can be avoided. Returns the new table.") {
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
@@ -306,7 +306,7 @@ JANET_CORE_FN(cfun_table_new,
 
 JANET_CORE_FN(cfun_table_getproto,
               "(table/getproto tab)",
-              "Get the prototype table of a table. Returns nil if a table "
+              "Get the prototype table of a table. Returns nil if the table "
               "has no prototype, otherwise returns the prototype.") {
     janet_fixarity(argc, 1);
     JanetTable *t = janet_gettable(argv, 0);
@@ -317,7 +317,7 @@ JANET_CORE_FN(cfun_table_getproto,
 
 JANET_CORE_FN(cfun_table_setproto,
               "(table/setproto tab proto)",
-              "Set the prototype of a table. Returns the original table tab.") {
+              "Set the prototype of a table. Returns the original table `tab`.") {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
     JanetTable *proto = NULL;
@@ -339,8 +339,8 @@ JANET_CORE_FN(cfun_table_tostruct,
 
 JANET_CORE_FN(cfun_table_rawget,
               "(table/rawget tab key)",
-              "Gets a value from a table without looking at the prototype table. "
-              "If a table tab does not contain t directly, the function will return "
+              "Gets a value from a table `tab` without looking at the prototype table. "
+              "If `tab` does not contain the key directly, the function will return "
               "nil without checking the prototype. Returns the value in the table.") {
     janet_fixarity(argc, 2);
     JanetTable *table = janet_gettable(argv, 0);
