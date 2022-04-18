@@ -883,7 +883,7 @@ const JanetAbstractType janet_parser_type = {
 JANET_CORE_FN(cfun_parse_parser,
               "(parser/new)",
               "Creates and returns a new parser object. Parsers are state machines "
-              "that can receive bytes, and generate a stream of values.") {
+              "that can receive bytes and generate a stream of values.") {
     (void) argv;
     janet_fixarity(argc, 0);
     JanetParser *p = janet_abstract(&janet_parser_type, sizeof(JanetParser));
@@ -894,7 +894,7 @@ JANET_CORE_FN(cfun_parse_parser,
 JANET_CORE_FN(cfun_parse_consume,
               "(parser/consume parser bytes &opt index)",
               "Input bytes into the parser and parse them. Will not throw errors "
-              "if there is a parse error. Starts at the byte index given by index. Returns "
+              "if there is a parse error. Starts at the byte index given by `index`. Returns "
               "the number of bytes read.") {
     janet_arity(argc, 2, 3);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
@@ -922,7 +922,7 @@ JANET_CORE_FN(cfun_parse_consume,
 
 JANET_CORE_FN(cfun_parse_eof,
               "(parser/eof parser)",
-              "Indicate that the end of file was reached to the parser. This puts the parser in the :dead state.") {
+              "Indicate to the parser that the end of file was reached. This puts the parser in the :dead state.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     janet_parser_eof(p);
@@ -982,7 +982,7 @@ JANET_CORE_FN(cfun_parse_has_more,
 
 JANET_CORE_FN(cfun_parse_byte,
               "(parser/byte parser b)",
-              "Input a single byte into the parser byte stream. Returns the parser.") {
+              "Input a single byte `b` into the parser byte stream. Returns the parser.") {
     janet_fixarity(argc, 2);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     int32_t i = janet_getinteger(argv, 1);
@@ -1022,7 +1022,7 @@ JANET_CORE_FN(cfun_parse_error,
               "If the parser is in the error state, returns the message associated with "
               "that error. Otherwise, returns nil. Also flushes the parser state and parser "
               "queue, so be sure to handle everything in the queue before calling "
-              "parser/error.") {
+              "`parser/error`.") {
     janet_fixarity(argc, 1);
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     const char *err = janet_parser_error(p);
