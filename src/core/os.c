@@ -550,8 +550,8 @@ JANET_CORE_FN(os_proc_wait,
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait)",
               "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-              "handle on windows. If wait is truthy, will wait for the process to finish and "
-              "returns the exit code. Otherwise, returns proc.") {
+              "handle on windows. If `wait` is truthy, will wait for the process to finish and "
+              "returns the exit code. Otherwise, returns `proc`.") {
     janet_arity(argc, 1, 2);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
@@ -1074,10 +1074,10 @@ JANET_CORE_FN(os_execute,
 
 JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
-              "Execute a program on the system and return a handle to the process. Otherwise, the "
-              "same arguments as os/execute. Does not wait for the process. "
-              "The returned value has the fields :in, :out, :err, :return-code and "
-              "the additional field :pid on unix like platforms.") {
+              "Execute a program on the system and return a handle to the process. Otherwise, takes the "
+              "same arguments as `os/execute`. Does not wait for the process. "
+              "The returned value has the fields :in, :out, :err, :return-code, and "
+              "the additional field :pid on unix-like platforms.") {
     return os_execute_impl(argc, argv, 1);
 }
 
@@ -1117,7 +1117,7 @@ JANET_CORE_FN(os_shell,
 
 JANET_CORE_FN(os_environ,
               "(os/environ)",
-              "Get a copy of the os environment table.") {
+              "Get a copy of the OS environment table.") {
     (void) argv;
     janet_fixarity(argc, 0);
     int32_t nenv = 0;
@@ -1198,7 +1198,7 @@ JANET_CORE_FN(os_time,
 JANET_CORE_FN(os_clock,
               "(os/clock)",
               "Return the number of whole + fractional seconds since some fixed point in time. The clock "
-              "is guaranteed to be non decreasing in real time.") {
+              "is guaranteed to be non-decreasing in real time.") {
     janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
@@ -1209,7 +1209,7 @@ JANET_CORE_FN(os_clock,
 
 JANET_CORE_FN(os_sleep,
               "(os/sleep n)",
-              "Suspend the program for n seconds. 'nsec' can be a real number. Returns "
+              "Suspend the program for `n` seconds. `n` can be a real number. Returns "
               "nil.") {
     janet_fixarity(argc, 1);
     double delay = janet_getnumber(argv, 0);
@@ -1246,7 +1246,7 @@ JANET_CORE_FN(os_cwd,
 
 JANET_CORE_FN(os_cryptorand,
               "(os/cryptorand n &opt buf)",
-              "Get or append n bytes of good quality random data provided by the OS. Returns a new buffer or buf.") {
+              "Get or append `n` bytes of good quality random data provided by the OS. Returns a new buffer or `buf`.") {
     JanetBuffer *buffer;
     janet_arity(argc, 1, 2);
     int32_t offset;
@@ -1383,9 +1383,9 @@ static timeint_t entry_getint(Janet env_entry, char *field) {
 JANET_CORE_FN(os_mktime,
               "(os/mktime date-struct &opt local)",
               "Get the broken down date-struct time expressed as the number "
-              " of seconds since January 1, 1970, the Unix epoch. "
+              "of seconds since January 1, 1970, the Unix epoch. "
               "Returns a real number. "
-              "Date is given in UTC unless local is truthy, in which case the "
+              "Date is given in UTC unless `local` is truthy, in which case the "
               "date is computed for the local timezone.\n\n"
               "Inverse function to os/date.") {
     janet_arity(argc, 1, 2);
@@ -1456,7 +1456,7 @@ JANET_CORE_FN(os_link,
 
 JANET_CORE_FN(os_symlink,
               "(os/symlink oldpath newpath)",
-              "Create a symlink from oldpath to newpath, returning nil. Same as (os/link oldpath newpath true).") {
+              "Create a symlink from oldpath to newpath, returning nil. Same as `(os/link oldpath newpath true)`.") {
     janet_fixarity(argc, 2);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1831,10 +1831,10 @@ JANET_CORE_FN(os_stat,
               "* :uid - File uid\n\n"
               "* :gid - File gid\n\n"
               "* :nlink - number of links to file\n\n"
-              "* :rdev - Real device of file. 0 on windows.\n\n"
+              "* :rdev - Real device of file. 0 on Windows\n\n"
               "* :size - size of file in bytes\n\n"
-              "* :blocks - number of blocks in file. 0 on windows\n\n"
-              "* :blocksize - size of blocks in file. 0 on windows\n\n"
+              "* :blocks - number of blocks in file. 0 on Windows\n\n"
+              "* :blocksize - size of blocks in file. 0 on Windows\n\n"
               "* :accessed - timestamp when file last accessed\n\n"
               "* :changed - timestamp when file last changed (permissions changed)\n\n"
               "* :modified - timestamp when file last modified (content changed)\n") {
@@ -1849,9 +1849,9 @@ JANET_CORE_FN(os_lstat,
 
 JANET_CORE_FN(os_chmod,
               "(os/chmod path mode)",
-              "Change file permissions, where mode is a permission string as returned by "
-              "os/perm-string, or an integer as returned by os/perm-int. "
-              "When mode is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
+              "Change file permissions, where `mode` is a permission string as returned by "
+              "`os/perm-string`, or an integer as returned by `os/perm-int`. "
+              "When `mode` is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
               "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.") {
     janet_fixarity(argc, 2);
     const char *path = janet_getcstring(argv, 0);
@@ -1953,9 +1953,9 @@ JANET_CORE_FN(os_realpath,
 
 JANET_CORE_FN(os_permission_string,
               "(os/perm-string int)",
-              "Convert a Unix octal permission value from a permission integer as returned by os/stat "
+              "Convert a Unix octal permission value from a permission integer as returned by `os/stat` "
               "to a human readable string, that follows the formatting "
-              "of unix tools like ls. Returns the string as a 9 character string of r, w, x and - characters. Does not "
+              "of Unix tools like `ls`. Returns the string as a 9-character string of r, w, x and - characters. Does not "
               "include the file/directory/symlink character as rendered by `ls`.") {
     janet_fixarity(argc, 1);
     return os_make_permstring(os_get_unix_mode(argv, 0));
@@ -1963,7 +1963,7 @@ JANET_CORE_FN(os_permission_string,
 
 JANET_CORE_FN(os_permission_int,
               "(os/perm-int bytes)",
-              "Parse a 9 character permission string and return an integer that can be used by chmod.") {
+              "Parse a 9-character permission string and return an integer that can be used by chmod.") {
     janet_fixarity(argc, 1);
     return janet_wrap_integer(os_get_unix_mode(argv, 0));
 }
@@ -1982,7 +1982,7 @@ static jmode_t os_optmode(int32_t argc, const Janet *argv, int32_t n, int32_t df
 JANET_CORE_FN(os_open,
               "(os/open path &opt flags mode)",
               "Create a stream from a file, like the POSIX open system call. Returns a new stream. "
-              "mode should be a file mode as passed to os/chmod, but only if the create flag is given. "
+              "`mode` should be a file mode as passed to `os/chmod`, but only if the create flag is given. "
               "The default mode is 8r666. "
               "Allowed flags are as follows:\n\n"
               "  * :r - open this file for reading\n"
@@ -1990,11 +1990,11 @@ JANET_CORE_FN(os_open,
               "  * :c - create a new file (O_CREATE)\n"
               "  * :e - fail if the file exists (O_EXCL)\n"
               "  * :t - shorten an existing file to length 0 (O_TRUNC)\n\n"
-              "Posix only flags:\n\n"
+              "Posix-only flags:\n\n"
               "  * :a - append to a file (O_APPEND)\n"
               "  * :x - O_SYNC\n"
               "  * :C - O_NOCTTY\n\n"
-              "Windows only flags:\n\n"
+              "Windows-only flags:\n\n"
               "  * :R - share reads (FILE_SHARE_READ)\n"
               "  * :W - share writes (FILE_SHARE_WRITE)\n"
               "  * :D - share deletes (FILE_SHARE_DELETE)\n"
@@ -2147,7 +2147,7 @@ JANET_CORE_FN(os_open,
 
 JANET_CORE_FN(os_pipe,
               "(os/pipe)",
-              "Create a readable stream and a writable stream that are connected. Returns a two element "
+              "Create a readable stream and a writable stream that are connected. Returns a two-element "
               "tuple where the first element is a readable stream and the second element is the writable "
               "stream.") {
     (void) argv;
