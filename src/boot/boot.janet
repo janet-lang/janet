@@ -206,7 +206,7 @@
 
 (defmacro case
   ``Select the body that equals the dispatch value. When `pairs`
-  is an odd number of arguments, the last is the default expression.
+  has an odd number of elements, the last is the default expression.
   If no match is found, returns nil.``
   [dispatch & pairs]
   (def atm (idempotent? dispatch))
@@ -1147,7 +1147,7 @@
     (tuple/slice ret 0)))
 
 (defmacro juxt
-  "Macro form of juxt*. Same behavior but more efficient."
+  "Macro form of `juxt*`. Same behavior but more efficient."
   [& funs]
   (def parts @['tuple])
   (def $args (gensym))
@@ -1193,8 +1193,8 @@
   "Bound to the name of the currently compiling file.")
 
 (defmacro tracev
-  `Print a value and a description of the form that produced that value to
-  stderr. Evaluates to x.`
+  `Print to stderr a value and a description of the form that produced that value.
+  Evaluates to x.`
   [x]
   (def [l c] (tuple/sourcemap (dyn *macro-form* ())))
   (def cf (dyn *current-file*))
@@ -1209,9 +1209,9 @@
      ,s))
 
 (defmacro ->
-  `Threading macro. Inserts x as the second value in the first form
-  in forms, and inserts the modified first form into the second form
-  in the same manner, and so on. Useful for expressing pipelines of data.`
+  ``Threading macro. Inserts x as the second value in the first form
+  in `forms`, and inserts the modified first form into the second form
+  in the same manner, and so on. Useful for expressing pipelines of data.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1222,9 +1222,9 @@
   (reduce fop x forms))
 
 (defmacro ->>
-  `Threading macro. Inserts x as the last value in the first form
-  in forms, and inserts the modified first form into the second form
-  in the same manner, and so on. Useful for expressing pipelines of data.`
+  ``Threading macro. Inserts x as the last value in the first form
+  in `forms`, and inserts the modified first form into the second form
+  in the same manner, and so on. Useful for expressing pipelines of data.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1235,11 +1235,11 @@
   (reduce fop x forms))
 
 (defmacro -?>
-  `Short circuit threading macro. Inserts x as the second value in the first form
-  in forms, and inserts the modified first form into the second form
+  ``Short circuit threading macro. Inserts x as the second value in the first form
+  in `forms`, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
-  Useful for expressing pipelines of data.`
+  Useful for expressing pipelines of data.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1251,11 +1251,11 @@
   (reduce fop x forms))
 
 (defmacro -?>>
-  `Short circuit threading macro. Inserts x as the last value in the first form
-  in forms, and inserts the modified first form into the second form
+  ``Short circuit threading macro. Inserts x as the last value in the first form
+  in `forms`, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
-  Useful for expressing pipelines of data.`
+  Useful for expressing pipelines of data.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1300,14 +1300,14 @@
   (f (walk (fn [x] (postwalk f x)) form)))
 
 (defn prewalk
-  "Similar to postwalk, but do pre-order traversal."
+  "Similar to `postwalk`, but do pre-order traversal."
   [f form]
   (walk (fn [x] (prewalk f x)) (f form)))
 
 (defmacro as->
-  `Thread forms together, replacing as in forms with the value
-  of the previous form. The first for is the value x. Returns the
-  last value.`
+  ``Thread forms together, replacing `as` in `forms` with the value
+  of the previous form. The first form is the value x. Returns the
+  last value.``
   [x as & forms]
   (var prev x)
   (each form forms
@@ -1317,10 +1317,10 @@
   prev)
 
 (defmacro as?->
-  `Thread forms together, replacing as in forms with the value
-  of the previous form. The first for is the value x. If any
+  ``Thread forms together, replacing `as` in `forms` with the value
+  of the previous form. The first form is the value x. If any
   intermediate values are falsey, return nil; otherwise, returns the
-  last value.`
+  last value.``
   [x as & forms]
   (var prev x)
   (each form forms
@@ -1333,7 +1333,7 @@
   `Run a block of code in a new fiber that has some
   dynamic bindings set. The fiber will not mask errors
   or signals, but the dynamic bindings will be properly
-  unset, as dynamic bindings are fiber local.`
+  unset, as dynamic bindings are fiber-local.`
   [bindings & body]
   (def dyn-forms
     (seq [i :range [0 (length bindings) 2]]
@@ -1341,8 +1341,8 @@
   ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
 (defmacro with-vars
-  `Evaluates body with each var in vars temporarily bound. Similar signature to
-  let, but each binding must be a var.`
+  ``Evaluates `body` with each var in `vars` temporarily bound. Similar signature to
+  `let`, but each binding must be a var.``
   [vars & body]
   (def len (length vars))
   (unless (even? len) (error "expected even number of argument to vars"))
@@ -1365,8 +1365,8 @@
     (fn [& r] (f ;more ;r))))
 
 (defn every?
-  `Returns true if each value in is truthy, otherwise the first
-  falsey value.`
+  ``Returns true if each value in `ind` is truthy, otherwise returns the first
+  falsey value.``
   [ind]
   (var res true)
   (loop [x :in ind :while res]
@@ -1374,8 +1374,7 @@
   res)
 
 (defn any?
-  `Returns the first truthy value in ind, otherwise nil.
-  falsey value.`
+  ``Returns the first truthy value in `ind`, otherwise nil.``
   [ind]
   (var res nil)
   (loop [x :in ind :until res]
@@ -1398,7 +1397,8 @@
 
 (defn reverse
   `Reverses the order of the elements in a given array or tuple and returns
-  a new array. If string or buffer is provided function returns array of chars reversed.`
+  a new array. If a string or buffer is provided, returns an array of its
+  byte values, reversed.`
   [t]
   (def len (length t))
   (var n (- len 1))
@@ -1409,9 +1409,9 @@
   ret)
 
 (defn invert
-  ``Returns a table where the keys of an associative data structure
-  are the values, and the values are the keys. If multiple keys in `ds`
-  are mapped to the same value, only one of those values will
+  ``Given an associative data structure `ds`, returns a new table where the
+  keys of `ds` are the values, and the values are the keys. If multiple keys
+  in `ds` are mapped to the same value, only one of those values will
   become a key in the returned table.``
   [ds]
   (def ret @{})
@@ -1435,18 +1435,18 @@
   res)
 
 (defn get-in
-  `Access a value in a nested data structure. Looks into the data structure via
-  a sequence of keys.`
+  ``Access a value in a nested data structure. Looks into the data structure via
+  a sequence of keys. If value is not found, and `dflt` is provided, returns `dflt`.``
   [ds ks &opt dflt]
   (var d ds)
   (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
   (if (= nil d) dflt d))
 
 (defn update-in
-  `Update a value in a nested data structure by applying f to the current value.
-  Looks into the data structure via
-  a sequence of keys. Missing data structures will be replaced with tables. Returns
-  the modified, original data structure.`
+  ``Update a value in a nested data structure `ds`. Looks into `ds` via a sequence of keys,
+  and replaces the value found there with `f` applied to that value.
+  Missing data structures will be replaced with tables. Returns
+  the modified, original data structure.``
   [ds ks f & args]
   (var d ds)
   (def len-1 (- (length ks) 1))
@@ -1465,10 +1465,9 @@
   ds)
 
 (defn put-in
-  `Put a value into a nested data structure.
-  Looks into the data structure via
+  ``Put a value into a nested data structure `ds`. Looks into `ds` via
   a sequence of keys. Missing data structures will be replaced with tables. Returns
-  the modified, original data structure.`
+  the modified, original data structure.``
   [ds ks v]
   (var d ds)
   (def len-1 (- (length ks) 1))
@@ -1487,17 +1486,16 @@
   ds)
 
 (defn update
-  ``Accepts a key argument and passes its associated value to a function.
-  The key is then re-associated to the function's return value. Returns the updated
-  data structure `ds`.``
+  ``For a given key in data structure `ds`, replace its corresponding value with the
+  result of calling `func` on that value. If `args` are provided, they will be passed
+  along to `func` as well. Returns `ds`, updated.``
   [ds key func & args]
   (def old (get ds key))
   (put ds key (func old ;args)))
 
 (defn merge-into
-  "Merges multiple tables/structs into a table. If a key appears in more than one
-  collection, then later values replace any previous ones.
-  Returns the original table."
+  ``Merges multiple tables/structs into table `tab`. If a key appears in more than one
+  collection in `colls`, then later values replace any previous ones. Returns `tab`.``
   [tab & colls]
   (loop [c :in colls
          key :keys c]
@@ -1505,9 +1503,9 @@
   tab)
 
 (defn merge
-  `Merges multiple tables/structs to one. If a key appears in more than one
-  collection, then later values replace any previous ones.
-  Returns a new table.`
+  ``Merges multiple tables/structs into one new table. If a key appears in more than one
+  collection in `colls`, then later values replace any previous ones.
+  Returns the new table.``
   [& colls]
   (def container @{})
   (loop [c :in colls
@@ -1546,7 +1544,7 @@
   arr)
 
 (defn frequencies
-  "Get the number of occurrences of each value in a indexed structure."
+  "Get the number of occurrences of each value in an indexed data structure."
   [ind]
   (def freqs @{})
   (each x ind
@@ -1555,9 +1553,10 @@
   freqs)
 
 (defn group-by
-  ``Group elements of `ind` by a function `f` and put the results into a table. The keys of
-  the table are the distinct return values of `f`, and the values are arrays of all elements of `ind`
-  that are equal to that value.``
+  ``Group elements of `ind` by a function `f` and put the results into a new table. The keys of
+  the table are the distinct return values from calling `f` on the elements of `ind`. The values
+  of the table are arrays of all elements of `ind` for which `f` called on the element equals
+  that corresponding key.``
   [f ind]
   (def ret @{})
   (each x ind
@@ -1585,7 +1584,7 @@
   ret)
 
 (defn interleave
-  "Returns an array of the first elements of each col, then the second, etc."
+  "Returns an array of the first elements of each col, then the second elements, etc."
   [& cols]
   (def res @[])
   (def ncol (length cols))
@@ -1597,7 +1596,7 @@
   res)
 
 (defn distinct
-  "Returns an array of the deduplicated values in xs."
+  "Returns an array of the deduplicated values in `xs`."
   [xs]
   (def ret @[])
   (def seen @{})
@@ -1605,8 +1604,8 @@
   ret)
 
 (defn flatten-into
-  `Takes a nested array (tree), and appends the depth first traversal of
-  that array to an array 'into'. Returns array into.`
+  ``Takes a nested array (tree) `xs` and appends the depth first traversal of
+  `xs` to array `into`. Returns `into`.``
   [into xs]
   (each x xs
     (if (indexed? x)
@@ -1615,22 +1614,22 @@
   into)
 
 (defn flatten
-  `Takes a nested array (tree), and returns the depth first traversal of
-  that array. Returns a new array.`
+  ``Takes a nested array (tree) `xs` and returns the depth first traversal of
+  it. Returns a new array.``
   [xs]
   (flatten-into @[] xs))
 
 (defn kvs
-  `Takes a table or struct and returns and array of key value pairs
-  like @[k v k v ...]. Returns a new array.`
+  ``Takes a table or struct and returns and array of key value pairs
+  like `@[k v k v ...]`. Returns a new array.``
   [dict]
   (def ret @[])
   (loop [k :keys dict] (array/push ret k (in dict k)))
   ret)
 
 (defn from-pairs
-  ``Takes a sequence of pairs and creates a table from each pair. The inverse of
-  `pairs` on a table.``
+  ``Takes a sequence of pairs and creates a table from each pair. It is the inverse of
+  `pairs` on a table. Returns a new table.``
   [ps]
   (def ret @{})
   (each [k v] ps
@@ -1638,8 +1637,8 @@
   ret)
 
 (defn interpose
-  `Returns a sequence of the elements of ind separated by
-  sep. Returns a new array.`
+  ``Returns a sequence of the elements of `ind` separated by
+  `sep`. Returns a new array.``
   [sep ind]
   (def len (length ind))
   (def ret (array/new (- (* 2 len) 1)))
@@ -1651,8 +1650,8 @@
   ret)
 
 (defn partition
-  `Partition an indexed data structure into tuples
-  of size n. Returns a new array.`
+  ``Partition an indexed data structure `ind` into tuples
+  of size `n`. Returns a new array.``
   [n ind]
   (var i 0) (var nextn n)
   (def len (length ind))
@@ -1672,8 +1671,7 @@
 ###
 
 (defn slurp
-  `Read all data from a file with name path
-  and then close the file.`
+  ``Read all data from a file with name `path` and then close the file.``
   [path]
   (def f (file/open path :rb))
   (if-not f (error (string "could not open file " path)))
@@ -1682,8 +1680,7 @@
   contents)
 
 (defn spit
-  `Write contents to a file at path.
-  Can optionally append to the file.`
+  ``Write `contents` to a file at `path`. Can optionally append to the file.``
   [path contents &opt mode]
   (default mode :wb)
   (def f (file/open path mode))
@@ -1696,7 +1693,7 @@
   "Format specifier for the `pp` function")
 
 (defn pp
-  `Pretty print to stdout or (dyn *out*). The format string used is (dyn *pretty-format* "%q").`
+  ``Pretty-print to stdout or `(dyn *out*)`. The format string used is `(dyn *pretty-format* "%q")`.``
   [x]
   (printf (dyn *pretty-format* "%q") x)
   (flush))
