@@ -546,19 +546,26 @@
 
   The available verbs are:
 
-  * `:iterate` - repeatedly evaluate and bind to the expression while it is
+  * `:iterate` -- repeatedly evaluate and bind to the expression while it is
     truthy.
-  * `:range` - loop over a range. The object should be a two-element tuple with
+  
+  * `:range` -- loop over a range. The object should be a two-element tuple with
     a start and end value, and an optional positive step. The range is half
     open, [start, end).
-  * `:range-to` - same as :range, but the range is inclusive [start, end].
-  * `:down` - loop over a range, stepping downwards. The object should be a
+                  
+  * `:range-to` -- same as :range, but the range is inclusive [start, end].
+                  
+  * `:down` -- loop over a range, stepping downwards. The object should be a
     two-element tuple with a start and (exclusive) end value, and an optional
     (positive!) step size.
-  * `:down-to` - same as :down, but the range is inclusive [start, end].
-  * `:keys` - iterate over the keys in a data structure.
-  * `:pairs` - iterate over the key-value pairs as tuples in a data structure.
-  * `:in` - iterate over the values in a data structure or fiber.
+                  
+  * `:down-to` -- same as :down, but the range is inclusive [start, end].
+                  
+  * `:keys` -- iterate over the keys in a data structure.
+                  
+  * `:pairs` -- iterate over the key-value pairs as tuples in a data structure.
+                  
+  * `:in` -- iterate over the values in a data structure or fiber.
 
   `loop` also accepts conditionals to refine the looping further. Conditionals are of
   the form:
@@ -568,18 +575,24 @@
   where `:modifier` is one of a set of keywords, and `argument` is keyword-dependent.
   `:modifier` can be one of:
 
-  * `:while expression` - breaks from the current loop if `expression` is
+  * `:while expression` -- breaks from the current loop if `expression` is
     falsey.
-  * `:until expression` - breaks from the current loop if `expression` is
+                  
+  * `:until expression` -- breaks from the current loop if `expression` is
     truthy.
-  * `:let bindings` - defines bindings inside the current loop as passed to the
+                  
+  * `:let bindings` -- defines bindings inside the current loop as passed to the
     `let` macro.
-  * `:before form` - evaluates a form for a side effect before the next inner
+                  
+  * `:before form` -- evaluates a form for a side effect before the next inner
     loop.
-  * `:after form` - same as `:before`, but the side effect happens after the
+                  
+  * `:after form` -- same as `:before`, but the side effect happens after the
     next inner loop.
-  * `:repeat n` - repeats the next inner loop `n` times.
-  * `:when condition` - only evaluates the current loop body when `condition`
+                  
+  * `:repeat n` -- repeats the next inner loop `n` times.
+                  
+  * `:when condition` -- only evaluates the current loop body when `condition`
     is true.
 
   The `loop` macro always evaluates to nil.
@@ -1920,12 +1933,12 @@
 ###
 
 (defdyn *macro-lints*
-  "Bound to an array of lint messgae that will be reported by the compiler inside a macro.
-  To indicate an error or warning, a macro author should use `maclintf`.")
+  ``Bound to an array of lint messages that will be reported by the compiler inside a macro.
+  To indicate an error or warning, a macro author should use `maclintf`.``)
 
 (defn maclintf
   ``When inside a macro, call this function to add a linter warning. Takes
-  a `fmt` argument like `string/format` which is used to format the message.``
+  a `fmt` argument like `string/format`, which is used to format the message.``
   [level fmt & args]
   (def lints (dyn *macro-lints*))
   (when lints
@@ -1939,7 +1952,7 @@
 
 (defn macex1
   ``Expand macros in a form, but do not recursively expand macros.
-  See `macex` docs for info on on-binding.``
+  See `macex` docs for info on `on-binding`.``
   [x &opt on-binding]
 
   (when on-binding
@@ -2039,24 +2052,24 @@
   ret)
 
 (defn all
-  `Returns true if all xs are truthy, otherwise the result of first
-  falsey predicate value, (pred x).`
+  ``Returns true if all `xs` are truthy, otherwise the result of first
+  falsey predicate value, `(pred x)`.``
   [pred xs]
   (var ret true)
   (loop [x :in xs :while ret] (set ret (pred x)))
   ret)
 
 (defn some
-  `Returns nil if all xs are false or nil, otherwise returns the result of the
-  first truthy predicate, (pred x).`
+  ``Returns nil if all `xs` are false or nil, otherwise returns the result of the
+  first truthy predicate, `(pred x)`.``
   [pred xs]
   (var ret nil)
   (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
   ret)
 
 (defn deep-not=
-  `Like not=, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than not=.`
+  ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `not=`.``
   [x y]
   (def tx (type x))
   (or
@@ -2070,8 +2083,8 @@
       (not= x y))))
 
 (defn deep=
-  `Like =, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than =.`
+  ``Like `=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `=`.``
   [x y]
   (not (deep-not= x y)))
 
@@ -2091,11 +2104,11 @@
     x))
 
 (defn macex
-  `Expand macros completely.
-  on-binding is an optional callback whenever a normal symbolic binding
-  is encounter. This allows macros to easily see all bindings use by their
-  arguments by calling macex on their contents. The binding itself is also
-  replaced by the value returned by on-binding within the expand macro.`
+  ``Expand macros completely.
+  `on-binding` is an optional callback for whenever a normal symbolic binding
+  is encountered. This allows macros to easily see all bindings used by their
+  arguments by calling `macex` on their contents. The binding itself is also
+  replaced by the value returned by `on-binding` within the expanded macro.``
   [x &opt on-binding]
   (var previous x)
   (var current (macex1 x on-binding))
@@ -2108,10 +2121,10 @@
   current)
 
 (defmacro varfn
-  `Create a function that can be rebound. varfn has the same signature
-  as defn, but defines functions in the environment as vars. If a var 'name'
+  ``Create a function that can be rebound. `varfn` has the same signature
+  as `defn`, but defines functions in the environment as vars. If a var `name`
   already exists in the environment, it is rebound to the new function. Returns
-  a function.`
+  a function.``
   [name & body]
   (def expansion (apply defn name body))
   (def fbody (last expansion))
@@ -2139,17 +2152,17 @@
 
 (defmacro short-fn
   ```
-  Shorthand for fn. Arguments are given as $n, where n is the 0-indexed
-  argument of the function. $ is also an alias for the first (index 0) argument.
-  The $& symbol will make the anonymous function variadic if it appears in the
-  body of the function - it can be combined with positional arguments.
+  Shorthand for `fn`. Arguments are given as `$n`, where `n` is the 0-indexed
+  argument of the function. `$` is also an alias for the first (index 0) argument.
+  The `$&` symbol will make the anonymous function variadic if it appears in the
+  body of the function, and can be combined with positional arguments.
 
   Example usage:
 
-    * (short-fn (+ $ $)) - A function that doubles its arguments.
-    * (short-fn (string $0 $1)) - accepting multiple args
-    * |(+ $ $) - use pipe reader macro for terse function literals
-    * |(+ $&) - variadic functions
+      (short-fn (+ $ $)) # A function that doubles its arguments.
+      (short-fn (string $0 $1)) # accepting multiple args.
+      |(+ $ $) # use pipe reader macro for terse function literals.
+      |(+ $&)  # variadic functions
   ```
   [arg]
   (var max-param-seen -1)
@@ -2187,8 +2200,8 @@
 ###
 
 (defdyn *peg-grammar*
-  "The implicit base grammar used when compiling PEGs. Any undefined keywords
-  found when compiling a peg will use lookup in this table (if defined).")
+  ``The implicit base grammar used when compiling PEGs. Any undefined keywords
+  found when compiling a peg will use lookup in this table (if defined).``)
 
 (def default-peg-grammar
   `The default grammar used for pegs. This grammar defines several common patterns
@@ -2260,8 +2273,8 @@
   (eflush))
 
 (defn- print-line-col
-  "Print the source code at a line, column in a source file. If unable to open
-  the file, prints nothing."
+  ``Print the source code at a line, column in a source file. If unable to open
+  the file, prints nothing.``
   [where line col]
   (if-not line (break))
   (unless (string? where) (break))
@@ -2280,7 +2293,7 @@
         (eprint (string/repeat " " (inc col)) "^")))))
 
 (defn warn-compile
-  "Default handler for a compile warning"
+  "Default handler for a compile warning."
   [msg level where &opt line col]
   (def ec (dyn *err-color*))
   (eprin
@@ -2318,8 +2331,8 @@
   (eflush))
 
 (defn curenv
-  `Get the current environment table. Same as (fiber/getenv (fiber/current)). If n
-  is provided, gets the nth prototype of the environment table.`
+  ``Get the current environment table. Same as `(fiber/getenv (fiber/current))`. If `n`
+  is provided, gets the nth prototype of the environment table.``
   [&opt n]
   (var e (fiber/getenv (fiber/current)))
   (if n (repeat n (if (= nil e) (break)) (set e (table/getproto e))))
@@ -2336,21 +2349,36 @@
   ```
   Run a context. This evaluates expressions in an environment,
   and encapsulates the parsing, compilation, and evaluation.
-  Returns (in environment :exit-value environment) when complete.
-  opts is a table or struct of options. The options are as follows:
+  Returns `(in environment :exit-value environment)` when complete.
+  `opts` is a table or struct of options. The options are as follows:
 
-    * `:chunks` - callback to read into a buffer - default is getline
-    * `:on-parse-error` - callback when parsing fails - default is bad-parse
-    * `:env` - the environment to compile against - default is the current env
-    * `:source` - source path for better errors (use keywords for non-paths) - default is :<anonymous>
-    * `:on-compile-error` - callback when compilation fails - default is bad-compile
-    * `:on-compile-warning` - callback for any linting error - default is warn-compile
-    * `:evaluator` - callback that executes thunks. Signature is (evaluator thunk source env where)
-    * `:on-status` - callback when a value is evaluated - default is debug/stacktrace.
-    * `:fiber-flags` - what flags to wrap the compilation fiber with. Default is :ia.
-    * `:expander` - an optional function that is called on each top level form before being compiled.
-    * `:parser` - provide a custom parser that implements the same interface as Janet's built-in parser.
-    * `:read` - optional function to get the next form, called like `(read env source)`.
+    * `:chunks` -- callback to read into a buffer - default is getline
+      
+    * `:on-parse-error` -- callback when parsing fails - default is bad-parse
+      
+    * `:env` -- the environment to compile against - default is the current env
+      
+    * `:source` -- source path for better errors (use keywords for non-paths) - default
+      is :<anonymous>
+      
+    * `:on-compile-error` -- callback when compilation fails - default is bad-compile
+      
+    * `:on-compile-warning` -- callback for any linting error - default is warn-compile
+      
+    * `:evaluator` -- callback that executes thunks. Signature is (evaluator thunk source
+      env where)
+      
+    * `:on-status` -- callback when a value is evaluated - default is debug/stacktrace.
+      
+    * `:fiber-flags` -- what flags to wrap the compilation fiber with. Default is :ia.
+      
+    * `:expander` -- an optional function that is called on each top level form before
+      being compiled.
+      
+    * `:parser` -- provide a custom parser that implements the same interface as Janet's
+      built-in parser.
+      
+    * `:read` -- optional function to get the next form, called like `(read env source)`.
       Overrides all parsing.
   ```
   [opts]
@@ -2492,17 +2520,16 @@
   (in env :exit-value env))
 
 (defn quit
-  `Tries to exit from the current repl or context. Does not always exit the application.
-  Works by setting the :exit dynamic binding to true. Passing a non-nil value here will cause the outer
-  run-context to return that value.`
+  ``Tries to exit from the current repl or context. Does not always exit the application.
+  Works by setting the :exit dynamic binding to true. Passing a non-nil `value` here will cause the outer
+  run-context to return that value.``
   [&opt value]
   (setdyn :exit true)
   (setdyn :exit-value value)
   nil)
 
 (defn eval-string
-  ``
-  Evaluates a string in the current environment. If more control over the
+  ``Evaluates a string in the current environment. If more control over the
   environment is needed, use `run-context`.``
   [str]
   (var state (string str))
@@ -2549,13 +2576,13 @@
         (error "no value")))))
 
 (def load-image-dict
-  `A table used in combination with unmarshal to unmarshal byte sequences created
-  by make-image, such that (load-image bytes) is the same as (unmarshal bytes load-image-dict).`
+  ``A table used in combination with `unmarshal` to unmarshal byte sequences created
+  by `make-image`, such that `(load-image bytes)` is the same as `(unmarshal bytes load-image-dict)`.``
   @{})
 
 (def make-image-dict
-  `A table used in combination with marshal to marshal code (images), such that
-  (make-image x) is the same as (marshal x make-image-dict).`
+  ``A table used in combination with `marshal` to marshal code (images), such that
+  `(make-image x)` is the same as `(marshal x make-image-dict)`.``
   @{})
 
 (defmacro comptime
@@ -2564,26 +2591,26 @@
   (eval x))
 
 (defmacro compif
-  "Check the condition cnd at compile time - if truthy, compile tru, else compile fals."
+  "Check the condition `cnd` at compile time -- if truthy, compile `tru`, else compile `fals`."
   [cnd tru &opt fals]
   (if (eval cnd)
     tru
     fals))
 
 (defmacro compwhen
-  "Check the condition cnd at compile time - if truthy, compile (upscope ;body), else compile nil."
+  "Check the condition `cnd` at compile time -- if truthy, compile `(upscope ;body)`, else compile nil."
   [cnd & body]
   (if (eval cnd)
     ~(upscope ,;body)))
 
 (defn make-image
-  `Create an image from an environment returned by require.
-  Returns the image source as a string.`
+  ``Create an image from an environment returned by `require`.
+  Returns the image source as a string.``
   [env]
   (marshal env make-image-dict))
 
 (defn load-image
-  "The inverse operation to make-image. Returns an environment."
+  "The inverse operation to `make-image`. Returns an environment."
   [image]
   (unmarshal image load-image-dict))
 
@@ -2593,18 +2620,18 @@
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (def module/cache
-  "Table mapping loaded module identifiers to their environments."
+  "A table, mapping loaded module identifiers to their environments."
   @{})
 
 (def module/paths
   ```
-  The list of paths to look for modules, templated for module/expand-path.
+  The list of paths to look for modules, templated for `module/expand-path`.
   Each element is a two-element tuple, containing the path
   template and a keyword :source, :native, or :image indicating how
-  require should load files found at these paths.
+  `require` should load files found at these paths.
 
   A tuple can also
-  contain a third element, specifying a filter that prevents module/find
+  contain a third element, specifying a filter that prevents `module/find`
   from searching that path template if the filter doesn't match the input
   path. The filter can be a string or a predicate function, and
   is often a file extension, including the period.
@@ -2658,7 +2685,7 @@
 
 (defn module/find
   ```
-  Try to match a module or path name from the patterns in module/paths.
+  Try to match a module or path name from the patterns in `module/paths`.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
   or :image if the module is found, otherwise a tuple with nil followed by
   an error message.
@@ -2686,15 +2713,15 @@
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
 (def module/loading
-  `Table mapping currently loading modules to true. Used to prevent
+  `A table, mapping currently loading modules to true. Used to prevent
   circular dependencies.`
   @{})
 
 (defn dofile
-  `Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
+  ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
   :source, :evaluator, :read, and :parser are passed through to the underlying
-  run-context call. If exit is true, any top level errors will trigger a
-  call to (os/exit 1) after printing the error.`
+  `run-context` call. If `exit` is true, any top level errors will trigger a
+  call to `(os/exit 1)` after printing the error.``
   [path &keys
    {:exit exit
     :env env
@@ -2762,9 +2789,9 @@
   nenv)
 
 (def module/loaders
-  `A table of loading method names to loading functions.
-  This table lets require and import load many different kinds
-  of files as modules.`
+  ``A table of loading method names to loading functions.
+  This table lets `require` and `import` load many different kinds
+  of files as modules.``
   @{:native (fn native-loader [path &] (native path (make-env)))
     :source (fn source-loader [path args]
               (put module/loading path true)
@@ -2793,17 +2820,17 @@
         env))))
 
 (defn require
-  `Require a module with the given name. Will search all of the paths in
-  module/paths. Returns the new environment
-  returned from compiling and running the file.`
+  ``Require a module with the given name. Will search all of the paths in
+  `module/paths`. Returns the new environment
+  returned from compiling and running the file.``
   [path & args]
   (require-1 path args (struct ;args)))
 
 (defn merge-module
-  `Merge a module source into the target environment with a prefix, as with the import macro.
-  This lets users emulate the behavior of import with a custom module table.
-  If export is truthy, then merged functions are not marked as private. Returns
-  the modified target environment.`
+  ``Merge a module source into the `target` environment with a `prefix`, as with the `import` macro.
+  This lets users emulate the behavior of `import` with a custom module table.
+  If `export` is truthy, then merged functions are not marked as private. Returns
+  the modified target environment.``
   [target source &opt prefix export]
   (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private))]
     (def newv (table/setproto @{:private (not export)} v))
@@ -2811,8 +2838,8 @@
   target)
 
 (defn import*
-  `Function form of import. Same parameters, but the path
-  and other symbol parameters should be strings instead.`
+  ``Function form of `import`. Same parameters, but the path
+  and other symbol parameters should be strings instead.``
   [path & args]
   (def env (curenv))
   (def kargs (table ;args))
@@ -2827,22 +2854,22 @@
   (merge-module env newenv prefix ep))
 
 (defmacro import
-  `Import a module. First requires the module, and then merges its
+  ``Import a module. First requires the module, and then merges its
   symbols into the current environment, prepending a given prefix as needed.
   (use the :as or :prefix option to set a prefix). If no prefix is provided,
-  use the name of the module as a prefix. One can also use :export true
-  to re-export the imported symbols. If :exit true is given as an argument,
-  any errors encountered at the top level in the module will cause (os/exit 1)
+  use the name of the module as a prefix. One can also use "`:export true`"
+  to re-export the imported symbols. If "`:exit true`" is given as an argument,
+  any errors encountered at the top level in the module will cause `(os/exit 1)`
   to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
-  module cache.`
+  module cache.``
   [path & args]
   (def ps (partition 2 args))
   (def argm (mapcat (fn [[k v]] [k (if (= k :as) (string v) v)]) ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
-  `Similar to import, but imported bindings are not prefixed with a module
-  identifier. Can also import multiple modules in one shot.`
+  ``Similar to `import`, but imported bindings are not prefixed with a module
+  identifier. Can also import multiple modules in one shot.``
   [& modules]
   ~(do ,;(map |~(,import* ,(string $) :prefix "") modules)))
 
@@ -2865,21 +2892,21 @@
   (sort (keys ret-set)))
 
 (defn all-bindings
-  `Get all symbols available in an environment. Defaults to the current
-  fiber's environment. If local is truthy, will not show inherited bindings
-  (from prototype tables).`
+  ``Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
   [&opt env local]
   (env-walk symbol? env local))
 
 (defn all-dynamics
-  `Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment. If local is truthy, will not show inherited bindings
-  (from prototype tables).`
+  ``Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
   [&opt env local]
   (env-walk keyword? env local))
 
 (defdyn *doc-width*
-  "Width in columns to print documentation printed with `doc-format`")
+  "Width in columns to print documentation printed with `doc-format`.")
 
 (defdyn *doc-color*
   "Whether or not to colorize documentation printed with `doc-format`.")
@@ -3147,7 +3174,7 @@
   buf)
 
 (defn- print-index
-  "Print bindings in the current environment given a filter function"
+  "Print bindings in the current environment given a filter function."
   [fltr]
   (def bindings (filter fltr (all-bindings)))
   (def dynamics (map describe (filter fltr (all-dynamics))))
@@ -3186,7 +3213,7 @@
          (string "    See https://janet-lang.org/docs/specials.html\n\n")))
 
 (defn doc*
-  "Get the documentation for a symbol in a given environment. Function form of doc."
+  "Get the documentation for a symbol in a given environment. Function form of `doc`."
   [&opt sym]
 
   (cond
@@ -3254,25 +3281,25 @@
   (dyn :signal))
 
 (defn .stack
-  "Print the current fiber stack"
+  "Print the current fiber stack."
   []
   (print)
   (with-dyns [*err-color* false] (debug/stacktrace (.fiber) (.signal) ""))
   (print))
 
 (defn .frame
-  "Show a stack frame"
+  "Show a stack frame."
   [&opt n]
   (def stack (debug/stack (.fiber)))
   (in stack (or n 0)))
 
 (defn .fn
-  "Get the current function"
+  "Get the current function."
   [&opt n]
   (in (.frame n) :function))
 
 (defn .slots
-  "Get an array of slots in a stack frame"
+  "Get an array of slots in a stack frame."
   [&opt n]
   (in (.frame n) :slots))
 
@@ -3297,7 +3324,7 @@
     ((.disasm n) :bytecode))
 
   (defn .ppasm
-    "Pretty prints the assembly for the current function"
+    "Pretty prints the assembly for the current function."
     [&opt n]
     (def frame (.frame n))
     (def func (frame :function))
@@ -3362,7 +3389,7 @@
   (print "Set breakpoint in " fun " at pc=" pc))
 
 (defn .clear
-  "Clear the current breakpoint"
+  "Clear the current breakpoint."
   []
   (def frame (.frame))
   (def fun (frame :function))
@@ -3411,8 +3438,7 @@
   The second parameter is a function that is called when a signal is
   caught. One can provide an optional environment table to run
   the repl in, as well as an optional parser or read function to pass
-  to `run-context.`
-  ``
+  to `run-context`.``
   [&opt chunks onsignal env parser read]
   (default env (make-env))
   (default chunks
@@ -3473,7 +3499,7 @@
 
 (compwhen (dyn 'ev/go)
 
-  (defn net/close "Alias for ev/close." [stream] (ev/close stream))
+  (defn net/close "Alias for `ev/close`." [stream] (ev/close stream))
 
   (defn ev/call
     ```
@@ -3484,7 +3510,7 @@
     (ev/go (fn _call [&] (f ;args))))
 
   (defmacro ev/spawn
-    "Run some code in a new fiber. This is shorthand for (ev/call (fn [] ;body))."
+    "Run some code in a new fiber. This is shorthand for `(ev/call (fn [] ;body))`."
     [& body]
     ~(,ev/go (fn _spawn [&] ,;body)))
 
@@ -3533,7 +3559,7 @@
 
 (compwhen (dyn 'net/listen)
   (defn net/server
-    "Start a server asynchronously with net/listen and net/accept-loop. Returns the new server stream."
+    "Start a server asynchronously with `net/listen` and `net/accept-loop`. Returns the new server stream."
     [host port &opt handler type]
     (def s (net/listen host port type))
     (if handler
@@ -3602,7 +3628,7 @@
 (defn flycheck
   ``Check a file for errors without running the file. Found errors will be printed to stderr
   in the usual format. Macros will still be executed, however, so
-  arbitrary execution is possible. Other arguments are the same as dofile. `path` can also be
+  arbitrary execution is possible. Other arguments are the same as `dofile`. `path` can also be
   a file value such as stdin. Returns nil.``
   [path &keys kwargs]
   (def old-modcache (table/clone module/cache))
@@ -3633,11 +3659,11 @@
       (if (function? thunk) (thunk) (error (thunk :error))))))
 
 (defdyn *args*
-  "Dynamic bindings that will contain command line arguments at program start")
+  "Dynamic bindings that will contain command line arguments at program start.")
 
 (defdyn *executable*
-  "Name of the interpreter executable used to execute this program. Corresponds to argv[0] in the call to
-   int main(int argc, char **argv);")
+  ``Name of the interpreter executable used to execute this program. Corresponds to `argv[0]` in the call to
+    `int main(int argc, char **argv);`.``)
 
 (defdyn *profilepath*
   "Path to profile file loaded when starting up the repl.")
