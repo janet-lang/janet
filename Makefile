@@ -282,6 +282,7 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
+	ln -sf '$(DESTDIR)$(INCLUDEDIR)/janet/janet.h' '$(DESTDIR)$(INCLUDEDIR)/janet.h'
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
 	if test $(UNAME) = Darwin ; then \
@@ -315,6 +316,7 @@ install-jpm-git: $(JANET_TARGET)
 uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/janet'
 	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet'
+	-rm -rf '$(DESTDIR)$(INCLUDEDIR)/janet.h'
 	-rm -rf '$(DESTDIR)$(LIBDIR)'/libjanet.*
 	-rm '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
 	-rm '$(DESTDIR)$(JANET_MANPATH)/janet.1'

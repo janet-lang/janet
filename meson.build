@@ -263,3 +263,6 @@ patched_janet = custom_target('patched-janeth',
   build_by_default : true,
   output : ['janet.h'],
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
+
+# Create a version of the janet.h header that matches what jpm often expects
+install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
