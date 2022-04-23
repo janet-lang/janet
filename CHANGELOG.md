@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Fix printing issue in `doc` macro.
+- Numerous updates to function docstrings
+- Add `defdyn` aliases for various dynamic bindings used in core.
+- Install `janet.h` symlink to make Janet native libraries and applications
+  easier to build without `jpm`.
+
 ## 1.21.2 - 2022-04-01
 - C functions `janet_dobytes` and `janet_dostring` will now enter the event loop if it is enabled.
 - Fix hashing regression - hash of negative 0 must be the same as positive 0 since they are equal.
