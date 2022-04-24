@@ -305,6 +305,9 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
     for (i = 1; i < argn - 1; i++) {
         Janet attr = argv[i];
         switch (janet_type(attr)) {
+            case JANET_TUPLE:
+                janetc_cerror(c, "unexpected form - did you intend to use defn?");
+                break;
             default:
                 janetc_cerror(c, "could not add metadata to binding");
                 break;
@@ -390,10 +393,11 @@ static int varleaf(
 static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     Janet head;
+    JanetTable *attr_table = handleattr(c, argn, argv);
     JanetSlot ret = dohead(c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
-    destructure(c, argv[0], ret, varleaf, handleattr(c, argn, argv));
+    destructure(c, argv[0], ret, varleaf, attr_table);
     return ret;
 }
 
@@ -439,10 +443,11 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     Janet head;
     opts.flags &= ~JANET_FOPTS_HINT;
+    JanetTable *attr_table = handleattr(c, argn, argv);
     JanetSlot ret = dohead(c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
-    destructure(c, argv[0], ret, defleaf, handleattr(c, argn, argv));
+    destructure(c, argv[0], ret, defleaf, attr_table);
     return ret;
 }
 
