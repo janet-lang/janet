@@ -836,19 +836,19 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         Janet maybe_stdin = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("in"));
         Janet maybe_stdout = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("out"));
         Janet maybe_stderr = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("err"));
-        if (janet_keyeq(maybe_stdin, "pipe")) {
+        if (is_spawn && janet_keyeq(maybe_stdin, "pipe")) {
             new_in = make_pipes(&pipe_in, 1, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDIN;
         } else if (!janet_checktype(maybe_stdin, JANET_NIL)) {
             new_in = janet_getjstream(&maybe_stdin, 0, &orig_in);
         }
-        if (janet_keyeq(maybe_stdout, "pipe")) {
+        if (is_spawn && janet_keyeq(maybe_stdout, "pipe")) {
             new_out = make_pipes(&pipe_out, 0, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDOUT;
         } else if (!janet_checktype(maybe_stdout, JANET_NIL)) {
             new_out = janet_getjstream(&maybe_stdout, 0, &orig_out);
         }
-        if (janet_keyeq(maybe_stderr, "pipe")) {
+        if (is_spawn && janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDERR;
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
@@ -1063,11 +1063,6 @@ JANET_CORE_FN(os_execute,
               "`env` is a table or struct mapping environment variables to values. It can also "
               "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
               "These arguments should be core/file values. "
-              "One can also pass in the :pipe keyword "
-              "for these arguments to create files that will read (for :err and :out) or write (for :in) "
-              "to the file descriptor of the subprocess. This is only useful in `os/spawn`, which takes "
-              "the same parameters as `os/execute`, but will return an object that contains references to these "
-              "files via (return-value :in), (return-value :out), and (return-value :err). "
               "Returns the exit status of the program.") {
     return os_execute_impl(argc, argv, 0);
 }
@@ -1076,8 +1071,12 @@ JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
               "Execute a program on the system and return a handle to the process. Otherwise, takes the "
               "same arguments as `os/execute`. Does not wait for the process. "
-              "The returned value has the fields :in, :out, :err, :return-code, and "
-              "the additional field :pid on unix-like platforms.") {
+              "For each of the :in, :out, and :err keys to the `env` argument, one "
+              "can also pass in the keyword `:pipe`"
+              "to get streams for standard IO of the subprocess that can be read from and written to."
+              "The returned value `proc` has the fields :in, :out, :err, :return-code, and "
+              "the additional field :pid on unix-like platforms. Use `(os/proc-wait proc)` to rejoin the "
+              "subprocess or (os/proc-kill proc)`") {
     return os_execute_impl(argc, argv, 1);
 }
 
