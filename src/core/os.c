@@ -395,7 +395,7 @@ typedef struct {
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
     WaitForSingleObject(proc->pHandle, INFINITE);
-    GetExitCodeProcess(proc->pHandle, &args.argi);
+    GetExitCodeProcess(proc->pHandle, &args.tag);
     return args;
 }
 

@@ -50,5 +50,9 @@
 
 (assert (= (hash 0) (hash (* -1 0))) "hash -0 same as hash 0")
 
+# os/execute regressions
+(for i 0 10
+  (assert (= i (os/execute [(dyn :executable) "-e" (string/format "(os/exit %d)" i)] :p)) (string "os/execute " i)))
+
 (end-suite)
 
