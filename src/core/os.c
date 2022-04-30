@@ -1076,7 +1076,7 @@ JANET_CORE_FN(os_spawn,
               "to get streams for standard IO of the subprocess that can be read from and written to."
               "The returned value `proc` has the fields :in, :out, :err, :return-code, and "
               "the additional field :pid on unix-like platforms. Use `(os/proc-wait proc)` to rejoin the "
-              "subprocess or (os/proc-kill proc)`") {
+              "subprocess or `(os/proc-kill proc)`.") {
     return os_execute_impl(argc, argv, 1);
 }
 
