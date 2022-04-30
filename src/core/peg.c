@@ -289,10 +289,8 @@ tail:
             while (text <= s->text_end) {
                 CapState cs2 = cap_save(s);
                 next_text = peg_rule(s, rule_a, text);
-                if (next_text) {
-                    if (rule[0] == RULE_TO) cap_load(s, cs2);
-                    break;
-                }
+                if (next_text) break;
+                cap_load(s, cs2);
                 text++;
             }
             up1(s);

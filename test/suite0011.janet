@@ -54,5 +54,27 @@
 (for i 0 10
   (assert (= i (os/execute [(dyn :executable) "-e" (string/format "(os/exit %d)" i)] :p)) (string "os/execute " i)))
 
+# to/thru bug
+(def pattern
+  (peg/compile
+    '{:dd (sequence :d :d)
+      :sep (set "/-")
+      :date (sequence :dd :sep :dd)
+      :wsep (some (set " \t"))
+      :entry (group (sequence (capture :date) :wsep (capture :date)))
+      :main (some (thru :entry))}))
+
+(def alt-pattern
+  (peg/compile
+    '{:dd (sequence :d :d)
+      :sep (set "/-")
+      :date (sequence :dd :sep :dd)
+      :wsep (some (set " \t"))
+      :entry (group (sequence (capture :date) :wsep (capture :date)))
+      :main (some (choice :entry 1))}))
+
+(def text "1800-10-818-9-818 16/12\n17/12 19/12\n20/12 11/01")
+(assert (deep= (peg/match pattern text) (peg/match alt-pattern text)) "to/thru bug #971")
+
 (end-suite)
 
