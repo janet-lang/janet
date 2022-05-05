@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Fix bug in peg `thru` and `to` combinators.
 - Fix printing issue in `doc` macro.
 - Numerous updates to function docstrings
 - Add `defdyn` aliases for various dynamic bindings used in core.

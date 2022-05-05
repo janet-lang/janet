@@ -300,8 +300,7 @@ JANET_CORE_FN(cfun_table_new,
               "entries going into a table on creation, extra memory allocation "
               "can be avoided. Returns the new table.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getinteger(argv, 0);
-    if (cap < 0) janet_panic("expected positive integer");
+    int32_t cap = janet_getnat(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
 

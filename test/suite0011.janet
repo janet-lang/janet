@@ -76,5 +76,9 @@
 (def text "1800-10-818-9-818 16/12\n17/12 19/12\n20/12 11/01")
 (assert (deep= (peg/match pattern text) (peg/match alt-pattern text)) "to/thru bug #971")
 
+(assert-error
+  "table rawget regression"
+  (table/new -1))
+
 (end-suite)
 
