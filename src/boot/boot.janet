@@ -548,23 +548,23 @@
 
   * `:iterate` -- repeatedly evaluate and bind to the expression while it is
     truthy.
-  
+
   * `:range` -- loop over a range. The object should be a two-element tuple with
     a start and end value, and an optional positive step. The range is half
     open, [start, end).
-                  
+
   * `:range-to` -- same as :range, but the range is inclusive [start, end].
-                  
+
   * `:down` -- loop over a range, stepping downwards. The object should be a
     two-element tuple with a start and (exclusive) end value, and an optional
     (positive!) step size.
-                  
+
   * `:down-to` -- same as :down, but the range is inclusive [start, end].
-                  
+
   * `:keys` -- iterate over the keys in a data structure.
-                  
+
   * `:pairs` -- iterate over the key-value pairs as tuples in a data structure.
-                  
+
   * `:in` -- iterate over the values in a data structure or fiber.
 
   `loop` also accepts conditionals to refine the looping further. Conditionals are of
@@ -577,21 +577,21 @@
 
   * `:while expression` -- breaks from the current loop if `expression` is
     falsey.
-                  
+
   * `:until expression` -- breaks from the current loop if `expression` is
     truthy.
-                  
+
   * `:let bindings` -- defines bindings inside the current loop as passed to the
     `let` macro.
-                  
+
   * `:before form` -- evaluates a form for a side effect before the next inner
     loop.
-                  
+
   * `:after form` -- same as `:before`, but the side effect happens after the
     next inner loop.
-                  
+
   * `:repeat n` -- repeats the next inner loop `n` times.
-                  
+
   * `:when condition` -- only evaluates the current loop body when `condition`
     is true.
 
@@ -1853,7 +1853,7 @@
       (eachp [i sub-pattern] pattern
         (array/push anda [not= nil (get-sym s i)])
         (visit-pattern-2 anda gun preds s i sub-pattern))
-      
+
       isarr
       (eachp [i sub-pattern] pattern
         # stop recursing to sub-patterns if the rest sigil is found
@@ -2353,31 +2353,31 @@
   `opts` is a table or struct of options. The options are as follows:
 
     * `:chunks` -- callback to read into a buffer - default is getline
-      
+
     * `:on-parse-error` -- callback when parsing fails - default is bad-parse
-      
+
     * `:env` -- the environment to compile against - default is the current env
-      
+
     * `:source` -- source path for better errors (use keywords for non-paths) - default
       is :<anonymous>
-      
+
     * `:on-compile-error` -- callback when compilation fails - default is bad-compile
-      
+
     * `:on-compile-warning` -- callback for any linting error - default is warn-compile
-      
+
     * `:evaluator` -- callback that executes thunks. Signature is (evaluator thunk source
       env where)
-      
+
     * `:on-status` -- callback when a value is evaluated - default is debug/stacktrace.
-      
+
     * `:fiber-flags` -- what flags to wrap the compilation fiber with. Default is :ia.
-      
+
     * `:expander` -- an optional function that is called on each top level form before
       being compiled.
-      
+
     * `:parser` -- provide a custom parser that implements the same interface as Janet's
       built-in parser.
-      
+
     * `:read` -- optional function to get the next form, called like `(read env source)`.
       Overrides all parsing.
   ```
@@ -2716,6 +2716,21 @@
   `A table, mapping currently loading modules to true. Used to prevent
   circular dependencies.`
   @{})
+
+(defn module/value
+  ``Given a module table, get the value bound to a symbol `sym`. If `private` is
+  truthy, will also resolve private module symbols. If no binding is found, will return
+  nil.``
+  [module sym &opt private]
+  (def entry (get module sym))
+  (if entry
+    (let [v (in entry :value)
+          r (in entry :ref)
+          p (in entry :private)]
+      (if p (if private nil (break)))
+      (if (and r (array? r))
+        (get r 0)
+        v))))
 
 (defn dofile
   ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,

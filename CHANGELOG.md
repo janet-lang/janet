@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `module/value`.
 - Remove `file/popen`. Use `os/spawn` with the `:pipe` options instead.
 - Fix bug in peg `thru` and `to` combinators.
 - Fix printing issue in `doc` macro.
