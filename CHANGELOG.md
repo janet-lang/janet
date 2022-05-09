@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.22.0 - 2022-05-09
+- Prohibit negative size argument to `table/new`.
 - Add `module/value`.
 - Remove `file/popen`. Use `os/spawn` with the `:pipe` options instead.
 - Fix bug in peg `thru` and `to` combinators.
