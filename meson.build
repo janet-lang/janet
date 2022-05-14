@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.22.0')
+  version : '1.22.1')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -265,4 +265,7 @@ patched_janet = custom_target('patched-janeth',
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
 
 # Create a version of the janet.h header that matches what jpm often expects
-install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+if meson.version().version_compare('>=0.61')
+  install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+endif
+
