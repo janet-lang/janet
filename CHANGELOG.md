@@ -2,7 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
-- Added `os/cpu-count` to get the number of available processors on a machine
+- Add `parse-all` as a generalization of the `parse` function.
+- Add `os/cpu-count` to get the number of available processors on a machine
 
 ## 1.22.0 - 2022-05-09
 - Prohibit negative size argument to `table/new`.

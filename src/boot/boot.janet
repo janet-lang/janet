@@ -2575,6 +2575,20 @@
         (error (parser/error p))
         (error "no value")))))
 
+(defn parse-all
+  `Parse a string and return all parsed values. For complex parsing, such as for a repl with error handling,
+  use the parser api.`
+  [str]
+  (let [p (parser/new)
+        ret @[]]
+    (parser/consume p str)
+    (parser/eof p)
+    (while (parser/has-more p)
+      (array/push ret (parser/produce p)))
+    (if (= :error (parser/status p))
+        (error (parser/error p))
+        ret)))
+
 (def load-image-dict
   ``A table used in combination with `unmarshal` to unmarshal byte sequences created
   by `make-image`, such that `(load-image bytes)` is the same as `(unmarshal bytes load-image-dict)`.``
