@@ -232,7 +232,7 @@ JANET_CORE_FN(os_cpu_count,
     const int name[2] = {CTL_HW, HW_NCPUONLINE};
     int result = 0;
     size_t len = sizeof(int);
-    if (-1 == sysctl(name, 2, &result, &len, ,NULL, 0)) {
+    if (-1 == sysctl(name, 2, &result, &len, NULL, 0)) {
         return dflt;
     }
     return janet_wrap_integer(result);
