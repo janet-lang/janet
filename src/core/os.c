@@ -43,6 +43,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#ifdef JANET_LINUX
+#include <sched.h>
+#endif
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -218,7 +222,11 @@ JANET_CORE_FN(os_cpu_count,
     return janet_wrap_integer(info.dwNumberOfProcessors);
 #elif defined(JANET_LINUX)
     (void) dflt;
-    return janet_wrap_integer(sysconf(_SC_NPROCESSORS_ONLN));
+    cpu_set_t cs;
+    CPU_ZERO(&cs);
+    sched_getaffinity(0, sizeof(cs), &cs);
+    int count = CPU_COUNT(&cs);
+    return janet_wrap_integer(count);
 #elif defined(JANET_BSD) && defined(HW_NCPUONLINE)
     (void) dflt;
     const int name[2] = {CTL_HW, HW_NCPUONLINE};

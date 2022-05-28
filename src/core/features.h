@@ -36,6 +36,11 @@
 # endif
 #endif
 
+/* Needed for sched.h for cpu count */
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #if defined(WIN32) || defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #endif
