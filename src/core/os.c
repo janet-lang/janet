@@ -39,6 +39,10 @@
 #include <sys/stat.h>
 #include <signal.h>
 
+#ifdef JANET_BSD
+#include <sys/sysctl.h>
+#endif
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -199,6 +203,43 @@ JANET_CORE_FN(os_exit,
     janet_deinit();
     exit(status);
     return janet_wrap_nil();
+}
+
+JANET_CORE_FN(os_cpu_count,
+              "(os/cpu-count &opt dflt)",
+              "Get an approximate number of CPUs available on for this process to use. If "
+              "unable to get an approximation, will return a default value dflt.") {
+    janet_arity(argc, 0, 1);
+    Janet dflt = argc > 0 ? argv[0] : janet_wrap_nil();
+#ifdef JANET_WINDOWS
+    (void) dflt;
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    return janet_wrap_integer(info.dwNumberOfProcessors);
+#elif defined(JANET_LINUX)
+    (void) dflt;
+    return janet_wrap_integer(sysconf(_SC_NPROCESSORS_ONLN));
+#elif defined(JANET_BSD) && defined(HW_NCPUONLINE)
+    (void) dflt;
+    const int name[2] = {CTL_HW, HW_NCPUONLINE};
+    int result = 0;
+    size_t len = sizeof(int);
+    if (-1 == sysctl(name, 2, &result, &len, sizeof(result), NULL, 0)) {
+        return dflt;
+    }
+    return janet_wrap_integer(result);
+#elif defined(JANET_BSD) && defined(HW_NCPU)
+    (void) dflt;
+    const int name[2] = {CTL_HW, HW_NCPU};
+    int result = 0;
+    size_t len = sizeof(int);
+    if (-1 == sysctl(name, 2, &result, &len, sizeof(result), NULL, 0)) {
+        return dflt;
+    }
+    return janet_wrap_integer(result);
+#else
+    return dflt;
+#endif
 }
 
 #ifndef JANET_REDUCED_OS
@@ -2195,6 +2236,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/chmod", os_chmod),
         JANET_CORE_REG("os/touch", os_touch),
         JANET_CORE_REG("os/cd", os_cd),
+        JANET_CORE_REG("os/cpu-count", os_cpu_count),
 #ifndef JANET_NO_UMASK
         JANET_CORE_REG("os/umask", os_umask),
 #endif
