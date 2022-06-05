@@ -299,6 +299,18 @@ typedef struct {
     JANET_CURRENT_CONFIG_BITS })
 #endif
 
+/* Feature include for pthreads. Most feature detection code should go in
+ * features.h instead. */
+#ifndef JANET_WINDOWS
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#if _XOPEN_SOURCE < 600
+#undef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#endif
+
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
 #include <stdio.h>
@@ -335,9 +347,13 @@ typedef struct JanetDudCriticalSection {
     void *lock_semaphore;
     unsigned long spin_count;
 } JanetOSMutex;
+typedef struct JanetDudRWLock {
+    void *ptr;
+} JanetOSRWLock;
 #else
 #include <pthread.h>
 typedef pthread_mutex_t JanetOSMutex;
+typedef pthread_rwlock_t JanetOSRWLock;
 #endif
 #endif
 
@@ -1368,11 +1384,17 @@ JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t s
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
 
-/* Expose some OS sync primitives to make portable abstract types easier to implement */
+/* Expose some OS sync primitives */
 JANET_API void janet_os_mutex_init(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_deinit(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_lock(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_unlock(JanetOSMutex *mutex);
+JANET_API void janet_os_rwlock_init(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_deinit(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_rlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_wlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_runlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_wunlock(JanetOSRWLock *rwlock);
 
 /* Get last error from an IO operation */
 JANET_API Janet janet_ev_lasterr(void);

@@ -3015,7 +3015,6 @@ JANET_CORE_FN(janet_cfun_stream_write,
 
 typedef struct {
     JanetOSMutex mutex;
-    int destroyed;
 } JanetAbstractMutex;
 
 static int mutexgc(void *p, size_t size) {
@@ -3061,6 +3060,69 @@ JANET_CORE_FN(janet_cfun_mutex_release,
     return argv[0];
 }
 
+typedef struct {
+    JanetOSRWLock rwlock;
+} JanetAbstractRWLock;
+
+static int rwlockgc(void *p, size_t size) {
+    JanetAbstractRWLock *rwlock = (JanetAbstractRWLock *) p;
+    (void) size;
+    janet_os_rwlock_deinit(&rwlock->rwlock);
+    return 0;
+}
+
+const JanetAbstractType janet_rwlock_type = {
+    "core/rwlock",
+    rwlockgc,
+    JANET_ATEND_GC
+};
+
+JANET_CORE_FN(janet_cfun_rwlock,
+        "(ev/rwlock)",
+        "Create a new read-write lock to coordinate threads.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    JanetAbstractRWLock *rwlock = janet_abstract_threaded(&janet_rwlock_type, sizeof(JanetAbstractRWLock));
+    janet_os_rwlock_init(&rwlock->rwlock);
+    return janet_wrap_abstract(rwlock);
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_read_lock,
+        "(ev/acquire-rlock rwlock)",
+        "Acquire a read lock an a read-write lock.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_rlock(&rwlock->rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_write_lock,
+        "(ev/acquire-wlock rwlock)",
+        "Acquire a write lock on a read-write lock.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_wlock(&rwlock->rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_read_release,
+        "(ev/release-rlock rwlock)",
+        "Release a read lock on a read-write lock") {
+    janet_fixarity(argc, 1);
+    JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_runlock(&rwlock->rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_write_release,
+        "(ev/release-wlock rwlock)",
+        "Release a write lock on a read-write lock") {
+    janet_fixarity(argc, 1);
+    JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_wunlock(&rwlock->rwlock);
+    return argv[0];
+}
+
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3086,6 +3148,11 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/lock", janet_cfun_mutex),
         JANET_CORE_REG("ev/acquire-lock", janet_cfun_mutex_acquire),
         JANET_CORE_REG("ev/release-lock", janet_cfun_mutex_release),
+        JANET_CORE_REG("ev/rwlock", janet_cfun_rwlock),
+        JANET_CORE_REG("ev/acquire-rlock", janet_cfun_rwlock_read_lock),
+        JANET_CORE_REG("ev/acquire-wlock", janet_cfun_rwlock_write_lock),
+        JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
+        JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
         JANET_REG_END
     };
 
@@ -3093,6 +3160,7 @@ void janet_lib_ev(JanetTable *env) {
     janet_register_abstract_type(&janet_stream_type);
     janet_register_abstract_type(&janet_channel_type);
     janet_register_abstract_type(&janet_mutex_type);
+    janet_register_abstract_type(&janet_rwlock_type);
 }
 
 #endif
