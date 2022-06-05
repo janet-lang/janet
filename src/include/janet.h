@@ -1180,17 +1180,6 @@ typedef struct {
     Janet payload;
 } JanetTryState;
 
-/* Thread types */
-#ifdef JANET_THREADS
-typedef struct JanetThread JanetThread;
-typedef struct JanetMailbox JanetMailbox;
-struct JanetThread {
-    JanetMailbox *mailbox;
-    JanetTable *encode;
-};
-#endif
-
-
 /***** END SECTION TYPES *****/
 
 /***** START SECTION OPCODES *****/
@@ -2075,16 +2064,6 @@ JANET_API int64_t janet_unwrap_s64(Janet x);
 JANET_API uint64_t janet_unwrap_u64(Janet x);
 JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
 JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
-
-#endif
-
-#ifdef JANET_THREADS
-
-extern JANET_API const JanetAbstractType janet_thread_type;
-
-JANET_API int janet_thread_receive(Janet *msg_out, double timeout);
-JANET_API int janet_thread_send(JanetThread *thread, Janet msg, double timeout);
-JANET_API JanetThread *janet_thread_current(void);
 
 #endif
 

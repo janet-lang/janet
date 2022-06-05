@@ -106,6 +106,7 @@ void janet_os_mutex_lock(JanetOSMutex *mutex) {
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
+    /* error handling? May want to keep counter */
     LeaveCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
@@ -120,7 +121,10 @@ static int32_t janet_decref(JanetAbstractHead *ab) {
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {
-    pthread_mutex_init(mutex, NULL);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(mutex, &attr);
 }
 
 void janet_os_mutex_deinit(JanetOSMutex *mutex) {
@@ -132,7 +136,8 @@ void janet_os_mutex_lock(JanetOSMutex *mutex) {
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
-    pthread_mutex_unlock(mutex);
+    int ret = pthread_mutex_unlock(mutex);
+    if (ret) janet_panic("cannot release lock");
 }
 
 #endif

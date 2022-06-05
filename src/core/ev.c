@@ -3013,6 +3013,54 @@ JANET_CORE_FN(janet_cfun_stream_write,
     janet_await();
 }
 
+typedef struct {
+    JanetOSMutex mutex;
+    int destroyed;
+} JanetAbstractMutex;
+
+static int mutexgc(void *p, size_t size) {
+    JanetAbstractMutex *mutex = (JanetAbstractMutex *) p;
+    (void) size;
+    janet_os_mutex_deinit(&mutex->mutex);
+    return 0;
+}
+
+const JanetAbstractType janet_mutex_type = {
+    "core/lock",
+    mutexgc,
+    JANET_ATEND_GC
+};
+
+JANET_CORE_FN(janet_cfun_mutex,
+        "(ev/lock)",
+        "Create a new lock to coordinate threads.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    JanetAbstractMutex *mutex = janet_abstract_threaded(&janet_mutex_type, sizeof(JanetAbstractMutex));
+    janet_os_mutex_init(&mutex->mutex);
+    return janet_wrap_abstract(mutex);
+}
+
+JANET_CORE_FN(janet_cfun_mutex_acquire,
+        "(ev/acquire-lock lock)",
+        "Acquire a lock such that this operating system thread is the only thread with access to this resource."
+        " This will block this entire thread until the lock becomes available, and will not yield to other fibers "
+        "on this system thread.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractMutex *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
+    janet_os_mutex_lock(&mutex->mutex);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_mutex_release,
+        "(ev/release-lock lock)",
+        "Release a lock such that other threads may acquire it.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractMutex *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
+    janet_os_mutex_unlock(&mutex->mutex);
+    return argv[0];
+}
+
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3035,12 +3083,16 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/read", janet_cfun_stream_read),
         JANET_CORE_REG("ev/chunk", janet_cfun_stream_chunk),
         JANET_CORE_REG("ev/write", janet_cfun_stream_write),
+        JANET_CORE_REG("ev/lock", janet_cfun_mutex),
+        JANET_CORE_REG("ev/acquire-lock", janet_cfun_mutex_acquire),
+        JANET_CORE_REG("ev/release-lock", janet_cfun_mutex_release),
         JANET_REG_END
     };
 
     janet_core_cfuns_ext(env, NULL, ev_cfuns_ext);
     janet_register_abstract_type(&janet_stream_type);
     janet_register_abstract_type(&janet_channel_type);
+    janet_register_abstract_type(&janet_mutex_type);
 }
 
 #endif
