@@ -76,6 +76,7 @@ conf.set('JANET_SIMPLE_GETLINE', get_option('simple_getline'))
 conf.set('JANET_EV_NO_EPOLL', not get_option('epoll'))
 conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
+conf.set('JANET_NO_FFI', not get_option('ffi'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif
@@ -116,6 +117,7 @@ core_src = [
   'src/core/debug.c',
   'src/core/emit.c',
   'src/core/ev.c',
+  'src/core/ffi.c',
   'src/core/fiber.c',
   'src/core/gc.c',
   'src/core/inttypes.c',

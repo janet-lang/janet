@@ -260,11 +260,27 @@ int32_t janet_getinteger(const Janet *argv, int32_t n) {
 }
 
 int64_t janet_getinteger64(const Janet *argv, int32_t n) {
+#ifdef JANET_INTTYPES
+    return janet_unwrap_s64(argv[n]);
+#else
     Janet x = argv[n];
     if (!janet_checkint64(x)) {
         janet_panicf("bad slot #%d, expected 64 bit signed integer, got %v", n, x);
     }
     return (int64_t) janet_unwrap_number(x);
+#endif
+}
+
+uint64_t janet_getuinteger64(const Janet *argv, int32_t n) {
+#ifdef JANET_INTTYPES
+    return janet_unwrap_u64(argv[n]);
+#else
+    Janet x = argv[n];
+    if (!janet_checkint64(x)) {
+        janet_panicf("bad slot #%d, expected 64 bit unsigned integer, got %v", n, x);
+    }
+    return (uint64_t) janet_unwrap_number(x);
+#endif
 }
 
 size_t janet_getsize(const Janet *argv, int32_t n) {

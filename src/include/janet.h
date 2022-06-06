@@ -163,6 +163,11 @@ extern "C" {
 #define JANET_DYNAMIC_MODULES
 #endif
 
+/* Enable or disable the FFI library. */
+#ifndef JANET_NO_FFI
+#define JANET_FFI
+#endif
+
 /* Enable or disable the assembler. Enabled by default. */
 #ifndef JANET_NO_ASSEMBLER
 #define JANET_ASSEMBLER
@@ -865,6 +870,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 
 JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkint64(Janet x);
+JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
@@ -1936,6 +1942,7 @@ JANET_API void *janet_getpointer(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getnat(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
+JANET_API uint64_t janet_getuinteger64(const Janet *argv, int32_t n);
 JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);
 JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);

@@ -19,6 +19,7 @@ option('simple_getline', type : 'boolean', value : false)
 option('epoll', type : 'boolean', value : false)
 option('kqueue', type : 'boolean', value : false)
 option('interpreter_interrupt', type : 'boolean', value : false)
+option('ffi', type : 'boolean', value : true)
 
 option('recursion_guard', type : 'integer', min : 10, max : 8000, value : 1024)
 option('max_proto_depth', type : 'integer', min : 10, max : 8000, value : 200)

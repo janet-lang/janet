@@ -739,6 +739,13 @@ int janet_checkint64(Janet x) {
     return janet_checkint64range(dval);
 }
 
+int janet_checkuint64(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return dval >= 0 && dval <= JANET_INTMAX_DOUBLE && dval == (uint64_t) dval;
+}
+
 int janet_checksize(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;

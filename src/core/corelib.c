@@ -1074,6 +1074,9 @@ static void janet_load_libs(JanetTable *env) {
 #ifdef JANET_NET
     janet_lib_net(env);
 #endif
+#ifdef JANET_FFI
+    janet_lib_ffi(env);
+#endif
 }
 
 #ifdef JANET_BOOTSTRAP
