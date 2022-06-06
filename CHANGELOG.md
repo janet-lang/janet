@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `raw-native`, `native-lookup`, and `native-close` for interfacing with dynamic libraries.
 - Add mutexes (locks) and reader-writer locks to ev module for thread coordination.
 - Add `parse-all` as a generalization of the `parse` function.
 - Add `os/cpu-count` to get the number of available processors on a machine

@@ -55,7 +55,6 @@ typedef int Clib;
 typedef HINSTANCE Clib;
 #define load_clib(name) LoadLibrary((name))
 #define free_clib(c) FreeLibrary((c))
-#elif defined(JANET_WINDOWS)
 #define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
 static char error_clib_buf[256];
 static char *error_clib(void) {
