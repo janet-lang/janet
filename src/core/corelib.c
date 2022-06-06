@@ -389,7 +389,6 @@ JANET_CORE_FN(janet_core_native_close,
     if (anative->closed) janet_panic("native object already closed");
     anative->closed = 1;
     free_clib(anative->clib);
-    anative->clib = NULL;
     return janet_wrap_nil();
 }
 
