@@ -3031,8 +3031,8 @@ const JanetAbstractType janet_mutex_type = {
 };
 
 JANET_CORE_FN(janet_cfun_mutex,
-        "(ev/lock)",
-        "Create a new lock to coordinate threads.") {
+              "(ev/lock)",
+              "Create a new lock to coordinate threads.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetAbstractMutex *mutex = janet_abstract_threaded(&janet_mutex_type, sizeof(JanetAbstractMutex));
@@ -3041,10 +3041,10 @@ JANET_CORE_FN(janet_cfun_mutex,
 }
 
 JANET_CORE_FN(janet_cfun_mutex_acquire,
-        "(ev/acquire-lock lock)",
-        "Acquire a lock such that this operating system thread is the only thread with access to this resource."
-        " This will block this entire thread until the lock becomes available, and will not yield to other fibers "
-        "on this system thread.") {
+              "(ev/acquire-lock lock)",
+              "Acquire a lock such that this operating system thread is the only thread with access to this resource."
+              " This will block this entire thread until the lock becomes available, and will not yield to other fibers "
+              "on this system thread.") {
     janet_fixarity(argc, 1);
     JanetAbstractMutex *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
     janet_os_mutex_lock(&mutex->mutex);
@@ -3052,8 +3052,8 @@ JANET_CORE_FN(janet_cfun_mutex_acquire,
 }
 
 JANET_CORE_FN(janet_cfun_mutex_release,
-        "(ev/release-lock lock)",
-        "Release a lock such that other threads may acquire it.") {
+              "(ev/release-lock lock)",
+              "Release a lock such that other threads may acquire it.") {
     janet_fixarity(argc, 1);
     JanetAbstractMutex *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
     janet_os_mutex_unlock(&mutex->mutex);
@@ -3078,8 +3078,8 @@ const JanetAbstractType janet_rwlock_type = {
 };
 
 JANET_CORE_FN(janet_cfun_rwlock,
-        "(ev/rwlock)",
-        "Create a new read-write lock to coordinate threads.") {
+              "(ev/rwlock)",
+              "Create a new read-write lock to coordinate threads.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetAbstractRWLock *rwlock = janet_abstract_threaded(&janet_rwlock_type, sizeof(JanetAbstractRWLock));
@@ -3088,8 +3088,8 @@ JANET_CORE_FN(janet_cfun_rwlock,
 }
 
 JANET_CORE_FN(janet_cfun_rwlock_read_lock,
-        "(ev/acquire-rlock rwlock)",
-        "Acquire a read lock an a read-write lock.") {
+              "(ev/acquire-rlock rwlock)",
+              "Acquire a read lock an a read-write lock.") {
     janet_fixarity(argc, 1);
     JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
     janet_os_rwlock_rlock(&rwlock->rwlock);
@@ -3097,8 +3097,8 @@ JANET_CORE_FN(janet_cfun_rwlock_read_lock,
 }
 
 JANET_CORE_FN(janet_cfun_rwlock_write_lock,
-        "(ev/acquire-wlock rwlock)",
-        "Acquire a write lock on a read-write lock.") {
+              "(ev/acquire-wlock rwlock)",
+              "Acquire a write lock on a read-write lock.") {
     janet_fixarity(argc, 1);
     JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
     janet_os_rwlock_wlock(&rwlock->rwlock);
@@ -3106,8 +3106,8 @@ JANET_CORE_FN(janet_cfun_rwlock_write_lock,
 }
 
 JANET_CORE_FN(janet_cfun_rwlock_read_release,
-        "(ev/release-rlock rwlock)",
-        "Release a read lock on a read-write lock") {
+              "(ev/release-rlock rwlock)",
+              "Release a read lock on a read-write lock") {
     janet_fixarity(argc, 1);
     JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
     janet_os_rwlock_runlock(&rwlock->rwlock);
@@ -3115,8 +3115,8 @@ JANET_CORE_FN(janet_cfun_rwlock_read_release,
 }
 
 JANET_CORE_FN(janet_cfun_rwlock_write_release,
-        "(ev/release-wlock rwlock)",
-        "Release a write lock on a read-write lock") {
+              "(ev/release-wlock rwlock)",
+              "Release a write lock on a read-write lock") {
     janet_fixarity(argc, 1);
     JanetAbstractRWLock *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
     janet_os_rwlock_wunlock(&rwlock->rwlock);

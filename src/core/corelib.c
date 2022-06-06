@@ -49,10 +49,13 @@ typedef int Clib;
 #define load_clib(name) ((void) name, 0)
 #define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
 #define error_clib() "dynamic libraries not supported"
+#define free_clib(c) ((void) (c), 0)
 #elif defined(JANET_WINDOWS)
 #include <windows.h>
 typedef HINSTANCE Clib;
 #define load_clib(name) LoadLibrary((name))
+#define free_clib(c) FreeLibrary((c))
+#elif defined(JANET_WINDOWS)
 #define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
 static char error_clib_buf[256];
 static char *error_clib(void) {
@@ -66,6 +69,7 @@ static char *error_clib(void) {
 #include <dlfcn.h>
 typedef void *Clib;
 #define load_clib(name) dlopen((name), RTLD_NOW)
+#define free_clib(lib) dlclose((lib))
 #define symbol_clib(lib, sym) dlsym((lib), (sym))
 #define error_clib() dlerror()
 #endif
@@ -86,6 +90,15 @@ static char *get_processed_name(const char *name) {
     memcpy(ret + 2, name, l + 1);
     return ret;
 }
+
+typedef struct {
+    Clib clib;
+} JanetAbstractNative;
+
+static const JanetAbstractType janet_native_type = {
+    "core/native",
+    JANET_ATEND_NAME
+};
 
 JanetModule janet_native(const char *name, const uint8_t **error) {
     char *processed_name = get_processed_name(name);
@@ -335,6 +348,43 @@ JANET_CORE_FN(janet_core_native,
     init(env);
     janet_table_put(env, janet_ckeywordv("native"), argv[0]);
     return janet_wrap_table(env);
+}
+
+JANET_CORE_FN(janet_core_raw_native,
+              "(raw-native path)",
+              "Load a shared object or dll from the given path, and do not extract"
+              " or run any code from it. This is different than `native`, which will "
+              "run initialization code to get a module table. Returns a `core/native`.") {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+    char *processed_name = get_processed_name(path);
+    Clib lib = load_clib(processed_name);
+    if (path != processed_name) janet_free(processed_name);
+    if (!lib) janet_panic(error_clib());
+    JanetAbstractNative *anative = janet_abstract(&janet_native_type, sizeof(JanetAbstractNative));
+    anative->clib = lib;
+    return janet_wrap_abstract(anative);
+}
+
+JANET_CORE_FN(janet_core_native_lookup,
+              "(native-lookup native symbol-name)",
+              "Lookup a symbol from a native object. All symbol lookups will return a raw pointer "
+              "if the symbol is found, else nil.") {
+    janet_fixarity(argc, 2);
+    JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
+    const char *sym = janet_getcstring(argv, 1);
+    void *value = symbol_clib(anative->clib, sym);
+    return janet_wrap_pointer(value);
+}
+
+JANET_CORE_FN(janet_core_native_close,
+              "(native-close native)",
+              "Free a native object. Dereferencing pointers to symbols in the object will have undefined "
+              "behavior after freeing.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
+    free_clib(anative->clib);
+    return janet_wrap_nil();
 }
 
 JANET_CORE_FN(janet_core_describe,
@@ -956,6 +1006,9 @@ static const uint32_t cmp_asm[] = {
 static void janet_load_libs(JanetTable *env) {
     JanetRegExt corelib_cfuns[] = {
         JANET_CORE_REG("native", janet_core_native),
+        JANET_CORE_REG("raw-native", janet_core_raw_native),
+        JANET_CORE_REG("native-lookup", janet_core_native_lookup),
+        JANET_CORE_REG("native-close", janet_core_native_close),
         JANET_CORE_REG("describe", janet_core_describe),
         JANET_CORE_REG("string", janet_core_string),
         JANET_CORE_REG("symbol", janet_core_symbol),
