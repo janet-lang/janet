@@ -374,6 +374,7 @@ JANET_CORE_FN(janet_core_native_lookup,
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
     const char *sym = janet_getcstring(argv, 1);
     void *value = symbol_clib(anative->clib, sym);
+    if (NULL == value) return janet_wrap_nil();
     return janet_wrap_pointer(value);
 }
 
