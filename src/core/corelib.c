@@ -92,6 +92,7 @@ static char *get_processed_name(const char *name) {
 
 typedef struct {
     Clib clib;
+    int closed;
 } JanetAbstractNative;
 
 static const JanetAbstractType janet_native_type = {
@@ -362,6 +363,7 @@ JANET_CORE_FN(janet_core_raw_native,
     if (!lib) janet_panic(error_clib());
     JanetAbstractNative *anative = janet_abstract(&janet_native_type, sizeof(JanetAbstractNative));
     anative->clib = lib;
+    anative->closed = 0;
     return janet_wrap_abstract(anative);
 }
 
@@ -372,6 +374,7 @@ JANET_CORE_FN(janet_core_native_lookup,
     janet_fixarity(argc, 2);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
     const char *sym = janet_getcstring(argv, 1);
+    if (anative->closed) janet_panic("native object already closed");
     void *value = symbol_clib(anative->clib, sym);
     if (NULL == value) return janet_wrap_nil();
     return janet_wrap_pointer(value);
@@ -383,7 +386,10 @@ JANET_CORE_FN(janet_core_native_close,
               "behavior after freeing.") {
     janet_fixarity(argc, 1);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
+    if (anative->closed) janet_panic("native object already closed");
+    anative->closed = 1;
     free_clib(anative->clib);
+    anative->clib = NULL;
     return janet_wrap_nil();
 }
 
