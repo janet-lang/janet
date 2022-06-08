@@ -32,7 +32,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stddef.h>
-#include <alloca.h> /* for ffi */
 
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
 #include <time.h>

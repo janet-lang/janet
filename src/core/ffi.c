@@ -28,6 +28,10 @@
 
 #ifdef JANET_FFI
 
+#ifdef _MSC_VER
+#define alloca _alloca
+#endif
+
 typedef enum {
     JANET_FFI_TYPE_VOID,
     JANET_FFI_TYPE_SHORT,
