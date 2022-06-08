@@ -163,9 +163,12 @@ extern "C" {
 #define JANET_DYNAMIC_MODULES
 #endif
 
-/* Enable or disable the FFI library. */
+/* Enable or disable the FFI library. Currently, FFI only enabled on
+ * x86-64, non-windows operating systems. */
 #ifndef JANET_NO_FFI
+#if !defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
 #define JANET_FFI
+#endif
 #endif
 
 /* Enable or disable the assembler. Enabled by default. */

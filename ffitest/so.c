@@ -19,17 +19,17 @@ double double_many(double x, double y, double z, double w, double a, double b) {
 }
 
 double double_lots(
-  double a,
-  double b,
-  double c,
-  double d,
-  double e,
-  double f,
-  double g,
-  double h,
-  double i,
-  double j) {
-  return i + j;
+    double a,
+    double b,
+    double c,
+    double d,
+    double e,
+    double f,
+    double g,
+    double h,
+    double i,
+    double j) {
+    return i + j;
 }
 
 double float_fn(float x, float y, float z) {

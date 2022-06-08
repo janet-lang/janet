@@ -162,9 +162,9 @@ static int is_fp_type(JanetFFIPrimType prim) {
 }
 
 JANET_CORE_FN(cfun_ffi_signature,
-        "(native-signature calling-convention ret-type & arg-types)",
-        "Create a function signature object that can be used to make calls "
-        "with raw function pointers.") {
+              "(native-signature calling-convention ret-type & arg-types)",
+              "Create a function signature object that can be used to make calls "
+              "with raw function pointers.") {
     janet_arity(argc, 2, -1);
     uint32_t frame_size = 0;
     uint32_t reg_count = 0;
@@ -214,7 +214,7 @@ JANET_CORE_FN(cfun_ffi_signature,
             frame_size += janet_ffi_type_info[ptype].size;
         }
     }
-    
+
     /* Create signature abstract value */
     JanetFFISignature *abst = janet_abstract(&janet_signature_type, sizeof(JanetFFISignature));
     abst->frame_size = frame_size;
@@ -232,7 +232,7 @@ JANET_CORE_FN(cfun_ffi_signature,
 }
 
 static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
-    switch(janet_type(argv[n])) {
+    switch (janet_type(argv[n])) {
         default:
             janet_panicf("bad slot #%d, expected pointer convertable type, got %v", argv[n]);
         case JANET_POINTER:
@@ -343,7 +343,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
     }
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
     for (uint32_t i = 0; i < signature->stack_count; i++) {
-        stack[signature->stack_count - 1 - i] = janet_ffi_reg64(argv, signature->stack[i]); 
+        stack[signature->stack_count - 1 - i] = janet_ffi_reg64(argv, signature->stack[i]);
     }
 
     /* !!ACHTUNG!! */
@@ -383,9 +383,9 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
 
     switch (signature->variant) {
         default:
-            /* fallthrough */
+        /* fallthrough */
         case 0:
-            __asm__( FFI_ASM_PRELUDE
+            __asm__(FFI_ASM_PRELUDE
                     "call *%2\n\t"
                     "mov %%rax, %0\n\t"
                     "mov %%rdx, %1"
@@ -394,7 +394,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
                     : "rax", "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11");
             return janet_ffi_from64(ret, signature->ret_type);
         case 1:
-            __asm__( FFI_ASM_PRELUDE
+            __asm__(FFI_ASM_PRELUDE
                     "call *%2\n\t"
                     "movq %%xmm0, %0\n\t"
                     "movq %%xmm1, %1"
@@ -412,9 +412,9 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
 }
 
 JANET_CORE_FN(cfun_ffi_call,
-        "(native-call pointer signature & args)",
-        "Call a raw pointer as a function pointer. The function signature specifies "
-        "how Janet values in `args` are converted to native machine types.") {
+              "(native-call pointer signature & args)",
+              "Call a raw pointer as a function pointer. The function signature specifies "
+              "how Janet values in `args` are converted to native machine types.") {
     janet_arity(argc, 2, -1);
     void *function_pointer = janet_getpointer(argv, 0);
     JanetFFISignature *signature = janet_getabstract(argv, 1, &janet_signature_type);
