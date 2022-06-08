@@ -227,6 +227,9 @@ valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 callgrind: $(JANET_TARGET)
 	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
 
+ffitest: $(JANET_TARGET)
+	$(JANET_TARGET) ffitest/test.janet
+
 ########################
 ##### Distribution #####
 ########################
@@ -367,5 +370,5 @@ help:
 	@echo '   make grammar    Generate a TextMate language grammar'
 	@echo
 
-.PHONY: clean install repl debug valgrind test \
+.PHONY: clean install repl debug valgrind test ffitest \
 	valtest dist uninstall docs grammar format help compile-commands
