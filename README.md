@@ -89,6 +89,8 @@ cd somewhere/my/projects/janet
 make
 make test
 make repl
+make install
+make install-jpm-git
 ```
 
 Find out more about the available make targets by running `make help`.
@@ -103,6 +105,8 @@ cd somewhere/my/projects/janet
 make CC=gcc-x86
 make test
 make repl
+make install
+make install-jpm-git
 ```
 
 ### FreeBSD
@@ -116,6 +120,8 @@ cd somewhere/my/projects/janet
 gmake
 gmake test
 gmake repl
+gmake install
+gmake install-jpm-git
 ```
 
 ### NetBSD
