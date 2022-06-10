@@ -62,10 +62,17 @@
   [i d]
   (native-call struct-big-fn-pointer struct-big-fn-sig i d))
 
+(def void-fn-pointer (native-lookup module "void_fn"))
+(def void-fn-sig (native-signature :default :void))
+(defn void-fn
+  []
+  (native-call void-fn-pointer void-fn-sig))
+
 #
 # Call functions
 #
 
+(pp (void-fn))
 (pp (int-fn 10 20))
 (pp (double-fn 1.5 2.5 3.5))
 (pp (double-many 1 2 3 4 5 6))

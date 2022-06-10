@@ -473,6 +473,7 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
             return clazz;
         }
         case JANET_FFI_TYPE_VOID:
+            return JANET_SYSV64_NO_CLASS;
         default:
             janet_panic("nyi");
             return JANET_SYSV64_NO_CLASS;
@@ -519,6 +520,9 @@ JANET_CORE_FN(cfun_ffi_signature,
                 mappings[i].type = decode_ffi_type(argv[i + 2]);
                 mappings[i].offset = 0;
                 mappings[i].spec = sysv64_classify(mappings[i].type);
+                if (mappings[i].spec == JANET_SYSV64_NO_CLASS) {
+                    janet_panic("unexpected void parameter");
+                }
                 size_t el_size = (type_size(mappings[i].type) + 7) / 8;
                 switch (mappings[i].spec) {
                     default:

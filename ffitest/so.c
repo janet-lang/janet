@@ -77,3 +77,11 @@ big struct_big(int i, double d) {
     ret.c = ret.a + ret.b + 1000;
     return ret;
 }
+
+void void_fn(void) {
+    printf("void fn ran\n");
+}
+
+void void_ret_fn(int x) {
+    printf("void fn ran: %d\n", x);
+}
