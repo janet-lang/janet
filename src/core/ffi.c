@@ -84,11 +84,17 @@ struct JanetFFIType {
     JanetFFIPrimType prim;
 };
 
+typedef struct {
+    JanetFFIType type;
+    size_t offset;
+} JanetFFIStructMember;
+
 struct JanetFFIStruct {
     uint32_t size;
     uint32_t align;
     uint32_t field_count;
-    JanetFFIType fields[];
+    uint32_t is_aligned;
+    JanetFFIStructMember fields[];
 };
 
 /* Specifies how the registers are classified. This is used
@@ -153,7 +159,7 @@ int struct_mark(void *p, size_t s) {
     (void) s;
     JanetFFIStruct *st = p;
     for (uint32_t i = 0; i < st->field_count; i++) {
-        JanetFFIType t = st->fields[i];
+        JanetFFIType t = st->fields[i].type;
         if (t.prim == JANET_FFI_TYPE_STRUCT) {
             janet_mark(janet_wrap_abstract(t.st));
         }
@@ -243,18 +249,50 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
 static JanetFFIType decode_ffi_type(Janet x);
 
 static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
+    /* Use :pack to indicate a single packed struct member and :pack-all
+     * to pack the remaining members */
+    int32_t member_count = argc;
+    int all_packed = 0;
+    for (int32_t i = 0; i < argc; i++) {
+        if (janet_keyeq(argv[i], "pack")) {
+            member_count--;
+        } else if (janet_keyeq(argv[i], "pack-all")) {
+            member_count--;
+            all_packed = 1;
+        }
+    }
+
     JanetFFIStruct *st = janet_abstract(&janet_struct_type,
-                                        sizeof(JanetFFIStruct) + argc * sizeof(JanetFFIType));
-    st->field_count = argc;
+                                        sizeof(JanetFFIStruct) + argc * sizeof(JanetFFIStructMember));
+    st->field_count = member_count;
     st->size = 0;
     st->align = 1;
-    for (int32_t i = 0; i < argc; i++) {
-        st->fields[i] = decode_ffi_type(argv[i]);
-        size_t el_align = type_align(st->fields[i]);
-        size_t el_size = type_size(st->fields[i]);
-        if (el_align > st->align) st->align = el_align;
-        st->size = el_size + (((st->size + el_align - 1) / el_align) * el_align);
+    if (argc == 0) {
+        janet_panic("invalid empty struct");
     }
+    uint32_t is_aligned = 1;
+    int32_t i = 0;
+    for (int32_t j = 0; j < argc; j++) {
+        int pack_one = 0;
+        if (janet_keyeq(argv[j], "pack") || janet_keyeq(argv[j], "pack-all")) {
+            pack_one = 1;
+            j++;
+        }
+        st->fields[i].type = decode_ffi_type(argv[j]);
+        size_t el_size = type_size(st->fields[i].type);
+        size_t el_align = type_align(st->fields[i].type);
+        if (all_packed || pack_one) {
+            if (st->size % el_align != 0) is_aligned = 0;
+            st->fields[i].offset = st->size;
+            st->size += el_size;
+        } else {
+            if (el_align > st->align) st->align = el_align;
+            st->fields[i].offset = (((st->size + el_align - 1) / el_align) * el_align);
+            st->size = el_size + st->fields[i].offset;
+        }
+        i++;
+    }
+    st->is_aligned = is_aligned;
     return st;
 }
 
@@ -311,19 +349,14 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
             break;
         case JANET_FFI_TYPE_STRUCT: {
             JanetView els = janet_getindexed(argv, n);
-            uint32_t cursor = 0;
             JanetFFIStruct *st = type.st;
             if ((uint32_t) els.len != st->field_count) {
                 janet_panicf("wrong number of fields in struct, expected %d, got %d",
                              (int32_t) st->field_count, els.len);
             }
             for (int32_t i = 0; i < els.len; i++) {
-                JanetFFIType tp = st->fields[i];
-                size_t align = type_align(tp);
-                size_t size = type_size(tp);
-                cursor = ((cursor + align - 1) / align) * align;
-                janet_ffi_write_one(to + cursor, els.items, i, tp, recur - 1);
-                cursor += size;
+                JanetFFIType tp = st->fields[i].type;
+                janet_ffi_write_one(to + st->fields[i].offset, els.items, i, tp, recur - 1);
             }
         }
         break;
@@ -378,14 +411,9 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
         case JANET_FFI_TYPE_STRUCT: {
             JanetFFIStruct *st = type.st;
             Janet *tup = janet_tuple_begin(st->field_count);
-            size_t cursor = 0;
             for (uint32_t i = 0; i < st->field_count; i++) {
-                JanetFFIType tp = st->fields[i];
-                size_t align = type_align(tp);
-                size_t size = type_size(tp);
-                cursor = ((cursor + align - 1) / align) * align;
-                tup[i] = janet_ffi_read_one(from + cursor, tp, recur - 1);
-                cursor += size;
+                JanetFFIType tp = st->fields[i].type;
+                tup[i] = janet_ffi_read_one(from + st->fields[i].offset, tp, recur - 1);
             }
             return janet_wrap_tuple(janet_tuple_end(tup));
         }
@@ -452,9 +480,10 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
         case JANET_FFI_TYPE_STRUCT: {
             JanetFFIStruct *st = type.st;
             if (st->size > 16) return JANET_SYSV64_MEMORY;
+            if (!st->is_aligned) return JANET_SYSV64_MEMORY;
             JanetFFIWordSpec clazz = JANET_SYSV64_NO_CLASS;
             for (uint32_t i = 0; i < st->field_count; i++) {
-                JanetFFIWordSpec next_class = sysv64_classify(st->fields[i]);
+                JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
                 if (next_class != clazz) {
                     if (clazz == JANET_SYSV64_NO_CLASS) {
                         clazz = next_class;
