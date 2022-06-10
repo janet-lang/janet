@@ -3417,7 +3417,8 @@
     (def pc (frame :pc))
     (def sourcemap (in dasm :sourcemap))
     (var last-loc [-2 -2])
-    (print "\n  signal: " (.signal))
+    (print "\n  signal:     " (.signal))
+    (print "  status:     " (fiber/status (.fiber)))
     (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
     (when-let [constants (dasm :constants)]
       (printf "  constants:  %.4q" constants))
