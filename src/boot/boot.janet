@@ -2750,32 +2750,40 @@
   "An environment that contains dot prefixed functions for debugging."
   @{})
 
+(var- debugger-on-status-var nil)
+
+(defn debugger
+  "Run a repl-based debugger on a fiber. Optionally pass in a level
+  to differentiate nested debuggers."
+  [fiber &opt level]
+  (default level 1)
+  (def nextenv (make-env (fiber/getenv fiber)))
+  (put nextenv :fiber fiber)
+  (put nextenv :debug-level level)
+  (put nextenv :signal (fiber/last-value fiber))
+  (merge-into nextenv debugger-env)
+  (defn debugger-chunks [buf p]
+    (def status (:state p :delimiters))
+    (def c ((:where p) 0))
+    (def prpt (string "debug[" level "]:" c ":" status "> "))
+    (getline prpt buf nextenv))
+  (print "entering debug[" level "] - (quit) to exit")
+  (flush)
+  (run-context
+    {:chunks debugger-chunks
+     :on-status (debugger-on-status-var nextenv (+ 1 level) true)
+     :env nextenv})
+  (print "exiting debug[" level "]")
+  (flush)
+  (nextenv :resume-value))
+
 (defn debugger-on-status
   "Create a function that can be passed to `run-context`'s `:on-status`
-  argument that will drop into a debugger on errors."
+  argument that will drop into a debugger on errors. The debugger will
+  only start on abmnormal signals if the env table has the `:debug` dyn
+  set to a truthy value."
   [env &opt level is-repl]
   (default level 1)
-  (defn enter-debugger
-    [f x]
-    (def nextenv (make-env env))
-    (put nextenv :fiber f)
-    (put nextenv :debug-level level)
-    (put nextenv :signal x)
-    (merge-into nextenv debugger-env)
-    (defn debugger-chunks [buf p]
-      (def status (:state p :delimiters))
-      (def c ((:where p) 0))
-      (def prpt (string "debug[" level "]:" c ":" status "> "))
-      (getline prpt buf nextenv))
-    (print "entering debug[" level "] - (quit) to exit")
-    (flush)
-    (run-context
-      {:chunks debugger-chunks
-       :on-status (debugger-on-status nextenv (+ 1 level) true)
-       :env nextenv})
-    (print "exiting debug[" level "]")
-    (flush)
-    (nextenv :resume-value))
   (fn [f x]
     (def fs (fiber/status f))
     (if (= :dead fs)
@@ -2786,8 +2794,9 @@
       (do
         (debug/stacktrace f x "")
         (eflush)
-        (if (get env :debug) (enter-debugger f x))))))
+        (if (get env :debug) (debugger f level))))))
 
+(set debugger-on-status-var debugger-on-status)
 
 (defn dofile
   ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
@@ -3697,8 +3706,9 @@
       (main ;subargs))
     (def f (fiber/new wrap-main guard))
     (fiber/setenv f env)
+    (var res nil)
     (while (fiber/can-resume? f)
-      (def res (resume f))
+      (set res (resume f res))
       (when (not= :dead (fiber/status f))
         ((debugger-on-status env) f res)))))
 

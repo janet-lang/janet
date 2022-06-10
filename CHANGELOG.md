@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `debugger` - an easy to use debugger function that just takes a fiber.
 - `dofile` will now start a debugger on errors if the environment it is passed has `:debug` set.
 - Add `debugger-on-status` function, which can be passed to `run-context` to start a debugger on
   abnormal fiber signals.
