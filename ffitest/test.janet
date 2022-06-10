@@ -68,4 +68,40 @@
 (assert (= 19 (double-lots 1 2 3 4 5 6 7 8 9 10)))
 (assert (= 204 (float-fn 8 4 17)))
 
+#
+# Struct reading and writing
+#
+
+(defn check-round-trip
+  [t value]
+  (def buf (native-write t value))
+  (def same-value (native-read t buf))
+  (assert (deep= value same-value)
+          (string/format "round trip %j (got %j)" value same-value)))
+
+(check-round-trip :bool true)
+(check-round-trip :bool false)
+(check-round-trip :void nil)
+(check-round-trip :void nil)
+(check-round-trip :s8 10)
+(check-round-trip :s8 0)
+(check-round-trip :s8 -10)
+(check-round-trip :u8 10)
+(check-round-trip :u8 0)
+(check-round-trip :s16 10)
+(check-round-trip :s16 0)
+(check-round-trip :s16 -12312)
+(check-round-trip :u16 10)
+(check-round-trip :u16 0)
+(check-round-trip :u32 0)
+(check-round-trip :u32 10)
+(check-round-trip :u32 0xFFFF7777)
+(check-round-trip :s32 0x7FFF7777)
+(check-round-trip :s32 0)
+(check-round-trip :s32 -1234567)
+
+(def s (native-struct :s8 :s8 :s8 :float))
+(check-round-trip s [1 3 5 123.5])
+(check-round-trip s [-1 -3 -5 -123.5])
+
 (print "Done.")

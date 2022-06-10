@@ -219,6 +219,14 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "ssize")) return JANET_FFI_TYPE_INT32;
 #endif
     /* aliases */
+    if (!janet_cstrcmp(name, "s8")) return JANET_FFI_TYPE_INT8;
+    if (!janet_cstrcmp(name, "u8")) return JANET_FFI_TYPE_UINT8;
+    if (!janet_cstrcmp(name, "s16")) return JANET_FFI_TYPE_INT16;
+    if (!janet_cstrcmp(name, "u16")) return JANET_FFI_TYPE_UINT16;
+    if (!janet_cstrcmp(name, "s32")) return JANET_FFI_TYPE_INT32;
+    if (!janet_cstrcmp(name, "u32")) return JANET_FFI_TYPE_UINT32;
+    if (!janet_cstrcmp(name, "s64")) return JANET_FFI_TYPE_INT64;
+    if (!janet_cstrcmp(name, "u64")) return JANET_FFI_TYPE_UINT64;
     if (!janet_cstrcmp(name, "char")) return JANET_FFI_TYPE_INT8;
     if (!janet_cstrcmp(name, "short")) return JANET_FFI_TYPE_INT16;
     if (!janet_cstrcmp(name, "int")) return JANET_FFI_TYPE_INT32;
@@ -291,11 +299,13 @@ static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
 
 /* Write a value given by some Janet values and an FFI type as it would appear in memory.
  * The alignment and space available is assumed to already be sufficient */
-static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFIType type) {
+static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFIType type, int recur) {
+    if (recur == 0) janet_panic("recursion too deep");
     switch (type.prim) {
         case JANET_FFI_TYPE_VOID:
-        default:
-            janet_panic("nyi");
+            if (!janet_checktype(argv[n], JANET_NIL)) {
+                janet_panicf("expected nil, got %v", argv[n]);
+            }
             break;
         case JANET_FFI_TYPE_STRUCT: {
             JanetView els = janet_getindexed(argv, n);
@@ -310,7 +320,7 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
                 size_t align = type_align(tp);
                 size_t size = type_size(tp);
                 cursor = ((cursor + align - 1) / align) * align;
-                janet_ffi_write_one(to + cursor, els.items, i, tp);
+                janet_ffi_write_one(to + cursor, els.items, i, tp, recur - 1);
                 cursor += size;
             }
         }
@@ -351,6 +361,64 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
         case JANET_FFI_TYPE_UINT64:
             ((uint64_t *)(to))[0] = janet_getuinteger64(argv, n);
             break;
+    }
+}
+
+/* Read a value from memory and construct a Janet data structure that can be passed back into
+ * the interpreter. This should be the inverse to janet_ffi_write_one. It is assumed that the
+ * size of the data is correct. */
+static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recur) {
+    if (recur == 0) janet_panic("recursion too deep");
+    switch (type.prim) {
+        default:
+        case JANET_FFI_TYPE_VOID:
+            return janet_wrap_nil();
+        case JANET_FFI_TYPE_STRUCT:
+            {
+                JanetFFIStruct *st = type.st;
+                Janet *tup = janet_tuple_begin(st->field_count);
+                size_t cursor = 0;
+                for (uint32_t i = 0; i < st->field_count; i++) {
+                    JanetFFIType tp = st->fields[i];
+                    size_t align = type_align(tp);
+                    size_t size = type_size(tp);
+                    cursor = ((cursor + align - 1) / align) * align;
+                    tup[i] = janet_ffi_read_one(from + cursor, tp, recur - 1);
+                    cursor += size;
+                }
+                return janet_wrap_tuple(janet_tuple_end(tup));
+            }
+        case JANET_FFI_TYPE_DOUBLE:
+            return janet_wrap_number(((double *)(from))[0]);
+        case JANET_FFI_TYPE_FLOAT:
+            return janet_wrap_number(((float *)(from))[0]);
+        case JANET_FFI_TYPE_PTR:
+            return janet_wrap_pointer(((void **)(from))[0]);
+        case JANET_FFI_TYPE_BOOL:
+            return janet_wrap_boolean(((bool *)(from))[0]);
+        case JANET_FFI_TYPE_INT8:
+            return janet_wrap_number(((int8_t *)(from))[0]);
+        case JANET_FFI_TYPE_INT16:
+            return janet_wrap_number(((int16_t *)(from))[0]);
+        case JANET_FFI_TYPE_INT32:
+            return janet_wrap_number(((int32_t *)(from))[0]);
+        case JANET_FFI_TYPE_UINT8:
+            return janet_wrap_number(((uint8_t *)(from))[0]);
+        case JANET_FFI_TYPE_UINT16:
+            return janet_wrap_number(((uint16_t *)(from))[0]);
+        case JANET_FFI_TYPE_UINT32:
+            return janet_wrap_number(((uint32_t *)(from))[0]);
+#ifdef JANET_INT_TYPES
+        case JANET_FFI_TYPE_INT64:
+            return janet_wrap_s64(((int64_t *)(from))[0]);
+        case JANET_FFI_TYPE_UINT64:
+            return janet_wrap_u64(((uint64_t *)(from))[0]);
+#else
+        case JANET_FFI_TYPE_INT64:
+            return janet_wrap_number(((int64_t *)(from))[0]);
+        case JANET_FFI_TYPE_UINT64:
+            return janet_wrap_number(((uint64_t *)(from))[0]);
+#endif
     }
 }
 
@@ -528,7 +596,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
                 to = stack + arg.offset;
                 break;
         }
-        janet_ffi_write_one(to, argv, n, arg.type);
+        janet_ffi_write_one(to, argv, n, arg.type, 64);
     }
 
     /* !!ACHTUNG!! */
@@ -652,9 +720,23 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
     janet_buffer_extra(buffer, el_size);
     memset(buffer->data, 0, el_size);
-    janet_ffi_write_one(buffer->data, argv, 1, type);
+    janet_ffi_write_one(buffer->data, argv, 1, type, 64);
     buffer->count += el_size;
     return janet_wrap_buffer(buffer);
+}
+
+
+JANET_CORE_FN(cfun_ffi_buffer_read,
+              "(native-read ffi-type bytes &opt offset)",
+              "Parse a native struct out of a buffer and convert it to normal Janet data structures. "
+              "This function is the inverse of `native-write`.") {
+    janet_arity(argc, 2, 3);
+    JanetFFIType type = decode_ffi_type(argv[0]);
+    size_t el_size = type_size(type);
+    JanetByteView bytes = janet_getbytes(argv, 1);
+    size_t offset = (size_t) janet_optnat(argv, argc, 2, 0);
+    if ((size_t) bytes.len < offset + el_size) janet_panic("read out of range");
+    return janet_ffi_read_one(bytes.bytes, type, 64);
 }
 
 void janet_lib_ffi(JanetTable *env) {
@@ -663,6 +745,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("native-call", cfun_ffi_call),
         JANET_CORE_REG("native-struct", cfun_ffi_struct),
         JANET_CORE_REG("native-write", cfun_ffi_buffer_write),
+        JANET_CORE_REG("native-read", cfun_ffi_buffer_read),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
