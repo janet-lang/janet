@@ -2,6 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `debugger` - an easy to use debugger function that just takes a fiber.
+- `dofile` will now start a debugger on errors if the environment it is passed has `:debug` set.
+- Add `debugger-on-status` function, which can be passed to `run-context` to start a debugger on
+  abnormal fiber signals.
+- Allow running scripts with the `-d` flag to use the built-in debugger on errors and breakpoints.
 - Add `raw-native`, `native-lookup`, and `native-close` for interfacing with dynamic libraries.
 - Add mutexes (locks) and reader-writer locks to ev module for thread coordination.
 - Add `parse-all` as a generalization of the `parse` function.

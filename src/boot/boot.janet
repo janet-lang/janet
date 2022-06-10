@@ -2746,6 +2746,58 @@
         (get r 0)
         v))))
 
+(def debugger-env
+  "An environment that contains dot prefixed functions for debugging."
+  @{})
+
+(var- debugger-on-status-var nil)
+
+(defn debugger
+  "Run a repl-based debugger on a fiber. Optionally pass in a level
+  to differentiate nested debuggers."
+  [fiber &opt level]
+  (default level 1)
+  (def nextenv (make-env (fiber/getenv fiber)))
+  (put nextenv :fiber fiber)
+  (put nextenv :debug-level level)
+  (put nextenv :signal (fiber/last-value fiber))
+  (merge-into nextenv debugger-env)
+  (defn debugger-chunks [buf p]
+    (def status (:state p :delimiters))
+    (def c ((:where p) 0))
+    (def prpt (string "debug[" level "]:" c ":" status "> "))
+    (getline prpt buf nextenv))
+  (print "entering debug[" level "] - (quit) to exit")
+  (flush)
+  (run-context
+    {:chunks debugger-chunks
+     :on-status (debugger-on-status-var nextenv (+ 1 level) true)
+     :env nextenv})
+  (print "exiting debug[" level "]")
+  (flush)
+  (nextenv :resume-value))
+
+(defn debugger-on-status
+  "Create a function that can be passed to `run-context`'s `:on-status`
+  argument that will drop into a debugger on errors. The debugger will
+  only start on abmnormal signals if the env table has the `:debug` dyn
+  set to a truthy value."
+  [env &opt level is-repl]
+  (default level 1)
+  (fn [f x]
+    (def fs (fiber/status f))
+    (if (= :dead fs)
+      (when is-repl
+        (put env '_ @{:value x})
+        (printf (get env :pretty-format "%q") x)
+        (flush))
+      (do
+        (debug/stacktrace f x "")
+        (eflush)
+        (if (get env :debug) (debugger f level))))))
+
+(set debugger-on-status-var debugger-on-status)
+
 (defn dofile
   ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
   :source, :evaluator, :read, and :parser are passed through to the underlying
@@ -2802,9 +2854,12 @@
                                    (debug/stacktrace f x "")
                                    (eflush)
                                    (os/exit 1))
-                                 (put env :exit true)
-                                 (set exit-error x)
-                                 (set exit-fiber f)))
+                                 (if (get env :debug)
+                                   ((debugger-on-status env) f x)
+                                   (do
+                                     (put env :exit true)
+                                     (set exit-error x)
+                                     (set exit-fiber f)))))
                   :evaluator evaluator
                   :expander expander
                   :read read
@@ -3362,7 +3417,8 @@
     (def pc (frame :pc))
     (def sourcemap (in dasm :sourcemap))
     (var last-loc [-2 -2])
-    (print "\n  signal: " (.signal))
+    (print "\n  signal:     " (.signal))
+    (print "  status:     " (fiber/status (.fiber)))
     (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
     (when-let [constants (dasm :constants)]
       (printf "  constants:  %.4q" constants))
@@ -3448,10 +3504,6 @@
     (set res (debug/step (.fiber))))
   res)
 
-(def debugger-env
-  "An environment that contains dot prefixed functions for debugging."
-  @{})
-
 (def- debugger-keys (filter (partial string/has-prefix? ".") (keys root-env)))
 (each k debugger-keys (put debugger-env k (root-env k)) (put root-env k nil))
 
@@ -3479,43 +3531,9 @@
           ":"
           (:state p :delimiters) "> ")
         buf env)))
-  (defn make-onsignal
-    [e level]
-
-    (defn enter-debugger
-      [f x]
-      (def nextenv (make-env env))
-      (put nextenv :fiber f)
-      (put nextenv :debug-level level)
-      (put nextenv :signal x)
-      (merge-into nextenv debugger-env)
-      (defn debugger-chunks [buf p]
-        (def status (:state p :delimiters))
-        (def c ((:where p) 0))
-        (def prpt (string "debug[" level "]:" c ":" status "> "))
-        (getline prpt buf nextenv))
-      (print "entering debug[" level "] - (quit) to exit")
-      (flush)
-      (repl debugger-chunks (make-onsignal nextenv (+ 1 level)) nextenv)
-      (print "exiting debug[" level "]")
-      (flush)
-      (nextenv :resume-value))
-
-    (fn [f x]
-      (def fs (fiber/status f))
-      (if (= :dead fs)
-        (do
-          (put e '_ @{:value x})
-          (printf (get e :pretty-format "%q") x)
-          (flush))
-        (do
-          (debug/stacktrace f x "")
-          (eflush)
-          (if (e :debug) (enter-debugger f x))))))
-
   (run-context {:env env
                 :chunks chunks
-                :on-status (or onsignal (make-onsignal env 1))
+                :on-status (or onsignal (debugger-on-status env 1 true))
                 :parser parser
                 :read read
                 :source :repl}))
@@ -3682,10 +3700,18 @@
 
 (defn- run-main
   [env subargs arg]
-  (if-let [entry (in env 'main)
+  (when-let [entry (in env 'main)
            main (or (get entry :value) (in (get entry :ref) 0))]
-    (let [thunk (compile [main ;subargs] env arg)]
-      (if (function? thunk) (thunk) (error (thunk :error))))))
+    (def guard (if (get env :debug) :ydt :y))
+    (defn wrap-main [&]
+      (main ;subargs))
+    (def f (fiber/new wrap-main guard))
+    (fiber/setenv f env)
+    (var res nil)
+    (while (fiber/can-resume? f)
+      (set res (resume f res))
+      (when (not= :dead (fiber/status f))
+        ((debugger-on-status env) f res)))))
 
 (defdyn *args*
   "Dynamic bindings that will contain command line arguments at program start.")
