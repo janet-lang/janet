@@ -641,11 +641,28 @@ JANET_CORE_FN(cfun_ffi_call,
     }
 }
 
+JANET_CORE_FN(cfun_ffi_buffer_write,
+              "(native-write ffi-type data &opt buffer)",
+              "Append a native tyep to a buffer such as it would appear in memory. This can be used "
+              "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
+              "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
+    janet_arity(argc, 2, 3);
+    JanetFFIType type = decode_ffi_type(argv[0]);
+    size_t el_size = type_size(type);
+    JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
+    janet_buffer_extra(buffer, el_size);
+    memset(buffer->data, 0, el_size);
+    janet_ffi_write_one(buffer->data, argv, 1, type);
+    buffer->count += el_size;
+    return janet_wrap_buffer(buffer);
+}
+
 void janet_lib_ffi(JanetTable *env) {
     JanetRegExt ffi_cfuns[] = {
         JANET_CORE_REG("native-signature", cfun_ffi_signature),
         JANET_CORE_REG("native-call", cfun_ffi_call),
         JANET_CORE_REG("native-struct", cfun_ffi_struct),
+        JANET_CORE_REG("native-write", cfun_ffi_buffer_write),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
