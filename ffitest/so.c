@@ -56,3 +56,24 @@ int intintint_fn(double x, intintint iii) {
     printf("double: %g\n", x);
     return iii.a + iii.b + iii.c;
 }
+
+intint return_struct(int i) {
+    intint ret;
+    ret.a = i;
+    ret.b = i * i;
+    return ret;
+}
+
+typedef struct {
+    int64_t a;
+    int64_t b;
+    int64_t c;
+} big;
+
+big struct_big(int i, double d) {
+    big ret;
+    ret.a = i;
+    ret.b = (int64_t) d;
+    ret.c = ret.a + ret.b + 1000;
+    return ret;
+}

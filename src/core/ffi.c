@@ -32,6 +32,8 @@
 #define alloca _alloca
 #endif
 
+#define JANET_FFI_MAX_RECUR 64
+
 typedef struct JanetFFIType JanetFFIType;
 typedef struct JanetFFIStruct JanetFFIStruct;
 
@@ -124,7 +126,7 @@ typedef struct {
     uint32_t variant;
     uint32_t stack_count;
     JanetFFICallingConvention cc;
-    JanetFFIType ret_type;
+    JanetFFIMapping ret;
     JanetFFIMapping args[JANET_FFI_MAX_ARGS];
 } JanetFFISignature;
 
@@ -373,21 +375,20 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
         default:
         case JANET_FFI_TYPE_VOID:
             return janet_wrap_nil();
-        case JANET_FFI_TYPE_STRUCT:
-            {
-                JanetFFIStruct *st = type.st;
-                Janet *tup = janet_tuple_begin(st->field_count);
-                size_t cursor = 0;
-                for (uint32_t i = 0; i < st->field_count; i++) {
-                    JanetFFIType tp = st->fields[i];
-                    size_t align = type_align(tp);
-                    size_t size = type_size(tp);
-                    cursor = ((cursor + align - 1) / align) * align;
-                    tup[i] = janet_ffi_read_one(from + cursor, tp, recur - 1);
-                    cursor += size;
-                }
-                return janet_wrap_tuple(janet_tuple_end(tup));
+        case JANET_FFI_TYPE_STRUCT: {
+            JanetFFIStruct *st = type.st;
+            Janet *tup = janet_tuple_begin(st->field_count);
+            size_t cursor = 0;
+            for (uint32_t i = 0; i < st->field_count; i++) {
+                JanetFFIType tp = st->fields[i];
+                size_t align = type_align(tp);
+                size_t size = type_size(tp);
+                cursor = ((cursor + align - 1) / align) * align;
+                tup[i] = janet_ffi_read_one(from + cursor, tp, recur - 1);
+                cursor += size;
             }
+            return janet_wrap_tuple(janet_tuple_end(tup));
+        }
         case JANET_FFI_TYPE_DOUBLE:
             return janet_wrap_number(((double *)(from))[0]);
         case JANET_FFI_TYPE_FLOAT:
@@ -420,10 +421,6 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
             return janet_wrap_number(((uint64_t *)(from))[0]);
 #endif
     }
-}
-
-static int is_fp_type(JanetFFIType type) {
-    return type.prim == JANET_FFI_TYPE_DOUBLE || type.prim == JANET_FFI_TYPE_FLOAT;
 }
 
 static JanetFFIMapping void_mapping(void) {
@@ -493,6 +490,11 @@ JANET_CORE_FN(cfun_ffi_signature,
     uint32_t stack_count = 0;
     JanetFFICallingConvention cc = decode_ffi_cc(janet_getkeyword(argv, 0));
     JanetFFIType ret_type = decode_ffi_type(argv[1]);
+    JanetFFIMapping ret = {
+        ret_type,
+        JANET_SYSV64_NO_CLASS,
+        0
+    };
     JanetFFIMapping mappings[JANET_FFI_MAX_ARGS];
     for (int i = 0; i < JANET_FFI_MAX_ARGS; i++) mappings[i] = void_mapping();
     switch (cc) {
@@ -500,19 +502,23 @@ JANET_CORE_FN(cfun_ffi_signature,
             janet_panicf("calling convention %v unsupported", argv[0]);
             break;
         case JANET_FFI_CC_SYSV_64: {
-            if (is_fp_type(ret_type)) variant = 1;
-            for (uint32_t i = 0; i < arg_count; i++) {
-                mappings[i].type = decode_ffi_type(argv[i + 2]);
-                mappings[i].offset = 0;
-                mappings[i].spec = sysv64_classify(mappings[i].type);
-            }
+            JanetFFIWordSpec ret_spec = sysv64_classify(ret.type);
+            if (ret_spec == JANET_SYSV64_SSE) variant = 1;
+            ret.spec = ret_spec;
 
             /* Spill register overflow to memory */
             uint32_t next_register = 0;
             uint32_t next_fp_register = 0;
             const uint32_t max_regs = 6;
             const uint32_t max_fp_regs = 8;
+            if (ret_spec == JANET_SYSV64_MEMORY) {
+                /* First integer reg is pointer. */
+                next_register = 1;
+            }
             for (uint32_t i = 0; i < arg_count; i++) {
+                mappings[i].type = decode_ffi_type(argv[i + 2]);
+                mappings[i].offset = 0;
+                mappings[i].spec = sysv64_classify(mappings[i].type);
                 size_t el_size = (type_size(mappings[i].type) + 7) / 8;
                 switch (mappings[i].spec) {
                     default:
@@ -560,7 +566,7 @@ JANET_CORE_FN(cfun_ffi_signature,
     JanetFFISignature *abst = janet_abstract(&janet_signature_type, sizeof(JanetFFISignature));
     abst->frame_size = frame_size;
     abst->cc = cc;
-    abst->ret_type = ret_type;
+    abst->ret = ret;
     abst->arg_count = arg_count;
     abst->variant = variant;
     abst->stack_count = stack_count;
@@ -569,15 +575,15 @@ JANET_CORE_FN(cfun_ffi_signature,
 }
 
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
-    uint64_t ret, rethi;
-    (void) rethi; /* at some point we will support more complex return types */
-    union {
-        float f;
-        double d;
-        uint64_t reg;
-    } u;
+    uint64_t ret[2];
     uint64_t regs[6];
     uint64_t fp_regs[8];
+    JanetFFIWordSpec ret_spec = signature->ret.spec;
+    void *ret_mem = ret;
+    if (ret_spec == JANET_SYSV64_MEMORY) {
+        ret_mem = alloca(type_size(signature->ret.type));
+        regs[0] = (uint64_t) ret_mem;
+    }
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         uint64_t *to;
@@ -596,7 +602,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
                 to = stack + arg.offset;
                 break;
         }
-        janet_ffi_write_one(to, argv, n, arg.type, 64);
+        janet_ffi_write_one(to, argv, n, arg.type, JANET_FFI_MAX_RECUR);
     }
 
     /* !!ACHTUNG!! */
@@ -616,7 +622,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
     "movq %14, %%xmm5\n\t" \
     "movq %15, %%xmm6\n\t" \
     "movq %16, %%xmm7\n\t"
-#define FFI_ASM_OUTPUTS "=g" (ret), "=g" (rethi)
+#define FFI_ASM_OUTPUTS "=g" (ret[0]), "=g" (ret[1])
 #define FFI_ASM_INPUTS \
     "g"(function_pointer), \
     "g"(regs[0]), \
@@ -661,36 +667,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
 #undef FFI_ASM_OUTPUTS
 #undef FFI_ASM_INPUTS
 
-    /* TODO - compound type returns */
-    switch (signature->ret_type.prim) {
-        default:
-            janet_panic("nyi");
-            return janet_wrap_nil();
-        case JANET_FFI_TYPE_FLOAT:
-            u.reg = ret;
-            return janet_wrap_number(u.f);
-        case JANET_FFI_TYPE_DOUBLE:
-            u.reg = ret;
-            return janet_wrap_number(u.d);
-        case JANET_FFI_TYPE_VOID:
-            return janet_wrap_nil();
-        case JANET_FFI_TYPE_PTR:
-            return janet_wrap_pointer((void *) ret);
-        case JANET_FFI_TYPE_BOOL:
-            return janet_wrap_boolean(ret);
-        case JANET_FFI_TYPE_INT8:
-        case JANET_FFI_TYPE_INT16:
-        case JANET_FFI_TYPE_INT32:
-            return janet_wrap_integer((int32_t) ret);
-        case JANET_FFI_TYPE_INT64:
-            return janet_wrap_integer((int64_t) ret);
-        case JANET_FFI_TYPE_UINT8:
-        case JANET_FFI_TYPE_UINT16:
-        case JANET_FFI_TYPE_UINT32:
-        case JANET_FFI_TYPE_UINT64:
-            /* TODO - fix 64 bit unsigned return */
-            return janet_wrap_number(ret);
-    }
+    return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
 }
 
 JANET_CORE_FN(cfun_ffi_call,
@@ -720,7 +697,7 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
     janet_buffer_extra(buffer, el_size);
     memset(buffer->data, 0, el_size);
-    janet_ffi_write_one(buffer->data, argv, 1, type, 64);
+    janet_ffi_write_one(buffer->data, argv, 1, type, JANET_FFI_MAX_RECUR);
     buffer->count += el_size;
     return janet_wrap_buffer(buffer);
 }
@@ -736,7 +713,7 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
     JanetByteView bytes = janet_getbytes(argv, 1);
     size_t offset = (size_t) janet_optnat(argv, argc, 2, 0);
     if ((size_t) bytes.len < offset + el_size) janet_panic("read out of range");
-    return janet_ffi_read_one(bytes.bytes, type, 64);
+    return janet_ffi_read_one(bytes.bytes, type, JANET_FFI_MAX_RECUR);
 }
 
 void janet_lib_ffi(JanetTable *env) {

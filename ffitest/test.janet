@@ -42,6 +42,11 @@
   [x ii]
   (native-call intint-fn-pointer intint-fn-sig x ii))
 
+(def return-struct-sig (native-signature :default [:int :int] :int))
+(def return-struct-pointer (native-lookup module "return_struct"))
+(defn return-struct-fn
+  [i]
+  (native-call return-struct-pointer return-struct-sig i))
 
 (def intintint (native-struct :int :int :int))
 (def intintint-fn-sig (native-signature :default :int :double intintint))
@@ -49,6 +54,13 @@
 (defn intintint-fn
   [x iii]
   (native-call intintint-fn-pointer intintint-fn-sig x iii))
+
+(def big (native-struct :s64 :s64 :s64))
+(def struct-big-fn-sig (native-signature :default big :int :double))
+(def struct-big-fn-pointer (native-lookup module "struct_big"))
+(defn struct-big-fn
+  [i d]
+  (native-call struct-big-fn-pointer struct-big-fn-sig i d))
 
 #
 # Call functions
@@ -61,6 +73,8 @@
 (pp (float-fn 8 4 17))
 (pp (intint-fn 123.456 [10 20]))
 (pp (intintint-fn 123.456 [10 20 30]))
+(pp (return-struct-fn 42))
+(pp (struct-big-fn 11 99.5))
 
 (assert (= 60 (int-fn 10 20)))
 (assert (= 42 (double-fn 1.5 2.5 3.5)))
