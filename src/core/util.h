@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifndef _MSC_VER
 #include <alloca.h>

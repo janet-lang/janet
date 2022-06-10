@@ -36,9 +36,31 @@
   [x y z]
   (native-call float-fn-pointer float-fn-sig x y z))
 
+(def intint-fn-sig (native-signature :default :int :double [:int :int]))
+(def intint-fn-pointer (native-lookup module "intint_fn"))
+(defn intint-fn
+  [x ii]
+  (native-call intint-fn-pointer intint-fn-sig x ii))
+
+
+(def intintint (native-struct :int :int :int))
+(def intintint-fn-sig (native-signature :default :int :double intintint))
+(def intintint-fn-pointer (native-lookup module "intintint_fn"))
+(defn intintint-fn
+  [x iii]
+  (native-call intintint-fn-pointer intintint-fn-sig x iii))
+
 #
 # Call functions
 #
+
+(pp (int-fn 10 20))
+(pp (double-fn 1.5 2.5 3.5))
+(pp (double-many 1 2 3 4 5 6))
+(pp (double-lots 1 2 3 4 5 6 7 8 9 10))
+(pp (float-fn 8 4 17))
+(pp (intint-fn 123.456 [10 20]))
+(pp (intintint-fn 123.456 [10 20 30]))
 
 (assert (= 60 (int-fn 10 20)))
 (assert (= 42 (double-fn 1.5 2.5 3.5)))

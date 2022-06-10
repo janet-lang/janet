@@ -35,3 +35,24 @@ double double_lots(
 double float_fn(float x, float y, float z) {
     return (x + y) * z;
 }
+
+typedef struct {
+    int a;
+    int b;
+} intint;
+
+typedef struct {
+    int a;
+    int b;
+    int c;
+} intintint;
+
+int intint_fn(double x, intint ii) {
+    printf("double: %g\n", x);
+    return ii.a + ii.b;
+}
+
+int intintint_fn(double x, intintint iii) {
+    printf("double: %g\n", x);
+    return iii.a + iii.b + iii.c;
+}
