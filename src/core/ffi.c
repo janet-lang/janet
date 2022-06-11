@@ -197,11 +197,11 @@ static size_t type_align(JanetFFIType t) {
     }
 }
 
+#define JANET_FFI_CC_DEFAULT JANET_FFI_CC_SYSV_64
+
 static JanetFFICallingConvention decode_ffi_cc(const uint8_t *name) {
     if (!janet_cstrcmp(name, "sysv64")) return JANET_FFI_CC_SYSV_64;
-    if (!janet_cstrcmp(name, "default")) {
-        return JANET_FFI_CC_SYSV_64;
-    }
+    if (!janet_cstrcmp(name, "default")) return JANET_FFI_CC_DEFAULT;
     janet_panicf("unknown calling convention %s", name);
 }
 
@@ -792,8 +792,9 @@ JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
               "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
               "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
               "be further inspected with `native-read`.") {
-    janet_fixarity(argc, 1);
-    JanetFFICallingConvention cc = decode_ffi_cc(janet_getkeyword(argv, 0));
+    janet_arity(argc, 0, 1);
+    JanetFFICallingConvention cc = JANET_FFI_CC_DEFAULT;
+    if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
     switch (cc) {
         default:
         case JANET_FFI_CC_SYSV_64:
