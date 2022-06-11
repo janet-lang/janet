@@ -328,14 +328,22 @@ JANET_CORE_FN(cfun_ffi_struct,
 static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
     switch (janet_type(argv[n])) {
         default:
-            janet_panicf("bad slot #%d, expected pointer convertable type, got %v", argv[n]);
+            janet_panicf("bad slot #%d, expected ffi pointer convertable type, got %v", argv[n]);
         case JANET_POINTER:
         case JANET_STRING:
         case JANET_KEYWORD:
         case JANET_SYMBOL:
+        case JANET_ABSTRACT:
             return janet_unwrap_pointer(argv[n]);
         case JANET_BUFFER:
             return janet_unwrap_buffer(argv[n])->data;
+        case JANET_FUNCTION:
+            /* Users may pass in a function. Any function passed is almost certainly
+             * being used as a callback, so we add it to the root set. */
+            janet_gcroot(argv[n]);
+            return janet_unwrap_pointer(argv[n]);
+        case JANET_NIL:
+            return NULL;
     }
 }
 
@@ -609,6 +617,25 @@ JANET_CORE_FN(cfun_ffi_signature,
     return janet_wrap_abstract(abst);
 }
 
+/* A common callback function signature. To avoid runtime code generation, which is prohibited
+ * on many platforms, often buggy (see libffi), and generally complicated, instead provide
+ * a single (or small set of commonly used function signatures). All callbacks should
+ * eventually call this. */
+void janet_ffi_trampoline(void *ctx, void *userdata) {
+    if (NULL == userdata) {
+        /* Userdata not set. */
+        janet_eprintf("no userdata found for janet callback");
+        return;
+    }
+    Janet context = janet_wrap_pointer(ctx);
+    JanetFunction *fun = userdata;
+    janet_call(fun, 1, &context);
+}
+
+static void janet_ffi_sysv64_standard_callback(void *ctx, void *userdata) {
+    janet_ffi_trampoline(ctx, userdata);
+}
+
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
     uint64_t ret[2];
     uint64_t regs[6];
@@ -741,14 +768,37 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
 JANET_CORE_FN(cfun_ffi_buffer_read,
               "(native-read ffi-type bytes &opt offset)",
               "Parse a native struct out of a buffer and convert it to normal Janet data structures. "
-              "This function is the inverse of `native-write`.") {
+              "This function is the inverse of `native-write`. `bytes` can also be a raw pointer, although "
+              "this is unsafe.") {
     janet_arity(argc, 2, 3);
     JanetFFIType type = decode_ffi_type(argv[0]);
-    size_t el_size = type_size(type);
-    JanetByteView bytes = janet_getbytes(argv, 1);
     size_t offset = (size_t) janet_optnat(argv, argc, 2, 0);
-    if ((size_t) bytes.len < offset + el_size) janet_panic("read out of range");
-    return janet_ffi_read_one(bytes.bytes, type, JANET_FFI_MAX_RECUR);
+    if (janet_checktype(argv[1], JANET_POINTER)) {
+        uint8_t *ptr = janet_unwrap_pointer(argv[1]);
+        return janet_ffi_read_one(ptr + offset, type, JANET_FFI_MAX_RECUR);
+    } else {
+        size_t el_size = type_size(type);
+        JanetByteView bytes = janet_getbytes(argv, 1);
+        if ((size_t) bytes.len < offset + el_size) janet_panic("read out of range");
+        return janet_ffi_read_one(bytes.bytes + offset, type, JANET_FFI_MAX_RECUR);
+    }
+}
+
+JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
+              "(native-trampoline cc)",
+              "Get a native function pointer that can be used as a callback and passed to C libraries. "
+              "This callback trampoline has the signature `void trampoline(void *ctx, void *userdata)` in "
+              "the given calling convention. This is the only function signature supported. "
+              "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
+              "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
+              "be further inspected with `native-read`.") {
+    janet_fixarity(argc, 1);
+    JanetFFICallingConvention cc = decode_ffi_cc(janet_getkeyword(argv, 0));
+    switch (cc) {
+        default:
+        case JANET_FFI_CC_SYSV_64:
+            return janet_wrap_pointer(janet_ffi_sysv64_standard_callback);
+    }
 }
 
 void janet_lib_ffi(JanetTable *env) {
@@ -758,6 +808,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("native-struct", cfun_ffi_struct),
         JANET_CORE_REG("native-write", cfun_ffi_buffer_write),
         JANET_CORE_REG("native-read", cfun_ffi_buffer_read),
+        JANET_CORE_REG("native-trampoline", cfun_ffi_get_callback_trampoline),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
