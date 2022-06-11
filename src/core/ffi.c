@@ -227,6 +227,8 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "ssize")) return JANET_FFI_TYPE_INT32;
 #endif
     /* aliases */
+    if (!janet_cstrcmp(name, "r32")) return JANET_FFI_TYPE_FLOAT;
+    if (!janet_cstrcmp(name, "r64")) return JANET_FFI_TYPE_DOUBLE;
     if (!janet_cstrcmp(name, "s8")) return JANET_FFI_TYPE_INT8;
     if (!janet_cstrcmp(name, "u8")) return JANET_FFI_TYPE_UINT8;
     if (!janet_cstrcmp(name, "s16")) return JANET_FFI_TYPE_INT16;
