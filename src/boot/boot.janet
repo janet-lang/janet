@@ -948,12 +948,12 @@
       (def call-buffer @[])
       (while true
         (forv i 0 ninds
-              (let [old-key (in iterkeys i)
-                    ii (in inds i)
-                    new-key (next ii old-key)]
-                (if (= nil new-key)
-                  (do (set done true) (break))
-                  (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
+          (let [old-key (in iterkeys i)
+                ii (in inds i)
+                new-key (next ii old-key)]
+            (if (= nil new-key)
+              (do (set done true) (break))
+              (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
         (if done (break))
         (array/push res (f ;call-buffer))
         (array/clear call-buffer))))
@@ -1591,8 +1591,8 @@
   (each x ind
     (def y (f x))
     (cond
-      is-new          (do (set is-new false) (set category y) (set span @[x]) (array/push ret span))
-      (= y category)  (array/push span x)
+      is-new (do (set is-new false) (set category y) (set span @[x]) (array/push ret span))
+      (= y category) (array/push span x)
       (do (set category y) (set span @[x]) (array/push ret span))))
   ret)
 
@@ -1842,7 +1842,7 @@
     (when isarr
       (array/push anda (get-length-sym s))
       (def pattern-len
-        (if-let [ rest-idx (find-index (fn [x] (= x '&)) pattern) ]
+        (if-let [rest-idx (find-index (fn [x] (= x '&)) pattern)]
           rest-idx
           (length pattern)))
       (array/push anda [<= pattern-len (get-length-sym s)]))
@@ -2282,9 +2282,9 @@
     (def source-code (file/read f :all))
     (var index 0)
     (repeat (dec line)
-       (if-not index (break))
-       (set index (string/find "\n" source-code index))
-       (if index (++ index)))
+      (if-not index (break))
+      (set index (string/find "\n" source-code index))
+      (if index (++ index)))
     (when index
       (def line-end (string/find "\n" source-code index))
       (eprint "  " (string/slice source-code index line-end))
@@ -2586,8 +2586,8 @@
     (while (parser/has-more p)
       (array/push ret (parser/produce p)))
     (if (= :error (parser/status p))
-        (error (parser/error p))
-        ret)))
+      (error (parser/error p))
+      ret)))
 
 (def load-image-dict
   ``A table used in combination with `unmarshal` to unmarshal byte sequences created
@@ -3027,7 +3027,7 @@
 
   # Parse state
   (var cursor 0) # indexes into string for parsing
-  (var stack @[])  # return value for this block.
+  (var stack @[]) # return value for this block.
 
   # Traversal helpers
   (defn c [] (get str cursor))
@@ -3146,38 +3146,40 @@
         (= b (chr "_")) (delim :underline)
         (= b (chr "`")) (delim :code)
         (= b (chr "*"))
-          (if (= (chr "*") (get line (+ i 1)))
-            (do (++ i)
-              (delim :bold))
-            (delim :italics))
+        (if (= (chr "*") (get line (+ i 1)))
+          (do (++ i)
+            (delim :bold))
+          (delim :italics))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
     (tuple/slice tokens))
 
-  (set parse-blocks (fn parse-blocks [indent]
-    (var new-indent indent)
-    (var p-start nil)
-    (var p-end nil)
-    (defn p-line []
-      (unless p-start
-        (set p-start cursor))
-      (skipline)
-      (set p-end cursor)
-      (set new-indent (skipwhite)))
-    (defn finish-p []
-      (when (and p-start (> p-end p-start))
-        (push (tokenize-line (getslice p-start p-end)))
-        (set p-start nil)))
-    (while (and (c) (>= new-indent indent))
-      (cond
-        (nl?) (do (finish-p) (c++) (set new-indent (skipwhite)))
-        (ul?) (do (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
-        (ol?) (do (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
-        (fcb?) (do (finish-p) (set new-indent (parse-fcb new-indent)))
-        (>= new-indent (+ 4 indent)) (do (finish-p) (set new-indent (parse-icb new-indent)))
-        (p-line)))
-    (finish-p)
-    new-indent))
+  (set
+    parse-blocks
+    (fn parse-blocks [indent]
+      (var new-indent indent)
+      (var p-start nil)
+      (var p-end nil)
+      (defn p-line []
+        (unless p-start
+          (set p-start cursor))
+        (skipline)
+        (set p-end cursor)
+        (set new-indent (skipwhite)))
+      (defn finish-p []
+        (when (and p-start (> p-end p-start))
+          (push (tokenize-line (getslice p-start p-end)))
+          (set p-start nil)))
+      (while (and (c) (>= new-indent indent))
+        (cond
+          (nl?) (do (finish-p) (c++) (set new-indent (skipwhite)))
+          (ul?) (do (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
+          (ol?) (do (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
+          (fcb?) (do (finish-p) (set new-indent (parse-fcb new-indent)))
+          (>= new-indent (+ 4 indent)) (do (finish-p) (set new-indent (parse-icb new-indent)))
+          (p-line)))
+      (finish-p)
+      new-indent))
 
   # Handle first line specially for defn, defmacro, etc.
   (when (= (chr "(") (in str 0))
@@ -3314,10 +3316,10 @@
           (do
             (def [fullpath mod-kind] (module/find (string sym)))
             (if-let [mod-env (in module/cache fullpath)]
-              (print-module-entry {:module     true
-                                   :kind       mod-kind
+              (print-module-entry {:module true
+                                   :kind mod-kind
                                    :source-map [fullpath nil nil]
-                                   :doc        (in mod-env :doc)})
+                                   :doc (in mod-env :doc)})
               (print "symbol " sym " not found."))))
         (print-module-entry x)))
 
@@ -3600,8 +3602,8 @@
          (def ,chan (,ev/chan))
          (def ,res @[])
          (,wait-for-fibers ,chan
-           ,(seq [[i body] :pairs bodies]
-              ~(,ev/go (fn [] (put ,res ,i ,body)) nil ,chan)))
+                           ,(seq [[i body] :pairs bodies]
+                              ~(,ev/go (fn [] (put ,res ,i ,body)) nil ,chan)))
          ,res))))
 
 (compwhen (dyn 'net/listen)
@@ -3683,7 +3685,7 @@
   (try
     (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
     ([e f]
-     (debug/stacktrace f e "")))
+      (debug/stacktrace f e "")))
   (table/clear module/cache)
   (merge-into module/cache old-modcache)
   nil)
@@ -3701,7 +3703,7 @@
 (defn- run-main
   [env subargs arg]
   (when-let [entry (in env 'main)
-           main (or (get entry :value) (in (get entry :ref) 0))]
+             main (or (get entry :value) (in (get entry :ref) 0))]
     (def guard (if (get env :debug) :ydt :y))
     (defn wrap-main [&]
       (main ;subargs))
@@ -3873,8 +3875,8 @@
           (file/read stdin :line buf))
         (def env (make-env))
         (when-let [profile.janet (dyn *profilepath*)]
-            (def new-env (dofile profile.janet :exit true))
-            (merge-module env new-env "" false))
+          (def new-env (dofile profile.janet :exit true))
+          (merge-module env new-env "" false))
         (when debug-flag
           (put env *debug* true)
           (put env *redef* true))
