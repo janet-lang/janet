@@ -34,7 +34,9 @@
 
 #define JANET_FFI_MAX_RECUR 64
 
-/* Compiler, OS, and arch detection */
+/* Compiler, OS, and arch detection. Used
+ * to enable a set of calling conventions. The
+ * :none calling convention is always enabled. */
 #if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
 #define JANET_FFI_WIN64_ENABLED
 #endif
@@ -133,14 +135,17 @@ typedef struct {
 } JanetFFIMapping;
 
 typedef enum {
+    JANET_FFI_CC_NONE,
     JANET_FFI_CC_SYSV_64,
     JANET_FFI_CC_WIN_64
 } JanetFFICallingConvention;
 
-#ifdef JANET_WINDOWS
+#ifdef JANET_FFI_WIN64_ENABLED
 #define JANET_FFI_CC_DEFAULT JANET_FFI_CC_WIN_64
-#else
+#elif defined(JANET_FFI_SYSV64_ENABLED)
 #define JANET_FFI_CC_DEFAULT JANET_FFI_CC_SYSV_64
+#else
+#define JANET_FFI_CC_DEFAULT JANET_FFI_CC_NONE
 #endif
 
 #define JANET_FFI_MAX_ARGS 32
@@ -228,7 +233,13 @@ static size_t type_align(JanetFFIType t) {
 }
 
 static JanetFFICallingConvention decode_ffi_cc(const uint8_t *name) {
+    if (!janet_cstrcmp(name, "none")) return JANET_FFI_CC_NONE;
+#ifdef JANET_FFI_WIN64_ENABLED
+    if (!janet_cstrcmp(name, "win64")) return JANET_FFI_CC_WIN_64;
+#endif
+#ifdef JANET_FFI_SYSV64_ENABLED
     if (!janet_cstrcmp(name, "sysv64")) return JANET_FFI_CC_SYSV_64;
+#endif
     if (!janet_cstrcmp(name, "default")) return JANET_FFI_CC_DEFAULT;
     janet_panicf("unknown calling convention %s", name);
 }
@@ -585,8 +596,14 @@ JANET_CORE_FN(cfun_ffi_signature,
     for (int i = 0; i < JANET_FFI_MAX_ARGS; i++) mappings[i] = void_mapping();
     switch (cc) {
         default:
-            janet_panicf("calling convention %v unsupported", argv[0]);
-            break;
+        case JANET_FFI_CC_NONE: {
+            /* Even if unsupported, we can check that the signature is valid
+             * and error at runtime */
+            for (uint32_t i = 0; i < arg_count; i++) {
+                decode_ffi_type(argv[i + 2]);
+            }
+        }
+        break;
 
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64: {
@@ -1008,7 +1025,8 @@ JANET_CORE_FN(cfun_ffi_call,
     janet_fixarity(argc - 2, signature->arg_count);
     switch (signature->cc) {
         default:
-            janet_panic("unsupported calling convention");
+        case JANET_FFI_CC_NONE:
+            janet_panic("calling convention not supported");
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64:
             return janet_ffi_win64(signature, function_pointer, argv);
@@ -1069,6 +1087,8 @@ JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
     if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
     switch (cc) {
         default:
+        case JANET_FFI_CC_NONE:
+            janet_panic("calling convention not supported");
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64:
             return janet_wrap_pointer(janet_ffi_win64_standard_callback);
