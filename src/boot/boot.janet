@@ -2803,14 +2803,7 @@
   :source, :evaluator, :read, and :parser are passed through to the underlying
   `run-context` call. If `exit` is true, any top level errors will trigger a
   call to `(os/exit 1)` after printing the error.``
-  [path &keys
-   {:exit exit
-    :env env
-    :source src
-    :expander expander
-    :evaluator evaluator
-    :read read
-    :parser parser}]
+  [path &named exit env source expander evaluator read parser]
   (def f (case (type path)
            :core/file path
            :core/stream path
@@ -2818,7 +2811,7 @@
   (def path-is-file (= f path))
   (default env (make-env))
   (def spath (string path))
-  (put env :source (or src (if-not path-is-file spath path)))
+  (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
   (var exit-fiber nil)
   (defn chunks [buf _] (:read f 4096 buf))
@@ -2864,7 +2857,7 @@
                   :expander expander
                   :read read
                   :parser parser
-                  :source (or src (if path-is-file :<anonymous> spath))}))
+                  :source (or source (if path-is-file :<anonymous> spath))}))
   (if-not path-is-file (:close f))
   (when exit-error
     (if exit-fiber
