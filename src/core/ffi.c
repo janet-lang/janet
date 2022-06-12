@@ -38,6 +38,9 @@
 #if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
 #define JANET_FFI_WIN64_ENABLED
 #endif
+#if (defined(__x86_64__) || defined(_M_X64)) && !defined(JANET_WINDOWS)
+#define JANET_FFI_SYSV64_ENABLED
+#endif
 
 typedef struct JanetFFIType JanetFFIType;
 typedef struct JanetFFIStruct JanetFFIStruct;
@@ -115,7 +118,9 @@ typedef enum {
     JANET_SYSV64_NO_CLASS,
     JANET_SYSV64_MEMORY,
     JANET_WIN64_REGISTER,
-    JANET_WIN64_STACK
+    JANET_WIN64_STACK,
+    JANET_WIN64_REGISTER_REF,
+    JANET_WIN64_STACK_REF
 } JanetFFIWordSpec;
 
 /* Describe how each Janet argument is interpreted in terms of machine words
@@ -124,6 +129,7 @@ typedef struct {
     JanetFFIType type;
     JanetFFIWordSpec spec;
     uint32_t offset; /* point to the exact register / stack offset depending on spec. */
+    uint32_t offset2; /* for reference passing apis (windows), use to allocate reference */
 } JanetFFIMapping;
 
 typedef enum {
@@ -258,6 +264,21 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "uint")) return JANET_FFI_TYPE_UINT32;
     if (!janet_cstrcmp(name, "ulong")) return JANET_FFI_TYPE_UINT64;
     janet_panicf("unknown machine type %s", name);
+}
+
+/* A common callback function signature. To avoid runtime code generation, which is prohibited
+ * on many platforms, often buggy (see libffi), and generally complicated, instead provide
+ * a single (or small set of commonly used function signatures). All callbacks should
+ * eventually call this. */
+void janet_ffi_trampoline(void *ctx, void *userdata) {
+    if (NULL == userdata) {
+        /* Userdata not set. */
+        janet_eprintf("no userdata found for janet callback");
+        return;
+    }
+    Janet context = janet_wrap_pointer(ctx);
+    JanetFunction *fun = userdata;
+    janet_call(fun, 1, &context);
 }
 
 static JanetFFIType decode_ffi_type(Janet x);
@@ -481,6 +502,7 @@ static JanetFFIMapping void_mapping(void) {
     return m;
 }
 
+#ifdef JANET_FFI_SYSV64_ENABLED
 /* AMD64 ABI Draft 0.99.7 – November 17, 2014 – 15:08
  * See section 3.2.3 Parameter Passing */
 static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
@@ -530,6 +552,7 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
             return JANET_SYSV64_NO_CLASS;
     }
 }
+#endif
 
 JANET_CORE_FN(cfun_ffi_signature,
               "(native-signature calling-convention ret-type & arg-types)",
@@ -545,6 +568,7 @@ JANET_CORE_FN(cfun_ffi_signature,
     JanetFFIMapping ret = {
         ret_type,
         JANET_SYSV64_NO_CLASS,
+        0,
         0
     };
     JanetFFIMapping mappings[JANET_FFI_MAX_ARGS];
@@ -557,26 +581,81 @@ JANET_CORE_FN(cfun_ffi_signature,
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64: {
             size_t ret_size = type_size(ret.type);
+            size_t ref_stack_count = 0;
             ret.spec = JANET_WIN64_REGISTER;
             uint32_t next_register = 0;
-            if (ret_size > 8) {
-                ret.spec = JANET_WIN64_STACK;
+            if (ret_size != 1 && ret_size != 2 && ret_size != 4 && ret_size != 8) {
+                ret.spec = JANET_WIN64_REGISTER_REF;
                 next_register++;
+            } else if (ret.type.prim == JANET_FFI_TYPE_FLOAT ||
+                       ret.type.prim == JANET_FFI_TYPE_DOUBLE) {
+                variant += 16;
             }
             for (uint32_t i = 0; i < arg_count; i++) {
                 mappings[i].type = decode_ffi_type(argv[i + 2]);
-                mappings[i].offset = 0;
-                mappings[i].spec = JANET_WIN64_REGISTER;
+                size_t el_size = type_size(mappings[i].type);
+                int is_register_sized = (el_size == 1 || el_size == 2 || el_size == 4 || el_size == 8);
+                if (next_register < 4) {
+                    mappings[i].offset = next_register++;
+                    if (is_register_sized) {
+                        mappings[i].spec = JANET_WIN64_REGISTER;
+
+                        /* Select variant based on position of floating point arguments */
+                        if (mappings[i].type.prim == JANET_FFI_TYPE_FLOAT ||
+                                mappings[i].type.prim == JANET_FFI_TYPE_DOUBLE) {
+                            variant += 1 << next_register;
+                        }
+                    } else {
+                        mappings[i].spec = JANET_WIN64_REGISTER_REF;
+                        mappings[i].offset2 = ref_stack_count;
+                        ref_stack_count += (el_size + 15) / 16;
+                    }
+                } else {
+                    if (is_register_sized) {
+                        mappings[i].spec = JANET_WIN64_STACK;
+                        mappings[i].offset = stack_count;
+                        stack_count++;
+                    } else {
+                        mappings[i].spec = JANET_WIN64_STACK_REF;
+                        mappings[i].offset = stack_count;
+                        stack_count++;
+                        mappings[i].offset2 = ref_stack_count;
+                        ref_stack_count += (el_size + 15) / 16;
+                    }
+                }
+            }
+
+            /* Take into account reference arguments and align to 16 bytes just in case */
+            stack_count += 2 * ref_stack_count;
+            if (stack_count & 1) {
+                stack_count++;
+            }
+
+            /* Invert stack
+             * Offsets are in units of 8-bytes */
+            for (uint32_t i = 0; i < arg_count; i++) {
+                uint32_t old_offset = mappings[i].offset;
+                if (mappings[i].spec == JANET_WIN64_STACK) {
+                    mappings[i].offset = stack_count - 1 - old_offset;
+                } else if (mappings[i].spec == JANET_WIN64_STACK_REF) {
+                    mappings[i].offset = stack_count - 1 - old_offset;
+                }
+                if (mappings[i].spec == JANET_WIN64_STACK_REF || mappings[i].spec == JANET_WIN64_REGISTER_REF) {
+                    /* Align size to 16 bytes */
+                    size_t size = (type_size(mappings[i].type) + 15) & ~0xFUL;
+                    mappings[i].offset2 = stack_count - mappings[i].offset2 - (size / 8);
+                }
             }
 
         }
         break;
 #endif
 
+#ifdef JANET_FFI_SYSV64_ENABLED
         case JANET_FFI_CC_SYSV_64: {
             JanetFFIWordSpec ret_spec = sysv64_classify(ret.type);
             ret.spec = ret_spec;
-
+            if (ret_spec == JANET_SYSV64_SSE) variant = 1;
             /* Spill register overflow to memory */
             uint32_t next_register = 0;
             uint32_t next_fp_register = 0;
@@ -622,18 +701,19 @@ JANET_CORE_FN(cfun_ffi_signature,
                         stack_count += el_size;
                     }
                 }
+            }
 
-                /* Invert stack */
-                for (uint32_t i = 0; i < arg_count; i++) {
-                    if (mappings[i].spec == JANET_SYSV64_MEMORY) {
-                        uint32_t old_offset = mappings[i].offset;
-                        size_t el_size = type_size(mappings[i].type);
-                        mappings[i].offset = stack_count - ((el_size + 7) / 8) - old_offset;
-                    }
+            /* Invert stack */
+            for (uint32_t i = 0; i < arg_count; i++) {
+                if (mappings[i].spec == JANET_SYSV64_MEMORY) {
+                    uint32_t old_offset = mappings[i].offset;
+                    size_t el_size = type_size(mappings[i].type);
+                    mappings[i].offset = stack_count - ((el_size + 7) / 8) - old_offset;
                 }
             }
         }
         break;
+#endif
     }
 
     /* Create signature abstract value */
@@ -648,37 +728,39 @@ JANET_CORE_FN(cfun_ffi_signature,
     return janet_wrap_abstract(abst);
 }
 
-/* A common callback function signature. To avoid runtime code generation, which is prohibited
- * on many platforms, often buggy (see libffi), and generally complicated, instead provide
- * a single (or small set of commonly used function signatures). All callbacks should
- * eventually call this. */
-void janet_ffi_trampoline(void *ctx, void *userdata) {
-    if (NULL == userdata) {
-        /* Userdata not set. */
-        janet_eprintf("no userdata found for janet callback");
-        return;
-    }
-    Janet context = janet_wrap_pointer(ctx);
-    JanetFunction *fun = userdata;
-    janet_call(fun, 1, &context);
-}
+#ifdef JANET_FFI_SYSV64_ENABLED
 
 static void janet_ffi_sysv64_standard_callback(void *ctx, void *userdata) {
     janet_ffi_trampoline(ctx, userdata);
 }
 
+/* Functions that set all argument registers. Two variants - one to read rax and rdx returns, another
+ * to read xmm0 and xmm1 returns. */
+typedef struct {
+    uint64_t x;
+    uint64_t y;
+} sysv64_int_return;
+typedef struct {
+    double x;
+    double y;
+} sysv64_sse_return;
+typedef sysv64_int_return janet_sysv64_variant_1(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+typedef sysv64_sse_return janet_sysv64_variant_2(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
-    uint64_t ret[2];
-    uint64_t fp_ret[2];
+    sysv64_int_return int_return;
+    sysv64_sse_return sse_return;
     uint64_t regs[6];
-    uint64_t fp_regs[8];
+    double fp_regs[8];
     JanetFFIWordSpec ret_spec = signature->ret.spec;
-    void *ret_mem = ret;
+    void *ret_mem = &int_return;
     if (ret_spec == JANET_SYSV64_MEMORY) {
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0] = (uint64_t) ret_mem;
     } else if (ret_spec == JANET_SYSV64_SSE) {
-        ret_mem = fp_ret;
+        ret_mem = &sse_return;
     }
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
@@ -692,7 +774,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
                 to = regs + arg.offset;
                 break;
             case JANET_SYSV64_SSE:
-                to = fp_regs + arg.offset;
+                to = (uint64_t *)(fp_regs + arg.offset);
                 break;
             case JANET_SYSV64_MEMORY:
                 to = stack + arg.offset;
@@ -701,48 +783,29 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
         janet_ffi_write_one(to, argv, n, arg.type, JANET_FFI_MAX_RECUR);
     }
 
-    /* !!ACHTUNG!! */
+    if (signature->variant) {
+        sse_return = ((janet_sysv64_variant_2 *)(function_pointer))(
+                         regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                         fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                         fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
+    } else {
+        int_return = ((janet_sysv64_variant_1 *)(function_pointer))(
+                         regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                         fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                         fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
 
-    __asm__("mov %5, %%rdi\n\t"
-            "mov %6, %%rsi\n\t"
-            "mov %7, %%rdx\n\t"
-            "mov %8, %%rcx\n\t"
-            "mov %9, %%r8\n\t"
-            "mov %10, %%r9\n\t"
-            "movq %11, %%xmm0\n\t"
-            "movq %12, %%xmm1\n\t"
-            "movq %13, %%xmm2\n\t"
-            "movq %14, %%xmm3\n\t"
-            "movq %15, %%xmm4\n\t"
-            "movq %16, %%xmm5\n\t"
-            "movq %17, %%xmm6\n\t"
-            "movq %18, %%xmm7\n\t"
-            "call *%4\n\t"
-            "mov %%rax, %0\n\t"
-            "mov %%rdx, %1\n\t"
-            "movq %%xmm0, %2\n\t"
-            "movq %%xmm1, %3"
-            : "=g"(ret[0]), "=g"(ret[1]), "=g"(fp_ret[0]), "=g"(fp_ret[1])
-            : "g"(function_pointer),
-            "g"(regs[0]),
-            "g"(regs[1]),
-            "g"(regs[2]),
-            "g"(regs[3]),
-            "g"(regs[4]),
-            "g"(regs[5]),
-            "g"(fp_regs[0]),
-            "g"(fp_regs[1]),
-            "g"(fp_regs[2]),
-            "g"(fp_regs[3]),
-            "g"(fp_regs[4]),
-            "g"(fp_regs[5]),
-            "g"(fp_regs[6]),
-            "g"(fp_regs[7]));
+    }
 
     return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
 }
 
+#endif
+
 #ifdef JANET_FFI_WIN64_ENABLED
+
+static void janet_ffi_win64_standard_callback(void *ctx, void *userdata) {
+    janet_ffi_trampoline(ctx, userdata);
+}
 
 /* Variants that allow setting all required registers for 64 bit windows calling convention.
  * win64 calling convention has up to 4 arguments on registers, and one register for returns.
@@ -799,18 +862,26 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0].integer = (uint64_t) ret_mem;
     }
-    uint8_t *stack = alloca(signature->stack_count);
+    uint64_t *stack = alloca(signature->stack_count * 8);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         int32_t n = i + 2;
         JanetFFIMapping arg = signature->args[i];
         if (arg.spec == JANET_WIN64_STACK) {
             janet_ffi_write_one(stack + arg.offset, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+        } else if (arg.spec == JANET_WIN64_STACK_REF) {
+            uint8_t *ptr = (uint8_t *)(stack + args.offset2);
+            janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+            stack[args.offset] = (uint64_t) ptr;
+        } else if (arg.spec == JANET_WIN64_REGISTER_REF) {
+            uint8_t *ptr = (uint8_t *)(stack + args.offset2);
+            janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+            regs[args.offset].integer = (uint64_t) ptr;
         } else {
             janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         }
     }
 
-    /* the seasoned programmer who cut their teeth on assembly is probably queitly shaking their head by now... */
+    /* the seasoned programmer who cut their teeth on assembly is probably quietly shaking their head by now... */
     switch (signature->variant) {
         default:
             janet_panic("unknown variant");
@@ -932,8 +1003,10 @@ JANET_CORE_FN(cfun_ffi_call,
         case JANET_FFI_CC_WIN_64:
             return janet_ffi_win64(signature, function_pointer, argv);
 #endif
+#ifdef JANET_FFI_SYSV64_ENABLED
         case JANET_FFI_CC_SYSV_64:
             return janet_ffi_sysv64(signature, function_pointer, argv);
+#endif
     }
 }
 
@@ -986,8 +1059,14 @@ JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
     if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
     switch (cc) {
         default:
+#ifdef JANET_FFI_WIN64_ENABLED
+        case JANET_FFI_CC_WIN_64:
+            return janet_wrap_pointer(janet_ffi_win64_standard_callback);
+#endif
+#ifdef JANET_FFI_SYSV64_ENABLED
         case JANET_FFI_CC_SYSV_64:
             return janet_wrap_pointer(janet_ffi_sysv64_standard_callback);
+#endif
     }
 }
 
