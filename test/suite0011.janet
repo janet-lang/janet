@@ -80,5 +80,12 @@
   "table rawget regression"
   (table/new -1))
 
+# Named arguments
+(defn named-arguments
+  [&named bob sally joe]
+  (+ bob sally joe))
+
+(assert (= 15 (named-arguments :bob 3 :sally 5 :joe 7)) "named arguments 1")
+
 (end-suite)
 
