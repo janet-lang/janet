@@ -34,6 +34,11 @@
 
 #define JANET_FFI_MAX_RECUR 64
 
+/* Compiler, OS, and arch detection */
+#if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
+#define JANET_FFI_WIN64_ENABLED
+#endif
+
 typedef struct JanetFFIType JanetFFIType;
 typedef struct JanetFFIStruct JanetFFIStruct;
 
@@ -108,7 +113,9 @@ typedef enum {
     JANET_SYSV64_X87UP,
     JANET_SYSV64_COMPLEX_X87,
     JANET_SYSV64_NO_CLASS,
-    JANET_SYSV64_MEMORY
+    JANET_SYSV64_MEMORY,
+    JANET_WIN64_REGISTER,
+    JANET_WIN64_STACK
 } JanetFFIWordSpec;
 
 /* Describe how each Janet argument is interpreted in terms of machine words
@@ -120,8 +127,15 @@ typedef struct {
 } JanetFFIMapping;
 
 typedef enum {
-    JANET_FFI_CC_SYSV_64
+    JANET_FFI_CC_SYSV_64,
+    JANET_FFI_CC_WIN_64
 } JanetFFICallingConvention;
+
+#ifdef JANET_WINDOWS
+#define JANET_FFI_CC_DEFAULT JANET_FFI_CC_WIN_64
+#else
+#define JANET_FFI_CC_DEFAULT JANET_FFI_CC_SYSV_64
+#endif
 
 #define JANET_FFI_MAX_ARGS 32
 
@@ -196,8 +210,6 @@ static size_t type_align(JanetFFIType t) {
         return janet_ffi_type_info[t.prim].align;
     }
 }
-
-#define JANET_FFI_CC_DEFAULT JANET_FFI_CC_SYSV_64
 
 static JanetFFICallingConvention decode_ffi_cc(const uint8_t *name) {
     if (!janet_cstrcmp(name, "sysv64")) return JANET_FFI_CC_SYSV_64;
@@ -541,9 +553,28 @@ JANET_CORE_FN(cfun_ffi_signature,
         default:
             janet_panicf("calling convention %v unsupported", argv[0]);
             break;
+
+#ifdef JANET_FFI_WIN64_ENABLED
+        case JANET_FFI_CC_WIN_64: {
+            size_t ret_size = type_size(ret.type);
+            ret.spec = JANET_WIN64_REGISTER;
+            uint32_t next_register = 0;
+            if (ret_size > 8) {
+                ret.spec = JANET_WIN64_STACK;
+                next_register++;
+            }
+            for (uint32_t i = 0; i < arg_count; i++) {
+                mappings[i].type = decode_ffi_type(argv[i + 2]);
+                mappings[i].offset = 0;
+                mappings[i].spec = JANET_WIN64_REGISTER;
+            }
+
+        }
+        break;
+#endif
+
         case JANET_FFI_CC_SYSV_64: {
             JanetFFIWordSpec ret_spec = sysv64_classify(ret.type);
-            if (ret_spec == JANET_SYSV64_SSE) variant = 1;
             ret.spec = ret_spec;
 
             /* Spill register overflow to memory */
@@ -638,6 +669,7 @@ static void janet_ffi_sysv64_standard_callback(void *ctx, void *userdata) {
 
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
     uint64_t ret[2];
+    uint64_t fp_ret[2];
     uint64_t regs[6];
     uint64_t fp_regs[8];
     JanetFFIWordSpec ret_spec = signature->ret.spec;
@@ -645,6 +677,8 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
     if (ret_spec == JANET_SYSV64_MEMORY) {
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0] = (uint64_t) ret_mem;
+    } else if (ret_spec == JANET_SYSV64_SSE) {
+        ret_mem = fp_ret;
     }
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
@@ -669,68 +703,219 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
 
     /* !!ACHTUNG!! */
 
-#define FFI_ASM_PRELUDE \
-    "mov %3, %%rdi\n\t" \
-    "mov %4, %%rsi\n\t" \
-    "mov %5, %%rdx\n\t" \
-    "mov %6, %%rcx\n\t" \
-    "mov %7, %%r8\n\t" \
-    "mov %8, %%r9\n\t" \
-    "movq %9, %%xmm0\n\t" \
-    "movq %10, %%xmm1\n\t" \
-    "movq %11, %%xmm2\n\t" \
-    "movq %12, %%xmm3\n\t" \
-    "movq %13, %%xmm4\n\t" \
-    "movq %14, %%xmm5\n\t" \
-    "movq %15, %%xmm6\n\t" \
-    "movq %16, %%xmm7\n\t"
-#define FFI_ASM_OUTPUTS "=g" (ret[0]), "=g" (ret[1])
-#define FFI_ASM_INPUTS \
-    "g"(function_pointer), \
-    "g"(regs[0]), \
-    "g"(regs[1]), \
-    "g"(regs[2]), \
-    "g"(regs[3]), \
-    "g"(regs[4]), \
-    "g"(regs[5]), \
-    "g"(fp_regs[0]), \
-    "g"(fp_regs[1]), \
-    "g"(fp_regs[2]), \
-    "g"(fp_regs[3]), \
-    "g"(fp_regs[4]), \
-    "g"(fp_regs[5]), \
-    "g"(fp_regs[6]), \
-    "g"(fp_regs[7])
-
-    switch (signature->variant) {
-        default:
-        /* fallthrough */
-        case 0:
-            __asm__(FFI_ASM_PRELUDE
-                    "call *%2\n\t"
-                    "mov %%rax, %0\n\t"
-                    "mov %%rdx, %1"
-                    : FFI_ASM_OUTPUTS
-                    : FFI_ASM_INPUTS
-                    : "rax", "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11");
-            break;
-        case 1:
-            __asm__(FFI_ASM_PRELUDE
-                    "call *%2\n\t"
-                    "movq %%xmm0, %0\n\t"
-                    "movq %%xmm1, %1"
-                    : FFI_ASM_OUTPUTS
-                    : FFI_ASM_INPUTS
-                    : "rax", "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11");
-            break;
-    }
-
-#undef FFI_ASM_PRELUDE
-#undef FFI_ASM_OUTPUTS
-#undef FFI_ASM_INPUTS
+    __asm__("mov %5, %%rdi\n\t"
+            "mov %6, %%rsi\n\t"
+            "mov %7, %%rdx\n\t"
+            "mov %8, %%rcx\n\t"
+            "mov %9, %%r8\n\t"
+            "mov %10, %%r9\n\t"
+            "movq %11, %%xmm0\n\t"
+            "movq %12, %%xmm1\n\t"
+            "movq %13, %%xmm2\n\t"
+            "movq %14, %%xmm3\n\t"
+            "movq %15, %%xmm4\n\t"
+            "movq %16, %%xmm5\n\t"
+            "movq %17, %%xmm6\n\t"
+            "movq %18, %%xmm7\n\t"
+            "call *%4\n\t"
+            "mov %%rax, %0\n\t"
+            "mov %%rdx, %1\n\t"
+            "movq %%xmm0, %2\n\t"
+            "movq %%xmm1, %3"
+            : "=g"(ret[0]), "=g"(ret[1]), "=g"(fp_ret[0]), "=g"(fp_ret[1])
+            : "g"(function_pointer),
+            "g"(regs[0]),
+            "g"(regs[1]),
+            "g"(regs[2]),
+            "g"(regs[3]),
+            "g"(regs[4]),
+            "g"(regs[5]),
+            "g"(fp_regs[0]),
+            "g"(fp_regs[1]),
+            "g"(fp_regs[2]),
+            "g"(fp_regs[3]),
+            "g"(fp_regs[4]),
+            "g"(fp_regs[5]),
+            "g"(fp_regs[6]),
+            "g"(fp_regs[7]));
 
     return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
 }
+
+#if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
+
+/* Variants that allow setting all required registers for 64 bit windows calling convention.
+ * win64 calling convention has up to 4 arguments on registers, and one register for returns.
+ * Each register can either be an integer or floating point register, resulting in
+ * 2^5 = 32 variants. Unlike sysv, there are no function signatures that will fill
+ * all of the possible registers which is why we have so many variants. If you were using
+ * assembly, you could manually fill all of the registers and only have a single variant.
+ * And msvc does not support inline assembly on 64 bit targets, so yeah, we have this hackery. */
+typedef uint64_t (win64_variant_i_iiii)(uint64_t, uint64_t, uint64_t, uint64_t);
+typedef uint64_t (win64_variant_i_iiif)(uint64_t, uint64_t, uint64_t, double);
+typedef uint64_t (win64_variant_i_iifi)(uint64_t, uint64_t, double, uint64_t);
+typedef uint64_t (win64_variant_i_iiff)(uint64_t, uint64_t, double, double);
+typedef uint64_t (win64_variant_i_ifii)(uint64_t, double, uint64_t, uint64_t);
+typedef uint64_t (win64_variant_i_ifif)(uint64_t, double, uint64_t, double);
+typedef uint64_t (win64_variant_i_iffi)(uint64_t, double, double, uint64_t);
+typedef uint64_t (win64_variant_i_ifff)(uint64_t, double, double, double);
+typedef uint64_t (win64_variant_i_fiii)(double, uint64_t, uint64_t, uint64_t);
+typedef uint64_t (win64_variant_i_fiif)(double, uint64_t, uint64_t, double);
+typedef uint64_t (win64_variant_i_fifi)(double, uint64_t, double, uint64_t);
+typedef uint64_t (win64_variant_i_fiff)(double, uint64_t, double, double);
+typedef uint64_t (win64_variant_i_ffii)(double, double, uint64_t, uint64_t);
+typedef uint64_t (win64_variant_i_ffif)(double, double, uint64_t, double);
+typedef uint64_t (win64_variant_i_fffi)(double, double, double, uint64_t);
+typedef uint64_t (win64_variant_i_ffff)(double, double, double, double);
+typedef double (win64_variant_f_iiii)(uint64_t, uint64_t, uint64_t, uint64_t);
+typedef double (win64_variant_f_iiif)(uint64_t, uint64_t, uint64_t, double);
+typedef double (win64_variant_f_iifi)(uint64_t, uint64_t, double, uint64_t);
+typedef double (win64_variant_f_iiff)(uint64_t, uint64_t, double, double);
+typedef double (win64_variant_f_ifii)(uint64_t, double, uint64_t, uint64_t);
+typedef double (win64_variant_f_ifif)(uint64_t, double, uint64_t, double);
+typedef double (win64_variant_f_iffi)(uint64_t, double, double, uint64_t);
+typedef double (win64_variant_f_ifff)(uint64_t, double, double, double);
+typedef double (win64_variant_f_fiii)(double, uint64_t, uint64_t, uint64_t);
+typedef double (win64_variant_f_fiif)(double, uint64_t, uint64_t, double);
+typedef double (win64_variant_f_fifi)(double, uint64_t, double, uint64_t);
+typedef double (win64_variant_f_fiff)(double, uint64_t, double, double);
+typedef double (win64_variant_f_ffii)(double, double, uint64_t, uint64_t);
+typedef double (win64_variant_f_ffif)(double, double, uint64_t, double);
+typedef double (win64_variant_f_fffi)(double, double, double, uint64_t);
+typedef double (win64_variant_f_ffff)(double, double, double, double);
+
+static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
+    union {
+        uint64_t integer;
+        double real;
+    } regs[4];
+    union {
+        uint64_t integer;
+        double real;
+    } ret_reg;
+    JanetFFIWordSpec ret_spec = signature->ret.spec;
+    void *ret_mem = &ret_reg.integer;
+    if (ret_spec == JANET_WIN64_STACK) {
+        ret_mem = alloca(type_size(signature->ret.type));
+        regs[0].integer = (uint64_t) ret_mem;
+    }
+    uint8_t *stack = alloca(signature->stack_count);
+    for (uint32_t i = 0; i < signature->arg_count; i++) {
+        int32_t n = i + 2;
+        JanetFFIMapping arg = signature->args[i];
+        if (arg.spec == JANET_WIN64_STACK) {
+            janet_ffi_write_one(stack + arg.offset, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+        } else {
+            janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+        }
+    }
+
+    /* the seasoned programmer who cut their teeth on assembly is probably queitly shaking their head by now... */
+    switch (signature->variant) {
+        default:
+            janet_panic("unknown variant");
+        case 0:
+            ret_reg.integer = ((win64_variant_i_iiii *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].integer, regs[3].integer);
+            break;
+        case 1:
+            ret_reg.integer = ((win64_variant_i_iiif *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].integer, regs[3].real);
+            break;
+        case 2:
+            ret_reg.integer = ((win64_variant_i_iifi *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].real, regs[3].integer);
+            break;
+        case 3:
+            ret_reg.integer = ((win64_variant_i_iiff *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].real, regs[3].real);
+            break;
+        case 4:
+            ret_reg.integer = ((win64_variant_i_ifii *) function_pointer)(regs[0].integer, regs[1].real, regs[2].integer, regs[3].integer);
+            break;
+        case 5:
+            ret_reg.integer = ((win64_variant_i_ifif *) function_pointer)(regs[0].integer, regs[1].real, regs[2].integer, regs[3].real);
+            break;
+        case 6:
+            ret_reg.integer = ((win64_variant_i_iffi *) function_pointer)(regs[0].integer, regs[1].real, regs[2].real, regs[3].integer);
+            break;
+        case 7:
+            ret_reg.integer = ((win64_variant_i_ifff *) function_pointer)(regs[0].integer, regs[1].real, regs[2].real, regs[3].real);
+            break;
+        case 8:
+            ret_reg.integer = ((win64_variant_i_fiii *) function_pointer)(regs[0].real, regs[1].integer, regs[2].integer, regs[3].integer);
+            break;
+        case 9:
+            ret_reg.integer = ((win64_variant_i_fiif *) function_pointer)(regs[0].real, regs[1].integer, regs[2].integer, regs[3].real);
+            break;
+        case 10:
+            ret_reg.integer = ((win64_variant_i_fifi *) function_pointer)(regs[0].real, regs[1].integer, regs[2].real, regs[3].integer);
+            break;
+        case 11:
+            ret_reg.integer = ((win64_variant_i_fiff *) function_pointer)(regs[0].real, regs[1].integer, regs[2].real, regs[3].real);
+            break;
+        case 12:
+            ret_reg.integer = ((win64_variant_i_ffii *) function_pointer)(regs[0].real, regs[1].real, regs[2].integer, regs[3].integer);
+            break;
+        case 13:
+            ret_reg.integer = ((win64_variant_i_ffif *) function_pointer)(regs[0].real, regs[1].real, regs[2].integer, regs[3].real);
+            break;
+        case 14:
+            ret_reg.integer = ((win64_variant_i_fffi *) function_pointer)(regs[0].real, regs[1].real, regs[2].real, regs[3].integer);
+            break;
+        case 15:
+            ret_reg.integer = ((win64_variant_i_ffff *) function_pointer)(regs[0].real, regs[1].real, regs[2].real, regs[3].real);
+            break;
+        case 16:
+            ret_reg.real = ((win64_variant_f_iiii *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].integer, regs[3].integer);
+            break;
+        case 17:
+            ret_reg.real = ((win64_variant_f_iiif *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].integer, regs[3].real);
+            break;
+        case 18:
+            ret_reg.real = ((win64_variant_f_iifi *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].real, regs[3].integer);
+            break;
+        case 19:
+            ret_reg.real = ((win64_variant_f_iiff *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].real, regs[3].real);
+            break;
+        case 20:
+            ret_reg.real = ((win64_variant_f_ifii *) function_pointer)(regs[0].integer, regs[1].real, regs[2].integer, regs[3].integer);
+            break;
+        case 21:
+            ret_reg.real = ((win64_variant_f_ifif *) function_pointer)(regs[0].integer, regs[1].real, regs[2].integer, regs[3].real);
+            break;
+        case 22:
+            ret_reg.real = ((win64_variant_f_iffi *) function_pointer)(regs[0].integer, regs[1].real, regs[2].real, regs[3].integer);
+            break;
+        case 23:
+            ret_reg.real = ((win64_variant_f_ifff *) function_pointer)(regs[0].integer, regs[1].real, regs[2].real, regs[3].real);
+            break;
+        case 24:
+            ret_reg.real = ((win64_variant_f_fiii *) function_pointer)(regs[0].real, regs[1].integer, regs[2].integer, regs[3].integer);
+            break;
+        case 25:
+            ret_reg.real = ((win64_variant_f_fiif *) function_pointer)(regs[0].real, regs[1].integer, regs[2].integer, regs[3].real);
+            break;
+        case 26:
+            ret_reg.real = ((win64_variant_f_fifi *) function_pointer)(regs[0].real, regs[1].integer, regs[2].real, regs[3].integer);
+            break;
+        case 27:
+            ret_reg.real = ((win64_variant_f_fiff *) function_pointer)(regs[0].real, regs[1].integer, regs[2].real, regs[3].real);
+            break;
+        case 28:
+            ret_reg.real = ((win64_variant_f_ffii *) function_pointer)(regs[0].real, regs[1].real, regs[2].integer, regs[3].integer);
+            break;
+        case 29:
+            ret_reg.real = ((win64_variant_f_ffif *) function_pointer)(regs[0].real, regs[1].real, regs[2].integer, regs[3].real);
+            break;
+        case 30:
+            ret_reg.real = ((win64_variant_f_fffi *) function_pointer)(regs[0].real, regs[1].real, regs[2].real, regs[3].integer);
+            break;
+        case 31:
+            ret_reg.real = ((win64_variant_f_ffff *) function_pointer)(regs[0].real, regs[1].real, regs[2].real, regs[3].real);
+            break;
+    }
+
+    return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
+}
+
+#endif
 
 JANET_CORE_FN(cfun_ffi_call,
               "(native-call pointer signature & args)",
@@ -743,6 +928,10 @@ JANET_CORE_FN(cfun_ffi_call,
     switch (signature->cc) {
         default:
             janet_panic("unsupported calling convention");
+#ifdef JANET_FFI_WIN64_ENABLED
+        case JANET_FFI_CC_WIN_64:
+            return janet_ffi_win64(signature, function_pointer, argv);
+#endif
         case JANET_FFI_CC_SYSV_64:
             return janet_ffi_sysv64(signature, function_pointer, argv);
     }
