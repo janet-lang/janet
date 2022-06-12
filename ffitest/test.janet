@@ -1,72 +1,72 @@
-(def native-loc "ffitest/so.so")
-(def native-source-loc "ffitest/so.c")
+(def ffi/loc "ffitest/so.so")
+(def ffi/source-loc "ffitest/so.c")
 
-(os/execute ["cc" native-source-loc "-shared" "-o" native-loc] :px)
-(def module (raw-native native-loc))
+(os/execute ["cc" ffi/source-loc "-shared" "-o" ffi/loc] :px)
+(def module (ffi/native ffi/loc))
 
-(def int-fn-sig (native-signature :default :int :int :int))
-(def int-fn-pointer (native-lookup module "int_fn"))
+(def int-fn-sig (ffi/signature :default :int :int :int))
+(def int-fn-pointer (ffi/lookup module "int_fn"))
 (defn int-fn
   [x y]
-  (native-call int-fn-pointer int-fn-sig x y))
+  (ffi/call int-fn-pointer int-fn-sig x y))
 
-(def double-fn-sig (native-signature :default :double :double :double :double))
-(def double-fn-pointer (native-lookup module "double_fn"))
+(def double-fn-sig (ffi/signature :default :double :double :double :double))
+(def double-fn-pointer (ffi/lookup module "double_fn"))
 (defn double-fn
   [x y z]
-  (native-call double-fn-pointer double-fn-sig x y z))
+  (ffi/call double-fn-pointer double-fn-sig x y z))
 
-(def double-many-sig (native-signature :default :double :double :double :double :double :double :double))
-(def double-many-pointer (native-lookup module "double_many"))
+(def double-many-sig (ffi/signature :default :double :double :double :double :double :double :double))
+(def double-many-pointer (ffi/lookup module "double_many"))
 (defn double-many
   [x y z w a b]
-  (native-call double-many-pointer double-many-sig x y z w a b))
+  (ffi/call double-many-pointer double-many-sig x y z w a b))
 
-(def double-lots-sig (native-signature :default :double
+(def double-lots-sig (ffi/signature :default :double
                                     :double :double :double :double :double
                                     :double :double :double :double :double))
-(def double-lots-pointer (native-lookup module "double_lots"))
+(def double-lots-pointer (ffi/lookup module "double_lots"))
 (defn double-lots
   [a b c d e f g h i j]
-  (native-call double-lots-pointer double-lots-sig a b c d e f g h i j))
+  (ffi/call double-lots-pointer double-lots-sig a b c d e f g h i j))
 
-(def float-fn-sig (native-signature :default :double :float :float :float))
-(def float-fn-pointer (native-lookup module "float_fn"))
+(def float-fn-sig (ffi/signature :default :double :float :float :float))
+(def float-fn-pointer (ffi/lookup module "float_fn"))
 (defn float-fn
   [x y z]
-  (native-call float-fn-pointer float-fn-sig x y z))
+  (ffi/call float-fn-pointer float-fn-sig x y z))
 
-(def intint-fn-sig (native-signature :default :int :double [:int :int]))
-(def intint-fn-pointer (native-lookup module "intint_fn"))
+(def intint-fn-sig (ffi/signature :default :int :double [:int :int]))
+(def intint-fn-pointer (ffi/lookup module "intint_fn"))
 (defn intint-fn
   [x ii]
-  (native-call intint-fn-pointer intint-fn-sig x ii))
+  (ffi/call intint-fn-pointer intint-fn-sig x ii))
 
-(def return-struct-sig (native-signature :default [:int :int] :int))
-(def return-struct-pointer (native-lookup module "return_struct"))
+(def return-struct-sig (ffi/signature :default [:int :int] :int))
+(def return-struct-pointer (ffi/lookup module "return_struct"))
 (defn return-struct-fn
   [i]
-  (native-call return-struct-pointer return-struct-sig i))
+  (ffi/call return-struct-pointer return-struct-sig i))
 
-(def intintint (native-struct :int :int :int))
-(def intintint-fn-sig (native-signature :default :int :double intintint))
-(def intintint-fn-pointer (native-lookup module "intintint_fn"))
+(def intintint (ffi/struct :int :int :int))
+(def intintint-fn-sig (ffi/signature :default :int :double intintint))
+(def intintint-fn-pointer (ffi/lookup module "intintint_fn"))
 (defn intintint-fn
   [x iii]
-  (native-call intintint-fn-pointer intintint-fn-sig x iii))
+  (ffi/call intintint-fn-pointer intintint-fn-sig x iii))
 
-(def big (native-struct :s64 :s64 :s64))
-(def struct-big-fn-sig (native-signature :default big :int :double))
-(def struct-big-fn-pointer (native-lookup module "struct_big"))
+(def big (ffi/struct :s64 :s64 :s64))
+(def struct-big-fn-sig (ffi/signature :default big :int :double))
+(def struct-big-fn-pointer (ffi/lookup module "struct_big"))
 (defn struct-big-fn
   [i d]
-  (native-call struct-big-fn-pointer struct-big-fn-sig i d))
+  (ffi/call struct-big-fn-pointer struct-big-fn-sig i d))
 
-(def void-fn-pointer (native-lookup module "void_fn"))
-(def void-fn-sig (native-signature :default :void))
+(def void-fn-pointer (ffi/lookup module "void_fn"))
+(def void-fn-sig (ffi/signature :default :void))
 (defn void-fn
   []
-  (native-call void-fn-pointer void-fn-sig))
+  (ffi/call void-fn-pointer void-fn-sig))
 
 #
 # Call functions
@@ -95,8 +95,8 @@
 
 (defn check-round-trip
   [t value]
-  (def buf (native-write t value))
-  (def same-value (native-read t buf))
+  (def buf (ffi/write t value))
+  (def same-value (ffi/read t buf))
   (assert (deep= value same-value)
           (string/format "round trip %j (got %j)" value same-value)))
 
@@ -121,7 +121,7 @@
 (check-round-trip :s32 0)
 (check-round-trip :s32 -1234567)
 
-(def s (native-struct :s8 :s8 :s8 :float))
+(def s (ffi/struct :s8 :s8 :s8 :float))
 (check-round-trip s [1 3 5 123.5])
 (check-round-trip s [-1 -3 -5 -123.5])
 

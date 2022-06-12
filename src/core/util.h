@@ -127,6 +127,31 @@ int janet_gettime(struct timespec *spec);
 #define strdup(x) _strdup(x)
 #endif
 
+/* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
+ * with native code. */
+#if defined(JANET_NO_DYNAMIC_MODULES)
+typedef int Clib;
+#define load_clib(name) ((void) name, 0)
+#define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
+#define error_clib() "dynamic libraries not supported"
+#define free_clib(c) ((void) (c), 0)
+#elif defined(JANET_WINDOWS)
+#include <windows.h>
+typedef HINSTANCE Clib;
+#define load_clib(name) LoadLibrary((name))
+#define free_clib(c) FreeLibrary((c))
+#define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
+char *error_clib(void);
+#else
+#include <dlfcn.h>
+typedef void *Clib;
+#define load_clib(name) dlopen((name), RTLD_NOW)
+#define free_clib(lib) dlclose((lib))
+#define symbol_clib(lib, sym) dlsym((lib), (sym))
+#define error_clib() dlerror()
+#endif
+char *get_processed_name(const char *name);
+
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
 /* Initialize builtin libraries */

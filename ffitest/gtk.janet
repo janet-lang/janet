@@ -2,10 +2,10 @@
 # An even more sophisticated macro wrapper could add
 # better doc strings, better parameter checking, etc.
 
-(defn defnative-context
+(defn ffi-context
   "Load a dynamic library and set it as the context for following declarations"
   [location]
-  (setdyn :raw-native (raw-native location)))
+  (setdyn :raw-native (ffi/native location)))
 
 (defmacro defnative
   "Declare a native binding"
@@ -16,12 +16,12 @@
   (def $sig (symbol name "-signature-"))
   (def $pointer (symbol name "-raw-pointer-"))
   ~(upscope
-     (def ,$pointer :private (as-macro ,assert (,native-lookup (,dyn :raw-native) ,raw-symbol)))
-     (def ,$sig :private (,native-signature :default ,ret-type ,;signature-args))
+     (def ,$pointer :private (as-macro ,assert (,ffi/lookup (,dyn :raw-native) ,raw-symbol)))
+     (def ,$sig :private (,ffi/signature :default ,ret-type ,;signature-args))
      (defn ,name [,;defn-args]
-       (,native-call ,$pointer ,$sig ,;defn-args))))
+       (,ffi/call ,$pointer ,$sig ,;defn-args))))
 
-(defnative-context "/usr/lib/libgtk-3.so")
+(ffi-context "/usr/lib/libgtk-3.so")
 
 (defnative gtk-application-new :ptr [:ptr :uint])
 (defnative g-signal-connect-data :ulong [:ptr :ptr :ptr :ptr :ptr :int])
@@ -38,7 +38,7 @@
 # Limitation is that we cannot generate arbitrary closures to pass into apis.
 # However, any stubs we need we would simply need to compile ourselves, so
 # Janet includes a common stub out of the box.
-(def cb (native-trampoline :default))
+(def cb (ffi/trampoline :default))
 
 (defn on-active
   [app]

@@ -194,6 +194,16 @@ static const JanetAbstractType janet_struct_type = {
     JANET_ATEND_GCMARK
 };
 
+typedef struct {
+    Clib clib;
+    int closed;
+} JanetAbstractNative;
+
+static const JanetAbstractType janet_native_type = {
+    "core/ffi-native",
+    JANET_ATEND_NAME
+};
+
 static JanetFFIType prim_type(JanetFFIPrimType pt) {
     JanetFFIType t;
     t.prim = pt;
@@ -352,7 +362,7 @@ static JanetFFIType decode_ffi_type(Janet x) {
 }
 
 JANET_CORE_FN(cfun_ffi_struct,
-              "(native-struct & types)",
+              "(ffi/struct & types)",
               "Create a struct type descriptor that can be used to pass structs into native functions. ") {
     janet_arity(argc, 1, -1);
     return janet_wrap_abstract(build_struct_type(argc, argv));
@@ -555,7 +565,7 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
 #endif
 
 JANET_CORE_FN(cfun_ffi_signature,
-              "(native-signature calling-convention ret-type & arg-types)",
+              "(ffi/signature calling-convention ret-type & arg-types)",
               "Create a function signature object that can be used to make calls "
               "with raw function pointers.") {
     janet_arity(argc, 2, -1);
@@ -989,7 +999,7 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 #endif
 
 JANET_CORE_FN(cfun_ffi_call,
-              "(native-call pointer signature & args)",
+              "(ffi/call pointer signature & args)",
               "Call a raw pointer as a function pointer. The function signature specifies "
               "how Janet values in `args` are converted to native machine types.") {
     janet_arity(argc, 2, -1);
@@ -1011,7 +1021,7 @@ JANET_CORE_FN(cfun_ffi_call,
 }
 
 JANET_CORE_FN(cfun_ffi_buffer_write,
-              "(native-write ffi-type data &opt buffer)",
+              "(ffi/write ffi-type data &opt buffer)",
               "Append a native tyep to a buffer such as it would appear in memory. This can be used "
               "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
               "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
@@ -1028,9 +1038,9 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
 
 
 JANET_CORE_FN(cfun_ffi_buffer_read,
-              "(native-read ffi-type bytes &opt offset)",
+              "(ffi/read ffi-type bytes &opt offset)",
               "Parse a native struct out of a buffer and convert it to normal Janet data structures. "
-              "This function is the inverse of `native-write`. `bytes` can also be a raw pointer, although "
+              "This function is the inverse of `ffi/write`. `bytes` can also be a raw pointer, although "
               "this is unsafe.") {
     janet_arity(argc, 2, 3);
     JanetFFIType type = decode_ffi_type(argv[0]);
@@ -1047,13 +1057,13 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
 }
 
 JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
-              "(native-trampoline cc)",
+              "(ffi/trampoline cc)",
               "Get a native function pointer that can be used as a callback and passed to C libraries. "
               "This callback trampoline has the signature `void trampoline(void *ctx, void *userdata)` in "
               "the given calling convention. This is the only function signature supported. "
               "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
               "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
-              "be further inspected with `native-read`.") {
+              "be further inspected with `ffi/read`.") {
     janet_arity(argc, 0, 1);
     JanetFFICallingConvention cc = JANET_FFI_CC_DEFAULT;
     if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
@@ -1070,14 +1080,59 @@ JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
     }
 }
 
+JANET_CORE_FN(janet_core_raw_native,
+              "(ffi/native path)",
+              "Load a shared object or dll from the given path, and do not extract"
+              " or run any code from it. This is different than `native`, which will "
+              "run initialization code to get a module table. Returns a `core/native`.") {
+    janet_fixarity(argc, 1);
+    const char *path = janet_getcstring(argv, 0);
+    char *processed_name = get_processed_name(path);
+    Clib lib = load_clib(processed_name);
+    if (path != processed_name) janet_free(processed_name);
+    if (!lib) janet_panic(error_clib());
+    JanetAbstractNative *anative = janet_abstract(&janet_native_type, sizeof(JanetAbstractNative));
+    anative->clib = lib;
+    anative->closed = 0;
+    return janet_wrap_abstract(anative);
+}
+
+JANET_CORE_FN(janet_core_native_lookup,
+              "(ffi/lookup native symbol-name)",
+              "Lookup a symbol from a native object. All symbol lookups will return a raw pointer "
+              "if the symbol is found, else nil.") {
+    janet_fixarity(argc, 2);
+    JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
+    const char *sym = janet_getcstring(argv, 1);
+    if (anative->closed) janet_panic("native object already closed");
+    void *value = symbol_clib(anative->clib, sym);
+    if (NULL == value) return janet_wrap_nil();
+    return janet_wrap_pointer(value);
+}
+
+JANET_CORE_FN(janet_core_native_close,
+              "(ffi/close native)",
+              "Free a native object. Dereferencing pointers to symbols in the object will have undefined "
+              "behavior after freeing.") {
+    janet_fixarity(argc, 1);
+    JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
+    if (anative->closed) janet_panic("native object already closed");
+    anative->closed = 1;
+    free_clib(anative->clib);
+    return janet_wrap_nil();
+}
+
 void janet_lib_ffi(JanetTable *env) {
     JanetRegExt ffi_cfuns[] = {
-        JANET_CORE_REG("native-signature", cfun_ffi_signature),
-        JANET_CORE_REG("native-call", cfun_ffi_call),
-        JANET_CORE_REG("native-struct", cfun_ffi_struct),
-        JANET_CORE_REG("native-write", cfun_ffi_buffer_write),
-        JANET_CORE_REG("native-read", cfun_ffi_buffer_read),
-        JANET_CORE_REG("native-trampoline", cfun_ffi_get_callback_trampoline),
+        JANET_CORE_REG("ffi/native", janet_core_raw_native),
+        JANET_CORE_REG("ffi/lookup", janet_core_native_lookup),
+        JANET_CORE_REG("ffi/close", janet_core_native_close),
+        JANET_CORE_REG("ffi/signature", cfun_ffi_signature),
+        JANET_CORE_REG("ffi/call", cfun_ffi_call),
+        JANET_CORE_REG("ffi/struct", cfun_ffi_struct),
+        JANET_CORE_REG("ffi/write", cfun_ffi_buffer_write),
+        JANET_CORE_REG("ffi/read", cfun_ffi_buffer_read),
+        JANET_CORE_REG("ffi/trampoline", cfun_ffi_get_callback_trampoline),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
