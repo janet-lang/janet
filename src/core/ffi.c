@@ -742,7 +742,7 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
     return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
 }
 
-#if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
+#ifdef JANET_FFI_WIN64_ENABLED
 
 /* Variants that allow setting all required registers for 64 bit windows calling convention.
  * win64 calling convention has up to 4 arguments on registers, and one register for returns.
