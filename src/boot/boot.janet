@@ -3610,6 +3610,46 @@
 
 ###
 ###
+### FFI Extra
+###
+###
+
+(compwhen (dyn 'ffi/native)
+
+  (defdyn *ffi-context*" Current native library for ffi/bind and other settings")
+
+  (defn- default-mangle
+    [name &]
+    (string/replace-all "-" "_" name))
+
+  (defn ffi/context
+    "Set the path of the dynamic library to implictly bind, as well
+     as other global state for ease of creating native bindings."
+    [native-path &named map-symbols]
+    (def lib (ffi/native native-path))
+    (default map-symbols default-mangle)
+    (setdyn *ffi-context*
+            {:native lib
+             :map-symbols map-symbols}))
+
+  (defmacro ffi/defbind
+    "Generate bindings for native functions in a convenient manner."
+    [name ret-type & body]
+    (def meta (slice body 0 -2))
+    (def arg-pairs (partition 2 (last body)))
+    (def formal-args (map 0 arg-pairs))
+    (def type-args (map 1 arg-pairs))
+    (def ctx (dyn *ffi-context*))
+    (def raw-symbol ((get ctx :map-symbols default-mangle) name))
+    (def ffi-mod (get ctx :native))
+    (def ptr (assert (ffi/lookup ffi-mod raw-symbol) "failed to find symbol"))
+    (def computed-type-args (eval ~[,;type-args]))
+    (def sig (ffi/signature :default ret-type ;computed-type-args))
+    ~(defn ,name ,;meta [,;formal-args]
+       (,ffi/call ,ptr ,sig ,;formal-args))))
+
+###
+###
 ### Flychecking
 ###
 ###
