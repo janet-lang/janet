@@ -553,6 +553,10 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("vararg"));
     if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
+    /* Check structarg */
+    x = janet_get1(s, janet_ckeywordv("structarg"));
+    if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
+
     /* Check source */
     x = janet_get1(s, janet_ckeywordv("source"));
     if (janet_checktype(x, JANET_STRING)) def->source = janet_unwrap_string(x);
@@ -884,6 +888,10 @@ static Janet janet_disasm_vararg(JanetFuncDef *def) {
     return janet_wrap_boolean(def->flags & JANET_FUNCDEF_FLAG_VARARG);
 }
 
+static Janet janet_disasm_structarg(JanetFuncDef *def) {
+    return janet_wrap_boolean(def->flags & JANET_FUNCDEF_FLAG_STRUCTARG);
+}
+
 static Janet janet_disasm_constants(JanetFuncDef *def) {
     JanetArray *constants = janet_array(def->constants_length);
     for (int32_t i = 0; i < def->constants_length; i++) {
@@ -933,6 +941,7 @@ Janet janet_disasm(JanetFuncDef *def) {
     janet_table_put(ret, janet_ckeywordv("bytecode"), janet_disasm_bytecode(def));
     janet_table_put(ret, janet_ckeywordv("source"), janet_disasm_source(def));
     janet_table_put(ret, janet_ckeywordv("vararg"), janet_disasm_vararg(def));
+    janet_table_put(ret, janet_ckeywordv("structarg"), janet_disasm_structarg(def));
     janet_table_put(ret, janet_ckeywordv("name"), janet_disasm_name(def));
     janet_table_put(ret, janet_ckeywordv("slotcount"), janet_disasm_slotcount(def));
     janet_table_put(ret, janet_ckeywordv("constants"), janet_disasm_constants(def));
@@ -986,6 +995,7 @@ JANET_CORE_FN(cfun_disasm,
         if (!janet_cstrcmp(kw, "source")) return janet_disasm_source(f->def);
         if (!janet_cstrcmp(kw, "name")) return janet_disasm_name(f->def);
         if (!janet_cstrcmp(kw, "vararg")) return janet_disasm_vararg(f->def);
+        if (!janet_cstrcmp(kw, "structarg")) return janet_disasm_structarg(f->def);
         if (!janet_cstrcmp(kw, "slotcount")) return janet_disasm_slotcount(f->def);
         if (!janet_cstrcmp(kw, "constants")) return janet_disasm_constants(f->def);
         if (!janet_cstrcmp(kw, "sourcemap")) return janet_disasm_sourcemap(f->def);
