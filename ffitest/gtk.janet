@@ -5,7 +5,7 @@
 (defn ffi-context
   "Load a dynamic library and set it as the context for following declarations"
   [location]
-  (setdyn :raw-native (ffi/native location)))
+  (setdyn :ffi-context (ffi/native location)))
 
 (defmacro defnative
   "Declare a native binding"
@@ -16,7 +16,7 @@
   (def $sig (symbol name "-signature-"))
   (def $pointer (symbol name "-raw-pointer-"))
   ~(upscope
-     (def ,$pointer :private (as-macro ,assert (,ffi/lookup (,dyn :raw-native) ,raw-symbol)))
+     (def ,$pointer :private (as-macro ,assert (,ffi/lookup (,dyn :ffi-context) ,raw-symbol)))
      (def ,$sig :private (,ffi/signature :default ,ret-type ,;signature-args))
      (defn ,name [,;defn-args]
        (,ffi/call ,$pointer ,$sig ,;defn-args))))
