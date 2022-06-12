@@ -2780,7 +2780,7 @@
 (defn debugger-on-status
   "Create a function that can be passed to `run-context`'s `:on-status`
   argument that will drop into a debugger on errors. The debugger will
-  only start on abmnormal signals if the env table has the `:debug` dyn
+  only start on abnormal signals if the env table has the `:debug` dyn
   set to a truthy value."
   [env &opt level is-repl]
   (default level 1)
@@ -3897,10 +3897,6 @@
 ###
 
 (do
-
-  # Deprecate file/popen
-  (when-let [v (get root-env 'file/popen)]
-    (put v :deprecated true))
 
   # Modify root-env to remove private symbols and
   # flatten nested tables.
