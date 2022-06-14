@@ -3614,9 +3614,26 @@
 ###
 ###
 
+(defmacro delay
+  "Lazily evaluate a series of expressions. Returns a function that
+  returns the result of the last expression. Will only evaluate the
+  body once, and then memoizes the result."
+  [& forms]
+  (def state (gensym))
+  (def loaded (gensym))
+  ~((fn []
+      (var ,state nil)
+      (var ,loaded nil)
+      (fn []
+        (if ,loaded
+          ,state
+          (do
+            (set ,loaded true)
+            (set ,state (do ,;forms))))))))
+
 (compwhen (dyn 'ffi/native)
 
-  (defdyn *ffi-context*" Current native library for ffi/bind and other settings")
+  (defdyn *ffi-context* " Current native library for ffi/bind and other settings")
 
   (defn- default-mangle
     [name &]
@@ -3625,12 +3642,16 @@
   (defn ffi/context
     "Set the path of the dynamic library to implictly bind, as well
      as other global state for ease of creating native bindings."
-    [native-path &named map-symbols]
-    (def lib (ffi/native native-path))
+    [native-path &named map-symbols lazy]
     (default map-symbols default-mangle)
+    (def lib (if lazy nil (ffi/native native-path)))
+    (def lazy-lib (if lazy (delay (ffi/native native-path))))
     (setdyn *ffi-context*
-            {:native lib
-             :map-symbols map-symbols}))
+            @{:native-path native-path
+              :native lib
+              :native-lazy lazy-lib
+              :lazy lazy
+              :map-symbols map-symbols}))
 
   (defmacro ffi/defbind
     "Generate bindings for native functions in a convenient manner."
@@ -3639,14 +3660,28 @@
     (def arg-pairs (partition 2 (last body)))
     (def formal-args (map 0 arg-pairs))
     (def type-args (map 1 arg-pairs))
-    (def ctx (dyn *ffi-context*))
-    (def raw-symbol ((get ctx :map-symbols default-mangle) name))
-    (def ffi-mod (get ctx :native))
-    (def ptr (assert (ffi/lookup ffi-mod raw-symbol) "failed to find symbol"))
     (def computed-type-args (eval ~[,;type-args]))
-    (def sig (ffi/signature :default ret-type ;computed-type-args))
-    ~(defn ,name ,;meta [,;formal-args]
-       (,ffi/call ,ptr ,sig ,;formal-args))))
+    (def {:native lib
+          :native-path np
+          :lazy lazy
+          :native-lazy llib
+          :map-symbols ms} (assert (dyn *ffi-context*) "no ffi context found"))
+    (def raw-symbol (ms name))
+    (if lazy
+      (let [ptr
+            (delay
+              (assert (ffi/lookup (llib) raw-symbol) "failed to find symbol"))
+            sig
+            (delay
+              (ffi/signature :default ret-type ;computed-type-args))]
+        ~(defn ,name ,;meta [,;formal-args]
+           (,ffi/call (,ptr) (,sig) ,;formal-args)))
+      (let [ptr
+            (assert (ffi/lookup lib raw-symbol) "failed to find symbol")
+            sig
+            (ffi/signature :default ret-type ;computed-type-args)]
+        ~(defn ,name ,;meta [,;formal-args]
+           (,ffi/call ,ptr ,sig ,;formal-args))))))
 
 ###
 ###

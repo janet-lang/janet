@@ -1,4 +1,8 @@
-(ffi/context "/usr/lib/libgtk-3.so")
+# :lazy true needed for jpm quickbin
+# lazily loads library on first function use
+# so the `main` function
+# can be marshalled.
+(ffi/context "/usr/lib/libgtk-3.so" :lazy true)
 
 (ffi/defbind
   gtk-application-new :ptr
@@ -33,13 +37,13 @@
   gtk-button-set-label :void
   [a :ptr b :ptr])
 
-(def cb (ffi/trampoline :default))
+(def cb (delay (ffi/trampoline :default)))
 
 (defn on-active
   [app]
   (def window (gtk-application-window-new app))
   (def btn (gtk-button-new-with-label "Click Me!"))
-  (g-signal-connect-data btn "clicked" cb
+  (g-signal-connect-data btn "clicked" (cb)
                          (fn [btn] (gtk-button-set-label btn "Hello World"))
                          nil 1)
   (gtk-container-add window btn)
@@ -48,5 +52,5 @@
 (defn main
   [&]
   (def app (gtk-application-new "org.janet-lang.example.HelloApp" 0))
-  (g-signal-connect-data app "activate" cb on-active nil 1)
+  (g-signal-connect-data app "activate" (cb) on-active nil 1)
   (g-application-run app 0 nil))
