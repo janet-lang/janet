@@ -307,22 +307,10 @@ typedef struct {
     JANET_CURRENT_CONFIG_BITS })
 #endif
 
-/* Feature include for pthreads. Most feature detection code should go in
- * features.h instead. */
-#ifndef JANET_WINDOWS
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 600
-#endif
-#if _XOPEN_SOURCE < 600
-#undef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 600
-#endif
-#endif
-
-/* What to do when out of memory */
-#ifndef JANET_OUT_OF_MEMORY
-#include <stdio.h>
-#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
+/* Some extra includes if EV is enabled */
+#ifdef JANET_EV
+typedef struct JanetOSMutex JanetOSMutex;
+typedef struct JanetOSRWLock JanetOSRWLock;
 #endif
 
 /***** END SECTION CONFIG *****/
@@ -342,27 +330,10 @@ typedef struct {
 #include <stddef.h>
 #include <stdio.h>
 
-/* Some extra includes if EV is enabled */
-#ifdef JANET_EV
-#ifdef JANET_WINDOWS
-typedef struct JanetDudCriticalSection {
-    /* Avoid including windows.h here - instead, create a structure of the same size */
-    /* Needs to be same size as crtical section see WinNT.h for CRITCIAL_SECTION definition */
-    void *debug_info;
-    long lock_count;
-    long recursion_count;
-    void *owning_thread;
-    void *lock_semaphore;
-    unsigned long spin_count;
-} JanetOSMutex;
-typedef struct JanetDudRWLock {
-    void *ptr;
-} JanetOSRWLock;
-#else
-#include <pthread.h>
-typedef pthread_mutex_t JanetOSMutex;
-typedef pthread_rwlock_t JanetOSRWLock;
-#endif
+
+/* What to do when out of memory */
+#ifndef JANET_OUT_OF_MEMORY
+#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
 #endif
 
 #ifdef JANET_BSD
@@ -1394,6 +1365,8 @@ JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
 
 /* Expose some OS sync primitives */
+JANET_API size_t janet_os_mutex_size(void);
+JANET_API size_t janet_os_rwlock_size(void);
 JANET_API void janet_os_mutex_init(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_deinit(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_lock(JanetOSMutex *mutex);

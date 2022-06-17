@@ -45,6 +45,7 @@
 (defn defmacro :macro
   "Define a macro."
   [name & more]
+  (setdyn name @{}) # override old macro definitions in the case of a recursive macro
   (apply defn name :macro more))
 
 (defmacro as-macro

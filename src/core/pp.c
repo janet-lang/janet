@@ -983,8 +983,9 @@ void janet_buffer_format(
                     break;
                 }
                 case 's': {
-                    const uint8_t *s = janet_getstring(argv, arg);
-                    int32_t l = janet_string_length(s);
+                    JanetByteView bytes = janet_getbytes(argv, arg);
+                    const uint8_t *s = bytes.bytes;
+                    int32_t l = bytes.len;
                     if (form[2] == '\0')
                         janet_buffer_push_bytes(b, s, l);
                     else {

@@ -34,6 +34,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#ifdef JANET_EV
+#include <pthread.h>
+#endif
+
 #ifndef _MSC_VER
 #include <alloca.h>
 #endif
