@@ -35,7 +35,9 @@
 #include <stdbool.h>
 
 #ifdef JANET_EV
+#ifndef JANET_WINDOWS
 #include <pthread.h>
+#endif
 #endif
 
 #ifndef _MSC_VER
