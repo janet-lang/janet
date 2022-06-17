@@ -26,10 +26,11 @@
 #include "util.h"
 #include "gc.h"
 #include "state.h"
+#endif
+
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
 #include <windows.h>
-#endif
 #endif
 #endif
 
@@ -86,11 +87,11 @@ void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size) {
 
 #ifdef JANET_WINDOWS
 
-void janet_os_mutex_size(void) {
+size_t janet_os_mutex_size(void) {
     return sizeof(CRITICAL_SECTION);
 }
 
-void janet_os_rwlock_size(void) {
+size_t janet_os_rwlock_size(void) {
     return sizeof(SRWLock);
 }
 
