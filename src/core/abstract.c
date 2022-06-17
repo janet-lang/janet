@@ -92,7 +92,7 @@ size_t janet_os_mutex_size(void) {
 }
 
 size_t janet_os_rwlock_size(void) {
-    return sizeof(SRWLock);
+    return sizeof(void *);
 }
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
