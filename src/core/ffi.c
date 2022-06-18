@@ -491,8 +491,10 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
             return janet_wrap_number(((double *)(from))[0]);
         case JANET_FFI_TYPE_FLOAT:
             return janet_wrap_number(((float *)(from))[0]);
-        case JANET_FFI_TYPE_PTR:
-            return janet_wrap_pointer(((void **)(from))[0]);
+        case JANET_FFI_TYPE_PTR: {
+            void *ptr = ((void **)(from))[0];
+            return (NULL == ptr) ? janet_wrap_nil() : janet_wrap_pointer(ptr);
+        }
         case JANET_FFI_TYPE_BOOL:
             return janet_wrap_boolean(((bool *)(from))[0]);
         case JANET_FFI_TYPE_INT8:
