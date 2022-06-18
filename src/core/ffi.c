@@ -30,6 +30,8 @@
 
 #ifdef _MSC_VER
 #define alloca _alloca
+#else
+#include <alloca.h>
 #endif
 
 #define JANET_FFI_MAX_RECUR 64
