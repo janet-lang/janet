@@ -87,5 +87,11 @@
 
 (assert (= 15 (named-arguments :bob 3 :sally 5 :joe 7)) "named arguments 1")
 
+(defn named-opt-arguments
+  [&opt x &named a b c]
+  (+ x a b c))
+
+(assert (= 10 (named-opt-arguments 1 :a 2 :b 3 :c 4)) "named arguments 2")
+
 (end-suite)
 

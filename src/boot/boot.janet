@@ -3643,7 +3643,7 @@
   (defn ffi/context
     "Set the path of the dynamic library to implictly bind, as well
      as other global state for ease of creating native bindings."
-    [native-path &named map-symbols lazy]
+    [&opt native-path &named map-symbols lazy]
     (default map-symbols default-mangle)
     (def lib (if lazy nil (ffi/native native-path)))
     (def lazy-lib (if lazy (delay (ffi/native native-path))))
@@ -3663,26 +3663,19 @@
     (def type-args (map 1 arg-pairs))
     (def computed-type-args (eval ~[,;type-args]))
     (def {:native lib
-          :native-path np
           :lazy lazy
           :native-lazy llib
           :map-symbols ms} (assert (dyn *ffi-context*) "no ffi context found"))
     (def raw-symbol (ms name))
+    (defn make-sig []
+      (ffi/signature :default ret-type ;computed-type-args))
+    (defn make-ptr []
+      (assert (ffi/lookup (llib) raw-symbol) "failed to find symbol"))
     (if lazy
-      (let [ptr
-            (delay
-              (assert (ffi/lookup (llib) raw-symbol) "failed to find symbol"))
-            sig
-            (delay
-              (ffi/signature :default ret-type ;computed-type-args))]
         ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call (,ptr) (,sig) ,;formal-args)))
-      (let [ptr
-            (assert (ffi/lookup lib raw-symbol) "failed to find symbol")
-            sig
-            (ffi/signature :default ret-type ;computed-type-args)]
+           (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
         ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call ,ptr ,sig ,;formal-args))))))
+           (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
 
 ###
 ###

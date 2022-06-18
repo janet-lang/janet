@@ -858,6 +858,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     for (i = 0; i < paramcount; i++) {
         Janet param = params[i];
         if (namedargs) {
+            arity--;
             if (!janet_checktype(param, JANET_SYMBOL)) {
                 errmsg = "only named arguments can follow &named";
                 goto error;
@@ -915,7 +916,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
                     }
                     vararg = 1;
                     structarg = 1;
-                    arity = i;
+                    arity--;
                     seenamp = 1;
                     namedargs = 1;
                     named_table = janet_table(10);

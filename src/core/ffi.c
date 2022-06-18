@@ -1101,15 +1101,16 @@ JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
 }
 
 JANET_CORE_FN(janet_core_raw_native,
-              "(ffi/native path)",
+              "(ffi/native &opt path)",
               "Load a shared object or dll from the given path, and do not extract"
               " or run any code from it. This is different than `native`, which will "
-              "run initialization code to get a module table. Returns a `core/native`.") {
-    janet_fixarity(argc, 1);
-    const char *path = janet_getcstring(argv, 0);
-    char *processed_name = get_processed_name(path);
+              "run initialization code to get a module table. If `path` is nil, opens the current running binary. "
+              "Returns a `core/native`.") {
+    janet_arity(argc, 0, 1);
+    const char *path = janet_optcstring(argv, argc, 0, NULL);
+    char *processed_name = (NULL == path) ? NULL : get_processed_name(path);
     Clib lib = load_clib(processed_name);
-    if (path != processed_name) janet_free(processed_name);
+    if (NULL != path && path != processed_name) janet_free(processed_name);
     if (!lib) janet_panic(error_clib());
     JanetAbstractNative *anative = janet_abstract(&janet_native_type, sizeof(JanetAbstractNative));
     anative->clib = lib;
