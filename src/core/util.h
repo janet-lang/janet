@@ -40,10 +40,6 @@
 #endif
 #endif
 
-#ifndef _MSC_VER
-#include <alloca.h>
-#endif
-
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
 #include <time.h>
 #define JANET_GETTIME
