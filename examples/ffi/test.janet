@@ -1,5 +1,5 @@
-(def ffi/loc "ffitest/so.so")
-(def ffi/source-loc "ffitest/so.c")
+(def ffi/loc "examples/ffi/so.so")
+(def ffi/source-loc "examples/ffi/so.c")
 
 (os/execute ["cc" ffi/source-loc "-shared" "-o" ffi/loc] :px)
 (def module (ffi/native ffi/loc))
