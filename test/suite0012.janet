@@ -28,5 +28,16 @@
 (assert (= (thunk) 1) "delay 3")
 (assert (= counter 1) "delay 4")
 
+# FFI check
+(compwhen (dyn 'ffi/native)
+  (ffi/context))
+(compwhen (dyn 'ffi/native)
+  (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
+(compwhen (dyn 'ffi/native)
+  (def buffer1 @"aaaa")
+  (def buffer2 @"bbbb")
+  (memcpy buffer1 buffer2 4)
+  (assert (= (string buffer1) "bbbb") "ffi 1 - memcpy"))
+
 (end-suite)
 
