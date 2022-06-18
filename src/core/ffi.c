@@ -30,7 +30,7 @@
 
 #ifdef _MSC_VER
 #define alloca _alloca
-#else
+#elif defined(JANET_LINUX)
 #include <alloca.h>
 #endif
 
