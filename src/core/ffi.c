@@ -32,6 +32,9 @@
 #define alloca _alloca
 #elif defined(JANET_LINUX)
 #include <alloca.h>
+#elif !defined(alloca)
+/* Last ditch effort to get alloca - works for gcc and clang */
+#define alloca __builtin_alloca
 #endif
 
 #define JANET_FFI_MAX_RECUR 64
