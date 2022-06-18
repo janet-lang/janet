@@ -912,6 +912,14 @@ char *error_clib(void) {
     error_clib_buf[strlen(error_clib_buf) - 1] = '\0';
     return error_clib_buf;
 }
+
+Clib load_clib(const char *name) {
+    if (name == NULL) {
+        return GetModuleHandle(NULL);
+    } else {
+        return LoadLibrary(name);
+    }
+}
 #endif
 
 /* Alloc function macro fills */

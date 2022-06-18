@@ -202,6 +202,7 @@ static const JanetAbstractType janet_struct_type = {
 typedef struct {
     Clib clib;
     int closed;
+    int is_self;
 } JanetAbstractNative;
 
 static const JanetAbstractType janet_native_type = {
@@ -1115,6 +1116,7 @@ JANET_CORE_FN(janet_core_raw_native,
     JanetAbstractNative *anative = janet_abstract(&janet_native_type, sizeof(JanetAbstractNative));
     anative->clib = lib;
     anative->closed = 0;
+    anative->is_self = path == NULL;
     return janet_wrap_abstract(anative);
 }
 
@@ -1138,6 +1140,7 @@ JANET_CORE_FN(janet_core_native_close,
     janet_fixarity(argc, 1);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
     if (anative->closed) janet_panic("native object already closed");
+    if (anative->is_self) janet_panic("cannot close self");
     anative->closed = 1;
     free_clib(anative->clib);
     return janet_wrap_nil();

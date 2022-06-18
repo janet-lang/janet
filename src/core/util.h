@@ -144,9 +144,9 @@ typedef int Clib;
 #elif defined(JANET_WINDOWS)
 #include <windows.h>
 typedef HINSTANCE Clib;
-#define load_clib(name) LoadLibrary((name))
 #define free_clib(c) FreeLibrary((c))
 #define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
+Clib load_clib(const char *name);
 char *error_clib(void);
 #else
 #include <dlfcn.h>
