@@ -164,7 +164,7 @@
 
   (:close s))
 
-(defn check-matching-names [stream]
+(defn check-matching-names [stream tag]
   (def ln (net/localname stream))
   (def pn (net/peername stream))
   (def [my-ip my-port] ln)
@@ -179,21 +179,20 @@
                (= (string my-port) (get comparison 3))
                (= remote-ip (get comparison 0))
                (= (string remote-port) (get comparison 1)))
-          (string/format "localname should match peername: msg=%j, buf=%j" msg buf)))
+          (string/format "%s: localname should match peername: msg=%j, buf=%j" tag msg buf)))
 
 # Test on both server and client
 (defn names-handler
   [stream]
   (defer (:close stream)
-    (check-matching-names stream)))
+    (check-matching-names stream "server")))
 
 # Test localname and peername
-(repeat 20
+(repeat 10
   (with [s (net/server "127.0.0.1" "8000" names-handler)]
-    (defn test-names []
+    (repeat 10
       (with [conn (net/connect "127.0.0.1" "8000")]
-        (check-matching-names conn)))
-    (repeat 20 (test-names)))
+        (check-matching-names conn "client"))))
   (gccollect))
 
 # Create pipe
