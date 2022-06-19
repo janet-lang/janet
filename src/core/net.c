@@ -884,7 +884,6 @@ static JanetStream *make_stream(JSock handle, uint32_t flags) {
     return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
 }
 
-
 void janet_lib_net(JanetTable *env) {
     JanetRegExt net_cfuns[] = {
         JANET_CORE_REG("net/address", cfun_net_sockaddr),
