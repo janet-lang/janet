@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2021 © Calvin Rose
+# Copyright 2022 © Calvin Rose
 
 ###
 ###
@@ -3413,26 +3413,26 @@
     (def pc (frame :pc))
     (def sourcemap (in dasm :sourcemap))
     (var last-loc [-2 -2])
-    (print "\n  signal:     " (.signal))
-    (print "  status:     " (fiber/status (.fiber)))
-    (print "  function:   " (dasm :name) " [" (in dasm :source "") "]")
+    (eprint "\n  signal:     " (.signal))
+    (eprint "  status:     " (fiber/status (.fiber)))
+    (eprint "  function:   " (get dasm :name "<anonymous>") " [" (in dasm :source "") "]")
     (when-let [constants (dasm :constants)]
-      (printf "  constants:  %.4q" constants))
-    (printf "  slots:      %.4q\n" (frame :slots))
+      (eprintf "  constants:  %.4q" constants))
+    (eprintf "  slots:      %.4q\n" (frame :slots))
     (def padding (string/repeat " " 20))
     (loop [i :range [0 (length bytecode)]
            :let [instr (bytecode i)]]
-      (prin (if (= (tuple/type instr) :brackets) "*" " "))
-      (prin (if (= i pc) "> " "  "))
-      (prinf "%.20s" (string (string/join (map string instr) " ") padding))
+      (eprin (if (= (tuple/type instr) :brackets) "*" " "))
+      (eprin (if (= i pc) "> " "  "))
+      (eprinf "%.20s" (string (string/join (map string instr) " ") padding))
       (when sourcemap
         (let [[sl sc] (sourcemap i)
               loc [sl sc]]
           (when (not= loc last-loc)
             (set last-loc loc)
-            (prin " # line " sl ", column " sc))))
-      (print))
-    (print))
+            (eprin " # line " sl ", column " sc))))
+      (eprint))
+    (eprint))
 
   (defn .breakall
     "Set breakpoints on all instructions in the current function."
@@ -3441,7 +3441,7 @@
     (def bytecode (.bytecode n))
     (forv i 0 (length bytecode)
       (debug/fbreak fun i))
-    (print "Set " (length bytecode) " breakpoints in " fun))
+    (eprint "set " (length bytecode) " breakpoints in " fun))
 
   (defn .clearall
     "Clear all breakpoints on the current function."
@@ -3450,7 +3450,7 @@
     (def bytecode (.bytecode n))
     (forv i 0 (length bytecode)
       (debug/unfbreak fun i))
-    (print "Cleared " (length bytecode) " breakpoints in " fun)))
+    (eprint "cleared " (length bytecode) " breakpoints in " fun)))
 
 (defn .source
   "Show the source code for the function being debugged."
@@ -3458,7 +3458,7 @@
   (def frame (.frame n))
   (def s (frame :source))
   (def all-source (slurp s))
-  (print "\n" all-source "\n"))
+  (eprint "\n" all-source "\n"))
 
 (defn .break
   "Set breakpoint at the current pc."
@@ -3467,7 +3467,7 @@
   (def fun (frame :function))
   (def pc (frame :pc))
   (debug/fbreak fun pc)
-  (print "Set breakpoint in " fun " at pc=" pc))
+  (eprint "set breakpoint in " fun " at pc=" pc))
 
 (defn .clear
   "Clear the current breakpoint."
@@ -3476,7 +3476,7 @@
   (def fun (frame :function))
   (def pc (frame :pc))
   (debug/unfbreak fun pc)
-  (print "Cleared breakpoint in " fun " at pc=" pc))
+  (eprint "cleared breakpoint in " fun " at pc=" pc))
 
 (defn .next
   "Go to the next breakpoint."

@@ -7,7 +7,7 @@
 (ffi/defbind
   gtk-application-new :ptr
   "Add docstrings as needed."
-  [a :ptr b :uint])
+  [title :string flags :uint])
 
 (ffi/defbind
   g-signal-connect-data :ulong
@@ -15,7 +15,7 @@
 
 (ffi/defbind
   g-application-run :int
-  [a :ptr b :int c :ptr])
+  [app :ptr argc :int argv :ptr])
 
 (ffi/defbind
   gtk-application-window-new :ptr
@@ -39,6 +39,18 @@
 
 (def cb (delay (ffi/trampoline :default)))
 
+(defn ffi/array
+  ``Convert a janet array to a buffer that can be passed to FFI functions.
+  For example, to create an array of type `char *` (array of c strings), one
+  could use `(ffi/array ["hello" "world"] :ptr)`. One needs to be careful that
+  array elements are not garbage collected though - the GC can't follow references
+  inside an arbitrary byte buffer.``
+  [arr ctype &opt buf]
+  (default buf @"")
+  (each el arr
+    (ffi/write ctype el buf))
+  buf)
+
 (defn on-active
   [app]
   (def window (gtk-application-window-new app))
@@ -53,4 +65,7 @@
   [&]
   (def app (gtk-application-new "org.janet-lang.example.HelloApp" 0))
   (g-signal-connect-data app "activate" (cb) on-active nil 1)
-  (g-application-run app 0 nil))
+  # manually build an array with ffi/write
+  # - we are responsible for preventing gc when the arg array is used
+  (def argv (ffi/array (dyn *args*) :string))
+  (g-application-run app (length (dyn *args*)) argv))

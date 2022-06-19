@@ -56,6 +56,7 @@ typedef enum {
     JANET_FFI_TYPE_VOID,
     JANET_FFI_TYPE_BOOL,
     JANET_FFI_TYPE_PTR,
+    JANET_FFI_TYPE_STRING,
     JANET_FFI_TYPE_FLOAT,
     JANET_FFI_TYPE_DOUBLE,
     JANET_FFI_TYPE_INT8,
@@ -81,6 +82,7 @@ static const JanetFFIPrimInfo janet_ffi_type_info[] = {
     {0, 0}, /* JANET_FFI_TYPE_VOID */
     {sizeof(char), ALIGNOF(char)}, /* JANET_FFI_TYPE_BOOL */
     {sizeof(void *), ALIGNOF(void *)}, /* JANET_FFI_TYPE_PTR */
+    {sizeof(char *), ALIGNOF(char *)}, /* JANET_FFI_TYPE_STRING */
     {sizeof(float), ALIGNOF(float)}, /* JANET_FFI_TYPE_FLOAT */
     {sizeof(double), ALIGNOF(double)}, /* JANET_FFI_TYPE_DOUBLE */
     {sizeof(int8_t), ALIGNOF(int8_t)}, /* JANET_FFI_TYPE_INT8 */
@@ -97,6 +99,7 @@ static const JanetFFIPrimInfo janet_ffi_type_info[] = {
 struct JanetFFIType {
     JanetFFIStruct *st;
     JanetFFIPrimType prim;
+    size_t array_count;
 };
 
 typedef struct {
@@ -104,6 +107,7 @@ typedef struct {
     size_t offset;
 } JanetFFIStructMember;
 
+/* Also used to store array types */
 struct JanetFFIStruct {
     uint32_t size;
     uint32_t align;
@@ -219,14 +223,16 @@ static JanetFFIType prim_type(JanetFFIPrimType pt) {
     JanetFFIType t;
     t.prim = pt;
     t.st = NULL;
+    t.array_count = 0;
     return t;
 }
 
 static size_t type_size(JanetFFIType t) {
+    size_t count = t.array_count ? t.array_count : 1;
     if (t.prim == JANET_FFI_TYPE_STRUCT) {
-        return t.st->size;
+        return t.st->size * count;
     } else {
-        return janet_ffi_type_info[t.prim].size;
+        return janet_ffi_type_info[t.prim].size * count;
     }
 }
 
@@ -254,6 +260,7 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "void")) return JANET_FFI_TYPE_VOID;
     if (!janet_cstrcmp(name, "bool")) return JANET_FFI_TYPE_BOOL;
     if (!janet_cstrcmp(name, "ptr")) return JANET_FFI_TYPE_PTR;
+    if (!janet_cstrcmp(name, "string")) return JANET_FFI_TYPE_STRING;
     if (!janet_cstrcmp(name, "float")) return JANET_FFI_TYPE_FLOAT;
     if (!janet_cstrcmp(name, "double")) return JANET_FFI_TYPE_DOUBLE;
     if (!janet_cstrcmp(name, "int8")) return JANET_FFI_TYPE_INT8;
@@ -355,6 +362,11 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         i++;
     }
     st->is_aligned = is_aligned;
+    if (is_aligned) {
+        st->size += st->align - 1;
+        st->size /= st->align;
+        st->size *= st->align;
+    }
     return st;
 }
 
@@ -371,7 +383,15 @@ static JanetFFIType decode_ffi_type(Janet x) {
     int32_t len;
     const Janet *els;
     if (janet_indexed_view(x, &els, &len)) {
-        ret.st = build_struct_type(len, els);
+        if (janet_checktype(x, JANET_ARRAY)) {
+            if (len != 2) janet_panicf("array type must be of form @[type count], got %v", x);
+            int32_t array_count = janet_getnat(els, 1);
+            if (array_count == 0) janet_panic("vla not supported");
+            ret = decode_ffi_type(els[0]);
+            ret.array_count = array_count;
+        } else {
+            ret.st = build_struct_type(len, els);
+        }
         return ret;
     } else {
         janet_panicf("bad native type %v", x);
@@ -380,9 +400,25 @@ static JanetFFIType decode_ffi_type(Janet x) {
 
 JANET_CORE_FN(cfun_ffi_struct,
               "(ffi/struct & types)",
-              "Create a struct type descriptor that can be used to pass structs into native functions. ") {
+              "Create a struct type definition that can be used to pass structs into native functions. ") {
     janet_arity(argc, 1, -1);
     return janet_wrap_abstract(build_struct_type(argc, argv));
+}
+
+JANET_CORE_FN(cfun_ffi_size,
+              "(ffi/size type)",
+              "Get the size of an ffi type in bytes.") {
+    janet_fixarity(argc, 1);
+    size_t size = type_size(decode_ffi_type(argv[0]));
+    return janet_wrap_number((double) size);
+}
+
+JANET_CORE_FN(cfun_ffi_align,
+              "(ffi/align type)",
+              "Get the align of an ffi type in bytes.") {
+    janet_fixarity(argc, 1);
+    size_t size = type_align(decode_ffi_type(argv[0]));
+    return janet_wrap_number((double) size);
 }
 
 static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
@@ -411,6 +447,21 @@ static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
  * The alignment and space available is assumed to already be sufficient */
 static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFIType type, int recur) {
     if (recur == 0) janet_panic("recursion too deep");
+    if (type.array_count) {
+        JanetFFIType el_type = type;
+        el_type.array_count = 0;
+        size_t el_size = type_size(el_type);
+        JanetView els = janet_getindexed(argv, n);
+        if ((size_t) els.len != type.array_count) {
+            janet_panicf("bad array length, expected %d, got %d", type.array_count, els.len);
+        }
+        char *cursor = to;
+        for (int32_t i = 0; i < els.len; i++) {
+            janet_ffi_write_one(cursor, els.items, i, el_type, recur - 1);
+            cursor += el_size;
+        }
+        return;
+    }
     switch (type.prim) {
         case JANET_FFI_TYPE_VOID:
             if (!janet_checktype(argv[n], JANET_NIL)) {
@@ -438,6 +489,9 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
             break;
         case JANET_FFI_TYPE_PTR:
             ((void **)(to))[0] = janet_ffi_getpointer(argv, n);
+            break;
+        case JANET_FFI_TYPE_STRING:
+            ((const char **)(to))[0] = janet_getcstring(argv, n);
             break;
         case JANET_FFI_TYPE_BOOL:
             ((bool *)(to))[0] = janet_getboolean(argv, n);
@@ -474,6 +528,17 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
  * size of the data is correct. */
 static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recur) {
     if (recur == 0) janet_panic("recursion too deep");
+    if (type.array_count) {
+        JanetFFIType el_type = type;
+        el_type.array_count = 0;
+        size_t el_size = type_size(el_type);
+        JanetArray *array = janet_array(type.array_count);
+        for (size_t i = 0; i < type.array_count; i++) {
+            janet_array_push(array, janet_ffi_read_one(from, el_type, recur - 1));
+            from += el_size;
+        }
+        return janet_wrap_array(array);
+    }
     switch (type.prim) {
         default:
         case JANET_FFI_TYPE_VOID:
@@ -495,6 +560,8 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
             void *ptr = ((void **)(from))[0];
             return (NULL == ptr) ? janet_wrap_nil() : janet_wrap_pointer(ptr);
         }
+        case JANET_FFI_TYPE_STRING:
+            return janet_cstringv(((char **)(from))[0]);
         case JANET_FFI_TYPE_BOOL:
             return janet_wrap_boolean(((bool *)(from))[0]);
         case JANET_FFI_TYPE_INT8:
@@ -537,6 +604,7 @@ static JanetFFIMapping void_mapping(void) {
 static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
     switch (type.prim) {
         case JANET_FFI_TYPE_PTR:
+        case JANET_FFI_TYPE_STRING:
         case JANET_FFI_TYPE_BOOL:
         case JANET_FFI_TYPE_INT8:
         case JANET_FFI_TYPE_INT16:
@@ -1163,6 +1231,8 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/struct", cfun_ffi_struct),
         JANET_CORE_REG("ffi/write", cfun_ffi_buffer_write),
         JANET_CORE_REG("ffi/read", cfun_ffi_buffer_read),
+        JANET_CORE_REG("ffi/size", cfun_ffi_size),
+        JANET_CORE_REG("ffi/align", cfun_ffi_align),
         JANET_CORE_REG("ffi/trampoline", cfun_ffi_get_callback_trampoline),
         JANET_REG_END
     };
