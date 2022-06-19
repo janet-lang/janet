@@ -31,7 +31,7 @@
 
 static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 1) {
-        janetc_cerror(opts.compiler, "expected 1 argument");
+        janetc_cerror(opts.compiler, "expected 1 argument to quote");
         return janetc_cslot(janet_wrap_nil());
     }
     return janetc_cslot(argv[0]);
@@ -40,7 +40,7 @@ static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) 
 static JanetSlot janetc_splice(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret;
     if (argn != 1) {
-        janetc_cerror(opts.compiler, "expected 1 argument");
+        janetc_cerror(opts.compiler, "expected 1 argument to splice");
         return janetc_cslot(janet_wrap_nil());
     }
     ret = janetc_value(opts, argv[0]);
@@ -117,7 +117,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
 
 static JanetSlot janetc_quasiquote(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 1) {
-        janetc_cerror(opts.compiler, "expected 1 argument");
+        janetc_cerror(opts.compiler, "expected 1 argument to quasiquote");
         return janetc_cslot(janet_wrap_nil());
     }
     return quasiquote(opts, argv[0], JANET_RECURSION_GUARD, 0);
@@ -143,7 +143,7 @@ static int destructure(JanetCompiler *c,
                        JanetTable *attr) {
     switch (janet_type(left)) {
         default:
-            janetc_cerror(c, "unexpected type in destructuring");
+            janetc_error(c, janet_formatc("unexpected type in destruction, got %v", left));
             return 1;
         case JANET_SYMBOL:
             /* Leaf, assign right to left */
@@ -302,6 +302,9 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
 static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv) {
     int32_t i;
     JanetTable *tab = janet_table(2);
+    const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
+        ? ((const char *)janet_unwrap_symbol(argv[0]))
+        : "<multiple bindings>";
     for (i = 1; i < argn - 1; i++) {
         Janet attr = argv[i];
         switch (janet_type(attr)) {
@@ -309,7 +312,7 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
                 janetc_cerror(c, "unexpected form - did you intend to use defn?");
                 break;
             default:
-                janetc_cerror(c, "could not add metadata to binding");
+                janetc_error(c, janet_formatc("could not add metadata %v to binding %s", attr, binding_name));
                 break;
             case JANET_KEYWORD:
                 janet_table_put(tab, attr, janet_wrap_true());
