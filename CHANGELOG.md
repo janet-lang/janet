@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.23.0 - ???
 - Add experimental `ffi/` module for interfacing with dynamic libraries and raw function pointers. Only available
   on 64 bit linux, mac, and bsd systems.
 - Allow using `&named` in function prototypes for named arguments. This is a more ergonomic
