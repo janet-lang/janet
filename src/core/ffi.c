@@ -99,7 +99,7 @@ static const JanetFFIPrimInfo janet_ffi_type_info[] = {
 struct JanetFFIType {
     JanetFFIStruct *st;
     JanetFFIPrimType prim;
-    size_t array_count;
+    ssize_t array_count;
 };
 
 typedef struct {
@@ -223,12 +223,12 @@ static JanetFFIType prim_type(JanetFFIPrimType pt) {
     JanetFFIType t;
     t.prim = pt;
     t.st = NULL;
-    t.array_count = 0;
+    t.array_count = -1;
     return t;
 }
 
 static size_t type_size(JanetFFIType t) {
-    size_t count = t.array_count ? t.array_count : 1;
+    size_t count = t.array_count < 0 ? 1 : (size_t) t.array_count;
     if (t.prim == JANET_FFI_TYPE_STRUCT) {
         return t.st->size * count;
     } else {
@@ -294,6 +294,7 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "int")) return JANET_FFI_TYPE_INT32;
     if (!janet_cstrcmp(name, "long")) return JANET_FFI_TYPE_INT64;
     if (!janet_cstrcmp(name, "byte")) return JANET_FFI_TYPE_UINT8;
+    if (!janet_cstrcmp(name, "uchar")) return JANET_FFI_TYPE_UINT8;
     if (!janet_cstrcmp(name, "ushort")) return JANET_FFI_TYPE_UINT16;
     if (!janet_cstrcmp(name, "uint")) return JANET_FFI_TYPE_UINT32;
     if (!janet_cstrcmp(name, "ulong")) return JANET_FFI_TYPE_UINT64;
@@ -374,7 +375,7 @@ static JanetFFIType decode_ffi_type(Janet x) {
         return prim_type(decode_ffi_prim(janet_unwrap_keyword(x)));
     }
     JanetFFIType ret;
-    ret.array_count = 0;
+    ret.array_count = -1;
     ret.prim = JANET_FFI_TYPE_STRUCT;
     if (janet_checkabstract(x, &janet_struct_type)) {
         ret.st = janet_unwrap_abstract(x);
@@ -384,10 +385,9 @@ static JanetFFIType decode_ffi_type(Janet x) {
     const Janet *els;
     if (janet_indexed_view(x, &els, &len)) {
         if (janet_checktype(x, JANET_ARRAY)) {
-            if (len != 2) janet_panicf("array type must be of form @[type count], got %v", x);
-            int32_t array_count = janet_getnat(els, 1);
-            if (array_count == 0) janet_panic("vla not supported");
+            if (len != 2 && len != 1) janet_panicf("array type must be of form @[type count], got %v", x);
             ret = decode_ffi_type(els[0]);
+            int32_t array_count = len == 1 ? 0 : janet_getnat(els, 1);
             ret.array_count = array_count;
         } else {
             ret.st = build_struct_type(len, els);
@@ -447,12 +447,12 @@ static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
  * The alignment and space available is assumed to already be sufficient */
 static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFIType type, int recur) {
     if (recur == 0) janet_panic("recursion too deep");
-    if (type.array_count) {
+    if (type.array_count >= 0) {
         JanetFFIType el_type = type;
-        el_type.array_count = 0;
+        el_type.array_count = -1;
         size_t el_size = type_size(el_type);
         JanetView els = janet_getindexed(argv, n);
-        if ((size_t) els.len != type.array_count) {
+        if (els.len != type.array_count) {
             janet_panicf("bad array length, expected %d, got %d", type.array_count, els.len);
         }
         char *cursor = to;
@@ -528,12 +528,12 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
  * size of the data is correct. */
 static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recur) {
     if (recur == 0) janet_panic("recursion too deep");
-    if (type.array_count) {
+    if (type.array_count >= 0) {
         JanetFFIType el_type = type;
-        el_type.array_count = 0;
+        el_type.array_count = -1;
         size_t el_size = type_size(el_type);
         JanetArray *array = janet_array(type.array_count);
-        for (size_t i = 0; i < type.array_count; i++) {
+        for (ssize_t i = 0; i < type.array_count; i++) {
             janet_array_push(array, janet_ffi_read_one(from, el_type, recur - 1));
             from += el_size;
         }
