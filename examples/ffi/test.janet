@@ -1,3 +1,7 @@
+#
+# Simple FFI test script that tests against a simple shared object
+#
+
 (def ffi/loc "examples/ffi/so.so")
 (def ffi/source-loc "examples/ffi/so.c")
 

@@ -1130,7 +1130,6 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
     return janet_wrap_buffer(buffer);
 }
 
-
 JANET_CORE_FN(cfun_ffi_buffer_read,
               "(ffi/read ffi-type bytes &opt offset)",
               "Parse a native struct out of a buffer and convert it to normal Janet data structures. "
@@ -1153,7 +1152,7 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
 JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
               "(ffi/trampoline cc)",
               "Get a native function pointer that can be used as a callback and passed to C libraries. "
-              "This callback trampoline has the signature `void trampoline(void *ctx, void *userdata)` in "
+              "This callback trampoline has the signature `void trampoline(void \\*ctx, void \\*userdata)` in "
               "the given calling convention. This is the only function signature supported. "
               "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
               "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
