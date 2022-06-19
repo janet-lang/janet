@@ -28,16 +28,27 @@
 (assert (= (thunk) 1) "delay 3")
 (assert (= counter 1) "delay 4")
 
+(def has-ffi (dyn 'ffi/native))
+
 # FFI check
-(compwhen (dyn 'ffi/native)
+(compwhen has-ffi
   (ffi/context))
-(compwhen (dyn 'ffi/native)
+(compwhen has-ffi
   (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
-(compwhen (dyn 'ffi/native)
+(compwhen has-ffi
   (def buffer1 @"aaaa")
   (def buffer2 @"bbbb")
   (memcpy buffer1 buffer2 4)
   (assert (= (string buffer1) "bbbb") "ffi 1 - memcpy"))
+
+(compwhen has-ffi
+  (assert (= 8 (ffi/size [:int :char])) "size unpacked struct 1")
+  (assert (= 5 (ffi/size [:pack :int :char])) "size packed struct 1")
+  (assert (= 5 (ffi/size [:int :pack-all :char])) "size packed struct 2")
+  (assert (= 4 (ffi/align [:int :char])) "align 1")
+  (assert (= 1 (ffi/align [:pack :int :char])) "align 2")
+  (assert (= 1 (ffi/align [:int :char :pack-all])) "align 3")
+  (assert (= 26 (ffi/size [:char :pack :int @[:char 21]])) "array struct size"))
 
 (end-suite)
 

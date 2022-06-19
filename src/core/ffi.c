@@ -346,6 +346,7 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         if (janet_keyeq(argv[j], "pack") || janet_keyeq(argv[j], "pack-all")) {
             pack_one = 1;
             j++;
+            if (j == argc) break;
         }
         st->fields[i].type = decode_ffi_type(argv[j]);
         size_t el_size = type_size(st->fields[i].type);
