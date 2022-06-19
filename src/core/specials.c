@@ -312,7 +312,7 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
                 janetc_cerror(c, "unexpected form - did you intend to use defn?");
                 break;
             default:
-                janetc_error(c, janet_formatc("could not add metadata %v to binding %s", attr, binding_name));
+                janetc_error(c, janet_formatc("cannot add metadata %v to binding %s", attr, binding_name));
                 break;
             case JANET_KEYWORD:
                 janet_table_put(tab, attr, janet_wrap_true());
