@@ -1345,6 +1345,7 @@ JANET_CORE_FN(os_date,
     if (argc >= 2 && janet_truthy(argv[1])) {
         /* local time */
 #ifdef JANET_WINDOWS
+        _tzset();
         localtime_s(&t_infos, &t);
         t_info = &t_infos;
 #else
