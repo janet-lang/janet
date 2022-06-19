@@ -362,11 +362,9 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         i++;
     }
     st->is_aligned = is_aligned;
-    if (is_aligned) {
-        st->size += st->align - 1;
-        st->size /= st->align;
-        st->size *= st->align;
-    }
+    st->size += (st->align - 1);
+    st->size /= st->align;
+    st->size *= st->align;
     return st;
 }
 
@@ -375,6 +373,7 @@ static JanetFFIType decode_ffi_type(Janet x) {
         return prim_type(decode_ffi_prim(janet_unwrap_keyword(x)));
     }
     JanetFFIType ret;
+    ret.array_count = 0;
     ret.prim = JANET_FFI_TYPE_STRUCT;
     if (janet_checkabstract(x, &janet_struct_type)) {
         ret.st = janet_unwrap_abstract(x);
