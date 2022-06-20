@@ -99,7 +99,7 @@ static const JanetFFIPrimInfo janet_ffi_type_info[] = {
 struct JanetFFIType {
     JanetFFIStruct *st;
     JanetFFIPrimType prim;
-    ssize_t array_count;
+    int32_t array_count;
 };
 
 typedef struct {
@@ -533,7 +533,7 @@ static Janet janet_ffi_read_one(const uint8_t *from, JanetFFIType type, int recu
         el_type.array_count = -1;
         size_t el_size = type_size(el_type);
         JanetArray *array = janet_array(type.array_count);
-        for (ssize_t i = 0; i < type.array_count; i++) {
+        for (int32_t i = 0; i < type.array_count; i++) {
             janet_array_push(array, janet_ffi_read_one(from, el_type, recur - 1));
             from += el_size;
         }
