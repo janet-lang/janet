@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.23.1 - ???
+- Allow setting `(dyn :task-id)` in fibers to improve context in supervisor messages. Prior to
+  this change, supverisor messages over threaded channels would be from ambiguous threads/fibers.
+
 ## 1.23.0 - 2022-06-20
 - Add experimental `ffi/` module for interfacing with dynamic libraries and raw function pointers. Only available
   on 64 bit linux, mac, and bsd systems.
