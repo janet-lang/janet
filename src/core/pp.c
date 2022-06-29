@@ -762,8 +762,7 @@ static const char *scanformat(
     memset(precision, '\0', 3);
     while (*p != '\0' && strchr(FMT_FLAGS, *p) != NULL)
         p++; /* skip flags */
-    if ((size_t)(p - strfrmt) >= sizeof(FMT_FLAGS) / sizeof(char))
-        janet_panic("invalid format (repeated flags)");
+    if ((size_t)(p - strfrmt) >= sizeof(FMT_FLAGS)) janet_panic("invalid format (repeated flags)");
     if (isdigit((int)(*p)))
         width[0] = *p++; /* skip width */
     if (isdigit((int)(*p)))

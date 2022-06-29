@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.23.1 - ???
+- Improve default error message from `assert`.
+- Add the `tabseq` macro for simpler table comprehensions.
 - Allow setting `(dyn :task-id)` in fibers to improve context in supervisor messages. Prior to
   this change, supverisor messages over threaded channels would be from ambiguous threads/fibers.
 

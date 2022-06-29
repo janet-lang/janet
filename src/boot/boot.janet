@@ -158,7 +158,7 @@
      (def ,v ,x)
      (if ,v
        ,v
-       (,error ,(if err err "assert failure")))))
+       (,error ,(if err err (string/format "assert failure in %j" x))))))
 
 (defn errorf
   "A combination of `error` and `string/format`. Equivalent to `(error (string/format fmt ;args))`."
@@ -606,13 +606,20 @@
   See `loop` for details.``
   [head & body]
   (def $accum (gensym))
-  ~(do (def ,$accum @[]) (loop ,head (array/push ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
+
+(defmacro tabseq
+  ``Similar to `loop`, but accumulates key value pairs into a table.
+  See `loop` for details.``
+  [head key-body & value-body]
+  (def $accum (gensym))
+  ~(do (def ,$accum @{}) (loop ,head (,put ,$accum ,key-body (do ,;value-body))) ,$accum))
 
 (defmacro generate
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
-  ~(fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
+  ~(,fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
   "A wrapper for making fibers that may yield multiple values (coroutine). Same as `(fiber/new (fn [] ;body) :yi)`."
@@ -2768,13 +2775,13 @@
     (def c ((:where p) 0))
     (def prpt (string "debug[" level "]:" c ":" status "> "))
     (getline prpt buf nextenv))
-  (print "entering debug[" level "] - (quit) to exit")
+  (eprint "entering debug[" level "] - (quit) to exit")
   (flush)
   (run-context
     {:chunks debugger-chunks
      :on-status (debugger-on-status-var nextenv (+ 1 level) true)
      :env nextenv})
-  (print "exiting debug[" level "]")
+  (eprint "exiting debug[" level "]")
   (flush)
   (nextenv :resume-value))
 
