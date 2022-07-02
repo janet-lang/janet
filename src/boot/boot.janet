@@ -615,6 +615,17 @@
   (def $accum (gensym))
   ~(do (def ,$accum @{}) (loop ,head (,put ,$accum ,key-body (do ,;value-body))) ,$accum))
 
+(defmacro tabseq2
+  ``Similar to `loop`, but accumulates the loop body, expected to return a 2-tuple, into a
+  table as key and value respectively. See `loop` for details.``
+  [head & body]
+  (def $accum (gensym))
+  ~(do (def ,$accum @{})
+       (loop ,head
+             (let [[k v] (do ,;body)]
+               (put ,$accum k v)))
+       ,$accum))
+
 (defmacro generate
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
