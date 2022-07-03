@@ -2724,6 +2724,8 @@ JANET_CORE_FN(cfun_ev_go,
     return janet_wrap_fiber(fiber);
 }
 
+#define JANET_THREAD_SUPERVISOR_FLAG 0x100
+
 /* For ev/thread - Run an interpreter in the new thread. */
 static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
     JanetBuffer *buffer = (JanetBuffer *) args.argp;
@@ -2746,7 +2748,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         }
 
         /* Get supervsior */
-        if (flags & 0x8) {
+        if (flags & JANET_THREAD_SUPERVISOR_FLAG) {
             Janet sup =
                 janet_unmarshal(nextbytes, endbytes - nextbytes,
                                 JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
@@ -2798,6 +2800,10 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         } else {
             fiber = janet_unwrap_fiber(fiberv);
         }
+        if (flags & 0x8) {
+            if (NULL == fiber->env) fiber->env = janet_table(0);
+            janet_table_put(fiber->env, janet_ckeywordv("task-id"), value);
+        }
         fiber->supervisor_channel = janet_vm.user;
         janet_schedule(fiber, value);
         janet_loop();
@@ -2842,6 +2848,7 @@ JANET_CORE_FN(cfun_ev_thread,
               "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
               "Otherwise, returns nil. Available flags:\n\n"
               "* `:n` - return immediately\n"
+              "* `:t` - set the task-id of the new thread to value. The task-id is passed in messages to the supervisor channel.\n"
               "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
               "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
     janet_arity(argc, 1, 4);
@@ -2849,10 +2856,10 @@ JANET_CORE_FN(cfun_ev_thread,
     if (!janet_checktype(argv[0], JANET_FUNCTION)) janet_getfiber(argv, 0);
     uint64_t flags = 0;
     if (argc >= 3) {
-        flags = janet_getflags(argv, 2, "nac");
+        flags = janet_getflags(argv, 2, "nact");
     }
     void *supervisor = janet_optabstract(argv, argc, 3, &janet_channel_type, janet_vm.root_fiber->supervisor_channel);
-    if (NULL != supervisor) flags |= 0x8;
+    if (NULL != supervisor) flags |= JANET_THREAD_SUPERVISOR_FLAG;
 
     /* Marshal arguments for the new thread. */
     JanetBuffer *buffer = janet_malloc(sizeof(JanetBuffer));
@@ -2863,7 +2870,7 @@ JANET_CORE_FN(cfun_ev_thread,
     if (!(flags & 0x2)) {
         janet_marshal(buffer, janet_wrap_table(janet_vm.abstract_registry), NULL, JANET_MARSHAL_UNSAFE);
     }
-    if (flags & 0x8) {
+    if (flags & JANET_THREAD_SUPERVISOR_FLAG) {
         janet_marshal(buffer, janet_wrap_abstract(supervisor), NULL, JANET_MARSHAL_UNSAFE);
     }
     if (!(flags & 0x4)) {
