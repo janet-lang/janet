@@ -283,7 +283,7 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
-	ln -sf -t '$(DESTDIR)$(INCLUDEDIR)' janet.h janet/janet.h
+	ln -sf -T ./janet/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet.h'
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
 	if test $(UNAME) = Darwin ; then \
