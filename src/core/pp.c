@@ -762,8 +762,7 @@ static const char *scanformat(
     memset(precision, '\0', 3);
     while (*p != '\0' && strchr(FMT_FLAGS, *p) != NULL)
         p++; /* skip flags */
-    if ((size_t)(p - strfrmt) >= sizeof(FMT_FLAGS) / sizeof(char))
-        janet_panic("invalid format (repeated flags)");
+    if ((size_t)(p - strfrmt) >= sizeof(FMT_FLAGS)) janet_panic("invalid format (repeated flags)");
     if (isdigit((int)(*p)))
         width[0] = *p++; /* skip width */
     if (isdigit((int)(*p)))
@@ -983,8 +982,9 @@ void janet_buffer_format(
                     break;
                 }
                 case 's': {
-                    const uint8_t *s = janet_getstring(argv, arg);
-                    int32_t l = janet_string_length(s);
+                    JanetByteView bytes = janet_getbytes(argv, arg);
+                    const uint8_t *s = bytes.bytes;
+                    int32_t l = bytes.len;
                     if (form[2] == '\0')
                         janet_buffer_push_bytes(b, s, l);
                     else {

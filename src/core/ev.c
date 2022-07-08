@@ -79,7 +79,11 @@ typedef struct {
     int32_t limit;
     int closed;
     int is_threaded;
-    JanetOSMutex lock;
+#ifdef JANET_WINDOWS
+    CRITICAL_SECTION lock;
+#else
+    pthread_mutex_t lock;
+#endif
 } JanetChannel;
 
 typedef struct {
@@ -531,10 +535,15 @@ static int janet_channel_push(JanetChannel *channel, Janet x, int mode);
 static int janet_channel_pop(JanetChannel *channel, Janet *item, int is_choice);
 
 static Janet make_supervisor_event(const char *name, JanetFiber *fiber, int threaded) {
-    Janet tup[2];
+    Janet tup[3];
     tup[0] = janet_ckeywordv(name);
     tup[1] = threaded ? fiber->last_value : janet_wrap_fiber(fiber) ;
-    return janet_wrap_tuple(janet_tuple_n(tup, 2));
+    if (fiber->env != NULL) {
+        tup[2] = janet_table_get(fiber->env, janet_ckeywordv("task-id"));
+    } else {
+        tup[2] = janet_wrap_nil();
+    }
+    return janet_wrap_tuple(janet_tuple_n(tup, 3));
 }
 
 /* Common init code */
@@ -643,7 +652,7 @@ static void janet_chan_init(JanetChannel *chan, int32_t limit, int threaded) {
     janet_q_init(&chan->items);
     janet_q_init(&chan->read_pending);
     janet_q_init(&chan->write_pending);
-    janet_os_mutex_init(&chan->lock);
+    janet_os_mutex_init((JanetOSMutex *) &chan->lock);
 }
 
 static void janet_chan_deinit(JanetChannel *chan) {
@@ -656,17 +665,17 @@ static void janet_chan_deinit(JanetChannel *chan) {
         }
     }
     janet_q_deinit(&chan->items);
-    janet_os_mutex_deinit(&chan->lock);
+    janet_os_mutex_deinit((JanetOSMutex *) &chan->lock);
 }
 
 static void janet_chan_lock(JanetChannel *chan) {
     if (!janet_chan_is_threaded(chan)) return;
-    janet_os_mutex_lock(&chan->lock);
+    janet_os_mutex_lock((JanetOSMutex *) &chan->lock);
 }
 
 static void janet_chan_unlock(JanetChannel *chan) {
     if (!janet_chan_is_threaded(chan)) return;
-    janet_os_mutex_unlock(&chan->lock);
+    janet_os_mutex_unlock((JanetOSMutex *) &chan->lock);
 }
 
 /*
@@ -2715,6 +2724,8 @@ JANET_CORE_FN(cfun_ev_go,
     return janet_wrap_fiber(fiber);
 }
 
+#define JANET_THREAD_SUPERVISOR_FLAG 0x100
+
 /* For ev/thread - Run an interpreter in the new thread. */
 static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
     JanetBuffer *buffer = (JanetBuffer *) args.argp;
@@ -2737,7 +2748,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         }
 
         /* Get supervsior */
-        if (flags & 0x8) {
+        if (flags & JANET_THREAD_SUPERVISOR_FLAG) {
             Janet sup =
                 janet_unmarshal(nextbytes, endbytes - nextbytes,
                                 JANET_MARSHAL_UNSAFE, NULL, &nextbytes);
@@ -2789,6 +2800,10 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         } else {
             fiber = janet_unwrap_fiber(fiberv);
         }
+        if (flags & 0x8) {
+            if (NULL == fiber->env) fiber->env = janet_table(0);
+            janet_table_put(fiber->env, janet_ckeywordv("task-id"), value);
+        }
         fiber->supervisor_channel = janet_vm.user;
         janet_schedule(fiber, value);
         janet_loop();
@@ -2833,6 +2848,7 @@ JANET_CORE_FN(cfun_ev_thread,
               "If you want to run the thread without waiting for a result, pass the `:n` flag to return nil immediately. "
               "Otherwise, returns nil. Available flags:\n\n"
               "* `:n` - return immediately\n"
+              "* `:t` - set the task-id of the new thread to value. The task-id is passed in messages to the supervisor channel.\n"
               "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
               "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
     janet_arity(argc, 1, 4);
@@ -2840,10 +2856,10 @@ JANET_CORE_FN(cfun_ev_thread,
     if (!janet_checktype(argv[0], JANET_FUNCTION)) janet_getfiber(argv, 0);
     uint64_t flags = 0;
     if (argc >= 3) {
-        flags = janet_getflags(argv, 2, "nac");
+        flags = janet_getflags(argv, 2, "nact");
     }
     void *supervisor = janet_optabstract(argv, argc, 3, &janet_channel_type, janet_vm.root_fiber->supervisor_channel);
-    if (NULL != supervisor) flags |= 0x8;
+    if (NULL != supervisor) flags |= JANET_THREAD_SUPERVISOR_FLAG;
 
     /* Marshal arguments for the new thread. */
     JanetBuffer *buffer = janet_malloc(sizeof(JanetBuffer));
@@ -2854,7 +2870,7 @@ JANET_CORE_FN(cfun_ev_thread,
     if (!(flags & 0x2)) {
         janet_marshal(buffer, janet_wrap_table(janet_vm.abstract_registry), NULL, JANET_MARSHAL_UNSAFE);
     }
-    if (flags & 0x8) {
+    if (flags & JANET_THREAD_SUPERVISOR_FLAG) {
         janet_marshal(buffer, janet_wrap_abstract(supervisor), NULL, JANET_MARSHAL_UNSAFE);
     }
     if (!(flags & 0x4)) {
@@ -3013,6 +3029,106 @@ JANET_CORE_FN(janet_cfun_stream_write,
     janet_await();
 }
 
+static int mutexgc(void *p, size_t size) {
+    (void) size;
+    janet_os_mutex_deinit(p);
+    return 0;
+}
+
+const JanetAbstractType janet_mutex_type = {
+    "core/lock",
+    mutexgc,
+    JANET_ATEND_GC
+};
+
+JANET_CORE_FN(janet_cfun_mutex,
+              "(ev/lock)",
+              "Create a new lock to coordinate threads.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    void *mutex = janet_abstract_threaded(&janet_mutex_type, janet_os_mutex_size());
+    janet_os_mutex_init(mutex);
+    return janet_wrap_abstract(mutex);
+}
+
+JANET_CORE_FN(janet_cfun_mutex_acquire,
+              "(ev/acquire-lock lock)",
+              "Acquire a lock such that this operating system thread is the only thread with access to this resource."
+              " This will block this entire thread until the lock becomes available, and will not yield to other fibers "
+              "on this system thread.") {
+    janet_fixarity(argc, 1);
+    void *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
+    janet_os_mutex_lock(mutex);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_mutex_release,
+              "(ev/release-lock lock)",
+              "Release a lock such that other threads may acquire it.") {
+    janet_fixarity(argc, 1);
+    void *mutex = janet_getabstract(argv, 0, &janet_mutex_type);
+    janet_os_mutex_unlock(mutex);
+    return argv[0];
+}
+
+static int rwlockgc(void *p, size_t size) {
+    (void) size;
+    janet_os_rwlock_deinit(p);
+    return 0;
+}
+
+const JanetAbstractType janet_rwlock_type = {
+    "core/rwlock",
+    rwlockgc,
+    JANET_ATEND_GC
+};
+
+JANET_CORE_FN(janet_cfun_rwlock,
+              "(ev/rwlock)",
+              "Create a new read-write lock to coordinate threads.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    void *rwlock = janet_abstract_threaded(&janet_rwlock_type, janet_os_rwlock_size());
+    janet_os_rwlock_init(rwlock);
+    return janet_wrap_abstract(rwlock);
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_read_lock,
+              "(ev/acquire-rlock rwlock)",
+              "Acquire a read lock an a read-write lock.") {
+    janet_fixarity(argc, 1);
+    void *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_rlock(rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_write_lock,
+              "(ev/acquire-wlock rwlock)",
+              "Acquire a write lock on a read-write lock.") {
+    janet_fixarity(argc, 1);
+    void *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_wlock(rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_read_release,
+              "(ev/release-rlock rwlock)",
+              "Release a read lock on a read-write lock") {
+    janet_fixarity(argc, 1);
+    void *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_runlock(rwlock);
+    return argv[0];
+}
+
+JANET_CORE_FN(janet_cfun_rwlock_write_release,
+              "(ev/release-wlock rwlock)",
+              "Release a write lock on a read-write lock") {
+    janet_fixarity(argc, 1);
+    void *rwlock = janet_getabstract(argv, 0, &janet_rwlock_type);
+    janet_os_rwlock_wunlock(rwlock);
+    return argv[0];
+}
+
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3035,12 +3151,22 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/read", janet_cfun_stream_read),
         JANET_CORE_REG("ev/chunk", janet_cfun_stream_chunk),
         JANET_CORE_REG("ev/write", janet_cfun_stream_write),
+        JANET_CORE_REG("ev/lock", janet_cfun_mutex),
+        JANET_CORE_REG("ev/acquire-lock", janet_cfun_mutex_acquire),
+        JANET_CORE_REG("ev/release-lock", janet_cfun_mutex_release),
+        JANET_CORE_REG("ev/rwlock", janet_cfun_rwlock),
+        JANET_CORE_REG("ev/acquire-rlock", janet_cfun_rwlock_read_lock),
+        JANET_CORE_REG("ev/acquire-wlock", janet_cfun_rwlock_write_lock),
+        JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
+        JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
         JANET_REG_END
     };
 
     janet_core_cfuns_ext(env, NULL, ev_cfuns_ext);
     janet_register_abstract_type(&janet_stream_type);
     janet_register_abstract_type(&janet_channel_type);
+    janet_register_abstract_type(&janet_mutex_type);
+    janet_register_abstract_type(&janet_rwlock_type);
 }
 
 #endif

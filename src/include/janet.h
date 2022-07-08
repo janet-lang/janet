@@ -163,6 +163,14 @@ extern "C" {
 #define JANET_DYNAMIC_MODULES
 #endif
 
+/* Enable or disable the FFI library. Currently, FFI only enabled on
+ * x86-64, non-windows operating systems. */
+#ifndef JANET_NO_FFI
+#if !defined(JANET_WINDOWS) && !defined(__EMSCRIPTEN__) && (defined(__x86_64__) || defined(_M_X64))
+#define JANET_FFI
+#endif
+#endif
+
 /* Enable or disable the assembler. Enabled by default. */
 #ifndef JANET_NO_ASSEMBLER
 #define JANET_ASSEMBLER
@@ -299,10 +307,10 @@ typedef struct {
     JANET_CURRENT_CONFIG_BITS })
 #endif
 
-/* What to do when out of memory */
-#ifndef JANET_OUT_OF_MEMORY
-#include <stdio.h>
-#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
+/* Some extra includes if EV is enabled */
+#ifdef JANET_EV
+typedef struct JanetOSMutex JanetOSMutex;
+typedef struct JanetOSRWLock JanetOSRWLock;
 #endif
 
 /***** END SECTION CONFIG *****/
@@ -322,23 +330,10 @@ typedef struct {
 #include <stddef.h>
 #include <stdio.h>
 
-/* Some extra includes if EV is enabled */
-#ifdef JANET_EV
-#ifdef JANET_WINDOWS
-typedef struct JanetDudCriticalSection {
-    /* Avoid including windows.h here - instead, create a structure of the same size */
-    /* Needs to be same size as crtical section see WinNT.h for CRITCIAL_SECTION definition */
-    void *debug_info;
-    long lock_count;
-    long recursion_count;
-    void *owning_thread;
-    void *lock_semaphore;
-    unsigned long spin_count;
-} JanetOSMutex;
-#else
-#include <pthread.h>
-typedef pthread_mutex_t JanetOSMutex;
-#endif
+
+/* What to do when out of memory */
+#ifndef JANET_OUT_OF_MEMORY
+#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
 #endif
 
 #ifdef JANET_BSD
@@ -849,6 +844,7 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 
 JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkint64(Janet x);
+JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
@@ -1180,17 +1176,6 @@ typedef struct {
     Janet payload;
 } JanetTryState;
 
-/* Thread types */
-#ifdef JANET_THREADS
-typedef struct JanetThread JanetThread;
-typedef struct JanetMailbox JanetMailbox;
-struct JanetThread {
-    JanetMailbox *mailbox;
-    JanetTable *encode;
-};
-#endif
-
-
 /***** END SECTION TYPES *****/
 
 /***** START SECTION OPCODES *****/
@@ -1379,11 +1364,19 @@ JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t s
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
 
-/* Expose some OS sync primitives to make portable abstract types easier to implement */
+/* Expose some OS sync primitives */
+JANET_API size_t janet_os_mutex_size(void);
+JANET_API size_t janet_os_rwlock_size(void);
 JANET_API void janet_os_mutex_init(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_deinit(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_lock(JanetOSMutex *mutex);
 JANET_API void janet_os_mutex_unlock(JanetOSMutex *mutex);
+JANET_API void janet_os_rwlock_init(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_deinit(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_rlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_wlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_runlock(JanetOSRWLock *rwlock);
+JANET_API void janet_os_rwlock_wunlock(JanetOSRWLock *rwlock);
 
 /* Get last error from an IO operation */
 JANET_API Janet janet_ev_lasterr(void);
@@ -1925,6 +1918,7 @@ JANET_API void *janet_getpointer(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getnat(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
+JANET_API uint64_t janet_getuinteger64(const Janet *argv, int32_t n);
 JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);
 JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);
@@ -2075,16 +2069,6 @@ JANET_API int64_t janet_unwrap_s64(Janet x);
 JANET_API uint64_t janet_unwrap_u64(Janet x);
 JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
 JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
-
-#endif
-
-#ifdef JANET_THREADS
-
-extern JANET_API const JanetAbstractType janet_thread_type;
-
-JANET_API int janet_thread_receive(Janet *msg_out, double timeout);
-JANET_API int janet_thread_send(JanetThread *thread, Janet msg, double timeout);
-JANET_API JanetThread *janet_thread_current(void);
 
 #endif
 

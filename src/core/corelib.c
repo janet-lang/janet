@@ -42,51 +42,6 @@ extern size_t janet_core_image_size;
 #define JDOC(x) NULL
 #endif
 
-/* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
- * with native code. */
-#if defined(JANET_NO_DYNAMIC_MODULES)
-typedef int Clib;
-#define load_clib(name) ((void) name, 0)
-#define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
-#define error_clib() "dynamic libraries not supported"
-#elif defined(JANET_WINDOWS)
-#include <windows.h>
-typedef HINSTANCE Clib;
-#define load_clib(name) LoadLibrary((name))
-#define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
-static char error_clib_buf[256];
-static char *error_clib(void) {
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                   NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                   error_clib_buf, sizeof(error_clib_buf), NULL);
-    error_clib_buf[strlen(error_clib_buf) - 1] = '\0';
-    return error_clib_buf;
-}
-#else
-#include <dlfcn.h>
-typedef void *Clib;
-#define load_clib(name) dlopen((name), RTLD_NOW)
-#define symbol_clib(lib, sym) dlsym((lib), (sym))
-#define error_clib() dlerror()
-#endif
-
-static char *get_processed_name(const char *name) {
-    if (name[0] == '.') return (char *) name;
-    const char *c;
-    for (c = name; *c; c++) {
-        if (*c == '/') return (char *) name;
-    }
-    size_t l = (size_t)(c - name);
-    char *ret = janet_malloc(l + 3);
-    if (NULL == ret) {
-        JANET_OUT_OF_MEMORY;
-    }
-    ret[0] = '.';
-    ret[1] = '/';
-    memcpy(ret + 2, name, l + 1);
-    return ret;
-}
-
 JanetModule janet_native(const char *name, const uint8_t **error) {
     char *processed_name = get_processed_name(name);
     Clib lib = load_clib(processed_name);
@@ -1015,6 +970,9 @@ static void janet_load_libs(JanetTable *env) {
 #endif
 #ifdef JANET_NET
     janet_lib_net(env);
+#endif
+#ifdef JANET_FFI
+    janet_lib_ffi(env);
 #endif
 }
 

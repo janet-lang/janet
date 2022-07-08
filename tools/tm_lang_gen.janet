@@ -17,6 +17,7 @@
       "quote"
       "quasiquote"
       "unquote"
+      "upscope"
       "splice"]
     (all-bindings)))
 (def allsyms (dyn :allsyms))

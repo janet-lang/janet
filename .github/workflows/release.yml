@@ -5,9 +5,14 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+
 jobs:
 
   release:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: Build release binaries
     runs-on: ${{ matrix.os }}
     strategy:
@@ -35,6 +40,8 @@ jobs:
             build/c/shell.c
 
   release-windows:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
     name: Build release binaries for windows
     runs-on: windows-latest
     steps:

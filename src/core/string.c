@@ -530,7 +530,7 @@ JANET_CORE_FN(cfun_string_join,
 
 JANET_CORE_FN(cfun_string_format,
               "(string/format format & values)",
-              "Similar to `snprintf`, but specialized for operating with Janet values. Returns "
+              "Similar to C's `snprintf`, but specialized for operating with Janet values. Returns "
               "a new string.") {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);

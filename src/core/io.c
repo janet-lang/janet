@@ -545,6 +545,16 @@ static Janet cfun_io_printf_impl_x(int32_t argc, Janet *argv, int newline,
             if (newline) janet_buffer_push_u8(buf, '\n');
             return janet_wrap_nil();
         }
+        case JANET_FUNCTION: {
+            /* Special case function */
+            JanetFunction *fun = janet_unwrap_function(x);
+            JanetBuffer *buf = janet_buffer(0);
+            janet_buffer_format(buf, fmt, offset, argc, argv);
+            if (newline) janet_buffer_push_u8(buf, '\n');
+            Janet args[1] = { janet_wrap_buffer(buf) };
+            janet_call(fun, 1, args);
+            return janet_wrap_nil();
+        }
         case JANET_NIL:
             f = dflt_file;
             if (f == NULL) janet_panic("cannot print to nil");
@@ -682,6 +692,16 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
             }
             fwrite(buffer.data, buffer.count, 1, f);
             janet_buffer_deinit(&buffer);
+            break;
+        }
+        case JANET_FUNCTION: {
+            JanetFunction *fun = janet_unwrap_function(x);
+            int32_t len = 0;
+            while (format[len]) len++;
+            JanetBuffer *buf = janet_buffer(len);
+            janet_formatbv(buf, format, args);
+            Janet args[1] = { janet_wrap_buffer(buf) };
+            janet_call(fun, 1, args);
             break;
         }
         case JANET_BUFFER:

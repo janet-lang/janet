@@ -220,14 +220,14 @@
 /* Trace a function call */
 static void vm_do_trace(JanetFunction *func, int32_t argc, const Janet *argv) {
     if (func->def->name) {
-        janet_printf("trace (%S", func->def->name);
+        janet_eprintf("trace (%S", func->def->name);
     } else {
-        janet_printf("trace (%p", janet_wrap_function(func));
+        janet_eprintf("trace (%p", janet_wrap_function(func));
     }
     for (int32_t i = 0; i < argc; i++) {
-        janet_printf(" %p", argv[i]);
+        janet_eprintf(" %p", argv[i]);
     }
-    janet_printf(")\n");
+    janet_eprintf(")\n");
 }
 
 /* Invoke a method once we have looked it up */

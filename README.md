@@ -1,7 +1,7 @@
 [![Join the chat](https://badges.gitter.im/janet-language/community.svg)](https://gitter.im/janet-language/community)
 &nbsp;
-[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/freebsd.yml?)
-[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/openbsd.yml?)
+[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml?)
+[![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml?)
 [![Actions Status](https://github.com/janet-lang/janet/actions/workflows/test.yml/badge.svg)](https://github.com/janet-lang/janet/actions/workflows/test.yml)
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
@@ -89,6 +89,8 @@ cd somewhere/my/projects/janet
 make
 make test
 make repl
+make install
+make install-jpm-git
 ```
 
 Find out more about the available make targets by running `make help`.
@@ -103,6 +105,8 @@ cd somewhere/my/projects/janet
 make CC=gcc-x86
 make test
 make repl
+make install
+make install-jpm-git
 ```
 
 ### FreeBSD
@@ -116,6 +120,8 @@ cd somewhere/my/projects/janet
 gmake
 gmake test
 gmake repl
+gmake install
+gmake install-jpm-git
 ```
 
 ### NetBSD

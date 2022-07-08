@@ -36,13 +36,22 @@
 # endif
 #endif
 
+/* Needed for sched.h for cpu count */
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
 #if defined(WIN32) || defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-/* Needed for realpath on linux */
-#if !defined(_XOPEN_SOURCE) && (defined(__linux__) || defined(__EMSCRIPTEN__))
-#define _XOPEN_SOURCE 500
+/* Needed for realpath on linux, as well as pthread rwlocks. */
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+#if _XOPEN_SOURCE < 600
+#undef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
 #endif
 
 /* Needed for timegm and other extensions when building with -std=c99.

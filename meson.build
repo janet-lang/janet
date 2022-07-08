@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.22.0')
+  version : '1.23.1')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -76,6 +76,7 @@ conf.set('JANET_SIMPLE_GETLINE', get_option('simple_getline'))
 conf.set('JANET_EV_NO_EPOLL', not get_option('epoll'))
 conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
+conf.set('JANET_NO_FFI', not get_option('ffi'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif
@@ -116,6 +117,7 @@ core_src = [
   'src/core/debug.c',
   'src/core/emit.c',
   'src/core/ev.c',
+  'src/core/ffi.c',
   'src/core/fiber.c',
   'src/core/gc.c',
   'src/core/inttypes.c',
@@ -265,4 +267,7 @@ patched_janet = custom_target('patched-janeth',
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
 
 # Create a version of the janet.h header that matches what jpm often expects
-install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+if meson.version().version_compare('>=0.61')
+  install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+endif
+

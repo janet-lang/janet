@@ -31,6 +31,14 @@
 
 #include <stdio.h>
 #include <errno.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+#ifdef JANET_EV
+#ifndef JANET_WINDOWS
+#include <pthread.h>
+#endif
+#endif
 
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
 #include <time.h>
@@ -121,6 +129,31 @@ int janet_gettime(struct timespec *spec);
 #define strdup(x) _strdup(x)
 #endif
 
+/* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
+ * with native code. */
+#if defined(JANET_NO_DYNAMIC_MODULES)
+typedef int Clib;
+#define load_clib(name) ((void) name, 0)
+#define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
+#define error_clib() "dynamic libraries not supported"
+#define free_clib(c) ((void) (c), 0)
+#elif defined(JANET_WINDOWS)
+#include <windows.h>
+typedef HINSTANCE Clib;
+#define free_clib(c) FreeLibrary((c))
+#define symbol_clib(lib, sym) GetProcAddress((lib), (sym))
+Clib load_clib(const char *name);
+char *error_clib(void);
+#else
+#include <dlfcn.h>
+typedef void *Clib;
+#define load_clib(name) dlopen((name), RTLD_NOW)
+#define free_clib(lib) dlclose((lib))
+#define symbol_clib(lib, sym) dlsym((lib), (sym))
+#define error_clib() dlerror()
+#endif
+char *get_processed_name(const char *name);
+
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 
 /* Initialize builtin libraries */
@@ -158,6 +191,9 @@ extern const JanetAbstractType janet_address_type;
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
 int janet_make_pipe(JanetHandle handles[2], int mode);
+#endif
+#ifdef JANET_FFI
+void janet_lib_ffi(JanetTable *env);
 #endif
 
 #endif

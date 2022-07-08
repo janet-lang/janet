@@ -1,6 +1,29 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.23.1 - ???
+- Improve default error message from `assert`.
+- Add the `tabseq` macro for simpler table comprehensions.
+- Allow setting `(dyn :task-id)` in fibers to improve context in supervisor messages. Prior to
+  this change, supverisor messages over threaded channels would be from ambiguous threads/fibers.
+
+## 1.23.0 - 2022-06-20
+- Add experimental `ffi/` module for interfacing with dynamic libraries and raw function pointers. Only available
+  on 64 bit linux, mac, and bsd systems.
+- Allow using `&named` in function prototypes for named arguments. This is a more ergonomic
+  variant of `&keys` that isn't as redundant, more self documenting, and allows extension to
+  things like default arguments.
+- Add `delay` macro for lazy evaluate-and-save thunks.
+- Remove pthread.h from janet.h for easier includes.
+- Add `debugger` - an easy to use debugger function that just takes a fiber.
+- `dofile` will now start a debugger on errors if the environment it is passed has `:debug` set.
+- Add `debugger-on-status` function, which can be passed to `run-context` to start a debugger on
+  abnormal fiber signals.
+- Allow running scripts with the `-d` flag to use the built-in debugger on errors and breakpoints.
+- Add mutexes (locks) and reader-writer locks to ev module for thread coordination.
+- Add `parse-all` as a generalization of the `parse` function.
+- Add `os/cpu-count` to get the number of available processors on a machine
+
 ## 1.22.0 - 2022-05-09
 - Prohibit negative size argument to `table/new`.
 - Add `module/value`.

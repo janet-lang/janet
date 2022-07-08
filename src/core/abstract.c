@@ -23,12 +23,14 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "util.h"
 #include "gc.h"
 #include "state.h"
+#endif
+
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
 #include <windows.h>
-#endif
 #endif
 #endif
 
@@ -85,6 +87,14 @@ void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size) {
 
 #ifdef JANET_WINDOWS
 
+size_t janet_os_mutex_size(void) {
+    return sizeof(CRITICAL_SECTION);
+}
+
+size_t janet_os_rwlock_size(void) {
+    return sizeof(void *);
+}
+
 static int32_t janet_incref(JanetAbstractHead *ab) {
     return InterlockedIncrement(&ab->gc.data.refcount);
 }
@@ -106,10 +116,44 @@ void janet_os_mutex_lock(JanetOSMutex *mutex) {
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
+    /* error handling? May want to keep counter */
     LeaveCriticalSection((CRITICAL_SECTION *) mutex);
 }
 
+void janet_os_rwlock_init(JanetOSRWLock *rwlock) {
+    InitializeSRWLock((PSRWLOCK) rwlock);
+}
+
+void janet_os_rwlock_deinit(JanetOSRWLock *rwlock) {
+    /* no op? */
+    (void) rwlock;
+}
+
+void janet_os_rwlock_rlock(JanetOSRWLock *rwlock) {
+    AcquireSRWLockShared((PSRWLOCK) rwlock);
+}
+
+void janet_os_rwlock_wlock(JanetOSRWLock *rwlock) {
+    AcquireSRWLockExclusive((PSRWLOCK) rwlock);
+}
+
+void janet_os_rwlock_runlock(JanetOSRWLock *rwlock) {
+    ReleaseSRWLockShared((PSRWLOCK) rwlock);
+}
+
+void janet_os_rwlock_wunlock(JanetOSRWLock *rwlock) {
+    ReleaseSRWLockExclusive((PSRWLOCK) rwlock);
+}
+
 #else
+
+size_t janet_os_mutex_size(void) {
+    return sizeof(pthread_mutex_t);
+}
+
+size_t janet_os_rwlock_size(void) {
+    return sizeof(pthread_rwlock_t);
+}
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
     return __atomic_add_fetch(&ab->gc.data.refcount, 1, __ATOMIC_RELAXED);
@@ -120,19 +164,47 @@ static int32_t janet_decref(JanetAbstractHead *ab) {
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {
-    pthread_mutex_init(mutex, NULL);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init((pthread_mutex_t *) mutex, &attr);
 }
 
 void janet_os_mutex_deinit(JanetOSMutex *mutex) {
-    pthread_mutex_destroy(mutex);
+    pthread_mutex_destroy((pthread_mutex_t *) mutex);
 }
 
 void janet_os_mutex_lock(JanetOSMutex *mutex) {
-    pthread_mutex_lock(mutex);
+    pthread_mutex_lock((pthread_mutex_t *) mutex);
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
-    pthread_mutex_unlock(mutex);
+    int ret = pthread_mutex_unlock((pthread_mutex_t *) mutex);
+    if (ret) janet_panic("cannot release lock");
+}
+
+void janet_os_rwlock_init(JanetOSRWLock *rwlock) {
+    pthread_rwlock_init((pthread_rwlock_t *) rwlock, NULL);
+}
+
+void janet_os_rwlock_deinit(JanetOSRWLock *rwlock) {
+    pthread_rwlock_destroy((pthread_rwlock_t *) rwlock);
+}
+
+void janet_os_rwlock_rlock(JanetOSRWLock *rwlock) {
+    pthread_rwlock_rdlock((pthread_rwlock_t *) rwlock);
+}
+
+void janet_os_rwlock_wlock(JanetOSRWLock *rwlock) {
+    pthread_rwlock_wrlock((pthread_rwlock_t *) rwlock);
+}
+
+void janet_os_rwlock_runlock(JanetOSRWLock *rwlock) {
+    pthread_rwlock_unlock((pthread_rwlock_t *) rwlock);
+}
+
+void janet_os_rwlock_wunlock(JanetOSRWLock *rwlock) {
+    pthread_rwlock_unlock((pthread_rwlock_t *) rwlock);
 }
 
 #endif
