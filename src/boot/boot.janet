@@ -3146,16 +3146,18 @@
       (def b (get line i))
       (cond
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
-        (= b (chr `\`)) (do
-                          (++ token-length)
-                          (buffer/push token (get line (++ i))))
-        (= b (chr "_")) (delim :underline)
         (= b (chr "`")) (delim :code)
-        (= b (chr "*"))
-        (if (= (chr "*") (get line (+ i 1)))
-          (do (++ i)
-            (delim :bold))
-          (delim :italics))
+        (not (modes :code)) (cond
+          (= b (chr `\`)) (do
+                            (++ token-length)
+                            (buffer/push token (get line (++ i))))
+          (= b (chr "_")) (delim :underline)
+          (= b (chr "*"))
+            (if (= (chr "*") (get line (+ i 1)))
+              (do (++ i)
+                (delim :bold))
+              (delim :italics))
+          (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
     (tuple/slice tokens))
