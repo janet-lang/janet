@@ -136,6 +136,7 @@ void janet_line_get(const char *p, JanetBuffer *buffer) {
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <io.h>
 
 static void setup_console_output(void) {
     /* Enable color console on windows 10 console and utf8 output and other processing */
@@ -158,7 +159,7 @@ static int rawmode(void) {
     dwMode &= ~ENABLE_ECHO_INPUT;
     dwMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
     dwMode &= ~ENABLE_PROCESSED_INPUT;
-    SetConsoleMode(hOut, dwMode);
+    if (!SetConsoleMode(hOut, dwMode)) return 1;
     gbl_israwmode = 1;
     return 0;
 }
@@ -193,7 +194,7 @@ static long read_console(char *into, size_t n) {
 }
 
 static int check_simpleline(JanetBuffer *buffer) {
-    if (rawmode()) {
+    if (!_isatty(_fileno(stdin)) || rawmode()) {
         simpleline(buffer);
         return 1;
     }

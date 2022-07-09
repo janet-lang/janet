@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.23.1 - ???
+- Add better support for windows console in the default shell.c for autocompletion and
+  other shell-like input features.
 - Improve default error message from `assert`.
 - Add the `tabseq` macro for simpler table comprehensions.
 - Allow setting `(dyn :task-id)` in fibers to improve context in supervisor messages. Prior to
