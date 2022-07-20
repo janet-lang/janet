@@ -76,6 +76,11 @@
   [name & more]
   ~(var ,name :private ,;more))
 
+(defmacro toggle
+  "Set a value to its boolean inverse. Same as `(set value (not value))`."
+  [value]
+  ~(set ,value (,not ,value)))
+
 (defn defglobal
   "Dynamically create a global def."
   [name value]
@@ -3020,7 +3025,7 @@
        :italics ["*" "*"]
        :bold ["**" "**"]}))
   (def modes @{})
-  (defn toggle [mode]
+  (defn toggle-mode [mode]
     (def active (get modes mode))
     (def delims (get delimiters mode))
     (put modes mode (not active))
@@ -3130,7 +3135,7 @@
     (def token @"")
     (var token-length 0)
     (defn delim [mode]
-      (def d (toggle mode))
+      (def d (toggle-mode mode))
       (if-not has-color (+= token-length (length d)))
       (buffer/push token d))
     (defn endtoken []
@@ -3141,16 +3146,18 @@
       (def b (get line i))
       (cond
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
-        (= b (chr `\`)) (do
-                          (++ token-length)
-                          (buffer/push token (get line (++ i))))
-        (= b (chr "_")) (delim :underline)
         (= b (chr "`")) (delim :code)
-        (= b (chr "*"))
-        (if (= (chr "*") (get line (+ i 1)))
-          (do (++ i)
-            (delim :bold))
-          (delim :italics))
+        (not (modes :code)) (cond
+          (= b (chr `\`)) (do
+                            (++ token-length)
+                            (buffer/push token (get line (++ i))))
+          (= b (chr "_")) (delim :underline)
+          (= b (chr "*"))
+            (if (= (chr "*") (get line (+ i 1)))
+              (do (++ i)
+                (delim :bold))
+              (delim :italics))
+          (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
     (tuple/slice tokens))
