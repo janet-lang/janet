@@ -375,7 +375,7 @@ static void refresh(void) {
     /* Move cursor to original position. */
     snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + gbl_plen));
     janet_buffer_push_cstring(&b, seq);
-    if (write_console(b.data, b.count) == -1) {
+    if (write_console((char *) b.data, b.count) == -1) {
         exit(1);
     }
     janet_buffer_deinit(&b);
@@ -857,7 +857,7 @@ static int line() {
 
     addhistory();
 
-    if (write_console(gbl_prompt, gbl_plen) == -1) return -1;
+    if (write_console((char *) gbl_prompt, gbl_plen) == -1) return -1;
     for (;;) {
         char c;
         char seq[3];

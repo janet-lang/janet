@@ -348,7 +348,7 @@ int32_t janet_hash(Janet x) {
                 hash = (int32_t)((hilo << 16) | (hilo >> 16));
             } else {
                 /* Assuming 4 byte pointer (or smaller) */
-                uintptr_t diff = janet_unwrap_pointer(x);
+                uintptr_t diff = (uintptr_t) janet_unwrap_pointer(x);
                 uint32_t hilo = (uint32_t) diff * 2654435769u;
                 hash = (int32_t)((hilo << 16) | (hilo >> 16));
             }
