@@ -345,6 +345,18 @@ JANET_CORE_FN(cfun_string_hassuffix,
                                        suffix.len) == 0);
 }
 
+JANET_CORE_FN(cfun_string_contains,
+              "(string/contains? haystack needle)",
+              "Tests whether `haystack` contains `needle`.") {
+    janet_fixarity(argc, 2);
+    JanetByteView haystack = janet_getbytes(argv, 0);
+    JanetByteView needle = janet_getbytes(argv, 1);
+    return haystack.len < needle.len
+        ? janet_wrap_false()
+        : janet_wrap_boolean(strstr((const char *) haystack.bytes,
+                                    (const char *) needle.bytes) != 0);
+}
+
 JANET_CORE_FN(cfun_string_findall,
               "(string/find-all patt str &opt start-index)",
               "Searches for all instances of pattern `patt` in string "
@@ -620,6 +632,7 @@ void janet_lib_string(JanetTable *env) {
         JANET_CORE_REG("string/find-all", cfun_string_findall),
         JANET_CORE_REG("string/has-prefix?", cfun_string_hasprefix),
         JANET_CORE_REG("string/has-suffix?", cfun_string_hassuffix),
+        JANET_CORE_REG("string/contains?", cfun_string_contains),
         JANET_CORE_REG("string/replace", cfun_string_replace),
         JANET_CORE_REG("string/replace-all", cfun_string_replaceall),
         JANET_CORE_REG("string/split", cfun_string_split),

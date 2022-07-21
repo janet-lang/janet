@@ -125,6 +125,9 @@
 (assert (= (string/find "123" "abc123def") 3) "string/find positive")
 (assert (= (string/find "1234" "abc123def") nil) "string/find negative")
 
+(assert (= (string/contains? "1234" "23") true) "string/contains? matchs")
+(assert (= (string/contains? "1234" "45") false) "string/contains? does not match")
+
 # Test destructuring
 (do
   (def test-tab @{:a 1 :b 2})
