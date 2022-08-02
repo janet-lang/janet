@@ -93,5 +93,14 @@
 
 (assert (= 10 (named-opt-arguments 1 :a 2 :b 3 :c 4)) "named arguments 2")
 
+(let [b @""]
+  (defn dummy [a b c]
+    (+ a b c))
+  (trace dummy)
+  (defn errout [arg]
+    (buffer/push b arg))
+  (assert (= 6 (with-dyns [*err* errout] (dummy 1 2 3))) "trace to custom err function")
+  (assert (deep= @"trace (dummy 1 2 3)\n" b) "trace buffer correct"))
+
 (end-suite)
 
