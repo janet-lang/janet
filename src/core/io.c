@@ -437,6 +437,8 @@ static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
             if (newline)
                 janet_buffer_push_u8(buf, '\n');
             Janet args[1] = { janet_wrap_buffer(buf) };
+            /* Disable tracing */
+            fun->gc.flags &= ~JANET_FUNCFLAG_TRACE;
             janet_call(fun, 1, args);
             return janet_wrap_nil();
         }
@@ -552,6 +554,8 @@ static Janet cfun_io_printf_impl_x(int32_t argc, Janet *argv, int newline,
             janet_buffer_format(buf, fmt, offset, argc, argv);
             if (newline) janet_buffer_push_u8(buf, '\n');
             Janet args[1] = { janet_wrap_buffer(buf) };
+            /* Disable tracing */
+            fun->gc.flags &= ~JANET_FUNCFLAG_TRACE;
             janet_call(fun, 1, args);
             return janet_wrap_nil();
         }
