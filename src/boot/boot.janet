@@ -124,7 +124,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
+(defn empty? "Check if xs is empty." [xs] (nil? (next xs nil)))
 
 # For macros, we define an imcomplete odd? function that will be overriden.
 (defn odd? [x] (= 1 (mod x 2)))
@@ -172,9 +172,9 @@
 
 (defmacro default
   ``Define a default value for an optional argument.
-  Expands to `(def sym (if (= nil sym) val sym))`.``
+  Expands to `(def sym (if (nil? sym) val sym))`.``
   [sym val]
-  ~(def ,sym (if (= nil ,sym) ,val ,sym)))
+  ~(def ,sym (if (nil? ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."
@@ -881,7 +881,7 @@
   Instead, the first element of the array is used for initialization.``
   [f ind]
   (var k (next ind))
-  (if (= nil k) (break nil))
+  (if (nil? k) (break nil))
   (var res (in ind k))
   (set k (next ind k))
   (while (not= nil k)
@@ -908,7 +908,7 @@
   [f ind]
   (var k (next ind))
   (def ret @[])
-  (if (= nil k) (break ret))
+  (if (nil? k) (break ret))
   (var res (in ind k))
   (array/push ret res)
   (set k (next ind k))
@@ -932,17 +932,17 @@
         (var k1 nil)
         (var k2 nil)
         (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
+          (if (nil? (set k1 (next i1 k1))) (break))
+          (if (nil? (set k2 (next i2 k2))) (break))
           (array/push res (f (in i1 k1) (in i2 k2)))))
     3 (do
         (var k1 nil)
         (var k2 nil)
         (var k3 nil)
         (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
+          (if (nil? (set k1 (next i1 k1))) (break))
+          (if (nil? (set k2 (next i2 k2))) (break))
+          (if (nil? (set k3 (next i3 k3))) (break))
           (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3)))))
     4 (do
         (var k1 nil)
@@ -950,10 +950,10 @@
         (var k3 nil)
         (var k4 nil)
         (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
-          (if (= nil (set k4 (next i4 k4))) (break))
+          (if (nil? (set k1 (next i1 k1))) (break))
+          (if (nil? (set k2 (next i2 k2))) (break))
+          (if (nil? (set k3 (next i3 k3))) (break))
+          (if (nil? (set k4 (next i4 k4))) (break))
           (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3) (in i4 k4)))))
     (do
       (def iterkeys (array/new-filled ninds))
@@ -964,7 +964,7 @@
           (let [old-key (in iterkeys i)
                 ii (in inds i)
                 new-key (next ii old-key)]
-            (if (= nil new-key)
+            (if (nil? new-key)
               (do (set done true) (break))
               (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
         (if done (break))
@@ -1044,7 +1044,7 @@
   (var ret dflt)
   (while true
     (set k (next ind k))
-    (if (= k nil) (break))
+    (if (nil? k) (break))
     (def item (in ind k))
     (when (pred item)
       (set ret k)
@@ -1059,7 +1059,7 @@
   (var ret dflt)
   (while true
     (set k (next ind k))
-    (if (= k nil) (break))
+    (if (nil? k) (break))
     (def item (in ind k))
     (when (pred item)
       (set ret item)
@@ -1454,9 +1454,9 @@
   (var vk nil)
   (while true
     (set kk (next ks kk))
-    (if (= nil kk) (break))
+    (if (nil? kk) (break))
     (set vk (next vs vk))
-    (if (= nil vk) (break))
+    (if (nil? vk) (break))
     (put res (in ks kk) (in vs vk)))
   res)
 
@@ -1466,7 +1466,7 @@
   [ds ks &opt dflt]
   (var d ds)
   (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
-  (if (= nil d) dflt d))
+  (if (nil? d) dflt d))
 
 (defn update-in
   ``Update a value in a nested data structure `ds`. Looks into `ds` via a sequence of keys,
@@ -1480,7 +1480,7 @@
   (forv i 0 len-1
     (def k (get ks i))
     (def v (get d k))
-    (if (= nil v)
+    (if (nil? v)
       (let [newv (table)]
         (put d k newv)
         (set d newv))
@@ -1501,7 +1501,7 @@
   (forv i 0 len-1
     (def k (get ks i))
     (def v (get d k))
-    (if (= nil v)
+    (if (nil? v)
       (let [newv (table)]
         (put d k newv)
         (set d newv))
@@ -2348,7 +2348,7 @@
   is provided, gets the nth prototype of the environment table.``
   [&opt n]
   (var e (fiber/getenv (fiber/current)))
-  (if n (repeat n (if (= nil e) (break)) (set e (table/getproto e))))
+  (if n (repeat n (if (nil? e) (break)) (set e (table/getproto e))))
   e)
 
 (def- lint-levels
@@ -3148,16 +3148,16 @@
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
         (= b (chr "`")) (delim :code)
         (not (modes :code)) (cond
-          (= b (chr `\`)) (do
-                            (++ token-length)
-                            (buffer/push token (get line (++ i))))
-          (= b (chr "_")) (delim :underline)
-          (= b (chr "*"))
-            (if (= (chr "*") (get line (+ i 1)))
-              (do (++ i)
-                (delim :bold))
-              (delim :italics))
-          (do (++ token-length) (buffer/push token b)))
+                              (= b (chr `\`)) (do
+                                                (++ token-length)
+                                                (buffer/push token (get line (++ i))))
+                              (= b (chr "_")) (delim :underline)
+                              (= b (chr "*"))
+                              (if (= (chr "*") (get line (+ i 1)))
+                                (do (++ i)
+                                  (delim :bold))
+                                (delim :italics))
+                              (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
     (tuple/slice tokens))
@@ -3686,10 +3686,10 @@
     (defn make-ptr []
       (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find symbol"))
     (if lazy
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
 
 ###
 ###
