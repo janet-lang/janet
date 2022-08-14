@@ -9,71 +9,40 @@
 (if is-windows
   (os/execute ["cl.exe" "/nologo" "/LD" ffi/source-loc "/link" "/DLL" (string "/OUT:" ffi/loc)] :px)
   (os/execute ["cc" ffi/source-loc "-shared" "-o" ffi/loc] :px))
-(def module (ffi/native ffi/loc))
 
-(def int-fn-sig (ffi/signature :default :int :int :int))
-(def int-fn-pointer (ffi/lookup module "int_fn"))
-(defn int-fn
-  [x y]
-  (ffi/call int-fn-pointer int-fn-sig x y))
-
-(def double-fn-sig (ffi/signature :default :double :double :double :double))
-(def double-fn-pointer (ffi/lookup module "double_fn"))
-(defn double-fn
-  [x y z]
-  (ffi/call double-fn-pointer double-fn-sig x y z))
-
-(def double-many-sig (ffi/signature :default :double :double :double :double :double :double :double))
-(def double-many-pointer (ffi/lookup module "double_many"))
-(defn double-many
-  [x y z w a b]
-  (ffi/call double-many-pointer double-many-sig x y z w a b))
-
-(def double-lots-sig (ffi/signature :default :double
-                                    :double :double :double :double :double
-                                    :double :double :double :double :double))
-(def double-lots-pointer (ffi/lookup module "double_lots"))
-(defn double-lots
-  [a b c d e f g h i j]
-  (ffi/call double-lots-pointer double-lots-sig a b c d e f g h i j))
-
-(def float-fn-sig (ffi/signature :default :double :float :float :float))
-(def float-fn-pointer (ffi/lookup module "float_fn"))
-(defn float-fn
-  [x y z]
-  (ffi/call float-fn-pointer float-fn-sig x y z))
-
-(def intint-fn-sig (ffi/signature :default :int :double [:int :int]))
-(def intint-fn-pointer (ffi/lookup module "intint_fn"))
-(defn intint-fn
-  [x ii]
-  (ffi/call intint-fn-pointer intint-fn-sig x ii))
-
-(def return-struct-sig (ffi/signature :default [:int :int] :int))
-(def return-struct-pointer (ffi/lookup module "return_struct"))
-(defn return-struct-fn
-  [i]
-  (ffi/call return-struct-pointer return-struct-sig i))
+(ffi/context ffi/loc)
 
 (def intintint (ffi/struct :int :int :int))
-(def intintint-fn-sig (ffi/signature :default :int :double intintint))
-(def intintint-fn-pointer (ffi/lookup module "intintint_fn"))
-(defn intintint-fn
-  [x iii]
-  (ffi/call intintint-fn-pointer intintint-fn-sig x iii))
-
 (def big (ffi/struct :s64 :s64 :s64))
-(def struct-big-fn-sig (ffi/signature :default big :int :double))
-(def struct-big-fn-pointer (ffi/lookup module "struct_big"))
-(defn struct-big-fn
-  [i d]
-  (ffi/call struct-big-fn-pointer struct-big-fn-sig i d))
 
-(def void-fn-pointer (ffi/lookup module "void_fn"))
-(def void-fn-sig (ffi/signature :default :void))
-(defn void-fn
-  []
-  (ffi/call void-fn-pointer void-fn-sig))
+(ffi/defbind int-fn :int [a :int b :int])
+(ffi/defbind double-fn :double [a :double b :double c :double])
+(ffi/defbind double-many :double
+  [x :double y :double z :double w :double a :double b :double])
+(ffi/defbind double-lots :double
+  [a :double b :double c :double d :double e :double f :double g :double h :double i :double j :double])
+(ffi/defbind float-fn :double
+  [x :float y :float z :float])
+(ffi/defbind intint-fn :int
+  [x :double ii [:int :int]])
+(ffi/defbind return-struct [:int :int]
+  [i :int])
+(ffi/defbind intintint-fn :int
+  [x :double iii intintint])
+(ffi/defbind struct-big big
+  [i :int d :double])
+(ffi/defbind void-fn :void [])
+(ffi/defbind double-lots-2 :double
+  [a :double
+   b :double
+   c :double
+   d :double
+   e :double
+   f :double
+   g :double
+   h :double
+   i :double
+   j :double])
 
 #
 # Struct reading and writing
@@ -115,21 +84,25 @@
 # Call functions
 #
 
-(pp (void-fn))
-(pp (int-fn 10 20))
-(pp (double-fn 1.5 2.5 3.5))
-(pp (double-many 1 2 3 4 5 6))
-(pp (double-lots 1 2 3 4 5 6 7 8 9 10))
-(pp (float-fn 8 4 17))
-(pp (intint-fn 123.456 [10 20]))
-(pp (intintint-fn 123.456 [10 20 30]))
-(pp (return-struct-fn 42))
-(pp (double-lots 1 2 3 4 5 6 700 800 9 10))
-#(pp (struct-big-fn 11 99.5))
+(tracev (double-many 1 2 3 4 5 6))
+(tracev (string/format "%.17g" (double-many 1 2 3 4 5 6)))
+(tracev (type (double-many 1 2 3 4 5 6)))
+(tracev (double-lots-2 0 1 2 3 4 5 6 7 8 9))
+(tracev (void-fn))
+(tracev (int-fn 10 20))
+(tracev (double-fn 1.5 2.5 3.5))
+(tracev (double-lots 1 2 3 4 5 6 7 8 9 10))
+(tracev (float-fn 8 4 17))
+(tracev (intint-fn 123.456 [10 20]))
+(tracev (intintint-fn 123.456 [10 20 30]))
+(tracev (return-struct 42))
+(tracev (double-lots 1 2 3 4 5 6 700 800 9 10))
+(tracev (struct-big 11 99.5))
 
+(assert (= 9876543210 (double-lots-2 0 1 2 3 4 5 6 7 8 9)))
 (assert (= 60 (int-fn 10 20)))
 (assert (= 42 (double-fn 1.5 2.5 3.5)))
-#(assert (= 21 (double-many 1 2 3 4 5 6)))
+(assert (= 21 (math/round (double-many 1 2 3 4 5 6.01))))
 (assert (= 19 (double-lots 1 2 3 4 5 6 7 8 9 10)))
 (assert (= 204 (float-fn 8 4 17)))
 

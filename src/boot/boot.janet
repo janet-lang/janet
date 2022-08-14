@@ -3671,6 +3671,7 @@
   (defmacro ffi/defbind
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
+    (def real-ret-type (eval ret-type))
     (def meta (slice body 0 -2))
     (def arg-pairs (partition 2 (last body)))
     (def formal-args (map 0 arg-pairs))
@@ -3682,7 +3683,7 @@
           :map-symbols ms} (assert (dyn *ffi-context*) "no ffi context found"))
     (def raw-symbol (ms name))
     (defn make-sig []
-      (ffi/signature :default ret-type ;computed-type-args))
+      (ffi/signature :default real-ret-type ;computed-type-args))
     (defn make-ptr []
       (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
     (if lazy

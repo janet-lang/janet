@@ -702,8 +702,6 @@ JANET_CORE_FN(cfun_ffi_signature,
                     mappings[i].offset = next_register;
                     if (is_register_sized) {
                         mappings[i].spec = JANET_WIN64_REGISTER;
-
-                        /* Select variant based on position of floating point arguments */
                         if (mappings[i].type.prim == JANET_FFI_TYPE_FLOAT ||
                                 mappings[i].type.prim == JANET_FFI_TYPE_DOUBLE) {
                             variant += 1 << (3 - next_register);
@@ -729,21 +727,16 @@ JANET_CORE_FN(cfun_ffi_signature,
                 }
             }
 
-            /* Take into account reference arguments and align to 16 bytes just in case */
+            /* Add reference items */
+            size_t old_stack_count = stack_count;
             stack_count += 2 * ref_stack_count;
-            if (stack_count & 1) {
+            if (stack_count & 0x1) {
                 stack_count++;
             }
 
             /* Invert stack
              * Offsets are in units of 8-bytes */
             for (uint32_t i = 0; i < arg_count; i++) {
-                uint32_t old_offset = mappings[i].offset;
-                if (mappings[i].spec == JANET_WIN64_STACK) {
-                    mappings[i].offset = stack_count - 1 - old_offset;
-                } else if (mappings[i].spec == JANET_WIN64_STACK_REF) {
-                    mappings[i].offset = stack_count - 1 - old_offset;
-                }
                 if (mappings[i].spec == JANET_WIN64_STACK_REF || mappings[i].spec == JANET_WIN64_REGISTER_REF) {
                     /* Align size to 16 bytes */
                     size_t size = (type_size(mappings[i].type) + 15) & ~0xFUL;
@@ -962,11 +955,12 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
     } ret_reg;
     JanetFFIWordSpec ret_spec = signature->ret.spec;
     void *ret_mem = &ret_reg.integer;
-    if (ret_spec == JANET_WIN64_STACK) {
+    if (ret_spec == JANET_WIN64_REGISTER_REF) {
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0].integer = (uint64_t) ret_mem;
     }
     uint64_t *stack = alloca(signature->stack_count * 8);
+    stack -= 2; /* hack to get proper stack placement */
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         int32_t n = i + 2;
         JanetFFIMapping arg = signature->args[i];
@@ -985,7 +979,6 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         }
     }
 
-    /* the seasoned programmer who cut their teeth on assembly is probably quietly shaking their head by now... */
     switch (signature->variant) {
         default:
             janet_panicf("unknown variant %d", signature->variant);

@@ -43,6 +43,31 @@ double double_lots(
     return i + j;
 }
 
+
+EXPORTER
+double double_lots_2(
+    double a,
+    double b,
+    double c,
+    double d,
+    double e,
+    double f,
+    double g,
+    double h,
+    double i,
+    double j) {
+    return a +
+        10.0 * b +
+        100.0 * c +
+        1000.0 * d +
+        10000.0 * e +
+        100000.0 * f +
+        1000000.0 * g +
+        10000000.0 * h +
+        100000000.0 * i +
+        1000000000.0 * j;
+}
+
 EXPORTER
 double float_fn(float x, float y, float z) {
     return (x + y) * z;
