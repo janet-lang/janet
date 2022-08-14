@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## 1.23.1 - ???
+- Add FFI support to 64-bit windows compiled with MSVC
 - Don't process shared object names passed to dlopen.
 - Add better support for windows console in the default shell.c for autocompletion and
   other shell-like input features.
