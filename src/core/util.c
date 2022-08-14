@@ -36,6 +36,13 @@
 #endif
 #endif
 
+#ifdef JANET_WINDOWS
+#ifdef JANET_DYNAMIC_MODULES
+#include <psapi.h>
+#pragma comment (lib, "Psapi.lib")
+#endif
+#endif
+
 #ifdef JANET_APPLE
 #include <AvailabilityMacros.h>
 #endif
@@ -904,6 +911,7 @@ char *get_processed_name(const char *name) {
 }
 
 #if defined(JANET_WINDOWS)
+
 static char error_clib_buf[256];
 char *error_clib(void) {
     FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -920,6 +928,35 @@ Clib load_clib(const char *name) {
         return LoadLibrary(name);
     }
 }
+
+void free_clib(HINSTANCE clib) {
+    if (clib != GetModuleHandle(NULL)) {
+        FreeLibrary(clib);
+    }
+}
+
+void *symbol_clib(HINSTANCE clib, const char *sym) {
+    if (clib != GetModuleHandle(NULL)) {
+        return GetProcAddress(clib, sym);
+    } else {
+        /* Look up symbols from all loaded modules */
+        HMODULE hMods[1024];
+        DWORD needed = 0;
+        if (EnumProcessModules(GetCurrentProcess(), hMods, sizeof(hMods), &needed)) {
+            needed /= sizeof(HMODULE);
+            for (DWORD i = 0; i < needed; i++) {
+                void *address = GetProcAddress(hMods[i], sym);
+                if (NULL != address) {
+                    return address;
+                }
+            }
+        } else {
+            janet_panicf("ffi: %s", error_clib());
+        }
+        return NULL;
+    }
+}
+
 #endif
 
 /* Alloc function macro fills */

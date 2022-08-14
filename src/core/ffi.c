@@ -355,11 +355,11 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         if (all_packed || pack_one) {
             if (st->size % el_align != 0) is_aligned = 0;
             st->fields[i].offset = st->size;
-            st->size += el_size;
+            st->size += (uint32_t) el_size;
         } else {
-            if (el_align > st->align) st->align = el_align;
-            st->fields[i].offset = (((st->size + el_align - 1) / el_align) * el_align);
-            st->size = el_size + st->fields[i].offset;
+            if (el_align > st->align) st->align = (uint32_t) el_align;
+            st->fields[i].offset = (uint32_t)(((st->size + el_align - 1) / el_align) * el_align);
+            st->size = (uint32_t)(el_size + st->fields[i].offset);
         }
         i++;
     }
@@ -477,7 +477,7 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
             }
             for (int32_t i = 0; i < els.len; i++) {
                 JanetFFIType tp = st->fields[i].type;
-                janet_ffi_write_one(to + st->fields[i].offset, els.items, i, tp, recur - 1);
+                janet_ffi_write_one((char *) to + st->fields[i].offset, els.items, i, tp, recur - 1);
             }
         }
         break;
@@ -485,7 +485,7 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
             ((double *)(to))[0] = janet_getnumber(argv, n);
             break;
         case JANET_FFI_TYPE_FLOAT:
-            ((float *)(to))[0] = janet_getnumber(argv, n);
+            ((float *)(to))[0] = (float) janet_getnumber(argv, n);
             break;
         case JANET_FFI_TYPE_PTR:
             ((void **)(to))[0] = janet_ffi_getpointer(argv, n);
@@ -509,13 +509,13 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
             ((int64_t *)(to))[0] = janet_getinteger64(argv, n);
             break;
         case JANET_FFI_TYPE_UINT8:
-            ((uint8_t *)(to))[0] = janet_getuinteger64(argv, n);
+            ((uint8_t *)(to))[0] = (uint8_t) janet_getuinteger64(argv, n);
             break;
         case JANET_FFI_TYPE_UINT16:
-            ((uint16_t *)(to))[0] = janet_getuinteger64(argv, n);
+            ((uint16_t *)(to))[0] = (uint16_t) janet_getuinteger64(argv, n);
             break;
         case JANET_FFI_TYPE_UINT32:
-            ((uint32_t *)(to))[0] = janet_getuinteger64(argv, n);
+            ((uint32_t *)(to))[0] = (uint32_t) janet_getuinteger64(argv, n);
             break;
         case JANET_FFI_TYPE_UINT64:
             ((uint64_t *)(to))[0] = janet_getuinteger64(argv, n);
@@ -684,7 +684,7 @@ JANET_CORE_FN(cfun_ffi_signature,
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64: {
             size_t ret_size = type_size(ret.type);
-            size_t ref_stack_count = 0;
+            uint32_t ref_stack_count = 0;
             ret.spec = JANET_WIN64_REGISTER;
             uint32_t next_register = 0;
             if (ret_size != 1 && ret_size != 2 && ret_size != 4 && ret_size != 8) {
@@ -699,20 +699,21 @@ JANET_CORE_FN(cfun_ffi_signature,
                 size_t el_size = type_size(mappings[i].type);
                 int is_register_sized = (el_size == 1 || el_size == 2 || el_size == 4 || el_size == 8);
                 if (next_register < 4) {
-                    mappings[i].offset = next_register++;
+                    mappings[i].offset = next_register;
                     if (is_register_sized) {
                         mappings[i].spec = JANET_WIN64_REGISTER;
 
                         /* Select variant based on position of floating point arguments */
                         if (mappings[i].type.prim == JANET_FFI_TYPE_FLOAT ||
                                 mappings[i].type.prim == JANET_FFI_TYPE_DOUBLE) {
-                            variant += 1 << next_register;
+                            variant += 1 << (3 - next_register);
                         }
                     } else {
                         mappings[i].spec = JANET_WIN64_REGISTER_REF;
                         mappings[i].offset2 = ref_stack_count;
-                        ref_stack_count += (el_size + 15) / 16;
+                        ref_stack_count += (uint32_t)((el_size + 15) / 16);
                     }
+                    next_register++;
                 } else {
                     if (is_register_sized) {
                         mappings[i].spec = JANET_WIN64_STACK;
@@ -723,7 +724,7 @@ JANET_CORE_FN(cfun_ffi_signature,
                         mappings[i].offset = stack_count;
                         stack_count++;
                         mappings[i].offset2 = ref_stack_count;
-                        ref_stack_count += (el_size + 15) / 16;
+                        ref_stack_count += (uint32_t)((el_size + 15) / 16);
                     }
                 }
             }
@@ -746,7 +747,7 @@ JANET_CORE_FN(cfun_ffi_signature,
                 if (mappings[i].spec == JANET_WIN64_STACK_REF || mappings[i].spec == JANET_WIN64_REGISTER_REF) {
                     /* Align size to 16 bytes */
                     size_t size = (type_size(mappings[i].type) + 15) & ~0xFUL;
-                    mappings[i].offset2 = stack_count - mappings[i].offset2 - (size / 8);
+                    mappings[i].offset2 = (uint32_t)(stack_count - mappings[i].offset2 - (size / 8));
                 }
             }
 
@@ -972,13 +973,13 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         if (arg.spec == JANET_WIN64_STACK) {
             janet_ffi_write_one(stack + arg.offset, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         } else if (arg.spec == JANET_WIN64_STACK_REF) {
-            uint8_t *ptr = (uint8_t *)(stack + args.offset2);
+            uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            stack[args.offset] = (uint64_t) ptr;
+            stack[arg.offset] = (uint64_t) ptr;
         } else if (arg.spec == JANET_WIN64_REGISTER_REF) {
-            uint8_t *ptr = (uint8_t *)(stack + args.offset2);
+            uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            regs[args.offset].integer = (uint64_t) ptr;
+            regs[arg.offset].integer = (uint64_t) ptr;
         } else {
             janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         }
@@ -987,7 +988,7 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
     /* the seasoned programmer who cut their teeth on assembly is probably quietly shaking their head by now... */
     switch (signature->variant) {
         default:
-            janet_panic("unknown variant");
+            janet_panicf("unknown variant %d", signature->variant);
         case 0:
             ret_reg.integer = ((win64_variant_i_iiii *) function_pointer)(regs[0].integer, regs[1].integer, regs[2].integer, regs[3].integer);
             break;
@@ -1121,7 +1122,7 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
               "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
     janet_arity(argc, 2, 3);
     JanetFFIType type = decode_ffi_type(argv[0]);
-    size_t el_size = type_size(type);
+    uint32_t el_size = (uint32_t) type_size(type);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
     janet_buffer_extra(buffer, el_size);
     memset(buffer->data, 0, el_size);

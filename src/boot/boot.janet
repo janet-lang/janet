@@ -3684,7 +3684,7 @@
     (defn make-sig []
       (ffi/signature :default ret-type ;computed-type-args))
     (defn make-ptr []
-      (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find symbol"))
+      (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
     (if lazy
         ~(defn ,name ,;meta [,;formal-args]
            (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))

@@ -33,6 +33,7 @@
 # FFI check
 (compwhen has-ffi
   (ffi/context))
+
 (compwhen has-ffi
   (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
 (compwhen has-ffi
