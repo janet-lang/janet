@@ -1,15 +1,18 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.24.1 - ???
+- Fix FFI bug on Linux/Posix
+
 ## 1.24.0 - 2022-08-14
 - Add FFI support to 64-bit windows compiled with MSVC
 - Don't process shared object names passed to dlopen.
-- Add better support for windows console in the default shell.c for autocompletion and
+- Add better support for windows console in the default shell.c for auto-completion and
   other shell-like input features.
 - Improve default error message from `assert`.
 - Add the `tabseq` macro for simpler table comprehensions.
 - Allow setting `(dyn :task-id)` in fibers to improve context in supervisor messages. Prior to
-  this change, supverisor messages over threaded channels would be from ambiguous threads/fibers.
+  this change, supervisor messages over threaded channels would be from ambiguous threads/fibers.
 
 ## 1.23.0 - 2022-06-20
 - Add experimental `ffi/` module for interfacing with dynamic libraries and raw function pointers. Only available

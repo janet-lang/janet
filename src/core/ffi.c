@@ -799,15 +799,6 @@ JANET_CORE_FN(cfun_ffi_signature,
                     }
                 }
             }
-
-            /* Invert stack */
-            for (uint32_t i = 0; i < arg_count; i++) {
-                if (mappings[i].spec == JANET_SYSV64_MEMORY) {
-                    uint32_t old_offset = mappings[i].offset;
-                    size_t el_size = type_size(mappings[i].type);
-                    mappings[i].offset = stack_count - ((el_size + 7) / 8) - old_offset;
-                }
-            }
         }
         break;
 #endif
