@@ -2177,7 +2177,7 @@
       |(+ $ $) # use pipe reader macro for terse function literals.
       |(+ $&)  # variadic functions
   ```
-  [arg]
+  [arg &opt name]
   (var max-param-seen -1)
   (var vararg false)
   (defn saw-special-arg
@@ -2203,8 +2203,9 @@
           x))
       x))
   (def expanded (macex arg on-binding))
+  (def name-splice (if name [name] []))
   (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
-  ~(fn [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
+  ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
 
 ###
 ###
@@ -3886,7 +3887,7 @@
      "E" (fn E-switch [i &]
            (set no-file false)
            (def subargs (array/slice args (+ i 2)))
-           (def src ~|,(parse (in args (+ i 1))))
+           (def src ~(short-fn ,(parse (in args (+ i 1))) E-expression))
            (def thunk (compile src))
            (if (function? thunk)
              ((thunk) ;subargs)

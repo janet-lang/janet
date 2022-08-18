@@ -996,7 +996,7 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 }
 
 /* C Function for compiling */
-JANET_CORE_FN(cfun,
+JANET_CORE_FN(cfun_compile,
               "(compile ast &opt env source lints)",
               "Compiles an Abstract Syntax Tree (ast) into a function. "
               "Pair the compile function with parsing functionality to implement "
@@ -1043,7 +1043,7 @@ JANET_CORE_FN(cfun,
 
 void janet_lib_compile(JanetTable *env) {
     JanetRegExt cfuns[] = {
-        JANET_CORE_REG("compile", cfun),
+        JANET_CORE_REG("compile", cfun_compile),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);
