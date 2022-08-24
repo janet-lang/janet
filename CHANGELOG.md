@@ -1,8 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.24.1 - ???
+## 1.24.1 - 2022-08-24
 - Fix FFI bug on Linux/Posix
+- Improve parse error messages for bad delimiters.
+- Add optional `name` parameter to the `short-fn` macro.
 
 ## 1.24.0 - 2022-08-14
 - Add FFI support to 64-bit windows compiled with MSVC
