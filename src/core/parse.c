@@ -206,6 +206,37 @@ static void popstate(JanetParser *p, Janet val) {
     }
 }
 
+static void delim_error(JanetParser *parser, size_t stack_index, char c, const char *msg) {
+    JanetParseState *s = parser->states + stack_index;
+    JanetBuffer *buffer = janet_buffer(40);
+    if (msg) {
+        janet_buffer_push_cstring(buffer, msg);
+    }
+    if (c) {
+        janet_buffer_push_u8(buffer, c);
+    }
+    if (stack_index > 0) {
+        janet_buffer_push_cstring(buffer, ", ");
+        if (s->flags & PFLAG_PARENS) {
+            janet_buffer_push_u8(buffer, '(');
+        } else if (s->flags & PFLAG_SQRBRACKETS) {
+            janet_buffer_push_u8(buffer, '[');
+        } else if (s->flags & PFLAG_CURLYBRACKETS) {
+            janet_buffer_push_u8(buffer, '{');
+        } else if (s->flags & PFLAG_STRING) {
+            janet_buffer_push_u8(buffer, '"');
+        } else if (s->flags & PFLAG_LONGSTRING) {
+            int32_t i;
+            for (i = 0; i < s->argn; i++) {
+                janet_buffer_push_u8(buffer, '`');
+            }
+        }
+        janet_formatb(buffer, " opened at line %d, column %d", s->line, s->column);
+    }
+    parser->error = (const char *) janet_string(buffer->data, buffer->count);
+    parser->flag |= JANET_PARSER_GENERATED_ERROR;
+}
+
 static int checkescape(uint8_t c) {
     switch (c) {
         default:
@@ -612,7 +643,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
         case '}': {
             Janet ds;
             if (p->statecount == 1) {
-                p->error = "unexpected delimiter";
+                delim_error(p, 0, c, "unexpected closing delimiter ");
                 return 1;
             }
             if ((c == ')' && (state->flags & PFLAG_PARENS)) ||
@@ -633,7 +664,7 @@ static int root(JanetParser *p, JanetParseState *state, uint8_t c) {
                     ds = close_struct(p, state);
                 }
             } else {
-                p->error = "mismatched delimiter";
+                delim_error(p, p->statecount - 1, c, "mismatched delimiter ");
                 return 1;
             }
             popstate(p, ds);
@@ -684,26 +715,7 @@ void janet_parser_eof(JanetParser *parser) {
     size_t oldline = parser->line;
     janet_parser_consume(parser, '\n');
     if (parser->statecount > 1) {
-        JanetParseState *s = parser->states + (parser->statecount - 1);
-        JanetBuffer *buffer = janet_buffer(40);
-        janet_buffer_push_cstring(buffer, "unexpected end of source, ");
-        if (s->flags & PFLAG_PARENS) {
-            janet_buffer_push_u8(buffer, '(');
-        } else if (s->flags & PFLAG_SQRBRACKETS) {
-            janet_buffer_push_u8(buffer, '[');
-        } else if (s->flags & PFLAG_CURLYBRACKETS) {
-            janet_buffer_push_u8(buffer, '{');
-        } else if (s->flags & PFLAG_STRING) {
-            janet_buffer_push_u8(buffer, '"');
-        } else if (s->flags & PFLAG_LONGSTRING) {
-            int32_t i;
-            for (i = 0; i < s->argn; i++) {
-                janet_buffer_push_u8(buffer, '`');
-            }
-        }
-        janet_formatb(buffer, " opened at line %d, column %d", s->line, s->column);
-        parser->error = (const char *) janet_string(buffer->data, buffer->count);
-        parser->flag |= JANET_PARSER_GENERATED_ERROR;
+        delim_error(parser, parser->statecount - 1, 0, "unexpected end of source");
     }
     parser->line = oldline;
     parser->column = oldcolumn;

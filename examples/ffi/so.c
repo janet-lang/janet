@@ -3,7 +3,7 @@
 #include <string.h>
 
 #ifdef _WIN32
-#define EXPORTER __declspec(dllexport) 
+#define EXPORTER __declspec(dllexport)
 #else
 #define EXPORTER
 #endif
@@ -57,15 +57,15 @@ double double_lots_2(
     double i,
     double j) {
     return a +
-        10.0 * b +
-        100.0 * c +
-        1000.0 * d +
-        10000.0 * e +
-        100000.0 * f +
-        1000000.0 * g +
-        10000000.0 * h +
-        100000000.0 * i +
-        1000000000.0 * j;
+           10.0 * b +
+           100.0 * c +
+           1000.0 * d +
+           10000.0 * e +
+           100000.0 * f +
+           1000000.0 * g +
+           10000000.0 * h +
+           100000000.0 * i +
+           1000000000.0 * j;
 }
 
 EXPORTER
