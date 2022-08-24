@@ -164,9 +164,14 @@ Execute a string of Janet source. Source code is executed in the order it is enc
 arguments are executed before later ones.
 
 .TP
-.BR \-E\ code arguments
+.BR \-E\ code\ arguments...
 Execute a single Janet expression as a Janet short-fn, passing the remaining command line arguments to the expression. This allows
 more concise one-liners with command line arguments.
+
+Example: janet -E '(print $0)' 12 is equivalent to '((short-fn (print $0)) 12)', which is in turn equivalent to
+`((fn [k] (print k)) 12)`
+
+See docs for the `short-fn` function for more details.
 
 .TP
 .BR \-d
