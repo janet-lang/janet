@@ -1202,44 +1202,46 @@
 
 (defn contains-key?
   ```Checks if a collection contains the specified key.
-
+  
   Semantically equivalent to `(not (nil? (get collection key)))`.
-
-  Arrays, tuples, and buffer types (string/keyword) are indexed by integer keys.
-  For those types, this function simply checks if the index is valid.
-
+  
+  Arrays, tuples, and buffer types (string, buffer, keyword, symbol) are all indexed by integer keys.
+  For those types, this function simply checks if the index is less than the length. 
+  
   If this function succeeds, then a call to `(in collection key)` is guarenteed
   to succeed as well.
-
+  
   Note that tables or structs (dictionaries) never contain null keys```
   [collection key]
   (not (nil? (get collection key))))
 
 (defn contains?
-  ```Checks if a collection, buffer, or any other iterable type contains the specified value.
-
-  For tables and structs, this only checks the keys,
-  and not the values.
-
-  For arrays and tuples this takes O(n) time,
-  while for tables and structs this takes (average) O(1) time.
+  ```Checks if a collection contains the specified value.
   
-  Warning: For buffer types (strings, buffers, keywords), this checks if the specified byte is present.
-  Technically, buffers and strings are an iterable type, they will also work with `next` and `index-of`.
-
+  This supports any iterable type by way of the `next` function.
+  This includes buffers, dictionaries, arrays, fibers, and possibly abstract types.
+  
+  For tables and structs, this checks the values, not the keys.
+  For arrays, tuples (and any other iterable type), this simply checks if any of the values are eqyak.
+  
+  For buffer types (strings, buffers, keywords), this checks if the specified byte is present.
+  This is because, buffer types (strings, keywords, symbols) are iterable types, with byte values.
+  This means they will also work with `next` and `index-of`.
+  
+  However, it also means this function will not check for substrings, only integer bytes.
+  In other words is `(contains? "foo bar" "foo")` is always false, because "foo" is not an integer byte
+  If you want to check for a substring in a buffer, then use `(not (nil? (string/find substr buffer)))`
+  
   If the type is not iterable, this will return false.
-
-  NOTE on strings: `(contains? str val)  will only check for byte values of `val`, not substrings.
-  In other words is `(contains? "foo bar" foo") will return false (because "foo" is not an integer byte).
-  If you want to check for a substring in a buffer, then use `(not (nil? (string/find substr :foo)))`
-
+  This is in contrast to `index-of` and `next`, which will throw a type error.
+  
   In general this function has O(n) performance, since it requires iterating over all the values.
-
+  
   Note that tables or structs (dictionaries) never contain null values```
   [collection val]
   # NOTE: index-of throws excpetion if `collection` is not iterable
   #
-  # guard against that
+  # We want to guard against that
   (try (not (nil? (index-of val collection))) false))
 
 
