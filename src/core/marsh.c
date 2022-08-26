@@ -37,6 +37,7 @@ typedef struct {
     JanetFuncEnv **seen_envs;
     JanetFuncDef **seen_defs;
     int32_t nextid;
+    int maybe_cycles;
 } MarshalState;
 
 /* Lead bytes in marshaling protocol */
@@ -364,13 +365,15 @@ void janet_marshal_janet(JanetMarshalContext *ctx, Janet x) {
 
 void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
-    janet_table_put(&st->seen,
-                    janet_wrap_abstract(abstract),
-                    janet_wrap_integer(st->nextid++));
+    if (st->maybe_cycles) {
+        janet_table_put(&st->seen,
+                        janet_wrap_abstract(abstract),
+                        janet_wrap_integer(st->nextid++));
+    }
 }
 
 #define MARK_SEEN() \
-    janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++))
+    do { if (st->maybe_cycles) janet_table_put(&st->seen, x, janet_wrap_integer(st->nextid++)); } while (0)
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     void *abstract = janet_unwrap_abstract(x);
@@ -428,11 +431,14 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
 
     /* Check reference and registry value */
     {
-        Janet check = janet_table_get(&st->seen, x);
-        if (janet_checkint(check)) {
-            pushbyte(st, LB_REFERENCE);
-            pushint(st, janet_unwrap_integer(check));
-            return;
+        Janet check;
+        if (st->maybe_cycles) {
+            check = janet_table_get(&st->seen, x);
+            if (janet_checkint(check)) {
+                pushbyte(st, LB_REFERENCE);
+                pushint(st, janet_unwrap_integer(check));
+                return;
+            }
         }
         if (st->rreg) {
             check = janet_table_get(st->rreg, x);
@@ -613,6 +619,7 @@ void janet_marshal(
     st.seen_defs = NULL;
     st.seen_envs = NULL;
     st.rreg = rreg;
+    st.maybe_cycles = !(flags & JANET_MARSHAL_NO_CYCLES);
     janet_table_init(&st.seen, 0);
     marshal_one(&st, x, flags);
     janet_table_deinit(&st.seen);
@@ -1471,16 +1478,17 @@ JANET_CORE_FN(cfun_env_lookup,
 }
 
 JANET_CORE_FN(cfun_marshal,
-              "(marshal x &opt reverse-lookup buffer)",
+              "(marshal x &opt reverse-lookup buffer no-cycles)",
               "Marshal a value into a buffer and return the buffer. The buffer "
               "can then later be unmarshalled to reconstruct the initial value. "
               "Optionally, one can pass in a reverse lookup table to not marshal "
               "aliased values that are found in the table. Then a forward "
               "lookup table can be used to recover the original value when "
               "unmarshalling.") {
-    janet_arity(argc, 1, 3);
+    janet_arity(argc, 1, 4);
     JanetBuffer *buffer;
     JanetTable *rreg = NULL;
+    uint32_t flags = 0;
     if (argc > 1) {
         rreg = janet_gettable(argv, 1);
     }
@@ -1489,7 +1497,10 @@ JANET_CORE_FN(cfun_marshal,
     } else {
         buffer = janet_buffer(10);
     }
-    janet_marshal(buffer, argv[0], rreg, 0);
+    if (argc > 3 && janet_truthy(argv[3])) {
+        flags |= JANET_MARSHAL_NO_CYCLES;
+    }
+    janet_marshal(buffer, argv[0], rreg, flags);
     return janet_wrap_buffer(buffer);
 }
 

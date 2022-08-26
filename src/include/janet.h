@@ -1671,6 +1671,7 @@ JANET_API JanetModule janet_native(const char *name, JanetString *error);
 
 /* Marshaling */
 #define JANET_MARSHAL_UNSAFE 0x20000
+#define JANET_MARSHAL_NO_CYCLES 0x40000
 
 JANET_API void janet_marshal(
     JanetBuffer *buf,
