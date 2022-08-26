@@ -295,6 +295,15 @@ int janet_equals(Janet x, Janet y) {
     return 1;
 }
 
+static uint64_t murmur64(uint64_t h) {
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccdUL;
+    h ^= h >> 33;
+    h *= 0xc4ceb9fe1a85ec53UL;
+    h ^= h >> 33;
+    return h;
+}
+
 /* Computes a hash value for a function */
 int32_t janet_hash(Janet x) {
     int32_t hash = 0;
@@ -341,11 +350,8 @@ int32_t janet_hash(Janet x) {
         default:
             if (sizeof(double) == sizeof(void *)) {
                 /* Assuming 8 byte pointer (8 byte aligned) */
-                uint64_t i = janet_u64(x);
-                uint32_t lo = (uint32_t)(i & 0xFFFFFFFF);
-                uint32_t hi = (uint32_t)(i >> 32);
-                uint32_t hilo = (hi ^ lo) * 2654435769u;
-                hash = (int32_t)((hilo << 16) | (hilo >> 16));
+                uint64_t i = murmur64(janet_u64(x));
+                hash = (int32_t)(i >> 32);
             } else {
                 /* Assuming 4 byte pointer (or smaller) */
                 uintptr_t diff = (uintptr_t) janet_unwrap_pointer(x);
