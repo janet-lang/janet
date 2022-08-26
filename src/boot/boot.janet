@@ -1072,7 +1072,9 @@
 (defn index-of
   ``Find the first key associated with a value x in a data structure, acting like a reverse lookup.
   Will not look at table prototypes.
-  Returns `dflt` if not found.``
+  Returns `dflt` if not found.
+  
+  This will throw an error if `ind` is not iterable.``
   [x ind &opt dflt]
   (var k (next ind nil))
   (var ret dflt)
