@@ -120,6 +120,9 @@
 (defn indexed? "Check if x is an array or tuple." [x]
   (def t (type x))
   (if (= t :array) true (= t :tuple)))
+(defn collection? "Check if x is an array, tuple, table, or struct" [x]
+  (def t (type x))
+  (if (= t :array) true (if (= t :tuple) true (if (= t :table) true (= t :struct)))))
 (defn truthy? "Check if x is truthy." [x] (if x true false))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
@@ -1193,6 +1196,86 @@
   (def prefix (dyn :defdyn-prefix))
   (def kw (keyword prefix (slice alias 1 -2)))
   ~(def ,alias :dyn ,;more ,kw))
+
+
+(defn- collection-type-error [val]
+  (errorf "Expected a collection (tuple|array|table|struct), but got %t" val))
+
+(defn contains-value?
+  ```Checks if a collection contains the specified value.
+
+  Semantically equivalent to `(contains? (values dict) val)`,
+  but implemented more efficiently.
+
+  Unlike contains-key?, this has worst-case O(n) performance.
+  Noe that tables or structs (dictionaries) never contain null keys```
+  [collection target-val]
+  # Avoid allocating intermediate array for dictionary
+  # This works for both dictionaries and sequences
+  (cond
+    (indexed? collection) (not (nil? (index-of target-val collection)))
+    (dictionary? collection)
+    (do
+      (var res false)
+      (var k (next collection nil))
+      (unless (or (nil? k) (nil? target-val))
+        (while true
+          (def val (in collection k))
+          (cond
+            # We found a result, this will break the loop
+            (= val target-val) (do
+                                 (set res true)
+                                 (break))
+            # Reached end of dictionary
+            (nil? k) (break))
+          (set k (next collection k))))
+      res)
+    (collection-type-error collection)))
+
+(defn contains-key?
+  ```Checks if a collection contains the specified key.
+
+  Functions the same as contains? for dictionaries (table/structs).
+  Arrays and tuples are indexed by integer keys, and this function simply
+  checks if the index is valid.
+
+  If this function succeeds, then a call to `(in collection key)` is guarenteed
+  to succeed as well.
+
+  For dictionaries, this should be (approximate) O(1) time due to the
+  guarentees of table/struct.
+  For arrays and tuples it should likewise be O(1) because it is simply a comparison.
+
+  Note that this intentionally excludes string (and buffer types), for the same reasons
+  as `contains?` does.
+
+  Noe that tables or structs (dictionaries) never contain null keys```
+  [collection key]
+  (assert (collection? collection) (collection-type-error collection))
+  (not (nil? (get collection key))))
+
+(defn contains?
+  ```Checks if a collection contains the specified value (or key).
+
+  For tables and structs, this only checks the keys,
+  and not the values.
+
+  For arrays and tuples this takes O(n) time,
+  while for tables and structs this takes (average) O(1) time.
+  
+  This intentionally throws an error when strings are encountered. Technically,
+  strings are an iterable type, they will succeed with `next` and `index-of`.
+  Interpreting a string as an iterable type, one would expect this to check "contains byte".
+  However, the user would very probably expect "contains substring".
+  Therefore, we intentionally forbid strings (and other buffer types).
+  
+  Note that dictionaries never contain null keys```
+  [collection val]
+  (cond
+    (indexed? collection) (not (nil? (index-of val collection)))
+    (dictionary? collection) (not (nil? (get collection val)))
+    (collection-type-error collection)))
+
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
   Use this to prevent keyword collisions between dynamic bindings.``)
