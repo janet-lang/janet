@@ -1200,60 +1200,23 @@
   ~(def ,alias :dyn ,;more ,kw))
 
 
-(defn contains-value?
-  ```Checks if a collection contains the specified value.
-
-  Semantically equivalent to `(contains? (values dict) val)`,
-  but implemented more efficiently.
-
-  Unlike contains-key?, this has worst-case O(n) performance.
-  Noe that tables or structs (dictionaries) never contain null keys```
-  [collection target-val]
-  # Avoid allocating intermediate array for dictionary
-  # This works for both dictionaries and sequences
-  (cond
-    (indexed? collection) (not (nil? (index-of target-val collection)))
-    (dictionary? collection)
-    (do
-      (var res false)
-      (var k (next collection nil))
-      (unless (or (nil? k) (nil? target-val))
-        (while true
-          (def val (in collection k))
-          (cond
-            # We found a result, this will break the loop
-            (= val target-val) (do
-                                 (set res true)
-                                 (break))
-            # Reached end of dictionary
-            (nil? k) (break))
-          (set k (next collection k))))
-      res)
-    false))
-
 (defn contains-key?
   ```Checks if a collection contains the specified key.
 
-  Functions the same as contains? for dictionaries (table/structs).
-  Arrays and tuples are indexed by integer keys, and this function simply
-  checks if the index is valid.
+  Semantically equivalent to `(not (nil? (get collection key)))`.
+
+  Arrays, tuples, and buffer types (string/keyword) are indexed by integer keys.
+  For those types, this function simply checks if the index is valid.
 
   If this function succeeds, then a call to `(in collection key)` is guarenteed
   to succeed as well.
 
-  For dictionaries, this should be (approximate) O(1) time due to the
-  guarentees of table/struct.
-  For arrays and tuples it should likewise be O(1) because it is simply a comparison.
-
-  Note that this intentionally excludes string (and buffer types), for the same reasons
-  as `contains?` does.
-
-  Noe that tables or structs (dictionaries) never contain null keys```
+  Note that tables or structs (dictionaries) never contain null keys```
   [collection key]
   (not (nil? (get collection key))))
 
 (defn contains?
-  ```Checks if a collection contains the specified value (or key).
+  ```Checks if a collection, buffer, or any other iterable type contains the specified value.
 
   For tables and structs, this only checks the keys,
   and not the values.
@@ -1261,18 +1224,23 @@
   For arrays and tuples this takes O(n) time,
   while for tables and structs this takes (average) O(1) time.
   
-  This intentionally throws an error when strings are encountered. Technically,
-  strings are an iterable type, they will succeed with `next` and `index-of`.
-  Interpreting a string as an iterable type, one would expect this to check "contains byte".
-  However, the user would very probably expect "contains substring".
-  Therefore, we intentionally forbid strings (and other buffer types).
-  
-  Note that dictionaries never contain null keys```
+  Warning: For buffer types (strings, buffers, keywords), this checks if the specified byte is present.
+  Technically, buffers and strings are an iterable type, they will also work with `next` and `index-of`.
+
+  If the type is not iterable, this will return false.
+
+  NOTE on strings: `(contains? str val)  will only check for byte values of `val`, not substrings.
+  In other words is `(contains? "foo bar" foo") will return false (because "foo" is not an integer byte).
+  If you want to check for a substring in a buffer, then use `(not (nil? (string/find substr :foo)))`
+
+  In general this function has O(n) performance, since it requires iterating over all the values.
+
+  Note that tables or structs (dictionaries) never contain null values```
   [collection val]
-  (cond
-    (indexed? collection) (not (nil? (index-of val collection)))
-    (dictionary? collection) (not (nil? (get collection val)))
-    false))
+  # NOTE: index-of throws excpetion if `collection` is not iterable
+  #
+  # guard against that
+  (try (not (nil? (index-of val collection))) false))
 
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
