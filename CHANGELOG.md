@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Reduce number of hash collisiions from pointer hashing
+- Add optional parameter to `marshal` to skip cycle checking code.
+
 ## 1.24.1 - 2022-08-24
 - Fix FFI bug on Linux/Posix
 - Improve parse error messages for bad delimiters.
