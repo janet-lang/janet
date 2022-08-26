@@ -120,9 +120,6 @@
 (defn indexed? "Check if x is an array or tuple." [x]
   (def t (type x))
   (if (= t :array) true (= t :tuple)))
-(defn collection? "Check if x is an array, tuple, table, or struct" [x]
-  (def t (type x))
-  (if (= t :array) true (if (= t :tuple) true (if (= t :table) true (= t :struct)))))
 (defn truthy? "Check if x is truthy." [x] (if x true false))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
