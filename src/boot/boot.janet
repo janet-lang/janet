@@ -1198,9 +1198,6 @@
   ~(def ,alias :dyn ,;more ,kw))
 
 
-(defn- collection-type-error [val]
-  (errorf "Expected a collection (tuple|array|table|struct), but got %t" val))
-
 (defn contains-value?
   ```Checks if a collection contains the specified value.
 
@@ -1230,7 +1227,7 @@
             (nil? k) (break))
           (set k (next collection k))))
       res)
-    (collection-type-error collection)))
+    false))
 
 (defn contains-key?
   ```Checks if a collection contains the specified key.
@@ -1251,7 +1248,6 @@
 
   Noe that tables or structs (dictionaries) never contain null keys```
   [collection key]
-  (assert (collection? collection) (collection-type-error collection))
   (not (nil? (get collection key))))
 
 (defn contains?
@@ -1274,7 +1270,7 @@
   (cond
     (indexed? collection) (not (nil? (index-of val collection)))
     (dictionary? collection) (not (nil? (get collection val)))
-    (collection-type-error collection)))
+    false))
 
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
