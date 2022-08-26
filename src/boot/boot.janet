@@ -1239,7 +1239,7 @@
   # NOTE: index-of throws excpetion if `collection` is not iterable
   #
   # We want to guard against that
-  (try (not (nil? (index-of val collection))) false))
+  (try (not (nil? (index-of val collection))) [[_] false]))
 
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
