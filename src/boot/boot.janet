@@ -1069,9 +1069,7 @@
 (defn index-of
   ``Find the first key associated with a value x in a data structure, acting like a reverse lookup.
   Will not look at table prototypes.
-  Returns `dflt` if not found.
-  
-  This will throw an error if `ind` is not iterable.``
+  Returns `dflt` if not found.``
   [x ind &opt dflt]
   (var k (next ind nil))
   (var ret dflt)
@@ -1219,18 +1217,16 @@
   This includes buffers, dictionaries, arrays, fibers, and possibly abstract types.
   
   For tables and structs, this checks the values, not the keys.
-  For arrays, tuples (and any other iterable type), this simply checks if any of the values are eqyak.
+  For arrays, tuples (and any other iterable type), this simply checks if any of the values are equal.
   
   For buffer types (strings, buffers, keywords), this checks if the specified byte is present.
-  This is because, buffer types (strings, keywords, symbols) are iterable types, with byte values.
+  This is because, buffer types (strings, keywords, symbols) are simply sequences, with byte values.
   This means they will also work with `next` and `index-of`.
   
-  However, it also means this function will not check for substrings, only integer bytes.
+  However, it also means this function will not check for substrings, only integer bytes (which could be unexpected).
   In other words is `(contains? "foo bar" "foo")` is always false, because "foo" is not an integer byte
-  If you want to check for a substring in a buffer, then use `(not (nil? (string/find substr buffer)))`
-  
-  If the type is not iterable, this will return false.
-  This is in contrast to `index-of` and `next`, which will throw a type error.
+  If you want to check for a substring in a buffer, then use `(truthy? (string/find substr buffer))`,
+  or just `(if (string/find substr buffer) then else)`
   
   In general this function has O(n) performance, since it requires iterating over all the values.
   
