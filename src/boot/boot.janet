@@ -1236,10 +1236,7 @@
   
   Note that tables or structs (dictionaries) never contain null values```
   [collection val]
-  # NOTE: index-of throws excpetion if `collection` is not iterable
-  #
-  # We want to guard against that
-  (try (not (nil? (index-of val collection))) [[_] false]))
+  (not (nil? (index-of val collection))))
 
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
