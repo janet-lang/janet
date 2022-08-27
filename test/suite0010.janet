@@ -33,6 +33,74 @@
 (assert (= nil (index-of (chr "a") "")) "index-of 9")
 (assert (= nil (index-of 10 @[])) "index-of 10")
 (assert (= nil (index-of 10 @[1 2 3])) "index-of 11")
+# NOTE: These is a motivation for the contains? and contains-key? functions below
+
+# returns false despite key present
+(assert (= false (index-of 8 {true 7 false 8})) "index-of corner key (false) 1")
+(assert (= false (index-of 8 @{false 8})) "index-of corner key (false) 2")
+# still returns null
+(assert (= nil (index-of 7 {false 8})) "index-of corner key (false) 3")
+
+# contains?
+(assert (= false (contains? [] "foo")) "contains? 1")
+(assert (= true (contains? [4 7 1 3] 4)) "contains? 2")
+(assert (= false (contains? [4 7 1 3] 22)) "contains? 3")
+(assert (= false (contains? @[1 2 3] 4)) "contains? 4")
+(assert (= true (contains? @[:a :b :c] :a)) "contains? 5")
+(assert (= false (contains? {} :foo)) "contains? 6")
+(assert (= true (contains? {:a :A :b :B} :A)) "contains? 7")
+(assert (= true (contains? {:a :A :b :B} :A)) "contains? 7")
+(assert (= true (contains? @{:a :A :b :B} :A)) "contains? 8")
+(assert (= true (contains? "abc" (chr "a"))) "contains? 9")
+(assert (= false (contains? "abc" "1")) "contains? 10")
+# weird true/false corner cases, should align with "index-of corner key {k}" cases
+(assert (= true (contains? {true 7 false 8} 8)) "contains? corner key (false) 1")
+(assert (= true (contains? @{false 8} 8)) "contains? corner key (false) 2")
+(assert (= false (contains? {false 8} 7)) "contains? corner key (false) 3")
+
+# contains-key?
+(do
+  (var test-contains-key-auto 0)
+  (defn test-contains-key [col key expected &keys {:name name}]
+    ``Test that contains-key has the outcome `expected`, and that if
+    the result is true, then ensure (in key) does not fail either``
+    (assert (boolean? expected))
+    (default name (string "contains-key? " (++ test-contains-key-auto)))
+    (assert (= expected (contains-key? col key)) name)
+    (if
+      # guarenteed by `contains-key?` to never fail
+      expected (in col key)
+      # if `contains-key?` is false, then `in` should fail (for indexed types)
+      #
+      # For dictionary types, it should return nil
+      (let [[success retval] (protect (in col key))]
+        (def should-succeed (dictionary? col))
+        (assert
+          (= success should-succeed)
+          (string/format
+            "%s: expected (in col key) to %s, but got %q"
+            name (if expected "succeed" "fail") retval)))))
+
+  (test-contains-key [] 0 false) # 1
+  (test-contains-key [4 7 1 3] 2 true) # 2
+  (test-contains-key [4 7 1 3] 22 false) # 3
+  (test-contains-key @[1 2 3] 4 false) # 4
+  (test-contains-key @[:a :b :c] 2 true) # 5
+  (test-contains-key {} :foo false) # 6
+  (test-contains-key {:a :A :b :B} :a true) # 7
+  (test-contains-key {:a :A :b :B} :A false) # 8
+  (test-contains-key @{:a :A :b :B} :a true) # 9
+  (test-contains-key "abc" 1 true) # 10
+  (test-contains-key "abc" 4 false) # 11
+  # weird true/false corner cases
+  #
+  # Tries to mimic the corresponding corner cases in contains? and index-of,
+  # but with keys/values inverted
+  #
+  # in the first two cases (truthy? (get val col)) would have given false negatives
+  (test-contains-key {7 true 8 false} 8 true :name "contains-key? corner value (false) 1")
+  (test-contains-key @{8 false} 8 true :name "contains-key? corner value (false) 2")
+  (test-contains-key @{8 false} 7 false :name "contains-key? corner value (false) 3"))
 
 # Regression
 (assert (= {:x 10} (|(let [x $] ~{:x ,x}) 10)) "issue 463")
