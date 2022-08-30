@@ -407,13 +407,26 @@ static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+/*
+ * In C, signed arithmetic overflow is undefined behvior
+ * but unsigned arithmetic overflow is twos complement
+ *
+ * Reference:
+ * https://en.cppreference.com/w/cpp/language/ub
+ * http://blog.llvm.org/2011/05/what-every-c-programmer-should-know.html
+ *
+ * This means OPMETHOD & OPMETHODINVERT must always use
+ * unsigned arithmetic internally, regardless of the true type.
+ * This will not affect the end result (property of twos complement).
+ */
 #define OPMETHOD(T, type, name, oper) \
 static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_arity(argc, 2, -1); \
     T *box = janet_abstract(&janet_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[0]); \
     for (int32_t i = 1; i < argc; i++) \
-        *box oper##= janet_unwrap_##type(argv[i]); \
+        /* This avoids undefined behavior. See above for why. */ \
+        *box = (T) ((uint64_t) (*box)) oper ((uint64_t) janet_unwrap_##type(argv[i])); \
     return janet_wrap_abstract(box); \
 } \
 
@@ -422,7 +435,8 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     janet_fixarity(argc, 2); \
     T *box = janet_abstract(&janet_##type##_type, sizeof(T)); \
     *box = janet_unwrap_##type(argv[1]); \
-    *box oper##= janet_unwrap_##type(argv[0]); \
+    /* This avoids undefined behavior. See above for why. */ \
+    *box = (T) ((uint64_t) *box) oper ((uint64_t) janet_unwrap_##type(argv[0])); \
     return janet_wrap_abstract(box); \
 } \
 
