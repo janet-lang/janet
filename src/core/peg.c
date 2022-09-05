@@ -211,6 +211,7 @@ tail:
         }
 
         case RULE_SET: {
+            if (text >= s->text_end) return NULL;
             uint32_t word = rule[1 + (text[0] >> 5)];
             uint32_t mask = (uint32_t)1 << (text[0] & 0x1F);
             return (text < s->text_end && (word & mask))
