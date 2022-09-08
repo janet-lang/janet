@@ -1749,7 +1749,7 @@
   * tuple -- a tuple pattern will match if its first element matches, and the
     following elements are treated as predicates and are true.
 
-  * `\_` symbol -- the last special case is the `\_` symbol, which is a wildcard
+  * `_` symbol -- the last special case is the `_` symbol, which is a wildcard
     that will match any value without creating a binding.
 
   While a symbol pattern will ordinarily match any value, the pattern `(@ <sym>)`,
