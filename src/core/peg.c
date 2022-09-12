@@ -1662,7 +1662,9 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
 }
 
 static void peg_call_reset(PegCall *c) {
+    c->s.depth = JANET_RECURSION_GUARD;
     c->s.captures->count = 0;
+    c->s.tagged_captures->count = 0;
     c->s.scratch->count = 0;
     c->s.tags->count = 0;
 }
