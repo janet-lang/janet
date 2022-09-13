@@ -38,4 +38,6 @@
 (assert (deep= (peg/match sym-prefix-peg @"123" 3) @[0 "123"]) "peg lookback")
 (assert (deep= (peg/match sym-prefix-peg @"1234" 4) @[0 "1234"]) "peg lookback 2")
 
+(assert (deep= (peg/replace-all '(* (<- 1) 1 (backmatch)) "xxx" "aba cdc efa") @"xxx xxx efa") "peg replace-all 1")
+
 (end-suite)
