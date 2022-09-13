@@ -261,24 +261,46 @@ tail:
             goto tail;
         }
 
-        case RULE_IF:
-        case RULE_IFNOT: {
+        case RULE_IF: {
             const uint32_t *rule_a = s->bytecode + rule[1];
             const uint32_t *rule_b = s->bytecode + rule[2];
             down1(s);
             const uint8_t *result = peg_rule(s, rule_a, text);
             up1(s);
-            if (rule[0] == RULE_IF ? !result : !!result) return NULL;
+            if (!result) return NULL;
             rule = rule_b;
             goto tail;
+        }
+        case RULE_IFNOT: {
+            const uint32_t *rule_a = s->bytecode + rule[1];
+            const uint32_t *rule_b = s->bytecode + rule[2];
+            down1(s);
+            CapState cs = cap_save(s);
+            const uint8_t *result = peg_rule(s, rule_a, text);
+            if (!!result) {
+                up1(s);
+                return NULL;
+            } else {
+                cap_load(s, cs);
+                up1(s);
+                rule = rule_b;
+                goto tail;
+            }
         }
 
         case RULE_NOT: {
             const uint32_t *rule_a = s->bytecode + rule[1];
             down1(s);
+            CapState cs = cap_save(s);
             const uint8_t *result = peg_rule(s, rule_a, text);
-            up1(s);
-            return (result) ? NULL : text;
+            if (result) {
+                up1(s);
+                return NULL;
+            } else {
+                cap_load(s, cs);
+                up1(s);
+                return text;
+            }
         }
 
         case RULE_THRU:
