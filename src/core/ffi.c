@@ -687,7 +687,7 @@ JANET_CORE_FN(cfun_ffi_signature,
             uint32_t ref_stack_count = 0;
             ret.spec = JANET_WIN64_REGISTER;
             uint32_t next_register = 0;
-            if (ret_size != 1 && ret_size != 2 && ret_size != 4 && ret_size != 8) {
+            if (ret_size != 0 && ret_size != 1 && ret_size != 2 && ret_size != 4 && ret_size != 8) {
                 ret.spec = JANET_WIN64_REGISTER_REF;
                 next_register++;
             } else if (ret.type.prim == JANET_FFI_TYPE_FLOAT ||
