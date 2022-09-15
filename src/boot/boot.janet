@@ -375,7 +375,7 @@
 (defn return
   "Return to a prompt point."
   [to &opt value]
-  (signal 0 [to value]))
+  (signal :user0 [to value]))
 
 (defmacro with
   ``Evaluate `body` with some resource, which will be automatically cleaned up
