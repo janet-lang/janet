@@ -614,7 +614,8 @@ JANET_CORE_FN(janet_core_signal,
               "(signal what x)",
               "Raise a signal with payload x. ") {
     janet_arity(argc, 1, 2);
-    int sig;
+    int sig = -1;
+    size_t total_signal_count = sizeof(janet_signal_names) / sizeof(char*);
     if (janet_checkint(argv[0])) {
         int32_t s = janet_unwrap_integer(argv[0]);
         if (s < 0 || s > 9) {
@@ -623,15 +624,19 @@ JANET_CORE_FN(janet_core_signal,
         sig = JANET_SIGNAL_USER0 + s;
     } else {
         JanetKeyword kw = janet_getkeyword(argv, 0);
-        if (!janet_cstrcmp(kw, "yield")) {
-            sig = JANET_SIGNAL_YIELD;
-        } else if (!janet_cstrcmp(kw, "error")) {
-            sig = JANET_SIGNAL_ERROR;
-        } else if (!janet_cstrcmp(kw, "debug")) {
-            sig = JANET_SIGNAL_DEBUG;
-        } else {
-            janet_panicf("unknown signal, expected :yield, :error, or :debug, got %v", argv[0]);
+        for (size_t i = 0; i < total_signal_count; ++i) {
+            if (!janet_cstrcmp(kw, janet_signal_names[i]))
+                sig = i;
         }
+    }
+    if (sig < 0) {
+        char signal_names[16 * total_signal_count];
+
+        for (size_t i = 0; i < total_signal_count; ++i) {
+            strncat(signal_names, janet_signal_names[i], 8);
+            strcat(signal_names, ", ");
+        }
+        janet_panicf("unknown signal, expected %s got %v", signal_names, argv[0]);
     }
     Janet payload = argc == 2 ? argv[1] : janet_wrap_nil();
     janet_signalv(sig, payload);
