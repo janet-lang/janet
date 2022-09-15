@@ -43,6 +43,7 @@
    h :double
    i :double
    j :double])
+(ffi/defbind void-fn-2 :void [y :double])
 
 #
 # Struct reading and writing
@@ -84,6 +85,7 @@
 # Call functions
 #
 
+(tracev (void-fn-2 10.3))
 (tracev (double-many 1 2 3 4 5 6))
 (tracev (string/format "%.17g" (double-many 1 2 3 4 5 6)))
 (tracev (type (double-many 1 2 3 4 5 6)))

@@ -124,6 +124,10 @@ void void_fn(void) {
     printf("void fn ran\n");
 }
 
+EXPORTER void_fn_2(double y) {
+    printf("y = %f\n", y);
+}
+
 EXPORTER
 void void_ret_fn(int x) {
     printf("void fn ran: %d\n", x);
