@@ -59,12 +59,12 @@
 (defmacro defmacro-
   "Define a private macro that will not be exported."
   [name & more]
-  (apply defn name :macro :private more))
+  ~(defn ,name :macro :private ,;more))
 
 (defmacro defn-
   "Define a private function that will not be exported."
   [name & more]
-  (apply defn name :private more))
+  ~(defn ,name :private ,;more))
 
 (defmacro def-
   "Define a private value that will not be exported."
@@ -75,11 +75,6 @@
   "Define a private var that will not be exported."
   [name & more]
   ~(var ,name :private ,;more))
-
-(defmacro toggle
-  "Set a value to its boolean inverse. Same as `(set value (not value))`."
-  [value]
-  ~(set ,value (,not ,value)))
 
 (defn defglobal
   "Dynamically create a global def."
@@ -126,8 +121,8 @@
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
 
-# For macros, we define an imcomplete odd? function that will be overriden.
-(defn odd? [x] (= 1 (mod x 2)))
+# For macros, we define an incomplete odd? function that will be overriden.
+(defn- odd? [x] (= 1 (mod x 2)))
 
 (def idempotent?
   ```
