@@ -3568,7 +3568,7 @@
     (ev/go (fn _call [&] (f ;args))))
 
   (defmacro ev/spawn
-    "Run some code in a new fiber. This is shorthand for `(ev/call (fn [] ;body))`."
+    "Run some code in a new fiber. This is shorthand for `(ev/go (fn [] ;body))`."
     [& body]
     ~(,ev/go (fn _spawn [&] ,;body)))
 

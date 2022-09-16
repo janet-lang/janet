@@ -2687,9 +2687,10 @@ error:
 /* C functions */
 
 JANET_CORE_FN(cfun_ev_go,
-              "(ev/go fiber &opt value supervisor)",
-              "Put a fiber on the event loop to be resumed later. Optionally pass "
-              "a value to resume with, otherwise resumes with nil. Returns the fiber. "
+              "(ev/go fiber-or-fun &opt value supervisor)",
+              "Put a fiber on the event loop to be resumed later. If a function is used, it is wrapped"
+              "with `fiber/new` first. "
+              "Optionally pass a value to resume with, otherwise resumes with nil. Returns the fiber. "
               "An optional `core/channel` can be provided as a supervisor. When various "
               "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
               "If not provided, the new fiber will inherit the current supervisor.") {
