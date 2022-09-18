@@ -124,11 +124,22 @@ void void_fn(void) {
     printf("void fn ran\n");
 }
 
-EXPORTER void_fn_2(double y) {
+EXPORTER
+void void_fn_2(double y) {
     printf("y = %f\n", y);
 }
 
 EXPORTER
 void void_ret_fn(int x) {
     printf("void fn ran: %d\n", x);
+}
+
+typedef struct {
+    int a, b;
+    float c, d;
+} Split;
+
+EXPORTER
+float split_fn(Split s) {
+    return s.a * s.c + s.b * s.d;
 }

@@ -45,6 +45,8 @@
    j :double])
 (ffi/defbind void-fn-2 :void [y :double])
 
+(def split (ffi/struct :int :int :float :float))
+(ffi/defbind split-fn :float [s split])
 #
 # Struct reading and writing
 #
@@ -85,6 +87,7 @@
 # Call functions
 #
 
+(tracev (split-fn [5 6 1.2 3.4]))
 (tracev (void-fn-2 10.3))
 (tracev (double-many 1 2 3 4 5 6))
 (tracev (string/format "%.17g" (double-many 1 2 3 4 5 6)))
