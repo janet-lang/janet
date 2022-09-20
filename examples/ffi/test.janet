@@ -44,9 +44,15 @@
    i :double
    j :double])
 (ffi/defbind void-fn-2 :void [y :double])
+(ffi/defbind intintint-fn-2 :int [iii intintint i :int])
 
 (def split (ffi/struct :int :int :float :float))
+(def split-flip (ffi/struct :float :float :int :int))
 (ffi/defbind split-fn :float [s split])
+(ffi/defbind split-flip-fn :float [s split-flip])
+(ffi/defbind split-ret-fn split [x :int y :float])
+(ffi/defbind split-flip-ret-fn split-flip [x :int y :float])
+
 #
 # Struct reading and writing
 #
@@ -87,6 +93,10 @@
 # Call functions
 #
 
+(tracev (split-ret-fn 10 12))
+(tracev (split-flip-ret-fn 10 12))
+(tracev (split-flip-ret-fn 12 10))
+(tracev (intintint-fn-2 [10 20 30] 3))
 (tracev (split-fn [5 6 1.2 3.4]))
 (tracev (void-fn-2 10.3))
 (tracev (double-many 1 2 3 4 5 6))
@@ -104,6 +114,10 @@
 (tracev (double-lots 1 2 3 4 5 6 700 800 9 10))
 (tracev (struct-big 11 99.5))
 
+(assert (= [10 10 12 12] (split-ret-fn 10 12)))
+(assert (= [12 12 10 10] (split-flip-ret-fn 10 12)))
+(assert (= 183 (intintint-fn-2 [10 20 31] 3)))
+(assert (= 264 (math/round (* 10 (split-fn [5 6 1.2 3.4])))))
 (assert (= 9876543210 (double-lots-2 0 1 2 3 4 5 6 7 8 9)))
 (assert (= 60 (int-fn 10 20)))
 (assert (= 42 (double-fn 1.5 2.5 3.5)))

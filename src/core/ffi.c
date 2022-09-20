@@ -123,9 +123,10 @@ typedef enum {
     JANET_SYSV64_INTEGER,
     JANET_SYSV64_SSE,
     JANET_SYSV64_SSEUP,
-    JANET_SYSV64_X87,
-    JANET_SYSV64_X87UP,
-    JANET_SYSV64_COMPLEX_X87,
+    JANET_SYSV64_PAIR_INTINT,
+    JANET_SYSV64_PAIR_INTSSE,
+    JANET_SYSV64_PAIR_SSEINT,
+    JANET_SYSV64_PAIR_SSESSE,
     JANET_SYSV64_NO_CLASS,
     JANET_SYSV64_MEMORY,
     JANET_WIN64_REGISTER,
@@ -623,20 +624,57 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
             if (st->size > 16) return JANET_SYSV64_MEMORY;
             if (!st->is_aligned) return JANET_SYSV64_MEMORY;
             JanetFFIWordSpec clazz = JANET_SYSV64_NO_CLASS;
-            for (uint32_t i = 0; i < st->field_count; i++) {
-                JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
-                if (next_class != clazz) {
-                    if (clazz == JANET_SYSV64_NO_CLASS) {
-                        clazz = next_class;
-                    } else if (clazz == JANET_SYSV64_MEMORY || next_class == JANET_SYSV64_MEMORY) {
-                        clazz = JANET_SYSV64_MEMORY;
-                    } else if (clazz == JANET_SYSV64_INTEGER || next_class == JANET_SYSV64_INTEGER) {
-                        clazz = JANET_SYSV64_INTEGER;
-                    } else if (next_class == JANET_SYSV64_X87 || next_class == JANET_SYSV64_X87UP
-                               || next_class == JANET_SYSV64_COMPLEX_X87) {
-                        clazz = JANET_SYSV64_MEMORY;
-                    } else {
-                        clazz = JANET_SYSV64_SSE;
+            if (st->size > 8 && st->size <= 16) {
+                /* map to pair classification */
+                int has_int_lo = 0;
+                int has_int_hi = 0;
+                for (uint32_t i = 0; i < st->field_count; i++) {
+                    JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
+                    switch (next_class) {
+                        default:
+                            break;
+                        case JANET_SYSV64_INTEGER:
+                        case JANET_SYSV64_PAIR_INTINT:
+                        case JANET_SYSV64_PAIR_INTSSE:
+                        case JANET_SYSV64_PAIR_SSEINT: {
+                            /* since everything is aligned, nothing should straddle an 8-byte or be in memory */
+                            if (st->fields[i].offset >= 8) {
+                                has_int_hi = 2;
+                            } else {
+                                has_int_lo = 1;
+                            }
+                        }
+                        break;
+                    }
+                }
+                switch (has_int_hi + has_int_lo) {
+                    case 0:
+                        clazz = JANET_SYSV64_PAIR_SSESSE;
+                        break;
+                    case 1:
+                        clazz = JANET_SYSV64_PAIR_INTSSE;
+                        break;
+                    case 2:
+                        clazz = JANET_SYSV64_PAIR_SSEINT;
+                        break;
+                    case 3:
+                        clazz = JANET_SYSV64_PAIR_INTINT;
+                        break;
+                }
+            } else {
+                /* Normal struct classification */
+                for (uint32_t i = 0; i < st->field_count; i++) {
+                    JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
+                    if (next_class != clazz) {
+                        if (clazz == JANET_SYSV64_NO_CLASS) {
+                            clazz = next_class;
+                        } else if (clazz == JANET_SYSV64_MEMORY || next_class == JANET_SYSV64_MEMORY) {
+                            clazz = JANET_SYSV64_MEMORY;
+                        } else if (clazz == JANET_SYSV64_INTEGER || next_class == JANET_SYSV64_INTEGER) {
+                            clazz = JANET_SYSV64_INTEGER;
+                        } else {
+                            clazz = JANET_SYSV64_SSE;
+                        }
                     }
                 }
             }
@@ -753,6 +791,8 @@ JANET_CORE_FN(cfun_ffi_signature,
             JanetFFIWordSpec ret_spec = sysv64_classify(ret.type);
             ret.spec = ret_spec;
             if (ret_spec == JANET_SYSV64_SSE) variant = 1;
+            if (ret_spec == JANET_SYSV64_PAIR_INTSSE) variant = 2;
+            if (ret_spec == JANET_SYSV64_PAIR_SSEINT) variant = 3;
             /* Spill register overflow to memory */
             uint32_t next_register = 0;
             uint32_t next_fp_register = 0;
@@ -781,8 +821,8 @@ JANET_CORE_FN(cfun_ffi_signature,
                             mappings[i].offset = stack_count;
                             stack_count += el_size;
                         }
-                        break;
                     }
+                    break;
                     case JANET_SYSV64_SSE: {
                         if (next_fp_register < max_fp_regs) {
                             mappings[i].offset = next_fp_register++;
@@ -791,12 +831,57 @@ JANET_CORE_FN(cfun_ffi_signature,
                             mappings[i].offset = stack_count;
                             stack_count += el_size;
                         }
-                        break;
                     }
+                    break;
                     case JANET_SYSV64_MEMORY: {
                         mappings[i].offset = stack_count;
                         stack_count += el_size;
                     }
+                    break;
+                    case JANET_SYSV64_PAIR_INTINT: {
+                        if (next_register + 1 < max_regs) {
+                            mappings[i].offset = next_register++;
+                            mappings[i].offset2 = next_register++;
+                        } else {
+                            mappings[i].spec = JANET_SYSV64_MEMORY;
+                            mappings[i].offset = stack_count;
+                            stack_count += el_size;
+                        }
+                    }
+                    break;
+                    case JANET_SYSV64_PAIR_INTSSE: {
+                        if (next_register < max_regs && next_fp_register < max_fp_regs) {
+                            mappings[i].offset = next_register++;
+                            mappings[i].offset2 = next_fp_register++;
+                        } else {
+                            mappings[i].spec = JANET_SYSV64_MEMORY;
+                            mappings[i].offset = stack_count;
+                            stack_count += el_size;
+                        }
+                    }
+                    break;
+                    case JANET_SYSV64_PAIR_SSEINT: {
+                        if (next_register < max_regs && next_fp_register < max_fp_regs) {
+                            mappings[i].offset = next_fp_register++;
+                            mappings[i].offset2 = next_register++;
+                        } else {
+                            mappings[i].spec = JANET_SYSV64_MEMORY;
+                            mappings[i].offset = stack_count;
+                            stack_count += el_size;
+                        }
+                    }
+                    break;
+                    case JANET_SYSV64_PAIR_SSESSE: {
+                        if (next_fp_register < max_fp_regs) {
+                            mappings[i].offset = next_fp_register++;
+                            mappings[i].offset2 = next_fp_register++;
+                        } else {
+                            mappings[i].spec = JANET_SYSV64_MEMORY;
+                            mappings[i].offset = stack_count;
+                            stack_count += el_size;
+                        }
+                    }
+                    break;
                 }
             }
         }
@@ -832,23 +917,38 @@ typedef struct {
     double x;
     double y;
 } sysv64_sse_return;
+typedef struct {
+    uint64_t x;
+    double y;
+} sysv64_intsse_return;
+typedef struct {
+    double y;
+    uint64_t x;
+} sysv64_sseint_return;
 typedef sysv64_int_return janet_sysv64_variant_1(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
         double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 typedef sysv64_sse_return janet_sysv64_variant_2(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
         double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+typedef sysv64_intsse_return janet_sysv64_variant_3(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+typedef sysv64_sseint_return janet_sysv64_variant_4(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
-    sysv64_int_return int_return;
-    sysv64_sse_return sse_return;
+    union {
+        sysv64_int_return int_return;
+        sysv64_sse_return sse_return;
+        sysv64_sseint_return sseint_return;
+        sysv64_intsse_return intsse_return;
+    } retu;
+    uint64_t pair[2];
     uint64_t regs[6];
     double fp_regs[8];
     JanetFFIWordSpec ret_spec = signature->ret.spec;
-    void *ret_mem = &int_return;
+    void *ret_mem = &retu.int_return;
     if (ret_spec == JANET_SYSV64_MEMORY) {
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0] = (uint64_t) ret_mem;
-    } else if (ret_spec == JANET_SYSV64_SSE) {
-        ret_mem = &sse_return;
     }
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
@@ -867,21 +967,55 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
             case JANET_SYSV64_MEMORY:
                 to = stack + arg.offset;
                 break;
+            case JANET_SYSV64_PAIR_INTINT:
+                janet_ffi_write_one(pair, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+                regs[arg.offset] = pair[0];
+                regs[arg.offset2] = pair[1];
+                continue;
+            case JANET_SYSV64_PAIR_INTSSE:
+                janet_ffi_write_one(pair, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+                regs[arg.offset] = pair[0];
+                ((uint64_t *) fp_regs)[arg.offset2] = pair[1];
+                continue;
+            case JANET_SYSV64_PAIR_SSEINT:
+                janet_ffi_write_one(pair, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+                ((uint64_t *) fp_regs)[arg.offset] = pair[0];
+                regs[arg.offset2] = pair[1];
+                continue;
+            case JANET_SYSV64_PAIR_SSESSE:
+                janet_ffi_write_one(pair, argv, n, arg.type, JANET_FFI_MAX_RECUR);
+                ((uint64_t *) fp_regs)[arg.offset] = pair[0];
+                ((uint64_t *) fp_regs)[arg.offset2] = pair[1];
+                continue;
         }
         janet_ffi_write_one(to, argv, n, arg.type, JANET_FFI_MAX_RECUR);
     }
 
-    if (signature->variant) {
-        sse_return = ((janet_sysv64_variant_2 *)(function_pointer))(
-                         regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
-                         fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
-                         fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
-    } else {
-        int_return = ((janet_sysv64_variant_1 *)(function_pointer))(
-                         regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
-                         fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
-                         fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
-
+    switch (signature->variant) {
+        case 0:
+            retu.int_return = ((janet_sysv64_variant_1 *)(function_pointer))(
+                                  regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                                  fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                                  fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
+            break;
+        case 1:
+            retu.sse_return = ((janet_sysv64_variant_2 *)(function_pointer))(
+                                  regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                                  fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                                  fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
+            break;
+        case 2:
+            retu.intsse_return = ((janet_sysv64_variant_3 *)(function_pointer))(
+                                     regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                                     fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                                     fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
+            break;
+        case 3:
+            retu.sseint_return = ((janet_sysv64_variant_4 *)(function_pointer))(
+                                     regs[0], regs[1], regs[2], regs[3], regs[4], regs[5],
+                                     fp_regs[0], fp_regs[1], fp_regs[2], fp_regs[3],
+                                     fp_regs[4], fp_regs[5], fp_regs[6], fp_regs[7]);
+            break;
     }
 
     return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);

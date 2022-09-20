@@ -134,12 +134,47 @@ void void_ret_fn(int x) {
     printf("void fn ran: %d\n", x);
 }
 
+EXPORTER
+int intintint_fn_2(intintint iii, int i) {
+    return i * (iii.a + iii.b + iii.c);
+}
+
 typedef struct {
     int a, b;
     float c, d;
 } Split;
 
+typedef struct {
+    float c, d;
+    int a, b;
+} SplitFlip;
+
 EXPORTER
 float split_fn(Split s) {
     return s.a * s.c + s.b * s.d;
+}
+
+EXPORTER
+float split_flip_fn(SplitFlip s) {
+    return s.a * s.c + s.b * s.d;
+}
+
+EXPORTER
+Split split_ret_fn(int x, float y) {
+    Split ret;
+    ret.a = x;
+    ret.b = x;
+    ret.c = y;
+    ret.d = y;
+    return ret;
+}
+
+EXPORTER
+SplitFlip split_flip_ret_fn(int x, float y) {
+    SplitFlip ret;
+    ret.a = x;
+    ret.b = x;
+    ret.c = y;
+    ret.d = y;
+    return ret;
 }
