@@ -602,7 +602,7 @@ static JanetFFIMapping void_mapping(void) {
 #ifdef JANET_FFI_SYSV64_ENABLED
 /* AMD64 ABI Draft 0.99.7 – November 17, 2014 – 15:08
  * See section 3.2.3 Parameter Passing */
-static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
+static JanetFFIWordSpec sysv64_classify_ext(JanetFFIType type, size_t shift) {
     switch (type.prim) {
         case JANET_FFI_TYPE_PTR:
         case JANET_FFI_TYPE_STRING:
@@ -629,22 +629,28 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
                 int has_int_lo = 0;
                 int has_int_hi = 0;
                 for (uint32_t i = 0; i < st->field_count; i++) {
-                    JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
+                    JanetFFIWordSpec next_class = sysv64_classify_ext(st->fields[i].type, shift + st->fields[i].offset);
                     switch (next_class) {
                         default:
                             break;
                         case JANET_SYSV64_INTEGER:
-                        case JANET_SYSV64_PAIR_INTINT:
-                        case JANET_SYSV64_PAIR_INTSSE:
-                        case JANET_SYSV64_PAIR_SSEINT: {
-                            /* since everything is aligned, nothing should straddle an 8-byte or be in memory */
-                            if (st->fields[i].offset >= 8) {
-                                has_int_hi = 2;
-                            } else {
+                            if (shift + st->fields[i].offset + type_size(st->fields[i].type) <= 8) {
                                 has_int_lo = 1;
+                            } else {
+                                has_int_hi = 2;
                             }
-                        }
-                        break;
+                            break;
+                        case JANET_SYSV64_PAIR_INTINT:
+                            has_int_lo = 1;
+                            has_int_hi = 2;
+                            break;
+                        case JANET_SYSV64_PAIR_INTSSE:
+                            has_int_lo = 1;
+                            break;
+                        case JANET_SYSV64_PAIR_SSEINT:
+                            has_int_hi = 2;
+                            break;
+                            break;
                     }
                 }
                 switch (has_int_hi + has_int_lo) {
@@ -664,7 +670,7 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
             } else {
                 /* Normal struct classification */
                 for (uint32_t i = 0; i < st->field_count; i++) {
-                    JanetFFIWordSpec next_class = sysv64_classify(st->fields[i].type);
+                    JanetFFIWordSpec next_class = sysv64_classify_ext(st->fields[i].type, shift + st->fields[i].offset);
                     if (next_class != clazz) {
                         if (clazz == JANET_SYSV64_NO_CLASS) {
                             clazz = next_class;
@@ -686,6 +692,9 @@ static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
             janet_panic("nyi");
             return JANET_SYSV64_NO_CLASS;
     }
+}
+static JanetFFIWordSpec sysv64_classify(JanetFFIType type) {
+    return sysv64_classify_ext(type, 0);
 }
 #endif
 
