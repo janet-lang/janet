@@ -8,6 +8,41 @@
 #define EXPORTER
 #endif
 
+/* Structs */
+
+typedef struct {
+    int a, b;
+    float c, d;
+} Split;
+
+typedef struct {
+    float c, d;
+    int a, b;
+} SplitFlip;
+
+typedef struct {
+    int u, v, w, x, y, z;
+} SixInts;
+
+typedef struct {
+    int a;
+    int b;
+} intint;
+
+typedef struct {
+    int a;
+    int b;
+    int c;
+} intintint;
+
+typedef struct {
+    int64_t a;
+    int64_t b;
+    int64_t c;
+} big;
+
+/* Functions */
+
 EXPORTER
 int int_fn(int a, int b) {
     return (a << 2) + b;
@@ -73,17 +108,6 @@ double float_fn(float x, float y, float z) {
     return (x + y) * z;
 }
 
-typedef struct {
-    int a;
-    int b;
-} intint;
-
-typedef struct {
-    int a;
-    int b;
-    int c;
-} intintint;
-
 EXPORTER
 int intint_fn(double x, intint ii) {
     printf("double: %g\n", x);
@@ -103,12 +127,6 @@ intint return_struct(int i) {
     ret.b = i * i;
     return ret;
 }
-
-typedef struct {
-    int64_t a;
-    int64_t b;
-    int64_t c;
-} big;
 
 EXPORTER
 big struct_big(int i, double d) {
@@ -139,16 +157,6 @@ int intintint_fn_2(intintint iii, int i) {
     return i * (iii.a + iii.b + iii.c);
 }
 
-typedef struct {
-    int a, b;
-    float c, d;
-} Split;
-
-typedef struct {
-    float c, d;
-    int a, b;
-} SplitFlip;
-
 EXPORTER
 float split_fn(Split s) {
     return s.a * s.c + s.b * s.d;
@@ -178,3 +186,22 @@ SplitFlip split_flip_ret_fn(int x, float y) {
     ret.d = y;
     return ret;
 }
+
+EXPORTER
+SixInts sixints_fn(void) {
+    return (SixInts) {
+        6666, 1111, 2222, 3333, 4444, 5555
+    };
+}
+
+EXPORTER
+int sixints_fn_2(int x, SixInts s) {
+    return x + s.u + s.v + s.w + s.x + s.y + s.z;
+}
+
+EXPORTER
+int sixints_fn_3(SixInts s, int x) {
+    return x + s.u + s.v + s.w + s.x + s.y + s.z;
+}
+
+

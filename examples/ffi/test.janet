@@ -14,6 +14,9 @@
 
 (def intintint (ffi/struct :int :int :int))
 (def big (ffi/struct :s64 :s64 :s64))
+(def split (ffi/struct :int :int :float :float))
+(def split-flip (ffi/struct :float :float :int :int))
+(def six-ints (ffi/struct :int :int :int :int :int :int))
 
 (ffi/defbind int-fn :int [a :int b :int])
 (ffi/defbind double-fn :double [a :double b :double c :double])
@@ -45,13 +48,13 @@
    j :double])
 (ffi/defbind void-fn-2 :void [y :double])
 (ffi/defbind intintint-fn-2 :int [iii intintint i :int])
-
-(def split (ffi/struct :int :int :float :float))
-(def split-flip (ffi/struct :float :float :int :int))
 (ffi/defbind split-fn :float [s split])
 (ffi/defbind split-flip-fn :float [s split-flip])
 (ffi/defbind split-ret-fn split [x :int y :float])
 (ffi/defbind split-flip-ret-fn split-flip [x :int y :float])
+(ffi/defbind sixints-fn six-ints [])
+(ffi/defbind sixints-fn-2 :int [x :int s six-ints])
+(ffi/defbind sixints-fn-3 :int [s six-ints x :int])
 
 #
 # Struct reading and writing
@@ -93,6 +96,9 @@
 # Call functions
 #
 
+(tracev (sixints-fn))
+(tracev (sixints-fn-2 100 [1 2 3 4 5 6]))
+(tracev (sixints-fn-3 [1 2 3 4 5 6] 200))
 (tracev (split-ret-fn 10 12))
 (tracev (split-flip-ret-fn 10 12))
 (tracev (split-flip-ret-fn 12 10))
