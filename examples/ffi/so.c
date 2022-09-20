@@ -154,6 +154,7 @@ void void_ret_fn(int x) {
 
 EXPORTER
 int intintint_fn_2(intintint iii, int i) {
+    fprintf(stderr, "iii.a = %d, iii.b = %d, iii.c = %d, i = %d\n", iii.a, iii.b, iii.c, i);
     return i * (iii.a + iii.b + iii.c);
 }
 

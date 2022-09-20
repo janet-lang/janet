@@ -1093,8 +1093,8 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0].integer = (uint64_t) ret_mem;
     }
-    uint64_t *stack = alloca(signature->stack_count * 8);
-    stack -= 2; /* hack to get proper stack placement */
+    size_t stack_size = signature->stack_count * 8;
+    uint64_t *stack = alloca(stack_size);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         int32_t n = i + 2;
         JanetFFIMapping arg = signature->args[i];
@@ -1112,6 +1112,10 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
             janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         }
     }
+
+    /* hack to get proper stack placement and avoid clobbering from logic above - shift stack down, otherwise we have issues.
+     * Technically, this writes into 16 bytes of unallocated stack memory */
+    if (stack_size) memmove(stack - 2, stack, stack_size);
 
     switch (signature->variant) {
         default:
