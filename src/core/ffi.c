@@ -1094,6 +1094,7 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         regs[0].integer = (uint64_t) ret_mem;
     }
     size_t stack_size = signature->stack_count * 8;
+    size_t stack_shift = 2;
     uint64_t *stack = alloca(stack_size);
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         int32_t n = i + 2;
@@ -1103,11 +1104,11 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         } else if (arg.spec == JANET_WIN64_STACK_REF) {
             uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            stack[arg.offset] = (uint64_t) ptr;
+            stack[arg.offset] = (uint64_t) (ptr - stack_shift * sizeof(uint64_t));
         } else if (arg.spec == JANET_WIN64_REGISTER_REF) {
             uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            regs[arg.offset].integer = (uint64_t) ptr;
+            regs[arg.offset].integer = (uint64_t) (ptr - stack_shift * sizeof(uint64_t));
         } else {
             janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         }
@@ -1115,7 +1116,7 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 
     /* hack to get proper stack placement and avoid clobbering from logic above - shift stack down, otherwise we have issues.
      * Technically, this writes into 16 bytes of unallocated stack memory */
-    if (stack_size) memmove(stack - 2, stack, stack_size);
+    if (stack_size) memmove(stack - stack_shift, stack, stack_size);
 
     switch (signature->variant) {
         default:
