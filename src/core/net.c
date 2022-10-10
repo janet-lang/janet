@@ -224,7 +224,12 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_READ: {
+#if defined(JANET_LINUX)
+            JSock connfd = accept4(s->stream->handle, NULL, NULL, SOCK_CLOEXEC);
+#else
+            /* On BSDs, CLOEXEC should be inherited from server socket */
             JSock connfd = accept(s->stream->handle, NULL, NULL);
+#endif
             if (JSOCKVALID(connfd)) {
                 janet_net_socknoblock(connfd);
                 JanetStream *stream = make_stream(connfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
