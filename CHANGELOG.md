@@ -2,8 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Windows FFI fixes.
+- Fix PEG `if-not` combinator with captures in the condition
+- Fix bug with `os/date` with nil first argument
+- Fix bug with `net/accept` on Linux that could leak file descriptors to subprocesses
 - Reduce number of hash collisiions from pointer hashing
-- Add optional parameter to `marshal` to skip cycle checking code.
+- Add optional parameter to `marshal` to skip cycle checking code
 
 ## 1.24.1 - 2022-08-24
 - Fix FFI bug on Linux/Posix
