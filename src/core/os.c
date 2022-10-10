@@ -1324,7 +1324,7 @@ JANET_CORE_FN(os_date,
     time_t t;
     struct tm t_infos;
     struct tm *t_info = NULL;
-    if (argc) {
+    if (argc && !janet_checktype(argv[0], JANET_NIL)) {
         int64_t integer = janet_getinteger64(argv, 0);
         t = (time_t) integer;
     } else {
