@@ -1104,11 +1104,11 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
         } else if (arg.spec == JANET_WIN64_STACK_REF) {
             uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            stack[arg.offset] = (uint64_t) (ptr - stack_shift * sizeof(uint64_t));
+            stack[arg.offset] = (uint64_t)(ptr - stack_shift * sizeof(uint64_t));
         } else if (arg.spec == JANET_WIN64_REGISTER_REF) {
             uint8_t *ptr = (uint8_t *)(stack + arg.offset2);
             janet_ffi_write_one(ptr, argv, n, arg.type, JANET_FFI_MAX_RECUR);
-            regs[arg.offset].integer = (uint64_t) (ptr - stack_shift * sizeof(uint64_t));
+            regs[arg.offset].integer = (uint64_t)(ptr - stack_shift * sizeof(uint64_t));
         } else {
             janet_ffi_write_one((uint8_t *) &regs[arg.offset].integer, argv, n, arg.type, JANET_FFI_MAX_RECUR);
         }
