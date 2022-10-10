@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.25.0 - 2022-10-10
 - Windows FFI fixes.
 - Fix PEG `if-not` combinator with captures in the condition
 - Fix bug with `os/date` with nil first argument
