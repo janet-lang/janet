@@ -632,6 +632,23 @@ JANET_CORE_FN(janet_core_signal,
     janet_panicf("unknown signal %v", argv[0]);
 }
 
+JANET_CORE_FN(janet_core_memcmp,
+        "(memcmp a b &opt len offset-a offset-b)",
+        "Compare memory. Takes to byte sequences `a` and `b`, and "
+        "return 0 if they have identical contents, a negative integer if a is less than b, "
+        "and a positive integer if a is greather than b. Optionally take a length and offsets "
+        "to compare slices of the bytes sequences.") {
+    janet_arity(argc, 2, 5);
+    JanetByteView a = janet_getbytes(argv, 0);
+    JanetByteView b = janet_getbytes(argv, 1);
+    int32_t len = janet_optnat(argv, argc, 2, a.len < b.len ? a.len : b.len);
+    int32_t offset_a = janet_optnat(argv, argc, 3, 0);
+    int32_t offset_b = janet_optnat(argv, argc, 4, 0);
+    if (offset_a + len > a.len) janet_panicf("invalid offset-a: %d", offset_a);
+    if (offset_b + len > b.len) janet_panicf("invalid offset-b: %d", offset_b);
+    return janet_wrap_integer(memcmp(a.bytes + offset_a, b.bytes + offset_b, (size_t) len));
+}
+
 #ifdef JANET_BOOTSTRAP
 
 /* Utility for inline assembly */
@@ -933,6 +950,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("nat?", janet_core_check_nat),
         JANET_CORE_REG("slice", janet_core_slice),
         JANET_CORE_REG("signal", janet_core_signal),
+        JANET_CORE_REG("memcmp", janet_core_memcmp),
         JANET_CORE_REG("getproto", janet_core_getproto),
         JANET_REG_END
     };
