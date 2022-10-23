@@ -68,9 +68,12 @@ tags
 vgcore.*
 *.out.*
 
-# Wix artifacts
+# WiX artifacts
 *.msi
 *.wixpdb
+
+# Makefile config
+/config.mk
 
 # Created by https://www.gitignore.io/api/c
 

@@ -21,7 +21,7 @@
 ################################
 ##### Set global variables #####
 ################################
-
+sinclude config.mk
 PREFIX?=/usr/local
 
 INCLUDEDIR?=$(PREFIX)/include
