@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Support config.mk for more easily configuring the Makefile.
+
 ## 1.25.0 - 2022-10-10
 - Windows FFI fixes.
 - Fix PEG `if-not` combinator with captures in the condition

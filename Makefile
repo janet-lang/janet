@@ -24,6 +24,7 @@
 sinclude config.mk
 PREFIX?=/usr/local
 
+JANETCONF_HEADER?=src/conf/janetconf.h
 INCLUDEDIR?=$(PREFIX)/include
 BINDIR?=$(PREFIX)/bin
 LIBDIR?=$(PREFIX)/lib
@@ -83,7 +84,7 @@ all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
 ##### Name Files #####
 ######################
 
-JANET_HEADERS=src/include/janet.h src/conf/janetconf.h
+JANET_HEADERS=src/include/janet.h $(JANETCONF_HEADER)
 
 JANET_LOCAL_HEADERS=src/core/features.h \
 					src/core/util.h \
@@ -176,16 +177,16 @@ endif
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
 
-build/janet.h: $(JANET_TARGET) src/include/janet.h src/conf/janetconf.h
-	./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h src/conf/janetconf.h $@
+build/janet.h: $(JANET_TARGET) src/include/janet.h $(JANETCONF_HEADER)
+	./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h $(JANETCONF_HEADER) $@
 
-build/janetconf.h: src/conf/janetconf.h
+build/janetconf.h: $(JANETCONF_HEADER)
 	cp $< $@
 
-build/janet.o: build/c/janet.c src/conf/janetconf.h src/include/janet.h
+build/janet.o: build/c/janet.c $(JANETCONF_HEADER) src/include/janet.h
 	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@
 
-build/shell.o: build/c/shell.c src/conf/janetconf.h src/include/janet.h
+build/shell.o: build/c/shell.c $(JANETCONF_HEADER) src/include/janet.h
 	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@
 
 $(JANET_TARGET): build/janet.o build/shell.o
