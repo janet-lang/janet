@@ -2137,20 +2137,18 @@ JANET_CORE_FN(os_open,
 #ifdef JANET_LINUX
     open_flags |= O_CLOEXEC;
 #endif
+    int read_flag = 0;
+    int write_flag = 0;
     for (const uint8_t *c = opt_flags; *c; c++) {
         switch (*c) {
             default:
                 break;
             case 'r':
-                open_flags = (open_flags & O_WRONLY)
-                             ? ((open_flags & ~O_WRONLY) | O_RDWR)
-                             : (open_flags | O_RDONLY);
+                read_flag = 1;
                 stream_flags |= JANET_STREAM_READABLE;
                 break;
             case 'w':
-                open_flags = (open_flags & O_RDONLY)
-                             ? ((open_flags & ~O_RDONLY) | O_RDWR)
-                             : (open_flags | O_WRONLY);
+                write_flag = 1;
                 stream_flags |= JANET_STREAM_WRITABLE;
                 break;
             case 'c':
@@ -2174,6 +2172,15 @@ JANET_CORE_FN(os_open,
                 break;
         }
     }
+    /* If both read and write, fix up to O_RDWR */
+    if (read_flag && !write_flag) {
+        open_flags |= O_RDONLY;
+    } else if (write_flag && !read_flag) {
+        open_flags |= O_WRONLY;
+    } else {
+        open_flags = O_RDWR;
+    }
+
     do {
         fd = open(path, open_flags, mode);
     } while (fd == -1 && errno == EINTR);
