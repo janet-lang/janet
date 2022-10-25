@@ -633,11 +633,11 @@ JANET_CORE_FN(janet_core_signal,
 }
 
 JANET_CORE_FN(janet_core_memcmp,
-        "(memcmp a b &opt len offset-a offset-b)",
-        "Compare memory. Takes to byte sequences `a` and `b`, and "
-        "return 0 if they have identical contents, a negative integer if a is less than b, "
-        "and a positive integer if a is greather than b. Optionally take a length and offsets "
-        "to compare slices of the bytes sequences.") {
+              "(memcmp a b &opt len offset-a offset-b)",
+              "Compare memory. Takes to byte sequences `a` and `b`, and "
+              "return 0 if they have identical contents, a negative integer if a is less than b, "
+              "and a positive integer if a is greather than b. Optionally take a length and offsets "
+              "to compare slices of the bytes sequences.") {
     janet_arity(argc, 2, 5);
     JanetByteView a = janet_getbytes(argv, 0);
     JanetByteView b = janet_getbytes(argv, 1);

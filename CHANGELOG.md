@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `memcmp` function to core library.
+- Fix bug in `os/open` with `:rw` permissions not correct on Linux.
 - Support config.mk for more easily configuring the Makefile.
 
 ## 1.25.0 - 2022-10-10
