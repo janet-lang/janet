@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Fix error message bug in FFI library.
+
 ## 1.25.1 - 2022-10-29
 - Add `memcmp` function to core library.
 - Fix bug in `os/open` with `:rw` permissions not correct on Linux.
