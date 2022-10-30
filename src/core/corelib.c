@@ -1008,7 +1008,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "than x, and 0 otherwise. To return 0, x and y must be the exact same type."));
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
-                    JDOC("(next ds &opt key)\n\n(peg/match '(uint 4 :le) "abcd")"
+                    JDOC("(next ds &opt key)\n\n"
                          "Gets the next key in a data structure. Can be used to iterate through "
                          "the keys of a data structure in an unspecified order. Keys are guaranteed "
                          "to be seen only once per iteration if they data structure is not mutated "
