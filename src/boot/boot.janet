@@ -2642,9 +2642,10 @@
   [image]
   (unmarshal image load-image-dict))
 
+(defn- check-dyn-relative [x] (if (string/has-prefix? "@" x) x))
 (defn- check-relative [x] (if (string/has-prefix? "." x) x))
 (defn- check-not-relative [x] (if-not (string/has-prefix? "." x) x))
-(defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "." x)) x))
+(defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "@" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (def module/cache
@@ -2678,6 +2679,8 @@
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
+  (def dyn-index (find-prefix ":@all:"))
+  (array/insert module/paths dyn-index [(string ":@all:" ext) loader check-dyn-relative])
   (def all-index (find-prefix ".:all:"))
   (array/insert module/paths all-index [(string ".:all:" ext) loader check-project-relative])
   (def sys-index (find-prefix ":sys:"))

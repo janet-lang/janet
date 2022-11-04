@@ -111,7 +111,10 @@ JANET_CORE_FN(janet_core_expand_path,
               "This takes in a path (the argument to require) and a template string, "
               "to expand the path to a path that can be "
               "used for importing files. The replacements are as follows:\n\n"
-              "* :all: -- the value of path verbatim\n\n"
+              "* :all: -- the value of path verbatim.\n\n"
+              "* :@all: -- Same as :all:, bu if `path` starts with the @ character,\n"
+              "           the first path segment is replaced with a dynamic binding\n"
+              "           `(dyn <first path segment as keyword>)`.\n\n"
               "* :cur: -- the current file, or (dyn :current-file)\n\n"
               "* :dir: -- the directory containing the current file\n\n"
               "* :name: -- the name component of path, with extension if given\n\n"
@@ -157,6 +160,21 @@ JANET_CORE_FN(janet_core_expand_path,
             if (strncmp(template + i, ":all:", 5) == 0) {
                 janet_buffer_push_cstring(out, input);
                 i += 4;
+            } else if (strncmp(template + i, ":@all:", 6) == 0) {
+                if (input[0] == '@') {
+                    const char *p = input;
+                    while (*p && !is_path_sep(*p)) p++;
+                    size_t len = p - input - 1;
+                    char *str = janet_smalloc(len + 1);
+                    memcpy(str, input + 1, len);
+                    str[len] = '\0';
+                    janet_formatb(out, "%V", janet_dyn(str));
+                    janet_sfree(str);
+                    janet_buffer_push_cstring(out, p);
+                } else {
+                    janet_buffer_push_cstring(out, input);
+                }
+                i += 5;
             } else if (strncmp(template + i, ":cur:", 5) == 0) {
                 janet_buffer_push_bytes(out, (const uint8_t *)curdir, curlen);
                 i += 4;

@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Allow importing modules from custom directories more easily with the `@` prefix
+  to module paths. For example, if there is a dynamic binding :custom-modules that
+  is a file system path to a directory of modules, import from that directory with
+  `(import @custom-modules/mymod)`.
 - Fix error message bug in FFI library.
 
 ## 1.25.1 - 2022-10-29
