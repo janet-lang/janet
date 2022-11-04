@@ -112,7 +112,7 @@ JANET_CORE_FN(janet_core_expand_path,
               "to expand the path to a path that can be "
               "used for importing files. The replacements are as follows:\n\n"
               "* :all: -- the value of path verbatim.\n\n"
-              "* :@all: -- Same as :all:, bu if `path` starts with the @ character,\n"
+              "* :@all: -- Same as :all:, but if `path` starts with the @ character,\n"
               "           the first path segment is replaced with a dynamic binding\n"
               "           `(dyn <first path segment as keyword>)`.\n\n"
               "* :cur: -- the current file, or (dyn :current-file)\n\n"
