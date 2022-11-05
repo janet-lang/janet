@@ -30,6 +30,8 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <inttypes.h>
+#include <assert.h>
 
 /* Implements a pretty printer for Janet. The pretty printer
  * is simple and not that flexible, but fast. */
@@ -750,7 +752,32 @@ static void pushtypes(JanetBuffer *buffer, int types) {
 
 #define MAX_ITEM  256
 #define FMT_FLAGS "-+ #0"
+#define FMT_REPLACE_INTTYPES "diouxX"
 #define MAX_FORMAT 32
+
+struct FmtMapping {
+    char c;
+    const char *mapping;
+};
+
+/* Janet uses fixed with integer types for most things, so map
+ * format specifiers to these fixed sizes */
+static const struct FmtMapping format_mappings[] = {
+    {'d', PRId64},
+    {'i', PRIi64},
+    {'o', PRIo64},
+    {'u', PRIu64},
+    {'x', PRIx64},
+    {'X', PRIX64},
+};
+
+static const char *get_fmt_mapping(char c) {
+    for (size_t i = 0; i < (sizeof(format_mappings) / sizeof(struct FmtMapping)); i++) {
+        if (format_mappings[i].c == c)
+            return format_mappings[i].mapping;
+    }
+    return NULL;
+}
 
 static const char *scanformat(
     const char *strfrmt,
@@ -758,6 +785,8 @@ static const char *scanformat(
     char width[3],
     char precision[3]) {
     const char *p = strfrmt;
+
+    /* Parse strfrmt */
     memset(width, '\0', 3);
     memset(precision, '\0', 3);
     while (*p != '\0' && strchr(FMT_FLAGS, *p) != NULL)
@@ -776,10 +805,22 @@ static const char *scanformat(
     }
     if (isdigit((int)(*p)))
         janet_panic("invalid format (width or precision too long)");
+
+    /* Write to form - replace characters with fixed size stuff */
     *(form++) = '%';
-    memcpy(form, strfrmt, ((p - strfrmt) + 1) * sizeof(char));
-    form += (p - strfrmt) + 1;
+    const char *p2 = strfrmt;
+    while (p2 <= p) {
+        if (strchr(FMT_REPLACE_INTTYPES, *p2) != NULL) {
+            const char *mapping = get_fmt_mapping(*p2++);
+            size_t len = strlen(mapping);
+            strcpy(form, mapping);
+            form += len;
+        } else {
+            *(form++) = *(p2++);
+        }
+    }
     *form = '\0';
+
     return p;
 }
 
@@ -804,11 +845,16 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     break;
                 }
                 case 'd':
-                case 'i':
-                case 'o':
+                case 'i': {
+                    int64_t n = va_arg(args, long);
+                    nb = snprintf(item, MAX_ITEM, form, n);
+                    break;
+                }
                 case 'x':
-                case 'X': {
-                    int32_t n = va_arg(args, long);
+                case 'X':
+                case 'o':
+                case 'u': {
+                    uint64_t n = va_arg(args, unsigned long);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
@@ -962,11 +1008,16 @@ void janet_buffer_format(
                     break;
                 }
                 case 'd':
-                case 'i':
-                case 'o':
+                case 'i': {
+                    int64_t n = janet_getinteger64(argv, arg);
+                    nb = snprintf(item, MAX_ITEM, form, n);
+                    break;
+                }
                 case 'x':
-                case 'X': {
-                    int32_t n = janet_getinteger(argv, arg);
+                case 'X':
+                case 'o':
+                case 'u': {
+                    uint64_t n = janet_getuinteger64(argv, arg);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }

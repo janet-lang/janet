@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add the `u` format specifier to printf family functions.
+- Allow printing 64 integer types in `printf` and `string/format` family functions.
 - Allow importing modules from custom directories more easily with the `@` prefix
   to module paths. For example, if there is a dynamic binding :custom-modules that
   is a file system path to a directory of modules, import from that directory with
