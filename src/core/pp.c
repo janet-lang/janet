@@ -31,7 +31,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <inttypes.h>
-#include <assert.h>
 
 /* Implements a pretty printer for Janet. The pretty printer
  * is simple and not that flexible, but fast. */
@@ -760,7 +759,7 @@ struct FmtMapping {
     const char *mapping;
 };
 
-/* Janet uses fixed with integer types for most things, so map
+/* Janet uses fixed width integer types for most things, so map
  * format specifiers to these fixed sizes */
 static const struct FmtMapping format_mappings[] = {
     {'d', PRId64},
