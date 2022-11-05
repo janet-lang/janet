@@ -701,14 +701,24 @@ int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
 int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len) {
-    if (janet_checktype(str, JANET_STRING) || janet_checktype(str, JANET_SYMBOL) ||
-            janet_checktype(str, JANET_KEYWORD)) {
+    JanetType t = janet_type(str);
+    if (t == JANET_STRING || t == JANET_SYMBOL || t == JANET_KEYWORD) {
         *data = janet_unwrap_string(str);
         *len = janet_string_length(janet_unwrap_string(str));
         return 1;
-    } else if (janet_checktype(str, JANET_BUFFER)) {
+    } else if (t == JANET_BUFFER) {
         *data = janet_unwrap_buffer(str)->data;
         *len = janet_unwrap_buffer(str)->count;
+        return 1;
+    } else if (t == JANET_ABSTRACT) {
+        void *abst = janet_unwrap_abstract(str);
+        const JanetAbstractType *atype = janet_abstract_type(abst);
+        if (NULL == atype->bytes) {
+            return 0;
+        }
+        JanetByteView view = atype->bytes(abst, janet_abstract_size(abst));
+        *data = view.bytes;
+        *len = view.len;
         return 1;
     }
     return 0;

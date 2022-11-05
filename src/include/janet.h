@@ -1093,6 +1093,8 @@ struct JanetAbstractType {
     int32_t (*hash)(void *p, size_t len);
     Janet(*next)(void *p, Janet key);
     Janet(*call)(void *p, int32_t argc, Janet *argv);
+    size_t (*length)(void *p, size_t len);
+    JanetByteView(*bytes)(void *p, size_t len);
 };
 
 /* Some macros to let us add extra types to JanetAbstract types without
@@ -1110,7 +1112,9 @@ struct JanetAbstractType {
 #define JANET_ATEND_COMPARE     NULL,JANET_ATEND_HASH
 #define JANET_ATEND_HASH        NULL,JANET_ATEND_NEXT
 #define JANET_ATEND_NEXT        NULL,JANET_ATEND_CALL
-#define JANET_ATEND_CALL
+#define JANET_ATEND_CALL        NULL,JANET_ATEND_LENGTH
+#define JANET_ATEND_LENGTH      NULL,JANET_ATEND_BYTES
+#define JANET_ATEND_BYTES
 
 struct JanetReg {
     const char *name;

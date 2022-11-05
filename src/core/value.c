@@ -651,6 +651,15 @@ int32_t janet_length(Janet x) {
         case JANET_TABLE:
             return janet_unwrap_table(x)->count;
         case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(x);
+            const JanetAbstractType *type = janet_abstract_type(abst);
+            if (type->length != NULL) {
+                size_t len = type->length(abst, janet_abstract_size(abst));
+                if (len > INT32_MAX) {
+                    janet_panicf("invalid integer length %u", len);
+                }
+                return (int32_t)(len);
+            }
             Janet argv[1] = { x };
             Janet len = janet_mcall("length", 1, argv);
             if (!janet_checkint(len))
@@ -679,6 +688,16 @@ Janet janet_lengthv(Janet x) {
         case JANET_TABLE:
             return janet_wrap_integer(janet_unwrap_table(x)->count);
         case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(x);
+            const JanetAbstractType *type = janet_abstract_type(abst);
+            if (type->length != NULL) {
+                size_t len = type->length(abst, janet_abstract_size(abst));
+                if ((uint64_t) len <= (uint64_t) JANET_INTMAX_INT64) {
+                    return janet_wrap_number((double) len);
+                } else {
+                    janet_panicf("integer length %u too large", len);
+                }
+            }
             Janet argv[1] = { x };
             return janet_mcall("length", 1, argv);
         }

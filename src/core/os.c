@@ -1810,11 +1810,9 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
     janet_arity(argc, 1, 2);
     const char *path = janet_getcstring(argv, 0);
     JanetTable *tab = NULL;
-    int getall = 1;
-    const uint8_t *key;
+    const uint8_t *key = NULL;
     if (argc == 2) {
         if (janet_checktype(argv[1], JANET_KEYWORD)) {
-            getall = 0;
             key = janet_getkeyword(argv, 1);
         } else {
             tab = janet_gettable(argv, 1);
@@ -1840,7 +1838,7 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
         return janet_wrap_nil();
     }
 
-    if (getall) {
+    if (NULL == key) {
         /* Put results in table */
         for (const struct OsStatGetter *sg = os_stat_getters; sg->name != NULL; sg++) {
             janet_table_put(tab, janet_ckeywordv(sg->name), sg->fn(&st));

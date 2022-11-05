@@ -532,7 +532,6 @@ OPMETHOD(uint64_t, u64, rshift, >>)
 #undef DIVMETHOD_SIGNED
 #undef COMPMETHOD
 
-
 static JanetMethod it_s64_methods[] = {
     {"+", cfun_it_s64_add},
     {"r+", cfun_it_s64_add},
@@ -555,7 +554,6 @@ static JanetMethod it_s64_methods[] = {
     {"<<", cfun_it_s64_lshift},
     {">>", cfun_it_s64_rshift},
     {"compare", cfun_it_s64_compare},
-
     {NULL, NULL}
 };
 
@@ -581,7 +579,6 @@ static JanetMethod it_u64_methods[] = {
     {"<<", cfun_it_u64_lshift},
     {">>", cfun_it_u64_rshift},
     {"compare", cfun_it_u64_compare},
-
     {NULL, NULL}
 };
 

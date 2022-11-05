@@ -306,7 +306,7 @@ tail:
         case RULE_THRU:
         case RULE_TO: {
             const uint32_t *rule_a = s->bytecode + rule[1];
-            const uint8_t *next_text;
+            const uint8_t *next_text = NULL;
             CapState cs = cap_save(s);
             down1(s);
             while (text <= s->text_end) {

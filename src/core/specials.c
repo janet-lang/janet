@@ -813,7 +813,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret;
     Janet head;
     JanetScope fnscope;
-    int32_t paramcount, argi, parami, arity, min_arity, max_arity, defindex, i;
+    int32_t paramcount, argi, parami, arity, min_arity = 0, max_arity, defindex, i;
     JanetFopts subopts = janetc_fopts_default(c);
     const Janet *params;
     const char *errmsg = NULL;
