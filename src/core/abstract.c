@@ -31,6 +31,8 @@
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
 #include <windows.h>
+#else
+#include <stdatomic.h>
 #endif
 #endif
 
