@@ -265,4 +265,15 @@
 (ev/do-thread
   (assert (ev/take ch) "channel packing bug for threaded abstracts on threaded channels."))
 
+# marshal channels
+
+(def ch (ev/chan 10))
+(ev/give ch "hello")
+(ev/give ch "world")
+(def ch2 (-> ch marshal unmarshal))
+(def item1 (ev/take ch2))
+(def item2 (ev/take ch2))
+(assert (= item1 "hello"))
+(assert (= item2 "world"))
+
 (end-suite)

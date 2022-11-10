@@ -1175,14 +1175,48 @@ static Janet janet_chanat_next(void *p, Janet key) {
     return janet_nextmethod(ev_chanat_methods, key);
 }
 
+static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
+    JanetChannel *channel = (JanetChannel *)p;
+    janet_marshal_byte(ctx, channel->closed);
+    janet_marshal_int(ctx, channel->limit);
+    int32_t count = janet_q_count(&channel->items);
+    janet_marshal_int(ctx, count);
+    JanetQueue *items = &channel->items;
+    Janet *data = channel->items.data;
+    if (items->head <= items->tail) {
+        for (int32_t i = items->head; i < items->tail; i++)
+            janet_marshal_janet(ctx, data[i]);
+    } else {
+        for (int32_t i = items->head; i < items->capacity; i++)
+            janet_marshal_janet(ctx, data[i]);
+        for (int32_t i = 0; i < items->tail; i++)
+            janet_marshal_janet(ctx, data[i]);
+    }
+}
+
+static void *janet_chanat_unmarshal(JanetMarshalContext *ctx) {
+    JanetChannel *abst = janet_unmarshal_abstract(ctx, sizeof(JanetChannel));
+    uint8_t is_closed = janet_unmarshal_byte(ctx);
+    int32_t limit = janet_unmarshal_int(ctx);
+    int32_t count = janet_unmarshal_int(ctx);
+    if (count < 0) janet_panic("invalid negative channel count");
+    janet_chan_init(abst, limit, 0);
+    abst->closed = !!is_closed;
+    for (int32_t i = 0; i < count; i++) {
+        Janet item = janet_unmarshal_janet(ctx);
+        janet_q_push(&abst->items, &item, sizeof(item));
+    }
+    return abst;
+}
+
 const JanetAbstractType janet_channel_type = {
     "core/channel",
     janet_chanat_gc,
     janet_chanat_mark,
     janet_chanat_get,
     NULL, /* put */
-    NULL, /* marshal */
-    NULL, /* unmarshal */
+    janet_chanat_marshal,
+    janet_chanat_unmarshal,
     NULL, /* tostring */
     NULL, /* compare */
     NULL, /* hash */

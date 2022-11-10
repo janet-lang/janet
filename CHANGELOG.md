@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Channels can now be marshalled. Pending state is not saved, only items in the channel.
 - Use the new `.length` function pointer on abstract types for lengths. Adding
   a `length` method will still work as well.
 - Support byte views on abstract types with the `bytes` function pointer.
