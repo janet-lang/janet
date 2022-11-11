@@ -2542,31 +2542,6 @@
   (setdyn :exit-value value)
   nil)
 
-(defn eval-string
-  ``Evaluates a string in the current environment. If more control over the
-  environment is needed, use `run-context`.``
-  [str]
-  (var state (string str))
-  (defn chunks [buf _]
-    (def ret state)
-    (set state nil)
-    (when ret
-      (buffer/push-string buf str)
-      (buffer/push-string buf "\n")))
-  (var returnval nil)
-  (run-context {:chunks chunks
-                :on-compile-error (fn compile-error [msg errf &]
-                                    (error (string "compile error: " msg)))
-                :on-parse-error (fn parse-error [p x]
-                                  (error (string "parse error: " (:error p))))
-                :fiber-flags :i
-                :on-status (fn on-status [f val]
-                             (if-not (= (fiber/status f) :dead)
-                               (error val))
-                             (set returnval val))
-                :source :eval-string})
-  returnval)
-
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
   environment is needed, use `run-context`.``
@@ -2582,6 +2557,8 @@
   [str]
   (let [p (parser/new)]
     (parser/consume p str)
+    (if (= :error (parser/status p))
+      (error (parser/error p)))
     (parser/eof p)
     (if (parser/has-more p)
       (parser/produce p)
@@ -2596,12 +2573,22 @@
   (let [p (parser/new)
         ret @[]]
     (parser/consume p str)
+    (if (= :error (parser/status p))
+      (error (parser/error p)))
     (parser/eof p)
     (while (parser/has-more p)
       (array/push ret (parser/produce p)))
     (if (= :error (parser/status p))
       (error (parser/error p))
       ret)))
+
+(defn eval-string
+  ``Evaluates a string in the current environment. If more control over the
+  environment is needed, use `run-context`.``
+  [str]
+  (var ret nil)
+  (each x (parse-all str) (set ret (eval x)))
+  ret)
 
 (def load-image-dict
   ``A table used in combination with `unmarshal` to unmarshal byte sequences created
