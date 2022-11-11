@@ -557,6 +557,10 @@ void janet_ev_init_common(void) {
     janet_vm.tq_capacity = 0;
     janet_table_init_raw(&janet_vm.threaded_abstracts, 0);
     janet_rng_seed(&janet_vm.ev_rng, 0);
+#ifndef JANET_WINDOWS
+    pthread_attr_init(&janet_vm.new_thread_attr);
+    pthread_attr_setdetachstate(&janet_vm.new_thread_attr, PTHREAD_CREATE_DETACHED);
+#endif
 }
 
 /* Common deinit code */
@@ -566,6 +570,9 @@ void janet_ev_deinit_common(void) {
     janet_free(janet_vm.listeners);
     janet_vm.listeners = NULL;
     janet_table_deinit(&janet_vm.threaded_abstracts);
+#ifndef JANET_WINDOWS
+    pthread_attr_destroy(&janet_vm.new_thread_attr);
+#endif
 }
 
 /* Short hand to yield to event loop */
@@ -2072,12 +2079,11 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
 #else
     init->write_pipe = janet_vm.selfpipe[1];
     pthread_t waiter_thread;
-    int err = pthread_create(&waiter_thread, NULL, janet_thread_body, init);
+    int err = pthread_create(&waiter_thread, &janet_vm.new_thread_attr, janet_thread_body, init);
     if (err) {
         janet_free(init);
         janet_panicf("%s", strerror(err));
     }
-    pthread_detach(waiter_thread);
 #endif
 
     /* Increment ev refcount so we don't quit while waiting for a subprocess */

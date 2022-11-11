@@ -152,16 +152,19 @@ struct JanetVM {
 #ifdef JANET_WINDOWS
     void **iocp;
 #elif defined(JANET_EV_EPOLL)
+    pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];
     int epoll;
     int timerfd;
     int timer_enabled;
 #elif defined(JANET_EV_KQUEUE)
+    pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];
     int kq;
     int timer;
     int timer_enabled;
 #else
+    pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];
     struct pollfd *fds;
 #endif
