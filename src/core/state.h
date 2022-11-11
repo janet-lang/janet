@@ -25,6 +25,12 @@
 
 #include <stdint.h>
 
+#ifdef JANET_EV
+#ifndef JANET_WINDOWS
+#include <pthread.h>
+#endif
+#endif
+
 typedef int64_t JanetTimestamp;
 
 typedef struct JanetScratch {
