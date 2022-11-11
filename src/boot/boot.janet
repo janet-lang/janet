@@ -2534,7 +2534,7 @@
   (in env :exit-value env))
 
 (defn quit
-  ``Tries to exit from the current repl or context. Does not always exit the application.
+  ``Tries to exit from the current repl or run-context. Does not always exit the application.
   Works by setting the :exit dynamic binding to true. Passing a non-nil `value` here will cause the outer
   run-context to return that value.``
   [&opt value]
@@ -2546,7 +2546,7 @@
   ``Evaluates a form in the current environment. If more control over the
   environment is needed, use `run-context`.``
   [form]
-  (def res (compile form (fiber/getenv (fiber/current)) :eval))
+  (def res (compile form nil :eval))
   (if (= (type res) :function)
     (res)
     (error (get res :error))))

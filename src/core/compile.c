@@ -1005,7 +1005,8 @@ JANET_CORE_FN(cfun_compile,
               "If a `lints` array is given, linting messages will be appended to the array. "
               "Each message will be a tuple of the form `(level line col message)`.") {
     janet_arity(argc, 1, 4);
-    JanetTable *env = argc > 1 ? janet_gettable(argv, 1) : janet_vm.fiber->env;
+    JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))
+            ? janet_gettable(argv, 1) : janet_vm.fiber->env;
     if (NULL == env) {
         env = janet_table(0);
         janet_vm.fiber->env = env;
@@ -1017,11 +1018,12 @@ JANET_CORE_FN(cfun_compile,
             source = janet_unwrap_string(x);
         } else if (janet_checktype(x, JANET_KEYWORD)) {
             source = janet_unwrap_keyword(x);
-        } else {
+        } else if (!janet_checktype(x, JANET_NIL)) {
             janet_panic_type(x, 2, JANET_TFLAG_STRING | JANET_TFLAG_KEYWORD);
         }
     }
-    JanetArray *lints = (argc >= 4) ? janet_getarray(argv, 3) : NULL;
+    JanetArray *lints = (argc >= 4 && !janet_checktype(argv[3], JANET_NIL))
+        ? janet_getarray(argv, 3) : NULL;
     JanetCompileResult res = janet_compile_lint(argv[0], env, source, lints);
     if (res.status == JANET_COMPILE_OK) {
         return janet_wrap_function(janet_thunk(res.funcdef));
