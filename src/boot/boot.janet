@@ -839,15 +839,15 @@
   a)
 
 (defn sort
-  ``Sort `ind` in-place, and return it. Uses quick-sort and is not a stable sort.
+  ``Sorts `ind` in-place, and returns it. Uses quick-sort and is not a stable sort.
   If a `before?` comparator function is provided, sorts elements using that,
   otherwise uses `<`.``
   [ind &opt before?]
   (sort-help ind 0 (- (length ind) 1) (or before? <)))
 
 (defn sort-by
-  ``Returns `ind` sorted by calling
-  a function `f` on each element and comparing the result with `<`.``
+  ``Sorts `ind` in-place by calling a function `f` on each element and
+  comparing the result with `<`.``
   [f ind]
   (sort ind (fn [x y] (< (f x) (f y)))))
 
