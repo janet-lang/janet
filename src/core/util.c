@@ -844,6 +844,10 @@ int janet_gettime(struct timespec *spec) {
     spec->tv_nsec = mts.tv_nsec;
     return 0;
 }
+#elif defined(_PLAN9_SOURCE)
+int janet_gettime(struct timespec *spec) {
+	return 0;
+}
 #else
 int janet_gettime(struct timespec *spec) {
     return clock_gettime(CLOCK_REALTIME, spec);

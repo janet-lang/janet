@@ -233,7 +233,7 @@ Janet janet_wrap_number(double x) {
 }
 
 Janet janet_wrap_number_safe(double d) {
-    double x = isnan(d) ? NAN : d;
+    double x = isnan(d) ? d : d;
     return janet_wrap_number(x);
 }
 

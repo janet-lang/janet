@@ -1002,6 +1002,7 @@ JANET_CORE_FN(cfun_disasm,
         if (!janet_cstrcmp(kw, "environments")) return janet_disasm_environments(f->def);
         if (!janet_cstrcmp(kw, "defs")) return janet_disasm_defs(f->def);
         janet_panicf("unknown disasm key %v", argv[1]);
+        return janet_disasm(f->def);
     } else {
         return janet_disasm(f->def);
     }

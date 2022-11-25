@@ -80,6 +80,7 @@ extern "C" {
     || defined(__QNXNTO__) \
     || defined(sun) || defined(__sun) /* Solaris */ \
     || defined(unix) || defined(__unix) || defined(__unix__)
+	|| defined(_POSIX_SOURCE)
 #define JANET_POSIX 1
 #elif defined(__EMSCRIPTEN__)
 #define JANET_WEB 1
@@ -91,6 +92,7 @@ extern "C" {
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \
     || (defined(_WIN64)) /* Windows 64 bit */ \
+    || (defined(_PLAN9_amd64)) \
     || (defined(__ia64__) && defined(__LP64__)) /* Itanium in LP64 mode */ \
     || defined(__alpha__) /* DEC Alpha */ \
     || (defined(__sparc__) && defined(__arch64__) || defined (__sparcv9)) /* BE */ \
@@ -1042,7 +1044,6 @@ struct JanetFunction {
 };
 
 typedef struct JanetParseState JanetParseState;
-typedef struct JanetParser JanetParser;
 
 enum JanetParserStatus {
     JANET_PARSE_ROOT,
@@ -1069,6 +1070,9 @@ struct JanetParser {
     int lookback;
     int flag;
 };
+#pragma incomplete struct JanetParser
+
+typedef struct JanetParser JanetParser;
 
 /* A context for marshaling and unmarshaling abstract types */
 typedef struct {

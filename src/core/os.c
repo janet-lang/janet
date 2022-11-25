@@ -54,7 +54,6 @@
 #include <io.h>
 #include <process.h>
 #else
-#include <spawn.h>
 #include <utime.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -844,6 +843,10 @@ static JanetFile *get_stdio_for_handle(JanetHandle handle, void *orig, int iswri
 static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     janet_arity(argc, 1, 3);
 
+#ifdef _PLAN9_SOURCE
+	janet_panic("os/execute not supported on plan 9");
+#else
+
     /* Get flags */
     uint64_t flags = 0;
     if (argc > 1) {
@@ -1085,6 +1088,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         return os_proc_wait_impl(proc);
 #endif
     }
+#endif
 }
 
 JANET_CORE_FN(os_execute,
@@ -1211,6 +1215,9 @@ JANET_CORE_FN(os_setenv,
     janet_arity(argc, 1, 2);
     const char *ks = janet_getcstring(argv, 0);
     const char *vs = janet_optcstring(argv, argc, 1, NULL);
+#ifdef __plan9__
+	janet_panic("not supported on plan9");
+#else
     janet_lock_environ();
     if (NULL == vs) {
         UNSETENV(ks);
@@ -1219,6 +1226,7 @@ JANET_CORE_FN(os_setenv,
     }
     janet_unlock_environ();
     return janet_wrap_nil();
+#endif
 }
 
 JANET_CORE_FN(os_time,
@@ -1338,7 +1346,11 @@ JANET_CORE_FN(os_date,
         t_info = &t_infos;
 #else
         tzset();
+#ifdef _PLAN9_SOURCE
+        t_info = localtime(&t);
+#else
         t_info = localtime_r(&t, &t_infos);
+#endif
 #endif
     } else {
         /* utc time */
@@ -1346,7 +1358,11 @@ JANET_CORE_FN(os_date,
         gmtime_s(&t_infos, &t);
         t_info = &t_infos;
 #else
+#ifdef _PLAN9_SOURCE
+		t_info = gmtime(&t);
+#else
         t_info = gmtime_r(&t, &t_infos);
+#endif
 #endif
     }
     JanetKV *st = janet_struct_begin(9);
@@ -1662,8 +1678,10 @@ static const uint8_t *janet_decode_mode(mode_t m) {
     else if (S_ISDIR(m)) str = "directory";
     else if (S_ISFIFO(m)) str = "fifo";
     else if (S_ISBLK(m)) str = "block";
+#ifndef __plan9__
     else if (S_ISSOCK(m)) str = "socket";
     else if (S_ISLNK(m)) str = "link";
+#endif
     else if (S_ISCHR(m)) str = "character";
     return janet_ckeyword(str);
 }
@@ -1774,12 +1792,21 @@ static Janet os_stat_blocksize(jstat_t *st) {
     return janet_wrap_number(0);
 }
 #else
+#ifdef _PLAN9_SOURCE
+static Janet os_stat_blocks(jstat_t *st) {
+    return janet_wrap_number(0);
+}
+static Janet os_stat_blocksize(jstat_t *st) {
+    return janet_wrap_number(0);
+}
+#else
 static Janet os_stat_blocks(jstat_t *st) {
     return janet_wrap_number(st->st_blocks);
 }
 static Janet os_stat_blocksize(jstat_t *st) {
     return janet_wrap_number(st->st_blksize);
 }
+#endif
 #endif
 
 struct OsStatGetter {

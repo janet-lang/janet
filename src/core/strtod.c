@@ -217,7 +217,7 @@ static double convert(
     if (mant->n == 0 && mant->first_digit == 0)
         return negative ? -0.0 : 0.0;
     if (exp2_approx > 1176)
-        return negative ? -INFINITY : INFINITY;
+        return negative ? Inf(-1) : Inf(1);
     if (exp2_approx < -1175)
         return negative ? -0.0 : 0.0;
 

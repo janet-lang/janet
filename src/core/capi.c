@@ -225,6 +225,7 @@ int32_t janet_getnat(const Janet *argv, int32_t n) {
     return ret;
 bad:
     janet_panicf("bad slot #%d, expected non-negative 32 bit signed integer, got %v", n, x);
+	return 0;
 }
 
 JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at) {

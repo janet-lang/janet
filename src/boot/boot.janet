@@ -3806,7 +3806,7 @@
   (var raw-stdin false)
   (var handleopts true)
   (var exit-on-error true)
-  (var colorize true)
+  (var colorize false)
   (var debug-flag false)
   (var compile-only false)
   (var warn-level nil)

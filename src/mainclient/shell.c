@@ -317,6 +317,8 @@ static int getcols(void) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     return (int)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
+#elif defined(__plan9__)
+	return 80;
 #else
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
@@ -343,9 +345,14 @@ failed:
 }
 
 static void clear(void) {
+#ifdef __plan9__
+	int fd = open("/dev/text", OWRITE | OTRUNC);
+	close(fd);
+#else
     if (write_console("\x1b[H\x1b[2J", 7) <= 0) {
         exit(1);
     }
+#endif
 }
 
 static void refresh(void) {

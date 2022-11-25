@@ -721,7 +721,7 @@ JanetBuffer *janet_jdn(JanetBuffer *buffer, int depth, Janet x) {
     return janet_jdn_(buffer, depth, x, buffer ? buffer->count : 0);
 }
 
-static const char *typestr(Janet x) {
+static const char *jtypestr(Janet x) {
     JanetType t = janet_type(x);
     return (t == JANET_ABSTRACT)
            ? janet_abstract_type(janet_unwrap_abstract(x))->name
@@ -763,11 +763,11 @@ struct FmtMapping {
  * format specifiers to these fixed sizes */
 static const struct FmtMapping format_mappings[] = {
     {'d', PRId64},
-    {'i', PRIi64},
+    {'i', "li"},
     {'o', PRIo64},
     {'u', PRIu64},
     {'x', PRIx64},
-    {'X', PRIX64},
+    {'X', "lX"},
 };
 
 static const char *get_fmt_mapping(char c) {
@@ -894,7 +894,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     janet_description_b(b, va_arg(args, Janet));
                     break;
                 case 't':
-                    janet_buffer_push_cstring(b, typestr(va_arg(args, Janet)));
+                    janet_buffer_push_cstring(b, jtypestr(va_arg(args, Janet)));
                     break;
                 case 'T': {
                     int types = va_arg(args, long);
@@ -1057,7 +1057,7 @@ void janet_buffer_format(
                     break;
                 }
                 case 't':
-                    janet_buffer_push_cstring(b, typestr(argv[arg]));
+                    janet_buffer_push_cstring(b, jtypestr(argv[arg]));
                     break;
                 case 'M':
                 case 'm':
