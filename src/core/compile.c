@@ -1006,7 +1006,7 @@ JANET_CORE_FN(cfun_compile,
               "Each message will be a tuple of the form `(level line col message)`.") {
     janet_arity(argc, 1, 4);
     JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))
-            ? janet_gettable(argv, 1) : janet_vm.fiber->env;
+                      ? janet_gettable(argv, 1) : janet_vm.fiber->env;
     if (NULL == env) {
         env = janet_table(0);
         janet_vm.fiber->env = env;
@@ -1023,7 +1023,7 @@ JANET_CORE_FN(cfun_compile,
         }
     }
     JanetArray *lints = (argc >= 4 && !janet_checktype(argv[3], JANET_NIL))
-        ? janet_getarray(argv, 3) : NULL;
+                        ? janet_getarray(argv, 3) : NULL;
     JanetCompileResult res = janet_compile_lint(argv[0], env, source, lints);
     if (res.status == JANET_COMPILE_OK) {
         return janet_wrap_function(janet_thunk(res.funcdef));
