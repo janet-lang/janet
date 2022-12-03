@@ -1280,27 +1280,36 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 
 #endif
 
+/* Allocate executable memory chunks in sizes of a page. Ideally we would keep
+ * an allocator around so that multiple JIT allocations would point to the same
+ * region but it isn't really worth it. */
+#define FFI_PAGE_MASK 0xFFF
+
 JANET_CORE_FN(cfun_ffi_jitfn,
               "(ffi/jitfn bytes)",
               "Create an abstract type that can be used as the pointer argument to `ffi/call`. The content "
               "of `bytes` is architecture specific machine code that will be copied into executable memory.") {
     janet_fixarity(argc, 1);
     JanetByteView bytes = janet_getbytes(argv, 0);
+
+    /* Quick hack to align to page boundary, we should query OS. FIXME */
+    size_t alloc_size = ((size_t) bytes.len + FFI_PAGE_MASK) & ~FFI_PAGE_MASK;
+
 #ifdef JANET_FFI_JIT
     JanetFFIJittedFn *fn = janet_abstract_threaded(&janet_type_ffijit, sizeof(JanetFFIJittedFn));
     fn->function_pointer = NULL;
     fn->size = 0;
 #ifdef JANET_WINDOWS
-    void *ptr = VirtualAlloc(NULL, bytes.len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    void *ptr = VirtualAlloc(NULL, alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #elif defined(MAP_ANONYMOUS)
-    void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #elif defined(MAP_ANON)
     /* macos doesn't have MAP_ANONYMOUS */
-    void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 #else
     /* -std=c99 gets in the way */
     /* #define MAP_ANONYMOUS 0x20 should work, though. */
-    void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
+    void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
 #endif
     if (!ptr) {
         janet_panic("failed to memory map writable memory");
@@ -1308,16 +1317,16 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     memcpy(ptr, bytes.bytes, bytes.len);
 #ifdef JANET_WINDOWS
     DWORD old = 0;
-    if (!VirtualProtect(ptr, fn->size, PAGE_EXECUTE_READ, &old)) {
+    if (!VirtualProtect(ptr, alloc_size, PAGE_EXECUTE_READ, &old)) {
         janet_panic("failed to make mapped memory executable");
     }
 #else
-    if (mprotect(ptr, fn->size, PROT_READ | PROT_EXEC) == -1) {
+    if (mprotect(ptr, alloc_size, PROT_READ | PROT_EXEC) == -1) {
         janet_panic("failed to make mapped memory executable");
     }
 #endif
-    fn->size = (size_t) bytes.len;
-    fn->function_pointer = (JanetCFunction) ptr;
+    fn->size = alloc_size;
+    fn->function_pointer = ptr;
     return janet_wrap_abstract(fn);
 #else
     janet_panic("ffi/jitfn not available on this platform");
