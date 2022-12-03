@@ -171,6 +171,13 @@ extern "C" {
 #endif
 #endif
 
+/* If FFI is enabled and FFI-JIT is not disabled... */
+#ifdef JANET_FFI
+#ifndef JANET_NO_FFI_JIT
+#define JANET_FFI_JIT
+#endif
+#endif
+
 /* Enable or disable the assembler. Enabled by default. */
 #ifndef JANET_NO_ASSEMBLER
 #define JANET_ASSEMBLER

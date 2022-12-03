@@ -33,6 +33,8 @@
 /* #define JANET_NO_SYMLINKS */
 /* #define JANET_NO_UMASK */
 /* #define JANET_NO_THREADS */
+/* #define JANET_NO_FFI */
+/* #define JANET_NO_FFI_JIT */
 
 /* Other settings */
 /* #define JANET_DEBUG */

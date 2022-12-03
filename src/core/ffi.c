@@ -37,6 +37,13 @@
 #define alloca __builtin_alloca
 #endif
 
+/* FFI jit includes */
+#ifdef JANET_FFI_JIT
+#ifndef JANET_WINDOWS
+#include <sys/mman.h>
+#endif
+#endif
+
 #define JANET_FFI_MAX_RECUR 64
 
 /* Compiler, OS, and arch detection. Used
@@ -202,11 +209,45 @@ int struct_mark(void *p, size_t s) {
     return 0;
 }
 
+typedef struct {
+    void *function_pointer;
+    size_t size;
+} JanetFFIJittedFn;
+
 static const JanetAbstractType janet_struct_type = {
     "core/ffi-struct",
     NULL,
     struct_mark,
     JANET_ATEND_GCMARK
+};
+
+static int janet_ffijit_gc(void *p, size_t s) {
+    (void) s;
+    JanetFFIJittedFn *fn = p;
+    if (fn->function_pointer == NULL) return 0;
+#ifdef JANET_FFI_JIT
+#ifdef JANET_WINDOWS
+    VirtualFree(fn->function_pointer, fn->size, MEM_RELEASE);
+#else
+    munmap(fn->function_pointer, fn->size);
+#endif
+#endif
+    return 0;
+}
+
+static JanetByteView janet_ffijit_getbytes(void *p, size_t s) {
+    (void) s;
+    JanetFFIJittedFn *fn = p;
+    JanetByteView bytes;
+    bytes.bytes = fn->function_pointer;
+    bytes.len = fn->size;
+    return bytes;
+}
+
+const JanetAbstractType janet_type_ffijit = {
+    .name = "ffi/jitfn",
+    .gc = janet_ffijit_gc,
+    .bytes = janet_ffijit_getbytes
 };
 
 typedef struct {
@@ -430,8 +471,10 @@ static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
         case JANET_STRING:
         case JANET_KEYWORD:
         case JANET_SYMBOL:
-        case JANET_ABSTRACT:
+        case JANET_CFUNCTION:
             return janet_unwrap_pointer(argv[n]);
+        case JANET_ABSTRACT:
+            return (void *) janet_getbytes(argv, n).bytes;
         case JANET_BUFFER:
             return janet_unwrap_buffer(argv[n])->data;
         case JANET_FUNCTION:
@@ -442,6 +485,19 @@ static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
         case JANET_NIL:
             return NULL;
     }
+}
+
+static void *janet_ffi_get_callable_pointer(const Janet *argv, int32_t n) {
+    switch (janet_type(argv[n])) {
+        default:
+            break;
+        case JANET_POINTER:
+            return janet_unwrap_pointer(argv[n]);
+        case JANET_ABSTRACT:
+            if (!janet_checkabstract(argv[n], &janet_type_ffijit)) break;
+            return ((JanetFFIJittedFn *)janet_unwrap_abstract(argv[n]))->function_pointer;
+    }
+    janet_panicf("bad slot #%d, expected ffi callable pointer type, got %v", n, argv[n]);
 }
 
 /* Write a value given by some Janet values and an FFI type as it would appear in memory.
@@ -1224,12 +1280,49 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 
 #endif
 
+JANET_CORE_FN(cfun_ffi_jitfn,
+              "(ffi/jitfn bytes)",
+              "Create an abstract type that can be used as the pointer argument to `ffi/call`. The content "
+              "of `bytes` is architecture specific machine code that will be copied into executable memory.") {
+    janet_fixarity(argc, 1);
+    JanetByteView bytes = janet_getbytes(argv, 0);
+#ifdef JANET_FFI_JIT
+    JanetFFIJittedFn *fn = janet_abstract_threaded(&janet_type_ffijit, sizeof(JanetFFIJittedFn));
+    fn->function_pointer = NULL;
+    fn->size = 0;
+#ifdef JANET_WINDOWS
+    void *ptr = VirtualAlloc(NULL, bytes.len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#else
+    void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
+    if (!ptr) {
+        janet_panic("failed to memory map writable memory");
+    }
+    memcpy(ptr, bytes.bytes, bytes.len);
+#ifdef JANET_WINDOWS
+    DWORD old = 0;
+    if (!VirtualProtect(ptr, fn->size, PAGE_EXECUTE_READ, &old)) {
+        janet_panic("failed to make mapped memory executable");
+    }
+#else
+    if (mprotect(ptr, fn->size, PROT_READ | PROT_EXEC) == -1) {
+        janet_panic("failed to make mapped memory executable");
+    }
+#endif
+    fn->size = (size_t) bytes.len;
+    fn->function_pointer = (JanetCFunction) ptr;
+    return janet_wrap_abstract(fn);
+#else
+    janet_panic("ffi/jitfn not available on this platform");
+#endif
+}
+
 JANET_CORE_FN(cfun_ffi_call,
               "(ffi/call pointer signature & args)",
               "Call a raw pointer as a function pointer. The function signature specifies "
               "how Janet values in `args` are converted to native machine types.") {
     janet_arity(argc, 2, -1);
-    void *function_pointer = janet_getpointer(argv, 0);
+    void *function_pointer = janet_ffi_get_callable_pointer(argv, 0);
     JanetFFISignature *signature = janet_getabstract(argv, 1, &janet_signature_type);
     janet_fixarity(argc - 2, signature->arg_count);
     switch (signature->cc) {
@@ -1364,6 +1457,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/size", cfun_ffi_size),
         JANET_CORE_REG("ffi/align", cfun_ffi_align),
         JANET_CORE_REG("ffi/trampoline", cfun_ffi_get_callback_trampoline),
+        JANET_CORE_REG("ffi/jitfn", cfun_ffi_jitfn),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
