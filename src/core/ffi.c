@@ -240,7 +240,7 @@ static JanetByteView janet_ffijit_getbytes(void *p, size_t s) {
     JanetFFIJittedFn *fn = p;
     JanetByteView bytes;
     bytes.bytes = fn->function_pointer;
-    bytes.len = fn->size;
+    bytes.len = (int32_t) fn->size;
     return bytes;
 }
 
@@ -1299,6 +1299,7 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
 #else
     /* -std=c99 gets in the way */
+    /* #define MAP_ANONYMOUS 0x20 should work, though. */
     void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
 #endif
     if (!ptr) {
