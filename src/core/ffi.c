@@ -1294,9 +1294,12 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     void *ptr = VirtualAlloc(NULL, bytes.len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #elif defined(MAP_ANONYMOUS)
     void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-#else
+#elif defined(MAP_ANON)
     /* macos doesn't have MAP_ANONYMOUS */
     void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+#else
+    /* -std=c99 gets in the way */
+    void *ptr = mmap(0, bytes.len, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
 #endif
     if (!ptr) {
         janet_panic("failed to memory map writable memory");
