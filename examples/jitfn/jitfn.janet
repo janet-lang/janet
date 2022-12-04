@@ -10,3 +10,4 @@
 (def signature (ffi/signature :default :void))
 (ffi/call f signature)
 (print "called a jitted function with FFI!")
+(print "machine code: " (describe (string/slice f)))

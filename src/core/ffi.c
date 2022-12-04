@@ -244,10 +244,17 @@ static JanetByteView janet_ffijit_getbytes(void *p, size_t s) {
     return bytes;
 }
 
+static size_t janet_ffijit_length(void *p, size_t s) {
+    (void) s;
+    JanetFFIJittedFn *fn = p;
+    return fn->size;
+}
+
 const JanetAbstractType janet_type_ffijit = {
     .name = "ffi/jitfn",
     .gc = janet_ffijit_gc,
-    .bytes = janet_ffijit_getbytes
+    .bytes = janet_ffijit_getbytes,
+    .length = janet_ffijit_length
 };
 
 typedef struct {

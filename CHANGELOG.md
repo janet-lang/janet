@@ -2,10 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `ffi/jitfn` to allow calling function pointers generated at runtime from machine code.
+  Bring your own assembler, though.
 - Channels can now be marshalled. Pending state is not saved, only items in the channel.
 - Use the new `.length` function pointer on abstract types for lengths. Adding
   a `length` method will still work as well.
-- Support byte views on abstract types with the `bytes` function pointer.
+- Support byte views on abstract types with the `.bytes` function pointer.
 - Add the `u` format specifier to printf family functions.
 - Allow printing 64 integer types in `printf` and `string/format` family functions.
 - Allow importing modules from custom directories more easily with the `@` prefix
