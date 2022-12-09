@@ -2065,8 +2065,9 @@
   ret)
 
 (defn all
-  ``Returns true if all `xs` are truthy, otherwise the result of first
-  falsey predicate value, `(pred x)`.``
+  ``Returns true if `(pred item)` returns a truthy value for every item in `xs`.
+  Otherwise, returns the first falsey `(pred item)` result encountered.
+  Returns true if `xs` is empty.``
   [pred xs]
   (var ret true)
   (loop [x :in xs :while ret] (set ret (pred x)))
