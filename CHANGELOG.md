@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `ffi/malloc` and `ffi/free`. Useful as tools of last resort.
 - Add `ffi/jitfn` to allow calling function pointers generated at runtime from machine code.
   Bring your own assembler, though.
 - Channels can now be marshalled. Pending state is not saved, only items in the channel.
