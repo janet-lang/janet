@@ -209,6 +209,8 @@ JANET_CORE_FN(os_exit,
     return janet_wrap_nil();
 }
 
+#ifndef JANET_REDUCED_OS
+
 JANET_CORE_FN(os_cpu_count,
               "(os/cpu-count &opt dflt)",
               "Get an approximate number of CPUs available on for this process to use. If "
@@ -250,7 +252,6 @@ JANET_CORE_FN(os_cpu_count,
 #endif
 }
 
-#ifndef JANET_REDUCED_OS
 
 #ifndef JANET_NO_PROCESSES
 
