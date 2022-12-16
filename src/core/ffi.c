@@ -1467,6 +1467,25 @@ JANET_CORE_FN(janet_core_native_close,
     return janet_wrap_nil();
 }
 
+JANET_CORE_FN(cfun_ffi_malloc,
+              "(ffi/malloc size)",
+              "Allocates memory directly using the system memory allocator. Memory allocated in this way must be freed manually! Returns a raw pointer, or nil if size = 0.") {
+    janet_fixarity(argc, 1);
+    size_t size = janet_getsize(argv, 0);
+    if (size == 0) return janet_wrap_nil();
+    return janet_wrap_pointer(malloc(size));
+}
+
+JANET_CORE_FN(cfun_ffi_free,
+              "(ffi/free pointer)",
+              "Free memory allocated with `ffi/malloc`.") {
+    janet_fixarity(argc, 1);
+    if (janet_checktype(argv[0], JANET_NIL)) return janet_wrap_nil();
+    void *pointer = janet_getpointer(argv, 0);
+    free(pointer);
+    return janet_wrap_nil();
+}
+
 void janet_lib_ffi(JanetTable *env) {
     JanetRegExt ffi_cfuns[] = {
         JANET_CORE_REG("ffi/native", janet_core_raw_native),
@@ -1481,6 +1500,8 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/align", cfun_ffi_align),
         JANET_CORE_REG("ffi/trampoline", cfun_ffi_get_callback_trampoline),
         JANET_CORE_REG("ffi/jitfn", cfun_ffi_jitfn),
+        JANET_CORE_REG("ffi/malloc", cfun_ffi_malloc),
+        JANET_CORE_REG("ffi/free", cfun_ffi_free),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);
