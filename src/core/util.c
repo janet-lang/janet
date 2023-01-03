@@ -869,7 +869,7 @@ int janet_cryptorand(uint8_t *out, size_t n) {
         }
     }
     return 0;
-#elif defined(JANET_LINUX) || ( defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_7) )
+#elif defined(JANET_LINUX) || defined(JANET_CYGWIN) || ( defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_7) )
     /* We should be able to call getrandom on linux, but it doesn't seem
        to be uniformly supported on linux distros.
        On Mac, arc4random_buf wasn't available on until 10.7.

@@ -67,6 +67,11 @@ extern "C" {
 #define JANET_LINUX 1
 #endif
 
+/* Check for Cygwin */
+#if defined(__CYGWIN__)
+#define JANET_CYGWIN 1
+#endif
+
 /* Check Unix */
 #if defined(_AIX) \
     || defined(__APPLE__) /* Darwin */ \
