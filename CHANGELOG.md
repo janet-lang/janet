@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.26.0 - 2023-01-07
 - Add `ffi/malloc` and `ffi/free`. Useful as tools of last resort.
 - Add `ffi/jitfn` to allow calling function pointers generated at runtime from machine code.
   Bring your own assembler, though.
