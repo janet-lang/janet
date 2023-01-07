@@ -282,7 +282,7 @@ JANET_DEFINE_MATHOP(log2, log2, "Returns the log base 2 of x.")
 JANET_DEFINE_MATHOP(sqrt, sqrt, "Returns the square root of x.")
 JANET_DEFINE_MATHOP(cbrt, cbrt, "Returns the cube root of x.")
 JANET_DEFINE_MATHOP(ceil, ceil, "Returns the smallest integer value number that is not less than x.")
-JANET_DEFINE_MATHOP(fabs, fabs, "Return the absolute value of x.")
+JANET_DEFINE_MATHOP(abs, fabs, "Return the absolute value of x.")
 JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that is not greater than x.")
 JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
 JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
@@ -368,7 +368,7 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/floor", janet_floor),
         JANET_CORE_REG("math/ceil", janet_ceil),
         JANET_CORE_REG("math/pow", janet_pow),
-        JANET_CORE_REG("math/abs", janet_fabs),
+        JANET_CORE_REG("math/abs", janet_abs),
         JANET_CORE_REG("math/sinh", janet_sinh),
         JANET_CORE_REG("math/cosh", janet_cosh),
         JANET_CORE_REG("math/tanh", janet_tanh),

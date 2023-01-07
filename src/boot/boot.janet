@@ -839,15 +839,15 @@
   a)
 
 (defn sort
-  ``Sort `ind` in-place, and return it. Uses quick-sort and is not a stable sort.
+  ``Sorts `ind` in-place, and returns it. Uses quick-sort and is not a stable sort.
   If a `before?` comparator function is provided, sorts elements using that,
   otherwise uses `<`.``
   [ind &opt before?]
   (sort-help ind 0 (- (length ind) 1) (or before? <)))
 
 (defn sort-by
-  ``Returns `ind` sorted by calling
-  a function `f` on each element and comparing the result with `<`.``
+  ``Sorts `ind` in-place by calling a function `f` on each element and
+  comparing the result with `<`.``
   [f ind]
   (sort ind (fn [x y] (< (f x) (f y)))))
 
@@ -2065,8 +2065,9 @@
   ret)
 
 (defn all
-  ``Returns true if all `xs` are truthy, otherwise the result of first
-  falsey predicate value, `(pred x)`.``
+  ``Returns true if `(pred item)` returns a truthy value for every item in `xs`.
+  Otherwise, returns the first falsey `(pred item)` result encountered.
+  Returns true if `xs` is empty.``
   [pred xs]
   (var ret true)
   (loop [x :in xs :while ret] (set ret (pred x)))
