@@ -1311,6 +1311,10 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             const Janet *tup = janet_unwrap_tuple(peg);
             int32_t len = janet_tuple_length(tup);
             if (len == 0) peg_panic(b, "tuple in grammar must have non-zero length");
+            if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) {
+                spec_sequence(b, len, tup);
+                break;
+            }
             if (janet_checkint(tup[0])) {
                 int32_t n = janet_unwrap_integer(tup[0]);
                 if (n < 0) {

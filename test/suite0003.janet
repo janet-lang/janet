@@ -409,6 +409,11 @@
 (check-match '(* (? "hi") -1) "hi" true)
 (check-match '(* (? "hi") -1) "no" false)
 
+# Bracket sequence
+
+(check-match '["a" "b"] "ab" true)
+(check-match '["a" ["b" "c"]] "ab" false)
+
 # Drop
 
 (check-deep '(drop '"hello") "hello" @[])
