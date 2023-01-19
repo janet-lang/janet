@@ -254,12 +254,14 @@ JANET_CORE_FN(janet_srand,
     return janet_wrap_nil();
 }
 
-#define JANET_DEFINE_MATHOP(name, fop, doc)\
-JANET_CORE_FN(janet_##name, "(math/" #name " x)", doc) {\
+#define JANET_DEFINE_NAMED_MATHOP(c_name, janet_name, fop, doc)\
+JANET_CORE_FN(janet_##c_name, "(math/" #janet_name " x)", doc) {\
     janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
 }
+
+#define JANET_DEFINE_MATHOP(name, fop, doc) JANET_DEFINE_NAMED_MATHOP(name, name, fop, doc)
 
 JANET_DEFINE_MATHOP(acos, acos, "Returns the arccosine of x.")
 JANET_DEFINE_MATHOP(asin, asin, "Returns the arcsin of x.")
@@ -269,7 +271,7 @@ JANET_DEFINE_MATHOP(cosh, cosh, "Returns the hyperbolic cosine of x.")
 JANET_DEFINE_MATHOP(acosh, acosh, "Returns the hyperbolic arccosine of x.")
 JANET_DEFINE_MATHOP(sin, sin, "Returns the sine of x.")
 JANET_DEFINE_MATHOP(sinh, sinh, "Returns the hyperbolic sine of x.")
-JANET_DEFINE_MATHOP(asinh, asinh, "Returns the hypberbolic arcsine of x.")
+JANET_DEFINE_MATHOP(asinh, asinh, "Returns the hyperbolic arcsine of x.")
 JANET_DEFINE_MATHOP(tan, tan, "Returns the tangent of x.")
 JANET_DEFINE_MATHOP(tanh, tanh, "Returns the hyperbolic tangent of x.")
 JANET_DEFINE_MATHOP(atanh, atanh, "Returns the hyperbolic arctangent of x.")
@@ -287,7 +289,7 @@ JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that
 JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
 JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
 JANET_DEFINE_MATHOP(gamma, tgamma, "Returns gamma(x).")
-JANET_DEFINE_MATHOP(lgamma, lgamma, "Returns log-gamma(x).")
+JANET_DEFINE_NAMED_MATHOP(lgamma, "log-gamma", lgamma, "Returns log-gamma(x).")
 JANET_DEFINE_MATHOP(log1p, log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
 JANET_DEFINE_MATHOP(erf, erf, "Returns the error function of x.")
 JANET_DEFINE_MATHOP(erfc, erfc, "Returns the complementary error function of x.")
@@ -303,7 +305,7 @@ JANET_CORE_FN(janet_##name, signature, doc) {\
 JANET_DEFINE_MATH2OP(atan2, atan2, "(math/atan2 y x)", "Returns the arctangent of y/x. Works even when x is 0.")
 JANET_DEFINE_MATH2OP(pow, pow, "(math/pow a x)", "Returns a to the power of x.")
 JANET_DEFINE_MATH2OP(hypot, hypot, "(math/hypot a b)", "Returns c from the equation c^2 = a^2 + b^2.")
-JANET_DEFINE_MATH2OP(nextafter, nextafter,  "(math/next x y)", "Returns the next representable floating point vaue after x in the direction of y.")
+JANET_DEFINE_MATH2OP(nextafter, nextafter,  "(math/next x y)", "Returns the next representable floating point value after x in the direction of y.")
 
 JANET_CORE_FN(janet_not, "(not x)", "Returns the boolean inverse of x.") {
     janet_fixarity(argc, 1);

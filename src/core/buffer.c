@@ -442,7 +442,7 @@ JANET_CORE_FN(cfun_buffer_blit,
 JANET_CORE_FN(cfun_buffer_format,
               "(buffer/format buffer format & args)",
               "Snprintf like functionality for printing values into a buffer. Returns "
-              " the modified buffer.") {
+              "the modified buffer.") {
     janet_arity(argc, 2, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     const char *strfrmt = (const char *) janet_getstring(argv, 1);

@@ -2728,7 +2728,7 @@ error:
 
 JANET_CORE_FN(cfun_ev_go,
               "(ev/go fiber-or-fun &opt value supervisor)",
-              "Put a fiber on the event loop to be resumed later. If a function is used, it is wrapped"
+              "Put a fiber on the event loop to be resumed later. If a function is used, it is wrapped "
               "with `fiber/new` first. "
               "Optionally pass a value to resume with, otherwise resumes with nil. Returns the fiber. "
               "An optional `core/channel` can be provided as a supervisor. When various "
@@ -2939,7 +2939,7 @@ JANET_CORE_FN(cfun_ev_thread,
 
 JANET_CORE_FN(cfun_ev_give_supervisor,
               "(ev/give-supervisor tag & payload)",
-              "Send a message to the current supervior channel if there is one. The message will be a "
+              "Send a message to the current supervisor channel if there is one. The message will be a "
               "tuple of all of the arguments combined into a single message, where the first element is tag. "
               "By convention, tag should be a keyword indicating the type of message. Returns nil.") {
     janet_arity(argc, 1, -1);
