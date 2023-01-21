@@ -31,6 +31,7 @@ LIBDIR?=$(PREFIX)/lib
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
 CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
+JANET_IMPORT_LIB=build/janet.lib
 JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(LIBDIR)/janet
@@ -80,7 +81,7 @@ endif
 # Mingw
 ifeq ($(findstring MINGW,$(UNAME)), MINGW)
 	CLIBS:=-lws2_32 -lpsapi -lwsock32
-	LDFLAGS:=
+	LDFLAGS:=-Wl,--out-implib,$(JANET_IMPORT_LIB)
 endif
 
 $(shell mkdir -p build/core build/c build/boot)
@@ -307,6 +308,7 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	cp janet.1 '$(DESTDIR)$(JANET_MANPATH)'
 	mkdir -p '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
+	cp '$(JANET_IMPORT_LIB)' '$(DESTDIR)$(LIBDIR)' || echo 'no import lib to install (mingw only)'
 	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || echo "You can ignore this error for non-Linux systems or local installs"
 
 install-jpm-git: $(JANET_TARGET)
