@@ -118,6 +118,7 @@ JANET_CORE_FN(os_which,
               "(os/which)",
               "Check the current operating system. Returns one of:\n\n"
               "* :windows\n\n"
+              "* :mingw\n\n"
               "* :macos\n\n"
               "* :web - Web assembly (emscripten)\n\n"
               "* :linux\n\n"
@@ -130,6 +131,8 @@ JANET_CORE_FN(os_which,
     (void) argv;
 #if defined(JANET_OS_NAME)
     return janet_ckeywordv(janet_stringify(JANET_OS_NAME));
+#elif defined(JANET_MINGW)
+    return janet_ckeywordv("mingw");
 #elif defined(JANET_WINDOWS)
     return janet_ckeywordv("windows");
 #elif defined(JANET_APPLE)
@@ -445,7 +448,9 @@ typedef struct {
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
     WaitForSingleObject(proc->pHandle, INFINITE);
-    GetExitCodeProcess(proc->pHandle, (LPDWORD) &args.tag);
+    DWORD exitcode = 0;
+    GetExitCodeProcess(proc->pHandle, &exitcode);
+    args.tag = (int32_t) exitcode;
     return args;
 }
 

@@ -1178,7 +1178,13 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 
     /* hack to get proper stack placement and avoid clobbering from logic above - shift stack down, otherwise we have issues.
      * Technically, this writes into 16 bytes of unallocated stack memory */
+#ifdef JANET_MINGW
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
     if (stack_size) memmove(stack - stack_shift, stack, stack_size);
+#ifdef JANET_MINGW
+#pragma GCC diagnostic pop
+#endif
 
     switch (signature->variant) {
         default:

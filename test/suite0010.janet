@@ -144,7 +144,7 @@
 (assert (< 1000 1e23) "greater than immediate 2")
 
 # os/execute with environment variables
-(assert (= 0 (os/execute [(dyn :executable) "-e" "(+ 1 2 3)"] :pe {"HELLO" "WORLD"})) "os/execute with env")
+(assert (= 0 (os/execute [(dyn :executable) "-e" "(+ 1 2 3)"] :pe (merge (os/environ) {"HELLO" "WORLD"}))) "os/execute with env")
 
 # Regression #638
 (compwhen

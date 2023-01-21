@@ -97,6 +97,11 @@ extern "C" {
 #define JANET_MSVC
 #endif
 
+/* Check Mingw 32-bit and 64-bit */
+#ifdef __MINGW32__
+#define JANET_MINGW
+#endif
+
 /* Check 64-bit vs 32-bit */
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \
