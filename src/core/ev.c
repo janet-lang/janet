@@ -2212,9 +2212,9 @@ typedef struct {
     JanetReadMode mode;
 #ifdef JANET_WINDOWS
     OVERLAPPED overlapped;
+    DWORD flags;
 #ifdef JANET_NET
     WSABUF wbuf;
-    DWORD flags;
     struct sockaddr from;
     int fromlen;
 #endif
@@ -2288,8 +2288,8 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
                 state->overlapped.Offset = (DWORD) state->bytes_read;
 
                 status = ReadFile(s->stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
-                if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
-                    if (WSAGetLastError() == ERROR_BROKEN_PIPE) {
+                if (!status && (ERROR_IO_PENDING != GetLastError())) {
+                    if (GetLastError() == ERROR_BROKEN_PIPE) {
                         if (state->bytes_read) {
                             janet_schedule(s->fiber, janet_wrap_buffer(state->buf));
                         } else {
@@ -2441,9 +2441,9 @@ typedef struct {
     void *dest_abst;
 #ifdef JANET_WINDOWS
     OVERLAPPED overlapped;
+    DWORD flags;
 #ifdef JANET_NET
     WSABUF wbuf;
-    DWORD flags;
 #endif
 #else
     int flags;
@@ -2528,7 +2528,7 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
                 state->overlapped.Offset = (DWORD) 0xFFFFFFFF;
                 state->overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
                 status = WriteFile(s->stream->handle, bytes, len, NULL, &state->overlapped);
-                if (!status && (ERROR_IO_PENDING != WSAGetLastError())) {
+                if (!status && (ERROR_IO_PENDING != GetLastError())) {
                     janet_cancel(s->fiber, janet_ev_lasterr());
                     return JANET_ASYNC_STATUS_DONE;
                 }
