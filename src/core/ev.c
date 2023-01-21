@@ -2273,7 +2273,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
 #ifdef JANET_NET
             if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
                 state->wbuf.len = (ULONG) chunk_size;
-                state->wbuf.buf = state->chunk_buf;
+                state->wbuf.buf = (char *) state->chunk_buf;
                 status = WSARecvFrom((SOCKET) s->stream->handle, &state->wbuf, 1,
                                      NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
@@ -2664,15 +2664,15 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
      * so we lift from the windows source code and modify for our own version.
      */
     JanetHandle shandle, chandle;
-    UCHAR PipeNameBuffer[MAX_PATH];
+    CHAR PipeNameBuffer[MAX_PATH];
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
     saAttr.nLength = sizeof(saAttr);
     saAttr.bInheritHandle = TRUE;
     sprintf(PipeNameBuffer,
             "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
-            GetCurrentProcessId(),
-            InterlockedIncrement(&PipeSerialNumber));
+            (unsigned int) GetCurrentProcessId(),
+            (unsigned int) InterlockedIncrement(&PipeSerialNumber));
 
     /* server handle goes to subprocess */
     shandle = CreateNamedPipeA(

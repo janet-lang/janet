@@ -39,7 +39,9 @@
 #ifdef JANET_WINDOWS
 #ifdef JANET_DYNAMIC_MODULES
 #include <psapi.h>
+#ifdef JANET_MSVC
 #pragma comment (lib, "Psapi.lib")
+#endif
 #endif
 #endif
 
@@ -863,7 +865,7 @@ int janet_cryptorand(uint8_t *out, size_t n) {
         unsigned int v;
         if (rand_s(&v))
             return -1;
-        for (int32_t j = 0; (j < sizeof(unsigned int)) && (i + j < n); j++) {
+        for (int32_t j = 0; (j < (int32_t) sizeof(unsigned int)) && (i + j < n); j++) {
             out[i + j] = v & 0xff;
             v = v >> 8;
         }

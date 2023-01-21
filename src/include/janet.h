@@ -92,6 +92,11 @@ extern "C" {
 #define JANET_WINDOWS 1
 #endif
 
+/* Check if compiling with MSVC - else assume a GCC-like compiler by default */
+#ifdef _MSC_VER
+#define JANET_MSVC
+#endif
+
 /* Check 64-bit vs 32-bit */
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \

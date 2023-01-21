@@ -34,9 +34,11 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <mswsock.h>
+#ifdef JANET_MSVC
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "Advapi32.lib")
+#endif
 #else
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -173,7 +175,6 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
     Janet err;
-    SOCKET lsock = (SOCKET) stream->handle;
     JanetListenerState *s = janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
     NetStateAccept *state = (NetStateAccept *)s;
     memset(&state->overlapped, 0, sizeof(WSAOVERLAPPED));
@@ -706,7 +707,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
-    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
     return janet_so_getname(&ss);
 }
 
@@ -722,7 +723,7 @@ JANET_CORE_FN(cfun_net_getpeername,
     if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
-    janet_assert(slen <= sizeof(ss), "socket address truncated");
+    janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
     return janet_so_getname(&ss);
 }
 

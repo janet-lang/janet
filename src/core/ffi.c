@@ -838,7 +838,6 @@ JANET_CORE_FN(cfun_ffi_signature,
             }
 
             /* Add reference items */
-            size_t old_stack_count = stack_count;
             stack_count += 2 * ref_stack_count;
             if (stack_count & 0x1) {
                 stack_count++;

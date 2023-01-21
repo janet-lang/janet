@@ -98,11 +98,11 @@ size_t janet_os_rwlock_size(void) {
 }
 
 static int32_t janet_incref(JanetAbstractHead *ab) {
-    return InterlockedIncrement(&ab->gc.data.refcount);
+    return InterlockedIncrement((LONG volatile *) &ab->gc.data.refcount);
 }
 
 static int32_t janet_decref(JanetAbstractHead *ab) {
-    return InterlockedDecrement(&ab->gc.data.refcount);
+    return InterlockedDecrement((LONG volatile *) &ab->gc.data.refcount);
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {

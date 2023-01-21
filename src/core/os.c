@@ -445,7 +445,7 @@ typedef struct {
 static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
     JanetProc *proc = (JanetProc *) args.argp;
     WaitForSingleObject(proc->pHandle, INFINITE);
-    GetExitCodeProcess(proc->pHandle, &args.tag);
+    GetExitCodeProcess(proc->pHandle, (LPDWORD) &args.tag);
     return args;
 }
 
@@ -902,9 +902,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         janet_panic("failed to create pipes");
     }
 
-    /* Result */
-    int status = 0;
-
 #ifdef JANET_WINDOWS
 
     HANDLE pHandle, tHandle;
@@ -982,6 +979,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     tHandle = processInfo.hThread;
 
 #else
+
+    /* Result */
+    int status = 0;
 
     const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
     for (int32_t i = 0; i < exargs.len; i++)
@@ -1769,9 +1769,11 @@ static Janet os_stat_changed(jstat_t *st) {
 }
 #ifdef JANET_WINDOWS
 static Janet os_stat_blocks(jstat_t *st) {
+    (void) st;
     return janet_wrap_number(0);
 }
 static Janet os_stat_blocksize(jstat_t *st) {
+    (void) st;
     return janet_wrap_number(0);
 }
 #else
@@ -2047,6 +2049,7 @@ JANET_CORE_FN(os_open,
     uint32_t stream_flags = 0;
     JanetHandle fd;
 #ifdef JANET_WINDOWS
+    (void) mode;
     DWORD desiredAccess = 0;
     DWORD shareMode = 0;
     DWORD creationDisp = 0;

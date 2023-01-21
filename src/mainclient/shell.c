@@ -296,6 +296,7 @@ static char *sdup(const char *s) {
     return memcpy(mem, s, len);
 }
 
+#ifndef _WIN32
 static int curpos(void) {
     char buf[32];
     int cols, rows;
@@ -311,6 +312,7 @@ static int curpos(void) {
     if (sscanf(buf + 2, "%d;%d", &rows, &cols) != 2) return -1;
     return cols;
 }
+#endif
 
 static int getcols(void) {
 #ifdef _WIN32

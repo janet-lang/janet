@@ -77,6 +77,12 @@ ifeq ($(shell uname -o), Android)
 endif
 endif
 
+# Mingw
+ifeq ($(findstring MINGW,$(UNAME)), MINGW)
+	CLIBS:=-lws2_32 -lpsapi -lwsock32
+	LDFLAGS:=
+endif
+
 $(shell mkdir -p build/core build/c build/boot)
 all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
 
