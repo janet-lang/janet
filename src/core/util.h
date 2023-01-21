@@ -135,7 +135,7 @@ int janet_gettime(struct timespec *spec);
 typedef int Clib;
 #define load_clib(name) ((void) name, 0)
 #define symbol_clib(lib, sym) ((void) lib, (void) sym, NULL)
-#define error_clib() "dynamic libraries not supported"
+const char *error_clib(void);
 #define free_clib(c) ((void) (c), 0)
 #elif defined(JANET_WINDOWS)
 #include <windows.h>
@@ -150,7 +150,7 @@ typedef void *Clib;
 #define load_clib(name) dlopen((name), RTLD_NOW)
 #define free_clib(lib) dlclose((lib))
 #define symbol_clib(lib, sym) dlsym((lib), (sym))
-#define error_clib() dlerror()
+#define error_clib dlerror
 #endif
 char *get_processed_name(const char *name);
 

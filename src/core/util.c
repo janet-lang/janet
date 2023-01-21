@@ -920,6 +920,13 @@ char *get_processed_name(const char *name) {
     return ret;
 }
 
+#if defined(JANET_NO_DYNAMIC_MODULES)
+
+const char *error_clib(void) {
+    return "dynamic modules not supported";
+}
+
+#else
 #if defined(JANET_WINDOWS)
 
 static char error_clib_buf[256];
@@ -967,6 +974,7 @@ void *symbol_clib(HINSTANCE clib, const char *sym) {
     }
 }
 
+#endif
 #endif
 
 /* Alloc function macro fills */
