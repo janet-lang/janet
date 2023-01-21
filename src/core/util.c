@@ -927,7 +927,7 @@ const char *error_clib(void) {
 }
 
 #else
-#if defined(JANET_WINDOWS)
+#if defined(JANET_WINDOWS) && !defined(JANET_NO_DYNAMIC_MODULES)
 
 static char error_clib_buf[256];
 char *error_clib(void) {
