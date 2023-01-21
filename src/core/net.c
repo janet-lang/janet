@@ -729,7 +729,7 @@ JANET_CORE_FN(cfun_net_getpeername,
 
 JANET_CORE_FN(cfun_net_address_unpack,
               "(net/address-unpack address)",
-              "Given an address returned by net/adress, return a host, port pair. Unix domain sockets "
+              "Given an address returned by net/address, return a host, port pair. Unix domain sockets "
               "will have only the path in the returned tuple.") {
     janet_fixarity(argc, 1);
     struct sockaddr *sa = janet_getabstract(argv, 0, &janet_address_type);
@@ -799,7 +799,7 @@ JANET_CORE_FN(cfun_stream_chunk,
 }
 
 JANET_CORE_FN(cfun_stream_recv_from,
-              "(net/recv-from stream nbytes buf &opt timoeut)",
+              "(net/recv-from stream nbytes buf &opt timeout)",
               "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
               "packet came from. Takes an optional timeout in seconds, after which will return nil.") {
     janet_arity(argc, 3, 4);
