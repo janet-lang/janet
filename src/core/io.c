@@ -718,17 +718,17 @@ JanetFile *janet_getjfile(const Janet *argv, int32_t n) {
     return janet_getabstract(argv, n, &janet_file_type);
 }
 
-FILE *janet_getfile(const Janet *argv, int32_t n, int *flags) {
+FILE *janet_getfile(const Janet *argv, int32_t n, int32_t *flags) {
     JanetFile *iof = janet_getabstract(argv, n, &janet_file_type);
     if (NULL != flags) *flags = iof->flags;
     return iof->file;
 }
 
-JanetFile *janet_makejfile(FILE *f, int flags) {
+JanetFile *janet_makejfile(FILE *f, int32_t flags) {
     return makef(f, flags);
 }
 
-Janet janet_makefile(FILE *f, int flags) {
+Janet janet_makefile(FILE *f, int32_t flags) {
     return janet_wrap_abstract(makef(f, flags));
 }
 
@@ -736,7 +736,7 @@ JanetAbstract janet_checkfile(Janet j) {
     return janet_checkabstract(j, &janet_file_type);
 }
 
-FILE *janet_unwrapfile(Janet j, int *flags) {
+FILE *janet_unwrapfile(Janet j, int32_t *flags) {
     JanetFile *iof = janet_unwrap_abstract(j);
     if (NULL != flags) *flags = iof->flags;
     return iof->file;
