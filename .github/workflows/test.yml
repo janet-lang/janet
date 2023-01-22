@@ -35,3 +35,23 @@ jobs:
       - name: Test the project
         shell: cmd
         run: build_win test
+
+  test-mingw:
+    name: Build on Windows with Mingw (no test yet)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup Mingw
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            git
+      - name: Build the project
+        shell: cmd
+        run: make -j
