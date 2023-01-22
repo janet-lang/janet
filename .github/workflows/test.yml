@@ -48,11 +48,12 @@ jobs:
       - name: Setup Mingw
         uses: msys2/setup-msys2@v2
         with:
+          msystem: UCRT64
           update: true
           install: >-
             base-devel
             git
-            mingw-w64-x86_64-toolchain
+            gcc
       - name: Build the project
         shell: cmd
-        run: make -j
+        run: make -j CC=gcc
