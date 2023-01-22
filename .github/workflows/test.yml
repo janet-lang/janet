@@ -52,6 +52,7 @@ jobs:
           install: >-
             base-devel
             git
+            mingw-w64-x86_64-toolchain
       - name: Build the project
         shell: cmd
         run: make -j
