@@ -1976,7 +1976,7 @@ JANET_CORE_FN(os_rename,
 JANET_CORE_FN(os_realpath,
               "(os/realpath path)",
               "Get the absolute path for a given path, following ../, ./, and symlinks. "
-              "Returns an absolute path as a string. Will raise an error on Windows.") {
+              "Returns an absolute path as a string.") {
     janet_fixarity(argc, 1);
     const char *src = janet_getcstring(argv, 0);
 #ifdef JANET_NO_REALPATH
