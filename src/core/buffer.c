@@ -29,7 +29,7 @@
 #endif
 
 /* Initialize a buffer */
-JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
+static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
     if (capacity < 4) capacity = 4;
     janet_gcpressure(capacity);
@@ -43,6 +43,14 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     return buffer;
 }
 
+/* Initialize a buffer */
+JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
+    janet_buffer_init_impl(buffer, capacity);
+    buffer->gc.data.next = NULL;
+    buffer->gc.flags = JANET_MEM_DISABLED;
+    return buffer;
+}
+
 /* Deinitialize a buffer (free data memory) */
 void janet_buffer_deinit(JanetBuffer *buffer) {
     janet_free(buffer->data);
@@ -51,7 +59,7 @@ void janet_buffer_deinit(JanetBuffer *buffer) {
 /* Initialize a buffer */
 JanetBuffer *janet_buffer(int32_t capacity) {
     JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
-    return janet_buffer_init(buffer, capacity);
+    return janet_buffer_init_impl(buffer, capacity);
 }
 
 /* Ensure that the buffer has enough internal capacity */
