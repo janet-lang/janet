@@ -60,7 +60,7 @@ typedef struct {
     int is_error;
 } JanetTimeout;
 
-/* Registry table for C functions - containts metadata that can
+/* Registry table for C functions - contains metadata that can
  * be looked up by cfunction pointer. All strings here are pointing to
  * static memory not managed by Janet. */
 typedef struct {
@@ -91,7 +91,7 @@ struct JanetVM {
     int auto_suspend;
 
     /* The current running fiber on the current thread.
-     * Set and unset by janet_run. */
+     * Set and unset by functions in vm.c */
     JanetFiber *fiber;
     JanetFiber *root_fiber;
 
@@ -107,7 +107,7 @@ struct JanetVM {
     size_t registry_count;
     int registry_dirty;
 
-    /* Registry for abstract abstract types that can be marshalled.
+    /* Registry for abstract types that can be marshalled.
      * We need this to look up the constructors when unmarshalling. */
     JanetTable *abstract_registry;
 

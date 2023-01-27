@@ -133,7 +133,7 @@ struct JanetScope {
     /* FuncDefs */
     JanetFuncDef **defs;
 
-    /* Regsiter allocator */
+    /* Register allocator */
     JanetcRegisterAllocator ra;
 
     /* Upvalue allocator */
@@ -227,7 +227,7 @@ JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len);
 /* Get a bunch of slots for function arguments */
 JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds);
 
-/* Push slots load via janetc_toslots. */
+/* Push slots loaded via janetc_toslots. */
 int32_t janetc_pushslots(JanetCompiler *c, JanetSlot *slots);
 
 /* Free slots loaded via janetc_toslots */
