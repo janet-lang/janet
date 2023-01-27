@@ -162,6 +162,8 @@ JANET_CORE_FN(os_arch,
               "* :x64\n\n"
               "* :arm\n\n"
               "* :aarch64\n\n"
+              "* :riscv32\n\n"
+              "* :riscv64\n\n"
               "* :sparc\n\n"
               "* :wasm\n\n"
               "* :unknown\n") {
@@ -180,6 +182,10 @@ JANET_CORE_FN(os_arch,
     return janet_ckeywordv("aarch64");
 #elif defined(_M_ARM) || defined(__arm__)
     return janet_ckeywordv("arm");
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+    return janet_ckeywordv("riscv64");
+#elif (defined(__riscv) && (__riscv_xlen == 32))
+    return janet_ckeywordv("riscv32");
 #elif (defined(__sparc__))
     return janet_ckeywordv("sparc");
 #elif (defined(__ppc__))
