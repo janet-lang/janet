@@ -3933,7 +3933,7 @@
       compile-only (flycheck stdin :source :stdin :exit exit-on-error)
       (do
         (if-not quiet
-          (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) " - '(doc)' for help"))
+          (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) "/" (os/compiler) " - '(doc)' for help"))
         (flush)
         (defn getprompt [p]
           (def [line] (parser/where p))

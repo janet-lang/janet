@@ -119,6 +119,7 @@ JANET_CORE_FN(os_which,
               "Check the current operating system. Returns one of:\n\n"
               "* :windows\n\n"
               "* :mingw\n\n"
+              "* :cygwin\n\n"
               "* :macos\n\n"
               "* :web - Web assembly (emscripten)\n\n"
               "* :linux\n\n"
@@ -133,6 +134,8 @@ JANET_CORE_FN(os_which,
     return janet_ckeywordv(janet_stringify(JANET_OS_NAME));
 #elif defined(JANET_MINGW)
     return janet_ckeywordv("mingw");
+#elif defined(JANET_CYGWIN)
+    return janet_ckeywordv("cygwin");
 #elif defined(JANET_WINDOWS)
     return janet_ckeywordv("windows");
 #elif defined(JANET_APPLE)
@@ -192,6 +195,27 @@ JANET_CORE_FN(os_arch,
     return janet_ckeywordv("ppc");
 #elif (defined(__ppc64__) || defined(_ARCH_PPC64) || defined(_M_PPC))
     return janet_ckeywordv("ppc64");
+#else
+    return janet_ckeywordv("unknown");
+#endif
+}
+
+/* Detect the compiler used to build the interpreter */
+JANET_CORE_FN(os_compiler,
+              "(os/compiler)",
+              "Get the compiler used to compile the interpreter. Returns one of:\n\n"
+              "* :gcc\n\n"
+              "* :clang\n\n"
+              "* :msvc\n\n"
+              "* :unknown\n\n") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+#if defined(_MSC_VER)
+    return janet_ckeywordv("msvc");
+#elif defined(__clang__)
+    return janet_ckeywordv("clang");
+#elif defined(__GNUC__)
+    return janet_ckeywordv("gcc");
 #else
     return janet_ckeywordv("unknown");
 #endif
@@ -2244,6 +2268,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/exit", os_exit),
         JANET_CORE_REG("os/which", os_which),
         JANET_CORE_REG("os/arch", os_arch),
+        JANET_CORE_REG("os/compiler", os_compiler),
 #ifndef JANET_REDUCED_OS
         JANET_CORE_REG("os/environ", os_environ),
         JANET_CORE_REG("os/getenv", os_getenv),
