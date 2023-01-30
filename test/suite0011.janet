@@ -102,5 +102,8 @@
   (assert (= 6 (with-dyns [*err* errout] (dummy 1 2 3))) "trace to custom err function")
   (assert (deep= @"trace (dummy 1 2 3)\n" b) "trace buffer correct"))
 
+(def f (asm (disasm (fn [x] (fn [y] (+ x y))))))
+(assert (= ((f 10) 37) 47) "asm environment tables")
+
 (end-suite)
 

@@ -131,9 +131,9 @@ void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
             if (!wrote_error) {
                 JanetFiberStatus status = janet_fiber_status(fiber);
                 janet_eprintf("%s%s: %s\n",
-                              prefix,
+                              prefix ? prefix : "",
                               janet_status_names[status],
-                              errstr);
+                              errstr ? errstr : janet_status_names[status]);
                 wrote_error = 1;
             }
 

@@ -109,7 +109,7 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
     pbuf.p = pointer;
     *c++ = '<';
     /* Maximum of 32 bytes for abstract type name */
-    for (i = 0; title[i] && i < 32; ++i)
+    for (i = 0; i < 32 && title[i]; ++i)
         *c++ = ((uint8_t *)title) [i];
     *c++ = ' ';
     *c++ = '0';

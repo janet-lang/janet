@@ -187,7 +187,11 @@ static void janet_asm_longjmp(JanetAssembler *a) {
 
 /* Throw some kind of assembly error */
 static void janet_asm_error(JanetAssembler *a, const char *message) {
-    a->errmessage = janet_formatc("%s, instruction %d", message, a->errindex);
+    if (a->errindex < 0) {
+        a->errmessage = janet_formatc("%s", message);
+    } else {
+        a->errmessage = janet_formatc("%s, instruction %d", message, a->errindex);
+    }
     janet_asm_longjmp(a);
 }
 #define janet_asm_assert(a, c, m) do { if (!(c)) janet_asm_error((a), (m)); } while (0)
@@ -516,6 +520,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 #endif
         if (NULL != a.parent) {
             janet_asm_deinit(&a);
+            a.parent->errmessage = a.errmessage;
             janet_asm_longjmp(a.parent);
         }
         result.funcdef = NULL;
@@ -601,6 +606,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 
     /* Parse sub funcdefs */
     x = janet_get1(s, janet_ckeywordv("closures"));
+    if (janet_checktype(x, JANET_NIL)) {
+        x = janet_get1(s, janet_ckeywordv("defs"));
+    }
     if (janet_indexed_view(x, &arr, &count)) {
         int32_t i;
         for (i = 0; i < count; i++) {
@@ -714,8 +722,17 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     }
 
     /* Set environments */
-    def->environments =
-        janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
+    def->environments = janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
+    x = janet_get1(s, janet_ckeywordv("environments"));
+    if (janet_indexed_view(x, &arr, &count)) {
+        def->environments_length = count;
+        for (int32_t i = 0; i < count; i++) {
+            if (!janet_checkint(arr[i])) {
+                janet_asm_error(&a, "expected integer");
+            }
+            def->environments[i] = janet_unwrap_integer(arr[i]);
+        }
+    }
     if (NULL == def->environments) {
         JANET_OUT_OF_MEMORY;
     }
@@ -961,7 +978,7 @@ JANET_CORE_FN(cfun_asm,
     JanetAssembleResult res;
     res = janet_asm(argv[0], 0);
     if (res.status != JANET_ASSEMBLE_OK) {
-        janet_panics(res.error);
+        janet_panics(res.error ? res.error : janet_cstring("invalid assembly"));
     }
     return janet_wrap_function(janet_thunk(res.funcdef));
 }
