@@ -882,34 +882,19 @@ static Janet janet_disasm_slotcount(JanetFuncDef *def) {
     return janet_wrap_integer(def->slotcount);
 }
 
-/*
-example structure:
-:slotsyms @[(:top :top @{"o1" @[(-1 0)] "outer" @[(0 1)])])
-            (2    8
-#            ^ beginning of scope
-#                 ^ end of scope
-                       @{"inner" @[(6 6)] "odo4" @[(2 4) (10 7)]})]
-#                                   ^               ^ bytecode index of def
-#                                     ^               ^ slot index
-                                                         ^ redefinition
-
-beginning of scope is the bytecode index of when a scope begins.
-if the program counter is >= beginning of scope and < end of scope, it is
-currently in that scope.
-
-bytecode index of def is the bytecode index from where the slot / sym is actually defined. before this point the slot might have a value, but it's just residual data from earlier slot usage.
-
-the redefinition is an example of what happens if the same symbol is used twice, e.g. due to calling `def` twice with the same symbol in the same scope. in that case the first slot (4) is valid from the first bytecode index until the bytecode index in the redefinition, after which the second slot (4) is valid.
-
-:top means the function's scope, e.g. parameters and `def` calls outside of e.g. a `do`-block
-*/
-static Janet janet_disasm_slotsyms(JanetFuncDef *def) {
-    JanetArray *slotsyms = janet_array(def->slotsyms_length);
-    for (int32_t i = 0; i < def->slotsyms_length; i++) {
-        slotsyms->data[i] = def->slotsyms[i];
+static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
+    JanetArray *symbolslots = janet_array(def->symbolslots_length);
+    for (int32_t i = 0; i < def->symbolslots_length; i++) {
+        JanetSymbolSlot ss = def->symbolslots[i];
+        Janet *t = janet_tuple_begin(4);
+        t[0] = janet_wrap_integer(ss.birth_pc);
+        t[1] = janet_wrap_integer(ss.death_pc);
+        t[2] = janet_wrap_integer(ss.slot_index);
+        t[3] = janet_cstringv((const char *) ss.symbol);
+        symbolslots->data[i] = janet_wrap_tuple(janet_tuple_end(t));
     }
-    slotsyms->count = def->slotsyms_length;
-    return janet_wrap_array(slotsyms);
+    symbolslots->count = def->symbolslots_length;
+    return janet_wrap_array(symbolslots);
 }
 
 
@@ -992,7 +977,7 @@ Janet janet_disasm(JanetFuncDef *def) {
     janet_table_put(ret, janet_ckeywordv("structarg"), janet_disasm_structarg(def));
     janet_table_put(ret, janet_ckeywordv("name"), janet_disasm_name(def));
     janet_table_put(ret, janet_ckeywordv("slotcount"), janet_disasm_slotcount(def));
-    janet_table_put(ret, janet_ckeywordv("slotsyms"), janet_disasm_slotsyms(def));
+    janet_table_put(ret, janet_ckeywordv("symbolslots"), janet_disasm_symbolslots(def));
     janet_table_put(ret, janet_ckeywordv("constants"), janet_disasm_constants(def));
     janet_table_put(ret, janet_ckeywordv("sourcemap"), janet_disasm_sourcemap(def));
     janet_table_put(ret, janet_ckeywordv("environments"), janet_disasm_environments(def));
@@ -1029,7 +1014,7 @@ JANET_CORE_FN(cfun_disasm,
               "* :source - name of source file that this function was compiled from.\n"
               "* :name - name of function.\n"
               "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
-              "* :slotsyms - all slots and their symbols.\n"
+              "* :symbolslots - all symbols and their slots.\n"
               "* :constants - an array of constants referenced by this function.\n"
               "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
               "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"

@@ -755,7 +755,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
 
 
         if (janet_truthy(janet_dyn("debug"))) {
-            janet_array_push(c->local_binds, janet_wrap_array(janet_array(0)));
+            janet_v_push(c->local_symbols, NULL);
         }
         janetc_scope(&tempscope, c, JANET_SCOPE_FUNCTION, "while-iife");
 
@@ -834,7 +834,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     /* Begin function */
     c->scope->flags |= JANET_SCOPE_CLOSURE;
     if (janet_truthy(janet_dyn("debug"))) {
-        janet_array_push(c->local_binds, janet_wrap_array(janet_array(0)));
+        janet_v_push(c->local_symbols, NULL);
     }
     janetc_scope(&fnscope, c, JANET_SCOPE_FUNCTION, "function");
 

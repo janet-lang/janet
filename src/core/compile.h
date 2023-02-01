@@ -161,7 +161,7 @@ struct JanetCompiler {
     /* Hold the environment */
     JanetTable *env;
 
-    JanetArray *local_binds;
+    JanetSymbolSlot **local_symbols;
 
     /* Name of source to attach to generated functions */
     const uint8_t *source;

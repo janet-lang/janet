@@ -448,6 +448,7 @@ typedef struct JanetReg JanetReg;
 typedef struct JanetRegExt JanetRegExt;
 typedef struct JanetMethod JanetMethod;
 typedef struct JanetSourceMapping JanetSourceMapping;
+typedef struct JanetSymbolSlot JanetSymbolSlot;
 typedef struct JanetView JanetView;
 typedef struct JanetByteView JanetByteView;
 typedef struct JanetDictView JanetDictView;
@@ -1018,6 +1019,14 @@ struct JanetSourceMapping {
     int32_t column;
 };
 
+/* Symbol to slot mapping & lifetime structure. */
+struct JanetSymbolSlot {
+    uint32_t birth_pc;
+    uint32_t death_pc;
+    uint32_t slot_index;
+    const uint8_t *symbol;
+};
+
 /* A function definition. Contains information needed to instantiate closures. */
 struct JanetFuncDef {
     JanetGCObject gc;
@@ -1031,7 +1040,7 @@ struct JanetFuncDef {
     JanetSourceMapping *sourcemap;
     JanetString source;
     JanetString name;
-    Janet *slotsyms;
+    JanetSymbolSlot *symbolslots;
 
     int32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
@@ -1042,7 +1051,7 @@ struct JanetFuncDef {
     int32_t bytecode_length;
     int32_t environments_length;
     int32_t defs_length;
-    int32_t slotsyms_length;
+    int32_t symbolslots_length;
 };
 
 /* A function environment */

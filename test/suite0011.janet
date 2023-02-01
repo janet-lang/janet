@@ -106,4 +106,3 @@
 (assert (= ((f 10) 37) 47) "asm environment tables")
 
 (end-suite)
-
