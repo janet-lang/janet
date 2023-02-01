@@ -26,6 +26,17 @@
   "symbolslots survive disasm/asm")
 (setdyn *debug* false)
 
+# need to fix upvalues
+(comment
+  (setdyn *debug* true)
+  (setdyn :pretty-format "%.40M")
+    (def f (fn [x] (fn [y] (+ x y))))
+    (assert (deep= (map last (in (disasm (f 10)) :symbolslots))
+                  @["x" "y"])
+            "symbolslots upvalues")
+  (setdyn *debug* false)
+  )
+
 (setdyn *debug* true)
 (assert (deep= (in (disasm (defn a [arg]
                             (def x 10)
