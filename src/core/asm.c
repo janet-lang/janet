@@ -883,6 +883,8 @@ static Janet janet_disasm_slotcount(JanetFuncDef *def) {
 }
 
 static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
+    // *debug* was probably not true when compiling the function
+    if (def->symbolslots == NULL) { return janet_wrap_nil(); }
     JanetArray *symbolslots = janet_array(def->symbolslots_length);
     for (int32_t i = 0; i < def->symbolslots_length; i++) {
         JanetSymbolSlot ss = def->symbolslots[i];

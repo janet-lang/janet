@@ -2774,8 +2774,7 @@
 
   (loop [[birth death slot sym] :in symbolslots]
     (when (and (<= birth pc)
-               (or (= death 0)
-                   (< pc death)))
+               (< pc death))
         (put nextenv (symbol sym) @{:value (get-in frame [:slots slot])})))
 
   (merge-into nextenv debugger-env)
