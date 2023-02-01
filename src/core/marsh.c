@@ -824,6 +824,8 @@ static const uint8_t *unmarshal_one_def(
         def->constants = NULL;
         def->bytecode = NULL;
         def->sourcemap = NULL;
+        def->symbolslots = NULL;
+        def->symbolslots_length = 0;
         janet_v_push(st->lookup_defs, def);
 
         /* Set default lengths to zero */

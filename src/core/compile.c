@@ -1012,9 +1012,7 @@ JanetCompileResult janet_compile_lint(Janet source,
     janetc_init(&c, env, where, lints);
 
     /* Push a function scope */
-    if (janet_truthy(janet_dyn("debug"))) {
-        janet_v_push(c.local_symbols, NULL);
-    }
+    janet_v_push(c.local_symbols, NULL);
     janetc_scope(&rootscope, &c, JANET_SCOPE_FUNCTION | JANET_SCOPE_TOP, "root");
 
     /* Set initial form options */

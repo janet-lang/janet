@@ -218,7 +218,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->closure_bitset = NULL;
     def->flags = 0;
     def->slotcount = 0;
-    def->symbolslots = 0;
+    def->symbolslots = NULL;
     def->arity = 0;
     def->min_arity = 0;
     def->max_arity = INT32_MAX;

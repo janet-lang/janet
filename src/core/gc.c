@@ -314,6 +314,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_free(def->bytecode);
             janet_free(def->sourcemap);
             janet_free(def->closure_bitset);
+            janet_free(def->symbolslots);
         }
         break;
     }

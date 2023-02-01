@@ -753,10 +753,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         if (c->buffer) janet_v__cnt(c->buffer) = labelwt;
         if (c->mapbuffer) janet_v__cnt(c->mapbuffer) = labelwt;
 
-
-        if (janet_truthy(janet_dyn("debug"))) {
-            janet_v_push(c->local_symbols, NULL);
-        }
+        janet_v_push(c->local_symbols, NULL);
         janetc_scope(&tempscope, c, JANET_SCOPE_FUNCTION, "while-iife");
 
         /* Recompile in the function scope */
@@ -833,9 +830,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Begin function */
     c->scope->flags |= JANET_SCOPE_CLOSURE;
-    if (janet_truthy(janet_dyn("debug"))) {
-        janet_v_push(c->local_symbols, NULL);
-    }
+    janet_v_push(c->local_symbols, NULL);
     janetc_scope(&fnscope, c, JANET_SCOPE_FUNCTION, "function");
 
     if (argn == 0) {
