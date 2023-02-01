@@ -97,6 +97,8 @@ void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
     sp.slot = s;
     sp.keep = 0;
     sp.slot.flags |= JANET_SLOT_NAMED;
+    // -1 because c->buffer has already passed the `def`/`var`
+    sp.bytecode_pos = janet_v_count(c->buffer) - 1;
     janet_v_push(c->scope->syms, sp);
 }
 
@@ -172,8 +174,52 @@ void janetc_popscope(JanetCompiler *c) {
                 janetc_regalloc_touch(&newscope->ra, pair.slot.index);
             }
         }
-
     }
+
+    if (janet_truthy(janet_dyn("debug"))) {
+        /* push symbols */
+        if (true || (!(oldscope->flags & (JANET_SCOPE_FUNCTION | JANET_SCOPE_UNUSED)) && newscope)) {
+            Janet *t = janet_tuple_begin(3);
+            t[0] = janet_wrap_integer(oldscope->bytecode_start);
+            t[1] = janet_wrap_integer(janet_v_count(c->buffer));
+
+            JanetTable *sym_table = janet_table(janet_v_count(oldscope->syms));
+
+            for (int32_t i = 0; i < janet_v_count(oldscope->syms); i++) {
+                SymPair pair = oldscope->syms[i];
+
+                if (pair.sym != NULL) {
+                    Janet *symbol_tuple = janet_tuple_begin(2);
+                    symbol_tuple[0] = janet_wrap_integer(pair.bytecode_pos);
+                    symbol_tuple[1] = janet_wrap_integer(pair.slot.index);
+
+                    Janet k = janet_cstringv((const char *) pair.sym);
+
+                    Janet arr = janet_table_get(sym_table, k);
+
+                    if (janet_checktype(arr, JANET_NIL)) {
+                        JanetArray *a = janet_array(1);
+                        janet_array_push(a, janet_wrap_tuple(janet_tuple_end(symbol_tuple)));
+                        janet_table_put(sym_table, k, janet_wrap_array(a));
+                    } else {
+                        JanetArray *a = janet_unwrap_array(arr);
+                        janet_array_push(a, janet_wrap_tuple(janet_tuple_end(symbol_tuple)));
+                    }
+                }
+            }
+
+            t[2] = janet_wrap_table(sym_table);
+            if (c->local_binds->count > 0) {
+                janet_array_push(janet_unwrap_array(c->local_binds->data[c->local_binds->count - 1]), janet_wrap_tuple(janet_tuple_end(t)));
+            } else {
+                // this shouldn't occur -- local_binds should always have at least
+                // 1 element when a scope is popped
+                fprintf(stderr, "no local_binds pushed\n");
+            }
+        }
+        /* end push symbols */
+    }
+
     /* Free the old scope */
     janet_v_free(oldscope->consts);
     janet_v_free(oldscope->syms);
@@ -926,6 +972,24 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
+
+    if (janet_truthy(janet_dyn("debug"))) {
+        JanetArray *last_binds = janet_unwrap_array(c->local_binds->data[c->local_binds->count - 1]);
+
+        def->slotsyms_length = last_binds->count;
+        def->slotsyms = janet_malloc(sizeof(Janet) * (size_t)def->slotsyms_length);
+
+        //                       just gotta modify some tuples
+        Janet *top_level_tuple = (Janet *)janet_unwrap_tuple(last_binds->data[last_binds->count - 1]);
+        top_level_tuple[0] = janet_ckeywordv("top");
+        top_level_tuple[1] = janet_ckeywordv("top");
+        for (int i = 0; i < last_binds->count; i++) {
+            def->slotsyms[def->slotsyms_length - i - 1] = last_binds->data[i];
+        }
+    }
+
+    janet_array_pop(c->local_binds);
+
     return def;
 }
 
@@ -936,6 +1000,7 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
     c->mapbuffer = NULL;
     c->recursion_guard = JANET_RECURSION_GUARD;
     c->env = env;
+    c->local_binds = janet_array(0);
     c->source = where;
     c->current_mapping.line = -1;
     c->current_mapping.column = -1;
@@ -954,6 +1019,7 @@ static void janetc_deinit(JanetCompiler *c) {
     janet_v_free(c->buffer);
     janet_v_free(c->mapbuffer);
     c->env = NULL;
+    c->local_binds = NULL;
 }
 
 /* Compile a form. */
@@ -966,6 +1032,9 @@ JanetCompileResult janet_compile_lint(Janet source,
     janetc_init(&c, env, where, lints);
 
     /* Push a function scope */
+    if (janet_truthy(janet_dyn("debug"))) {
+        janet_array_push(c.local_binds, janet_wrap_array(janet_array(0)));
+    }
     janetc_scope(&rootscope, &c, JANET_SCOPE_FUNCTION | JANET_SCOPE_TOP, "root");
 
     /* Set initial form options */
@@ -984,6 +1053,9 @@ JanetCompileResult janet_compile_lint(Janet source,
     } else {
         c.result.error_mapping = c.current_mapping;
         janetc_popscope(&c);
+        if (janet_truthy(janet_dyn("debug"))) {
+            janet_array_pop(c.local_binds);
+        }
     }
 
     janetc_deinit(&c);

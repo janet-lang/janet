@@ -1031,6 +1031,7 @@ struct JanetFuncDef {
     JanetSourceMapping *sourcemap;
     JanetString source;
     JanetString name;
+    Janet *slotsyms;
 
     int32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
@@ -1041,6 +1042,7 @@ struct JanetFuncDef {
     int32_t bytecode_length;
     int32_t environments_length;
     int32_t defs_length;
+    int32_t slotsyms_length;
 };
 
 /* A function environment */

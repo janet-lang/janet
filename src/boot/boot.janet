@@ -2766,6 +2766,22 @@
   (put nextenv :fiber fiber)
   (put nextenv :debug-level level)
   (put nextenv :signal (fiber/last-value fiber))
+
+  # define variables available at breakpoint
+  (def frame ((debug/stack fiber) 0))
+  (def slotsyms ((disasm (frame :function)) :slotsyms))
+  (def pc (frame :pc))
+
+  (loop [[start stop syms] :in slotsyms]
+    (when (and (or (= start :top)
+                   (<= start pc))
+               (or (= stop :top)
+                   (< pc stop)))
+      (loop [[sym instances] :pairs syms
+             [def-index slot] :in instances
+             :when (<= def-index pc)]
+        (put nextenv (symbol sym) @{:value (get-in frame [:slots slot])}))))
+
   (merge-into nextenv debugger-env)
   (defn debugger-chunks [buf p]
     (def status (:state p :delimiters))

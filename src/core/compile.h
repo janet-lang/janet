@@ -112,6 +112,7 @@ typedef struct SymPair {
     JanetSlot slot;
     const uint8_t *sym;
     int keep;
+    int32_t bytecode_pos;
 } SymPair;
 
 /* A lexical scope during compilation */
@@ -159,6 +160,8 @@ struct JanetCompiler {
 
     /* Hold the environment */
     JanetTable *env;
+
+    JanetArray *local_binds;
 
     /* Name of source to attach to generated functions */
     const uint8_t *source;
