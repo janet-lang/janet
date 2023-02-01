@@ -998,8 +998,8 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
 static void janetc_deinit(JanetCompiler *c) {
     janet_v_free(c->buffer);
     janet_v_free(c->mapbuffer);
-    c->env = NULL;
     janet_v_free(c->local_symbols);
+    c->env = NULL;
 }
 
 /* Compile a form. */

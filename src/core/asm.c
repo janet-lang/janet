@@ -721,6 +721,46 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         }
     }
 
+    /* Set symbolslots */
+    def->symbolslots = NULL;
+    def->symbolslots_length = 0;
+
+    x = janet_get1(s, janet_ckeywordv("symbolslots"));
+    if (janet_indexed_view(x, &arr, &count)) {
+        def->symbolslots_length = count;
+        def->symbolslots = janet_malloc(sizeof(JanetSymbolSlot) * (size_t) count);
+        if (NULL == def->symbolslots) {
+            JANET_OUT_OF_MEMORY;
+        }
+        for (i = 0; i < count; i++) {
+            const Janet *tup;
+            Janet entry = arr[i];
+            JanetSymbolSlot ss;
+            if (!janet_checktype(entry, JANET_TUPLE)) {
+                janet_asm_error(&a, "expected tuple");
+            }
+            tup = janet_unwrap_tuple(entry);
+            if (!janet_checkint(tup[0])) {
+                janet_asm_error(&a, "expected integer");
+            }
+            if (!janet_checkint(tup[1])) {
+                janet_asm_error(&a, "expected integer");
+            }
+            if (!janet_checkint(tup[2])) {
+                janet_asm_error(&a, "expected integer");
+            }
+            if (!janet_checktype(tup[3], JANET_STRING)) {
+                janet_asm_error(&a, "expected string");
+            }
+            ss.birth_pc = janet_unwrap_integer(tup[0]);
+            ss.death_pc = janet_unwrap_integer(tup[1]);
+            ss.slot_index = janet_unwrap_integer(tup[2]);
+            ss.symbol = janet_unwrap_string(tup[3]);
+
+            def->symbolslots[i] = ss;
+        }
+    }
+
     /* Set environments */
     def->environments = janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
     x = janet_get1(s, janet_ckeywordv("environments"));
