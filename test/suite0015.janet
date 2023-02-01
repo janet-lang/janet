@@ -3,8 +3,7 @@
 (import ./helper :prefix "" :exit true)
 (start-suite 15)
 
-(assert (deep= (in (disasm (defn a [] (def x 10) x)) :symbolslots)
-               @[])
+(assert (deep= (in (disasm (defn a [] (def x 10) x)) :symbolslots) nil)
   "no symbolslots when *debug* is false")
 
 (setdyn *debug* true)
@@ -12,7 +11,6 @@
                @[[0 2147483647 0 "a"] [1 2147483647 1 "x"]])
   "symbolslots when *debug* is true")
 (setdyn *debug* false)
-
 
 # need to fix assembling functions
 (comment
