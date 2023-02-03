@@ -558,6 +558,7 @@ JANET_CORE_FN(janet_core_hash,
     return janet_wrap_number(janet_hash(argv[0]));
 }
 
+#ifndef JANET_REDUCED_IO
 JANET_CORE_FN(janet_core_getline,
               "(getline &opt prompt buf env)",
               "Reads a line of input into a buffer, including the newline character, using a prompt. "
@@ -587,6 +588,7 @@ JANET_CORE_FN(janet_core_getline,
     }
     return janet_wrap_buffer(buf);
 }
+#endif
 
 JANET_CORE_FN(janet_core_trace,
               "(trace func)",
@@ -958,7 +960,9 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("gcinterval", janet_core_gcinterval),
         JANET_CORE_REG("type", janet_core_type),
         JANET_CORE_REG("hash", janet_core_hash),
+#ifndef JANET_REDUCED_IO
         JANET_CORE_REG("getline", janet_core_getline),
+#endif
         JANET_CORE_REG("dyn", janet_core_dyn),
         JANET_CORE_REG("setdyn", janet_core_setdyn),
         JANET_CORE_REG("trace", janet_core_trace),
