@@ -721,11 +721,10 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         }
     }
 
-    /* Set symbolslots */
+    /* Set symbolmap */
     def->symbolmap = NULL;
     def->symbolmap_length = 0;
-
-    x = janet_get1(s, janet_ckeywordv("symbolslots"));
+    x = janet_get1(s, janet_ckeywordv("symbolmap"));
     if (janet_indexed_view(x, &arr, &count)) {
         def->symbolmap_length = count;
         def->symbolmap = janet_malloc(sizeof(JanetSymbolMap) * (size_t)count);
@@ -749,16 +748,17 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             if (!janet_checkint(tup[2])) {
                 janet_asm_error(&a, "expected integer");
             }
-            if (!janet_checktype(tup[3], JANET_STRING)) {
-                janet_asm_error(&a, "expected string");
+            if (!janet_checktype(tup[3], JANET_SYMBOL)) {
+                janet_asm_error(&a, "expected symbol");
             }
             ss.birth_pc = janet_unwrap_integer(tup[0]);
             ss.death_pc = janet_unwrap_integer(tup[1]);
             ss.slot_index = janet_unwrap_integer(tup[2]);
-            ss.symbol = janet_unwrap_string(tup[3]);
+            ss.symbol = janet_unwrap_symbol(tup[3]);
             def->symbolmap[i] = ss;
         }
     }
+    if (def->symbolmap_length) def->flags |= JANET_FUNCDEF_FLAG_HASSYMBOLMAP;
 
     /* Set environments */
     x = janet_get1(s, janet_ckeywordv("environments"));
@@ -934,7 +934,7 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
         t[0] = janet_wrap_integer(ss.birth_pc);
         t[1] = janet_wrap_integer(ss.death_pc);
         t[2] = janet_wrap_integer(ss.slot_index);
-        t[3] = janet_cstringv((const char *) ss.symbol);
+        t[3] = janet_wrap_symbol(ss.symbol);
         symbolslots->data[i] = janet_wrap_tuple(janet_tuple_end(t));
     }
     symbolslots->count = def->symbolmap_length;
@@ -1021,7 +1021,7 @@ Janet janet_disasm(JanetFuncDef *def) {
     janet_table_put(ret, janet_ckeywordv("structarg"), janet_disasm_structarg(def));
     janet_table_put(ret, janet_ckeywordv("name"), janet_disasm_name(def));
     janet_table_put(ret, janet_ckeywordv("slotcount"), janet_disasm_slotcount(def));
-    janet_table_put(ret, janet_ckeywordv("symbolslots"), janet_disasm_symbolslots(def));
+    janet_table_put(ret, janet_ckeywordv("symbolmap"), janet_disasm_symbolslots(def));
     janet_table_put(ret, janet_ckeywordv("constants"), janet_disasm_constants(def));
     janet_table_put(ret, janet_ckeywordv("sourcemap"), janet_disasm_sourcemap(def));
     janet_table_put(ret, janet_ckeywordv("environments"), janet_disasm_environments(def));
@@ -1058,7 +1058,7 @@ JANET_CORE_FN(cfun_disasm,
               "* :source - name of source file that this function was compiled from.\n"
               "* :name - name of function.\n"
               "* :slotcount - how many virtual registers, or slots, this function uses. Corresponds to stack space used by function.\n"
-              "* :symbolslots - all symbols and their slots.\n"
+              "* :symbolmap - all symbols and their slots.\n"
               "* :constants - an array of constants referenced by this function.\n"
               "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
               "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"

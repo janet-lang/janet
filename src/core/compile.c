@@ -93,12 +93,13 @@ void janetc_freeslot(JanetCompiler *c, JanetSlot s) {
 /* Add a slot to a scope with a symbol associated with it (def or var). */
 void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
     SymPair sp;
+    int32_t cnt = janet_v_count(c->buffer);
     sp.sym = sym;
     sp.sym2 = sym;
     sp.slot = s;
     sp.keep = 0;
     sp.slot.flags |= JANET_SLOT_NAMED;
-    sp.birth_pc = janet_v_count(c->buffer);
+    sp.birth_pc = cnt ? cnt - 1 : 0;
     sp.death_pc = UINT32_MAX;
     janet_v_push(c->scope->syms, sp);
 }
@@ -950,6 +951,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     }
     def->symbolmap_length = janet_v_count(locals);
     def->symbolmap = janet_v_flatten(locals);
+    if (def->symbolmap_length) def->flags |= JANET_FUNCDEF_FLAG_HASSYMBOLMAP;
 
     /* Pop the scope */
     janetc_popscope(c);

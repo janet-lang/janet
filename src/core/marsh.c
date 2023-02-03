@@ -252,6 +252,8 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
         pushint(st, def->environments_length);
     if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
         pushint(st, def->defs_length);
+    if (def->flags & JANET_FUNCDEF_FLAG_HASSYMBOLMAP)
+        pushint(st, def->symbolmap_length);
     if (def->flags & JANET_FUNCDEF_FLAG_HASNAME)
         marshal_one(st, janet_wrap_string(def->name), flags);
     if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCE)
@@ -260,6 +262,14 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     /* marshal constants */
     for (int32_t i = 0; i < def->constants_length; i++)
         marshal_one(st, def->constants[i], flags);
+
+    /* Marshal symbol map, if needed */
+    for (int32_t i = 0; i < def->symbolmap_length; i++) {
+        pushint(st, (int32_t) def->symbolmap[i].birth_pc);
+        pushint(st, (int32_t) def->symbolmap[i].death_pc);
+        pushint(st, (int32_t) def->symbolmap[i].slot_index);
+        marshal_one(st, janet_wrap_symbol(def->symbolmap[i].symbol), flags);
+    }
 
     /* marshal the bytecode */
     janet_marshal_u32s(st, def->bytecode, def->bytecode_length);
@@ -270,7 +280,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
     /* marshal the sub funcdefs if needed */
     for (int32_t i = 0; i < def->defs_length; i++)
-        marshal_one_def(st, def->defs[i], flags);
+        marshal_one_def(st, def->defs[i], flags + 1);
 
     /* marshal source maps if needed */
     if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
@@ -833,6 +843,7 @@ static const uint8_t *unmarshal_one_def(
         int32_t constants_length = 0;
         int32_t environments_length = 0;
         int32_t defs_length = 0;
+        int32_t symbolmap_length = 0;
 
         /* Read flags and other fixed values */
         def->flags = readint(st, &data);
@@ -848,6 +859,8 @@ static const uint8_t *unmarshal_one_def(
             environments_length = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
             defs_length = readnat(st, &data);
+        if (def->flags & JANET_FUNCDEF_FLAG_HASSYMBOLMAP)
+            symbolmap_length = readnat(st, &data);
 
         /* Check name and source (optional) */
         if (def->flags & JANET_FUNCDEF_FLAG_HASNAME) {
@@ -875,6 +888,26 @@ static const uint8_t *unmarshal_one_def(
             def->constants = NULL;
         }
         def->constants_length = constants_length;
+
+        /* Unmarshal symbol map, if needed */
+        if (def->flags & JANET_FUNCDEF_FLAG_HASSYMBOLMAP) {
+            size_t size = sizeof(JanetSymbolMap) * symbolmap_length;
+            def->symbolmap = janet_malloc(size);
+            if (def->symbolmap == NULL) {
+                JANET_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < symbolmap_length; i++) {
+                def->symbolmap[i].birth_pc = (uint32_t) readint(st, &data);
+                def->symbolmap[i].death_pc = (uint32_t) readint(st, &data);
+                def->symbolmap[i].slot_index = (uint32_t) readint(st, &data);
+                Janet value;
+                data = unmarshal_one(st, data, &value, flags + 1);
+                if (!janet_checktype(value, JANET_SYMBOL))
+                    janet_panic("expected symbol in symbol map");
+                def->symbolmap[i].symbol = janet_unwrap_symbol(value);
+            }
+            def->symbolmap_length = (uint32_t) symbolmap_length;
+        }
 
         /* Unmarshal bytecode */
         def->bytecode = janet_malloc(sizeof(uint32_t) * bytecode_length);
