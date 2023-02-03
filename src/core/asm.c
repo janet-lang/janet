@@ -722,20 +722,20 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     }
 
     /* Set symbolslots */
-    def->symbolslots = NULL;
-    def->symbolslots_length = 0;
+    def->symbolmap = NULL;
+    def->symbolmap_length = 0;
 
     x = janet_get1(s, janet_ckeywordv("symbolslots"));
     if (janet_indexed_view(x, &arr, &count)) {
-        def->symbolslots_length = count;
-        def->symbolslots = janet_malloc(sizeof(JanetSymbolSlot) * (size_t) count);
-        if (NULL == def->symbolslots) {
+        def->symbolmap_length = count;
+        def->symbolmap = janet_malloc(sizeof(JanetSymbolMap) * (size_t)count);
+        if (NULL == def->symbolmap) {
             JANET_OUT_OF_MEMORY;
         }
         for (i = 0; i < count; i++) {
             const Janet *tup;
             Janet entry = arr[i];
-            JanetSymbolSlot ss;
+            JanetSymbolMap ss;
             if (!janet_checktype(entry, JANET_TUPLE)) {
                 janet_asm_error(&a, "expected tuple");
             }
@@ -756,8 +756,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             ss.death_pc = janet_unwrap_integer(tup[1]);
             ss.slot_index = janet_unwrap_integer(tup[2]);
             ss.symbol = janet_unwrap_string(tup[3]);
-
-            def->symbolslots[i] = ss;
+            def->symbolmap[i] = ss;
         }
     }
 
@@ -923,11 +922,12 @@ static Janet janet_disasm_slotcount(JanetFuncDef *def) {
 }
 
 static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
-    // *debug* was probably not true when compiling the function
-    if (def->symbolslots == NULL) { return janet_wrap_nil(); }
-    JanetArray *symbolslots = janet_array(def->symbolslots_length);
-    for (int32_t i = 0; i < def->symbolslots_length; i++) {
-        JanetSymbolSlot ss = def->symbolslots[i];
+    if (def->symbolmap == NULL) {
+        return janet_wrap_nil();
+    }
+    JanetArray *symbolslots = janet_array(def->symbolmap_length);
+    for (int32_t i = 0; i < def->symbolmap_length; i++) {
+        JanetSymbolMap ss = def->symbolmap[i];
         Janet *t = janet_tuple_begin(4);
         t[0] = janet_wrap_integer(ss.birth_pc);
         t[1] = janet_wrap_integer(ss.death_pc);
@@ -935,7 +935,7 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
         t[3] = janet_cstringv((const char *) ss.symbol);
         symbolslots->data[i] = janet_wrap_tuple(janet_tuple_end(t));
     }
-    symbolslots->count = def->symbolslots_length;
+    symbolslots->count = def->symbolmap_length;
     return janet_wrap_array(symbolslots);
 }
 

@@ -111,14 +111,16 @@ struct JanetSlot {
 typedef struct SymPair {
     JanetSlot slot;
     const uint8_t *sym;
+    const uint8_t *sym2;
     int keep;
-    int32_t bytecode_pos;
+    uint32_t birth_pc;
+    uint32_t death_pc;
 } SymPair;
 
 /* A lexical scope during compilation */
 struct JanetScope {
 
-    /* For debugging */
+    /* For debugging the compiler */
     const char *name;
 
     /* Scopes are doubly linked list */
@@ -160,8 +162,6 @@ struct JanetCompiler {
 
     /* Hold the environment */
     JanetTable *env;
-
-    JanetSymbolSlot **local_symbols;
 
     /* Name of source to attach to generated functions */
     const uint8_t *source;

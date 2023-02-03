@@ -209,6 +209,12 @@ static void janet_mark_funcdef(JanetFuncDef *def) {
         janet_mark_string(def->source);
     if (def->name)
         janet_mark_string(def->name);
+    if (def->symbolmap) {
+        for (int i = 0; i < def->symbolmap_length; i++) {
+            janet_mark_string(def->symbolmap[i].symbol);
+        }
+    }
+
 }
 
 static void janet_mark_function(JanetFunction *func) {
@@ -314,7 +320,7 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_free(def->bytecode);
             janet_free(def->sourcemap);
             janet_free(def->closure_bitset);
-            janet_free(def->symbolslots);
+            janet_free(def->symbolmap);
         }
         break;
     }

@@ -329,6 +329,18 @@ static Janet doframe(JanetStackFrame *frame) {
         safe_memcpy(slots->data, stack, sizeof(Janet) * def->slotcount);
         slots->count = def->slotcount;
         janet_table_put(t, janet_ckeywordv("slots"), janet_wrap_array(slots));
+        /* Add local bindings */
+        if (def->symbolmap) {
+            JanetTable *local_bindings = janet_table(0);
+            for (int32_t i = def->symbolmap_length - 1; i >= 0; i--) {
+                JanetSymbolMap jsm = def->symbolmap[i];
+                uint32_t pc = (uint32_t) (frame->pc - def->bytecode);
+                if (pc >= jsm.birth_pc && pc < jsm.death_pc) {
+                    janet_table_put(local_bindings, janet_wrap_symbol(jsm.symbol), stack[jsm.slot_index]);
+                }
+            }
+            janet_table_put(t, janet_ckeywordv("locals"), janet_wrap_table(local_bindings));
+        }
     }
     return janet_wrap_table(t);
 }

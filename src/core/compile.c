@@ -94,11 +94,12 @@ void janetc_freeslot(JanetCompiler *c, JanetSlot s) {
 void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
     SymPair sp;
     sp.sym = sym;
+    sp.sym2 = sym;
     sp.slot = s;
     sp.keep = 0;
     sp.slot.flags |= JANET_SLOT_NAMED;
-    // -1 because c->buffer has already passed the `def`/`var`
-    sp.bytecode_pos = janet_v_count(c->buffer) - 1;
+    sp.birth_pc = janet_v_count(c->buffer);
+    sp.death_pc = UINT32_MAX;
     janet_v_push(c->scope->syms, sp);
 }
 
@@ -161,42 +162,24 @@ void janetc_popscope(JanetCompiler *c) {
         if (oldscope->flags & JANET_SCOPE_CLOSURE) {
             newscope->flags |= JANET_SCOPE_CLOSURE;
         }
-        if (newscope->ra.max < oldscope->ra.max)
+        if (newscope->ra.max < oldscope->ra.max) {
             newscope->ra.max = oldscope->ra.max;
+        }
 
-        /* Keep upvalue slots */
+        /* Keep upvalue slots and symbols for debugging. */
         for (int32_t i = 0; i < janet_v_count(oldscope->syms); i++) {
             SymPair pair = oldscope->syms[i];
+            /* The variable should not be lexically accessible */
+            pair.sym = NULL;
+            if (pair.death_pc == UINT32_MAX) {
+                pair.death_pc = (uint32_t) janet_v_count(c->buffer);
+            }
             if (pair.keep) {
-                /* The variable should not be lexically accessible */
-                pair.sym = NULL;
-                janet_v_push(newscope->syms, pair);
+                /* The variable should also not be included in the locals */
+                pair.sym2 = NULL;
                 janetc_regalloc_touch(&newscope->ra, pair.slot.index);
             }
-        }
-    }
-
-    if (janet_truthy(janet_dyn("debug"))) {
-        bool top_level = (oldscope->flags & (JANET_SCOPE_FUNCTION | JANET_SCOPE_UNUSED));
-        
-        /* push symbol slots */
-        JanetSymbolSlot ss;
-        int32_t scope_end = top_level ? INT32_MAX : janet_v_count(c->buffer);
-
-        janet_assert(janet_v_count(c->local_symbols) > 0, "c->local_symbols should not be empty");
-
-        // due to scopes being added "in reverse" (filo), we will reverse all symbols later. therefore we must first reverse the order of symbols inside each scope as well.
-        for (int32_t i = janet_v_count(oldscope->syms) - 1; i >= 0; i--) {
-            SymPair pair = oldscope->syms[i];
-
-            if (pair.sym != NULL) {
-                ss.birth_pc = pair.bytecode_pos;
-                ss.death_pc = scope_end;
-                ss.slot_index = pair.slot.index;
-                ss.symbol = pair.sym;
-
-                janet_v_push(janet_v_last(c->local_symbols), ss);
-            }
+            janet_v_push(newscope->syms, pair);
         }
     }
 
@@ -949,26 +932,27 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         def->closure_bitset = chunks;
     }
 
-    /* Pop the scope */
-    janetc_popscope(c);
-
-    if (janet_truthy(janet_dyn("debug"))) {
-        JanetSymbolSlot *last_symbols = janet_v_last(c->local_symbols);
-
-        def->symbolslots_length = janet_v_count(last_symbols);
-
-        def->symbolslots = janet_malloc(sizeof(JanetSymbolSlot) * def->symbolslots_length);
-        if (NULL == def->bytecode) {
-            JANET_OUT_OF_MEMORY;
-        }
-        
-        // add in reverse, because scopes have been added filo
-        for (int i = 0; i < janet_v_count(last_symbols); i++) {
-            def->symbolslots[def->symbolslots_length - i - 1] = last_symbols[i];
+    /* Capture symbol to local mapping */
+    JanetSymbolMap *locals = NULL;
+    for (int32_t i = 0; i < janet_v_count(scope->syms); i++) {
+        SymPair pair = scope->syms[i];
+        if (pair.sym2) {
+            if (pair.death_pc == UINT32_MAX) {
+                pair.death_pc = def->bytecode_length;
+            }
+            JanetSymbolMap jsm;
+            jsm.birth_pc = pair.birth_pc;
+            jsm.death_pc = pair.death_pc;
+            jsm.slot_index = pair.slot.index;
+            jsm.symbol = pair.sym2;
+            janet_v_push(locals, jsm);
         }
     }
+    def->symbolmap_length = janet_v_count(locals);
+    def->symbolmap = janet_v_flatten(locals);
 
-    janet_v_pop(c->local_symbols);
+    /* Pop the scope */
+    janetc_popscope(c);
 
     return def;
 }
@@ -980,7 +964,6 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
     c->mapbuffer = NULL;
     c->recursion_guard = JANET_RECURSION_GUARD;
     c->env = env;
-    c->local_symbols = NULL;
     c->source = where;
     c->current_mapping.line = -1;
     c->current_mapping.column = -1;
@@ -998,7 +981,6 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
 static void janetc_deinit(JanetCompiler *c) {
     janet_v_free(c->buffer);
     janet_v_free(c->mapbuffer);
-    janet_v_free(c->local_symbols);
     c->env = NULL;
 }
 
@@ -1012,7 +994,6 @@ JanetCompileResult janet_compile_lint(Janet source,
     janetc_init(&c, env, where, lints);
 
     /* Push a function scope */
-    janet_v_push(c.local_symbols, NULL);
     janetc_scope(&rootscope, &c, JANET_SCOPE_FUNCTION | JANET_SCOPE_TOP, "root");
 
     /* Set initial form options */
@@ -1031,9 +1012,6 @@ JanetCompileResult janet_compile_lint(Janet source,
     } else {
         c.result.error_mapping = c.current_mapping;
         janetc_popscope(&c);
-        if (janet_truthy(janet_dyn("debug"))) {
-            janet_v_pop(c.local_symbols);
-        }
     }
 
     janetc_deinit(&c);

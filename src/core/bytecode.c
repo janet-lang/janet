@@ -218,7 +218,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->closure_bitset = NULL;
     def->flags = 0;
     def->slotcount = 0;
-    def->symbolslots = NULL;
+    def->symbolmap = NULL;
     def->arity = 0;
     def->min_arity = 0;
     def->max_arity = INT32_MAX;
@@ -230,7 +230,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->constants_length = 0;
     def->bytecode_length = 0;
     def->environments_length = 0;
-    def->symbolslots_length = 0;
+    def->symbolmap_length = 0;
     return def;
 }
 

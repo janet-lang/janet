@@ -2769,13 +2769,9 @@
 
   # define variables available at breakpoint
   (def frame ((debug/stack fiber) 0))
-  (def symbolslots ((disasm (frame :function)) :symbolslots))
   (def pc (frame :pc))
-
-  (loop [[birth death slot sym] :in symbolslots]
-    (when (and (<= birth pc)
-               (< pc death))
-        (put nextenv (symbol sym) @{:value (get-in frame [:slots slot])})))
+  (eachp [local value] (get frame :locals)
+    (put nextenv local @{:value value}))
 
   (merge-into nextenv debugger-env)
   (defn debugger-chunks [buf p]

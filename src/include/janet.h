@@ -356,7 +356,7 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
-#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "janet out of memory\n"); exit(1); } while (0)
+#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "%s:%d - janet out of memory\n", __FILE__, __LINE__); exit(1); } while (0)
 #endif
 
 #ifdef JANET_BSD
@@ -448,7 +448,7 @@ typedef struct JanetReg JanetReg;
 typedef struct JanetRegExt JanetRegExt;
 typedef struct JanetMethod JanetMethod;
 typedef struct JanetSourceMapping JanetSourceMapping;
-typedef struct JanetSymbolSlot JanetSymbolSlot;
+typedef struct JanetSymbolMap JanetSymbolMap;
 typedef struct JanetView JanetView;
 typedef struct JanetByteView JanetByteView;
 typedef struct JanetDictView JanetDictView;
@@ -1020,7 +1020,7 @@ struct JanetSourceMapping {
 };
 
 /* Symbol to slot mapping & lifetime structure. */
-struct JanetSymbolSlot {
+struct JanetSymbolMap {
     uint32_t birth_pc;
     uint32_t death_pc;
     uint32_t slot_index;
@@ -1040,7 +1040,7 @@ struct JanetFuncDef {
     JanetSourceMapping *sourcemap;
     JanetString source;
     JanetString name;
-    JanetSymbolSlot *symbolslots;
+    JanetSymbolMap *symbolmap;
 
     int32_t flags;
     int32_t slotcount; /* The amount of stack space required for the function */
@@ -1051,7 +1051,7 @@ struct JanetFuncDef {
     int32_t bytecode_length;
     int32_t environments_length;
     int32_t defs_length;
-    int32_t symbolslots_length;
+    int32_t symbolmap_length;
 };
 
 /* A function environment */
