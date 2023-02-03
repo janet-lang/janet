@@ -784,7 +784,13 @@ void janet_lib_io(JanetTable *env) {
     };
     janet_core_cfuns_ext(env, NULL, io_cfuns);
     janet_register_abstract_type(&janet_file_type);
-#ifndef JANET_REDUCED_IO
+#ifdef JANET_REDUCED_IO
+    JANET_CORE_DEF(env, "stdout", janet_wrap_nil(), "The standard output file.");
+    /* stderr */
+    JANET_CORE_DEF(env, "stderr", janet_wrap_nil(), "The standard error file.");
+    /* stdin */
+    JANET_CORE_DEF(env, "stdin", janet_wrap_nil(), "The standard input file.");
+#else
     int default_flags = JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE;
     /* stdout */
     JANET_CORE_DEF(env, "stdout",

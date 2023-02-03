@@ -1699,21 +1699,29 @@
 (defn slurp
   ``Read all data from a file with name `path` and then close the file.``
   [path]
-  (def f (file/open path :rb))
-  (if-not f (error (string "could not open file " path)))
-  (def contents (file/read f :all))
-  (file/close f)
-  contents)
+  (if-let [fopen (in root-env 'file/open)
+           fread (in root-env 'file/read)
+           fclose (in root-env 'file/close)]
+    (do (def f (fopen path :rb))
+        (if-not f (error (string "could not open file " path)))
+        (def contents (fread f :all))
+        (fclose f)
+        contents)
+    (error "file IO disabled")))
 
 (defn spit
   ``Write `contents` to a file at `path`. Can optionally append to the file.``
   [path contents &opt mode]
-  (default mode :wb)
-  (def f (file/open path mode))
-  (if-not f (error (string "could not open file " path " with mode " mode)))
-  (file/write f contents)
-  (file/close f)
-  nil)
+  (if-let [fopen (in root-env 'file/open)
+           fwrite (in root-env 'file/write)
+           fclose (in root-env 'file/close)]
+    (do (default mode :wb)
+        (def f (fopen path mode))
+        (if-not f (error (string "could not open file " path " with mode " mode)))
+        (fwrite f contents)
+        (fclose f)
+        nil)
+    (error "file IO disabled")))
 
 (defdyn *pretty-format*
   "Format specifier for the `pp` function")
@@ -2293,19 +2301,22 @@
   [where line col]
   (if-not line (break))
   (unless (string? where) (break))
-  (when-with [f (file/open where :r)]
-    (def source-code (file/read f :all))
-    (var index 0)
-    (repeat (dec line)
-      (if-not index (break))
-      (set index (string/find "\n" source-code index))
-      (if index (++ index)))
-    (when index
-      (def line-end (string/find "\n" source-code index))
-      (eprint "  " (string/slice source-code index line-end))
-      (when col
-        (+= index col)
-        (eprint (string/repeat " " (inc col)) "^")))))
+  (if-let [fopen (in root-env 'file/open)
+           fread (in root-env 'file/read)]
+    (do (when-with [f (fopen where :r)]
+                   (def source-code (fread f :all))
+                   (var index 0)
+                   (repeat (dec line)
+                           (if-not index (break))
+                           (set index (string/find "\n" source-code index))
+                           (if index (++ index)))
+                   (when index
+                     (def line-end (string/find "\n" source-code index))
+                     (eprint "  " (string/slice source-code index line-end))
+                     (when col
+                       (+= index col)
+                       (eprint (string/repeat " " (inc col)) "^")))))
+    (error "file IO disabled")))
 
 (defn warn-compile
   "Default handler for a compile warning."
@@ -2677,23 +2688,30 @@
   (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
   module/paths)
 
-(module/add-paths ":native:" :native)
-(module/add-paths "/init.janet" :source)
-(module/add-paths ".janet" :source)
-(module/add-paths ".jimage" :image)
+(when (in root-env 'file/open)
+  (module/add-paths ":native:" :native)
+  (module/add-paths "/init.janet" :source)
+  (module/add-paths ".janet" :source)
+  (module/add-paths ".jimage" :image))
+
 (array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-not-relative])
 
 # Version of fexists that works even with a reduced OS
+# If reduced IO, this function always returns nil
 (defn- fexists
   [path]
-  (compif (dyn 'os/stat)
-    (= :file (os/stat path :mode))
-    (when-let [f (file/open path :rb)]
-      (def res
-        (try (do (file/read f 1) true)
-          ([err] nil)))
-      (file/close f)
-      res)))
+  (if-let [fopen (in root-env 'file/open)
+           fread (in root-env 'file/read)
+           fclose (in root-env 'file/close)]
+    (compif (dyn 'os/stat)
+            (= :file (os/stat path :mode))
+            (when-let [f (fopen path :rb)]
+              (def res
+                (try (do (fread f 1) true)
+                     ([err] nil)))
+              (fclose f)
+              res))
+    nil))
 
 (defn- mod-filter
   [x path]
@@ -2809,82 +2827,97 @@
   `run-context` call. If `exit` is true, any top level errors will trigger a
   call to `(os/exit 1)` after printing the error.``
   [path &named exit env source expander evaluator read parser]
-  (def f (case (type path)
-           :core/file path
-           :core/stream path
-           (file/open path :rb)))
-  (def path-is-file (= f path))
-  (default env (make-env))
-  (def spath (string path))
-  (put env :source (or source (if-not path-is-file spath path)))
-  (var exit-error nil)
-  (var exit-fiber nil)
-  (defn chunks [buf _] (:read f 4096 buf))
-  (defn bp [&opt x y]
-    (when exit
-      (bad-parse x y)
-      (os/exit 1))
-    (put env :exit true)
-    (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
-      (bad-parse x y))
-    (set exit-error (string/slice buf 0 -2)))
-  (defn bc [&opt x y z a b]
-    (when exit
-      (bad-compile x y z a b)
-      (os/exit 1))
-    (put env :exit true)
-    (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
-      (bad-compile x nil z a b))
-    (set exit-error (string/slice buf 0 -2))
-    (set exit-fiber y))
-  (unless f
-    (error (string "could not find file " path)))
-  (def nenv
-    (run-context {:env env
-                  :chunks chunks
-                  :on-parse-error bp
-                  :on-compile-error bc
-                  :on-status (fn [f x]
-                               (when (not= (fiber/status f) :dead)
-                                 (when exit
-                                   (debug/stacktrace f x "")
-                                   (eflush)
-                                   (os/exit 1))
-                                 (if (get env :debug)
-                                   ((debugger-on-status env) f x)
-                                   (do
-                                     (put env :exit true)
-                                     (set exit-error x)
-                                     (set exit-fiber f)))))
-                  :evaluator evaluator
-                  :expander expander
-                  :read read
-                  :parser parser
-                  :source (or source (if path-is-file :<anonymous> spath))}))
-  (if-not path-is-file (:close f))
-  (when exit-error
-    (if exit-fiber
-      (propagate exit-error exit-fiber)
-      (error exit-error)))
-  nenv)
+  (if-let [fopen (in root-env 'file/open)]
+    (do (def f (case (type path)
+                 :core/file path
+                 :core/stream path
+                 (fopen path :rb)))
+        (def path-is-file (= f path))
+        (default env (make-env))
+        (def spath (string path))
+        (put env :source (or source (if-not path-is-file spath path)))
+        (var exit-error nil)
+        (var exit-fiber nil)
+        (defn chunks [buf _] (:read f 4096 buf))
+        (defn bp [&opt x y]
+          (when exit
+            (bad-parse x y)
+            (os/exit 1))
+          (put env :exit true)
+          (def buf @"")
+          (with-dyns [*err* buf *err-color* false]
+            (bad-parse x y))
+          (set exit-error (string/slice buf 0 -2)))
+        (defn bc [&opt x y z a b]
+          (when exit
+            (bad-compile x y z a b)
+            (os/exit 1))
+          (put env :exit true)
+          (def buf @"")
+          (with-dyns [*err* buf *err-color* false]
+            (bad-compile x nil z a b))
+          (set exit-error (string/slice buf 0 -2))
+          (set exit-fiber y))
+        (unless f
+          (error (string "could not find file " path)))
+        (def nenv
+          (run-context {:env env
+                        :chunks chunks
+                        :on-parse-error bp
+                        :on-compile-error bc
+                        :on-status (fn [f x]
+                                     (when (not= (fiber/status f) :dead)
+                                       (when exit
+                                         (debug/stacktrace f x "")
+                                         (eflush)
+                                         (os/exit 1))
+                                       (if (get env :debug)
+                                         ((debugger-on-status env) f x)
+                                         (do
+                                           (put env :exit true)
+                                           (set exit-error x)
+                                           (set exit-fiber f)))))
+                        :evaluator evaluator
+                        :expander expander
+                        :read read
+                        :parser parser
+                        :source (or source (if path-is-file :<anonymous> spath))}))
+        (if-not path-is-file (:close f))
+        (when exit-error
+          (if exit-fiber
+            (propagate exit-error exit-fiber)
+            (error exit-error)))
+        nenv)
+    (error "file IO disabled")))
+
+
+(defn- native-loader [path &]
+  (native path (make-env)))
+
+(defn- source-loader [path args]
+  (put module/loading path true)
+  (defer (put module/loading path nil)
+    (dofile path ;args)))
+
+(defn- preload-loader [path & args]
+  (when-let [m (in module/cache path)]
+    (if (function? m)
+      (set (module/cache path) (m path ;args))
+      m)))
+
+(defn- image-loader [path &]
+  (load-image (slurp path)))
 
 (def module/loaders
   ``A table of loading method names to loading functions.
   This table lets `require` and `import` load many different kinds
   of files as modules.``
-  @{:native (fn native-loader [path &] (native path (make-env)))
-    :source (fn source-loader [path args]
-              (put module/loading path true)
-              (defer (put module/loading path nil)
-                (dofile path ;args)))
-    :preload (fn preload-loader [path & args]
-               (when-let [m (in module/cache path)]
-                 (if (function? m)
-                   (set (module/cache path) (m path ;args))
-                   m)))
-    :image (fn image-loader [path &] (load-image (slurp path)))})
+  (if-let [fopen (in root-env 'file/open)]
+    @{:native native-loader
+      :source source-loader
+      :preload preload-loader
+      :image image-loader}
+    @{:preload preload-loader}))
 
 (defn- require-1
   [path args kargs]
@@ -3939,9 +3972,13 @@
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
         (defn getstdin [prompt buf _]
-          (file/write stdout prompt)
-          (file/flush stdout)
-          (file/read stdin :line buf))
+          (if-let [fwrite (in root-env 'file/write)
+                   fread (in root-env 'file/read)
+                   fflush (in root-env 'file/flush)]
+            (do (fwrite stdout prompt)
+                (fflush stdout)
+                (fread stdin :line buf))
+            nil))
         (def env (make-env))
         (when-let [profile.janet (dyn *profilepath*)]
           (def new-env (dofile profile.janet :exit true))
