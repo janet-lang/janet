@@ -764,7 +764,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("environments"));
     if (janet_indexed_view(x, &arr, &count)) {
         def->environments_length = count;
-        def->environments = janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
+        if (def->environments_length) {
+            def->environments = janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
+        }
         for (int32_t i = 0; i < count; i++) {
             if (!janet_checkint(arr[i])) {
                 janet_asm_error(&a, "expected integer");
@@ -772,7 +774,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             def->environments[i] = janet_unwrap_integer(arr[i]);
         }
     }
-    if (NULL == def->environments) {
+    if (def->environments_length && NULL == def->environments) {
         JANET_OUT_OF_MEMORY;
     }
 
