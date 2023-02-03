@@ -56,6 +56,7 @@ const JanetAbstractType janet_file_type = {
     JANET_ATEND_NEXT
 };
 
+#ifndef JANET_REDUCED_IO
 /* Check arguments to fopen */
 static int32_t checkflags(const uint8_t *str) {
     int32_t flags = 0;
@@ -98,6 +99,7 @@ static int32_t checkflags(const uint8_t *str) {
     }
     return flags;
 }
+#endif
 
 static void *makef(FILE *f, int32_t flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
@@ -112,6 +114,7 @@ static void *makef(FILE *f, int32_t flags) {
     return iof;
 }
 
+#ifndef JANET_REDUCED_IO
 JANET_CORE_FN(cfun_io_temp,
               "(file/temp)",
               "Open an anonymous temporary file that is removed on close. "
@@ -258,6 +261,7 @@ JANET_CORE_FN(cfun_io_fflush,
         janet_panic("could not flush file");
     return argv[0];
 }
+#endif // JANET_REDUCED_IO
 
 #ifdef JANET_WINDOWS
 #define WEXITSTATUS(x) x
@@ -282,6 +286,7 @@ static int cfun_io_gc(void *p, size_t len) {
     return 0;
 }
 
+#ifndef JANET_REDUCED_IO
 /* Close a file */
 JANET_CORE_FN(cfun_io_fclose,
               "(file/close f)",
@@ -336,7 +341,13 @@ JANET_CORE_FN(cfun_io_fseek,
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");
     return argv[0];
 }
+#endif // JANET_REDUCED_IO
 
+#ifdef JANET_REDUCED_IO
+static JanetMethod io_file_methods[] = {
+    {NULL, NULL}
+};
+#else
 static JanetMethod io_file_methods[] = {
     {"close", cfun_io_fclose},
     {"flush", cfun_io_fflush},
@@ -345,6 +356,7 @@ static JanetMethod io_file_methods[] = {
     {"write", cfun_io_fwrite},
     {NULL, NULL}
 };
+#endif
 
 static int io_file_get(void *p, Janet key, Janet *out) {
     (void) p;
@@ -759,6 +771,7 @@ void janet_lib_io(JanetTable *env) {
         JANET_CORE_REG("xprinf", cfun_io_xprinf),
         JANET_CORE_REG("flush", cfun_io_flush),
         JANET_CORE_REG("eflush", cfun_io_eflush),
+#ifndef JANET_REDUCED_IO
         JANET_CORE_REG("file/temp", cfun_io_temp),
         JANET_CORE_REG("file/open", cfun_io_fopen),
         JANET_CORE_REG("file/close", cfun_io_fclose),
@@ -766,10 +779,12 @@ void janet_lib_io(JanetTable *env) {
         JANET_CORE_REG("file/write", cfun_io_fwrite),
         JANET_CORE_REG("file/flush", cfun_io_fflush),
         JANET_CORE_REG("file/seek", cfun_io_fseek),
+#endif
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, io_cfuns);
     janet_register_abstract_type(&janet_file_type);
+#ifndef JANET_REDUCED_IO
     int default_flags = JANET_FILE_NOT_CLOSEABLE | JANET_FILE_SERIALIZABLE;
     /* stdout */
     JANET_CORE_DEF(env, "stdout",
@@ -783,5 +798,5 @@ void janet_lib_io(JanetTable *env) {
     JANET_CORE_DEF(env, "stdin",
                    janet_makefile(stdin, JANET_FILE_READ | default_flags),
                    "The standard input file.");
-
+#endif
 }
