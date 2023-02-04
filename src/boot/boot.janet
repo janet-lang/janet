@@ -1699,9 +1699,9 @@
 (defn slurp
   ``Read all data from a file with name `path` and then close the file.``
   [path]
-  (if-let [fopen (in root-env 'file/open)
-           fread (in root-env 'file/read)
-           fclose (in root-env 'file/close)]
+  (if-let [fopen (get-in root-env 'file/open)
+           fread (get-in root-env 'file/read)
+           fclose (get-in root-env 'file/close)]
     (do (def f (fopen path :rb))
         (if-not f (error (string "could not open file " path)))
         (def contents (fread f :all))
@@ -1712,9 +1712,9 @@
 (defn spit
   ``Write `contents` to a file at `path`. Can optionally append to the file.``
   [path contents &opt mode]
-  (if-let [fopen (in root-env 'file/open)
-           fwrite (in root-env 'file/write)
-           fclose (in root-env 'file/close)]
+  (if-let [fopen (get-in root-env 'file/open)
+           fwrite (get-in root-env 'file/write)
+           fclose (get-in root-env 'file/close)]
     (do (default mode :wb)
         (def f (fopen path mode))
         (if-not f (error (string "could not open file " path " with mode " mode)))
@@ -2301,8 +2301,8 @@
   [where line col]
   (if-not line (break))
   (unless (string? where) (break))
-  (if-let [fopen (in root-env 'file/open)
-           fread (in root-env 'file/read)]
+  (if-let [fopen (get-in root-env 'file/open)
+           fread (get-in root-env 'file/read)]
     (do (when-with [f (fopen where :r)]
                    (def source-code (fread f :all))
                    (var index 0)
@@ -2700,9 +2700,9 @@
 # If reduced IO, this function always returns nil
 (defn- fexists
   [path]
-  (if-let [fopen (in root-env 'file/open)
-           fread (in root-env 'file/read)
-           fclose (in root-env 'file/close)]
+  (if-let [fopen (get-in root-env 'file/open)
+           fread (get-in root-env 'file/read)
+           fclose (get-in root-env 'file/close)]
     (compif (dyn 'os/stat)
             (= :file (os/stat path :mode))
             (when-let [f (fopen path :rb)]
@@ -2827,7 +2827,7 @@
   `run-context` call. If `exit` is true, any top level errors will trigger a
   call to `(os/exit 1)` after printing the error.``
   [path &named exit env source expander evaluator read parser]
-  (if-let [fopen (in root-env 'file/open)]
+  (if-let [fopen (get-in root-env 'file/open)]
     (do (def f (case (type path)
                  :core/file path
                  :core/stream path
@@ -2912,7 +2912,7 @@
   ``A table of loading method names to loading functions.
   This table lets `require` and `import` load many different kinds
   of files as modules.``
-  (if-let [fopen (in root-env 'file/open)]
+  (if-let [fopen (get-in root-env 'file/open)]
     @{:native native-loader
       :source source-loader
       :preload preload-loader
@@ -3972,9 +3972,9 @@
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
         (defn getstdin [prompt buf _]
-          (if-let [fwrite (in root-env 'file/write)
-                   fread (in root-env 'file/read)
-                   fflush (in root-env 'file/flush)]
+          (if-let [fwrite (get-in root-env 'file/write)
+                   fread (get-in root-env 'file/read)
+                   fflush (get-in root-env 'file/flush)]
             (do (fwrite stdout prompt)
                 (fflush stdout)
                 (fread stdin :line buf))
