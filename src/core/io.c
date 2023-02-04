@@ -56,7 +56,7 @@ const JanetAbstractType janet_file_type = {
     JANET_ATEND_NEXT
 };
 
-#ifndef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
 /* Check arguments to fopen */
 static int32_t checkflags(const uint8_t *str) {
     int32_t flags = 0;
@@ -114,7 +114,7 @@ static void *makef(FILE *f, int32_t flags) {
     return iof;
 }
 
-#ifndef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
 JANET_CORE_FN(cfun_io_temp,
               "(file/temp)",
               "Open an anonymous temporary file that is removed on close. "
@@ -286,7 +286,7 @@ static int cfun_io_gc(void *p, size_t len) {
     return 0;
 }
 
-#ifndef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
 /* Close a file */
 JANET_CORE_FN(cfun_io_fclose,
               "(file/close f)",
@@ -343,7 +343,7 @@ JANET_CORE_FN(cfun_io_fseek,
 }
 #endif // JANET_REDUCED_IO
 
-#ifdef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
 static JanetMethod io_file_methods[] = {
     {NULL, NULL}
 };
@@ -771,7 +771,7 @@ void janet_lib_io(JanetTable *env) {
         JANET_CORE_REG("xprinf", cfun_io_xprinf),
         JANET_CORE_REG("flush", cfun_io_flush),
         JANET_CORE_REG("eflush", cfun_io_eflush),
-#ifndef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
         JANET_CORE_REG("file/temp", cfun_io_temp),
         JANET_CORE_REG("file/open", cfun_io_fopen),
         JANET_CORE_REG("file/close", cfun_io_fclose),
@@ -784,7 +784,7 @@ void janet_lib_io(JanetTable *env) {
     };
     janet_core_cfuns_ext(env, NULL, io_cfuns);
     janet_register_abstract_type(&janet_file_type);
-#ifdef JANET_REDUCED_IO
+#if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
     JANET_CORE_DEF(env, "stdout", janet_wrap_nil(), "The standard output file.");
     /* stderr */
     JANET_CORE_DEF(env, "stderr", janet_wrap_nil(), "The standard error file.");
