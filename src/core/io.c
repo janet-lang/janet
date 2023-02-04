@@ -243,6 +243,13 @@ JANET_CORE_FN(cfun_io_fwrite,
     return argv[0];
 }
 
+static void io_assert_writeable(JanetFile *iof) {
+    if (iof->flags & JANET_FILE_CLOSED)
+        janet_panic("file is closed");
+    if (!(iof->flags & (JANET_FILE_WRITE | JANET_FILE_APPEND | JANET_FILE_UPDATE)))
+        janet_panic("file is not writeable");
+}
+
 /* Flush the bytes in the file */
 JANET_CORE_FN(cfun_io_fflush,
               "(file/flush f)",
@@ -250,10 +257,7 @@ JANET_CORE_FN(cfun_io_fflush,
               "buffered for efficiency reasons. Returns the file handle.") {
     janet_fixarity(argc, 1);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
-    if (iof->flags & JANET_FILE_CLOSED)
-        janet_panic("file is closed");
-    if (!(iof->flags & (JANET_FILE_WRITE | JANET_FILE_APPEND | JANET_FILE_UPDATE)))
-        janet_panic("file is not writeable");
+    io_assert_writeable(iof);
     if (fflush(iof->file))
         janet_panic("could not flush file");
     return argv[0];
@@ -269,6 +273,7 @@ int janet_file_close(JanetFile *file) {
     if (!(file->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
         ret = fclose(file->file);
         file->flags |= JANET_FILE_CLOSED;
+        file->file = NULL; /* NULL derefence is easier to debug then other problems */
         return ret;
     }
     return 0;
@@ -449,6 +454,7 @@ static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
             if (janet_abstract_type(abstract) != &janet_file_type)
                 return janet_wrap_nil();
             JanetFile *iofile = abstract;
+            io_assert_writeable(iofile);
             f = iofile->file;
             break;
         }
@@ -564,6 +570,10 @@ static Janet cfun_io_printf_impl_x(int32_t argc, Janet *argv, int newline,
             if (janet_abstract_type(abstract) != &janet_file_type)
                 return janet_wrap_nil();
             JanetFile *iofile = abstract;
+            if (iofile->flags & JANET_FILE_CLOSED) {
+                janet_panic("cannot print to closed file");
+            }
+            io_assert_writeable(iofile);
             f = iofile->file;
             break;
         }
@@ -688,6 +698,7 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
                 if (janet_abstract_type(abstract) != &janet_file_type)
                     break;
                 JanetFile *iofile = abstract;
+                io_assert_writeable(iofile);
                 f = iofile->file;
             }
             fwrite(buffer.data, buffer.count, 1, f);
