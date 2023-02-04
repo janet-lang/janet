@@ -345,15 +345,15 @@ JANET_CORE_FN(cfun_io_fseek,
 
 #if !defined(JANET_REDUCED_IO) || defined(JANET_BOOTSTRAP)
 static JanetMethod io_file_methods[] = {
-    {NULL, NULL}
-};
-#else
-static JanetMethod io_file_methods[] = {
     {"close", cfun_io_fclose},
     {"flush", cfun_io_fflush},
     {"read", cfun_io_fread},
     {"seek", cfun_io_fseek},
     {"write", cfun_io_fwrite},
+    {NULL, NULL}
+};
+#else
+static JanetMethod io_file_methods[] = {
     {NULL, NULL}
 };
 #endif

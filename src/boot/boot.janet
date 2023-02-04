@@ -2912,7 +2912,7 @@
   ``A table of loading method names to loading functions.
   This table lets `require` and `import` load many different kinds
   of files as modules.``
-  (if-let [fopen (get-in root-env ['file/open :value])]
+  (if (in root-env 'file/open)
     @{:native native-loader
       :source source-loader
       :preload preload-loader
