@@ -955,6 +955,7 @@ static int line() {
                 break;
 #ifndef _WIN32
             case 26: /* ctrl-z */
+                clearlines();
                 norawmode();
                 kill(getpid(), SIGSTOP);
                 rawmode();

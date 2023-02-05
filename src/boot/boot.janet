@@ -3583,16 +3583,18 @@
          (,ev/deadline ,deadline nil ,f)
          (,resume ,f))))
 
-  (defn- cancel-all [fibers reason] (each f fibers (if (fiber/can-resume? f) (ev/cancel f reason))))
+  (defn- cancel-all [fibers reason] (each f fibers (ev/cancel f reason) (put fibers f nil)))
 
   (defn- wait-for-fibers
     [chan fibers]
     (defer (cancel-all fibers "parent canceled")
       (repeat (length fibers)
         (def [sig fiber] (ev/take chan))
-        (unless (= sig :ok)
-          (cancel-all fibers "sibling canceled")
-          (propagate (fiber/last-value fiber) fiber)))))
+        (if (= sig :ok)
+          (put fibers fiber nil)
+          (do
+            (cancel-all fibers "sibling canceled")
+            (propagate (fiber/last-value fiber) fiber))))))
 
   (defmacro ev/gather
     ``
@@ -3600,13 +3602,16 @@
     Returns the gathered results in an array.
     ``
     [& bodies]
-    (with-syms [chan res]
+    (with-syms [chan res fset ftemp]
       ~(do
+         (def ,fset @{})
          (def ,chan (,ev/chan))
          (def ,res @[])
-         (,wait-for-fibers ,chan
-                           ,(seq [[i body] :pairs bodies]
-                              ~(,ev/go (fn [] (put ,res ,i ,body)) nil ,chan)))
+         ,;(seq [[i body] :pairs bodies]
+             ~(do
+                (def ,ftemp (,ev/go (fn [] (put ,res ,i ,body)) nil ,chan))
+                (,put ,fset ,ftemp ,ftemp)))
+         (,wait-for-fibers ,chan ,fset)
          ,res))))
 
 (compwhen (dyn 'net/listen)
