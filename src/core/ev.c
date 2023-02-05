@@ -172,6 +172,9 @@ static JanetTimestamp ts_now(void);
 
 /* Get current timestamp + an interval (millisecond precision) */
 static JanetTimestamp ts_delta(JanetTimestamp ts, double delta) {
+    if (isinf(delta)) {
+        return delta < 0 ? ts : INT64_MAX;
+    }
     ts += (int64_t)round(delta * 1000);
     return ts;
 }
