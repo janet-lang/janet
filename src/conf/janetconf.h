@@ -35,7 +35,7 @@
 /* #define JANET_NO_THREADS */
 /* #define JANET_NO_FFI */
 /* #define JANET_NO_FFI_JIT */
-#define JANET_REDUCED_IO
+/* #define JANET_REDUCED_IO */
 
 /* Other settings */
 /* #define JANET_DEBUG */
