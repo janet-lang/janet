@@ -344,6 +344,7 @@ found:
     }
 
     /* non-local scope needs to expose its environment */
+    JanetScope *original_scope = scope;
     pair->keep = 1;
     while (scope && !(scope->flags & JANET_SCOPE_FUNCTION))
         scope = scope->parent;
@@ -365,7 +366,7 @@ found:
             /* Check if scope already has env. If so, break */
             len = janet_v_count(scope->envs);
             for (j = 0; j < len; j++) {
-                if (scope->envs[j] == envindex) {
+                if (scope->envs[j].envindex == envindex) {
                     scopefound = 1;
                     envindex = j;
                     break;
@@ -374,7 +375,10 @@ found:
             /* Add the environment if it is not already referenced */
             if (!scopefound) {
                 len = janet_v_count(scope->envs);
-                janet_v_push(scope->envs, envindex);
+                JanetEnvRef ref;
+                ref.envindex = envindex;
+                ref.scope = original_scope;
+                janet_v_push(scope->envs, ref);
                 envindex = len;
             }
         }
@@ -878,7 +882,10 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
 
     /* Copy envs */
     def->environments_length = janet_v_count(scope->envs);
-    def->environments = janet_v_flatten(scope->envs);
+    def->environments = janet_malloc(sizeof(int32_t) * def->environments_length);
+    for (int32_t i = 0; i < def->environments_length; i++) {
+        def->environments[i] = scope->envs[i].envindex;
+    }
 
     def->constants_length = janet_v_count(scope->consts);
     def->constants = janet_v_flatten(scope->consts);
@@ -935,6 +942,30 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
 
     /* Capture symbol to local mapping */
     JanetSymbolMap *locals = NULL;
+
+    /* Symbol -> upvalue mapping */
+    JanetScope *top = c->scope;
+    while (top->parent) top = top->parent;
+    for (JanetScope *s = top; s != NULL; s = s->child) {
+        for (int32_t j = 0; j < janet_v_count(scope->envs); j++) {
+            JanetEnvRef ref = scope->envs[j];
+            JanetScope *upscope = ref.scope;
+            if (upscope != s) continue;
+            for (int32_t i = 0; i < janet_v_count(upscope->syms); i++) {
+                SymPair pair = upscope->syms[i];
+                if (pair.sym2) {
+                    JanetSymbolMap jsm;
+                    jsm.birth_pc = UINT32_MAX;
+                    jsm.death_pc = j;
+                    jsm.slot_index = pair.slot.index;
+                    jsm.symbol = pair.sym2;
+                    janet_v_push(locals, jsm);
+                }
+            }
+        }
+    }
+
+    /* Symbol -> slot mapping */
     for (int32_t i = 0; i < janet_v_count(scope->syms); i++) {
         SymPair pair = scope->syms[i];
         if (pair.sym2) {

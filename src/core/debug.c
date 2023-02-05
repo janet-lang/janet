@@ -334,10 +334,19 @@ static Janet doframe(JanetStackFrame *frame) {
             JanetTable *local_bindings = janet_table(0);
             for (int32_t i = def->symbolmap_length - 1; i >= 0; i--) {
                 JanetSymbolMap jsm = def->symbolmap[i];
+                Janet value = janet_wrap_nil();
                 uint32_t pc = (uint32_t)(frame->pc - def->bytecode);
-                if (pc >= jsm.birth_pc && pc < jsm.death_pc) {
-                    janet_table_put(local_bindings, janet_wrap_symbol(jsm.symbol), stack[jsm.slot_index]);
+                if (jsm.birth_pc == UINT32_MAX) {
+                    JanetFuncEnv *env = frame->func->envs[jsm.death_pc];
+                    if (env->offset > 0) {
+                        value = env->as.fiber->data[env->offset + jsm.slot_index];
+                    } else {
+                        value = env->as.values[jsm.slot_index];
+                    }
+                } else if (pc >= jsm.birth_pc && pc < jsm.death_pc) {
+                    value = stack[jsm.slot_index];
                 }
+                janet_table_put(local_bindings, janet_wrap_symbol(jsm.symbol), value);
             }
             janet_table_put(t, janet_ckeywordv("locals"), janet_wrap_table(local_bindings));
         }

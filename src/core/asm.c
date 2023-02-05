@@ -928,10 +928,15 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
         return janet_wrap_nil();
     }
     JanetArray *symbolslots = janet_array(def->symbolmap_length);
+    Janet upvaluekw = janet_ckeywordv("upvalue");
     for (int32_t i = 0; i < def->symbolmap_length; i++) {
         JanetSymbolMap ss = def->symbolmap[i];
         Janet *t = janet_tuple_begin(4);
-        t[0] = janet_wrap_integer(ss.birth_pc);
+        if (ss.birth_pc == UINT32_MAX) {
+            t[0] = upvaluekw;
+        } else {
+            t[0] = janet_wrap_integer(ss.birth_pc);
+        }
         t[1] = janet_wrap_integer(ss.death_pc);
         t[2] = janet_wrap_integer(ss.slot_index);
         t[3] = janet_wrap_symbol(ss.symbol);

@@ -117,6 +117,11 @@ typedef struct SymPair {
     uint32_t death_pc;
 } SymPair;
 
+typedef struct JanetEnvRef {
+    int32_t envindex;
+    JanetScope *scope;
+} JanetEnvRef;
+
 /* A lexical scope during compilation */
 struct JanetScope {
 
@@ -145,7 +150,7 @@ struct JanetScope {
     /* Referenced closure environments. The values at each index correspond
      * to which index to get the environment from in the parent. The environment
      * that corresponds to the direct parent's stack will always have value 0. */
-    int32_t *envs;
+    JanetEnvRef *envs;
 
     int32_t bytecode_start;
     int flags;

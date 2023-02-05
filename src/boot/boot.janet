@@ -2767,12 +2767,6 @@
   (put nextenv :debug-level level)
   (put nextenv :signal (fiber/last-value fiber))
 
-  # define variables available at breakpoint
-  (def frame ((debug/stack fiber) 0))
-  (def pc (frame :pc))
-  (eachp [local value] (get frame :locals)
-    (put nextenv local @{:value value}))
-
   (merge-into nextenv debugger-env)
   (defn debugger-chunks [buf p]
     (def status (:state p :delimiters))
@@ -3381,10 +3375,15 @@
   (print))
 
 (defn .frame
-  "Show a stack frame."
+  "Show a stack frame"
   [&opt n]
   (def stack (debug/stack (.fiber)))
   (in stack (or n 0)))
+
+(defn .locals
+  "Show local bindings"
+  [&opt n]
+  (get (.frame n) :locals))
 
 (defn .fn
   "Get the current function."
