@@ -168,7 +168,7 @@ build/janet_boot: $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/c/janet.c: build/janet_boot src/boot/boot.janet
-	build/janet_boot . JANET_PATH '$(JANET_PATH)' > $@
+	build/janet_boot . JANET_PATH '$(JANET_PATH)' 'src/boot/' 'boot.janet' > $@
 	cksum $@
 
 ########################
@@ -184,8 +184,8 @@ endif
 build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
 
-build/janet.h: $(JANET_TARGET) src/include/janet.h $(JANETCONF_HEADER)
-	./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h $(JANETCONF_HEADER) $@
+build/janet.h: build/janet_boot tools/patch-header.janet src/include/janet.h $(JANETCONF_HEADER)
+	build/janet_boot . JANET_PATH '$(JANET_PATH)' 'src/include/janet.h' '$(JANETCONF_HEADER)' '$@' 'tools/' 'patch-header.janet'
 
 build/janetconf.h: $(JANETCONF_HEADER)
 	cp $< $@

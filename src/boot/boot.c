@@ -33,8 +33,15 @@
 extern const unsigned char *janet_gen_boot;
 extern int32_t janet_gen_boot_size;
 
-int main(int argc, const char **argv) {
+char* concat(const char *s1, const char *s2) {
+    char *result = malloc(strlen(s1) + strlen(s2) + 1); // +1 for the null-terminator
+    // in real code you would check for errors in malloc here
+    strcpy(result, s1);
+    strcat(result, s2);
+    return result;
+}
 
+int main(int argc, const char **argv) {
     /* Init janet */
     janet_init();
 
@@ -55,7 +62,7 @@ int main(int argc, const char **argv) {
 
     /* Create args tuple */
     JanetArray *args = janet_array(argc);
-    for (int i = 0; i < argc; i++)
+    for (int i = 0; i < (argc - 2); i++)
         janet_array_push(args, janet_cstringv(argv[i]));
     janet_def(env, "boot/args", janet_wrap_array(args), "Command line arguments.");
 
@@ -74,8 +81,11 @@ int main(int argc, const char **argv) {
 #ifdef JANET_NO_SOURCEMAPS
     boot_filename = NULL;
 #else
-    boot_filename = "boot.janet";
+    boot_filename = argv[argc - 1];
 #endif
+
+    const char *boot_file_path = argv[argc - 2];
+    char *boot_full_path = concat(boot_file_path, boot_filename);
 
     int chdir_status = chdir(argv[1]);
     if (chdir_status) {
@@ -83,9 +93,9 @@ int main(int argc, const char **argv) {
         exit(1);
     }
 
-    FILE *boot_file = fopen("src/boot/boot.janet", "rb");
+    FILE *boot_file = fopen(boot_full_path, "rb");
     if (NULL == boot_file) {
-        fprintf(stderr, "Could not open src/boot/boot.janet\n");
+        fprintf(stderr, "Could not open %s%s\n", argv[argc - 2], boot_filename);
         exit(1);
     }
 
