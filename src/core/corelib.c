@@ -715,6 +715,7 @@ JANET_CORE_FN(janet_core_sandbox,
             }
             opt++;
         }
+        if (opt->name == NULL) janet_panicf("unknown capability %v", argv[i]);
     }
     janet_sandbox(flags);
     return janet_wrap_nil();
