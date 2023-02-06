@@ -2778,6 +2778,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
     uint32_t flags = args.tag;
     args.tag = 0;
     janet_init();
+    janet_vm.sandbox_flags = (uint32_t) args.argi;
     JanetTryState tstate;
     JanetSignal signal = janet_try(&tstate);
     if (!signal) {
@@ -2930,13 +2931,13 @@ JANET_CORE_FN(cfun_ev_thread,
         JanetEVGenericMessage arguments;
         memset(&arguments, 0, sizeof(arguments));
         arguments.tag = (uint32_t) flags;
-        arguments.argi = argc;
+        arguments.argi = (uint32_t) janet_vm.sandbox_flags;
         arguments.argp = buffer;
         arguments.fiber = NULL;
         janet_ev_threaded_call(janet_go_thread_subr, arguments, janet_ev_default_threaded_callback);
         return janet_wrap_nil();
     } else {
-        janet_ev_threaded_await(janet_go_thread_subr, (uint32_t) flags, argc, buffer);
+        janet_ev_threaded_await(janet_go_thread_subr, (uint32_t) flags, (uint32_t) janet_vm.sandbox_flags, buffer);
     }
 }
 

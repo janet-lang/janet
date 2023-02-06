@@ -379,6 +379,7 @@ JANET_CORE_FN(cfun_net_connect,
               "to specify a connection type, either :stream or :datagram. The default is :stream. "
               "Bindhost is an optional string to select from what address to make the outgoing "
               "connection, with the default being the same as using the OS's preferred address. ") {
+    janet_sandbox_assert(JANET_SANDBOX_NET_CONNECT);
     janet_arity(argc, 2, 5);
 
     /* Check arguments */
@@ -573,6 +574,7 @@ JANET_CORE_FN(cfun_net_listen,
               "The type parameter specifies the type of network connection, either "
               "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
               ":stream. The host and port arguments are the same as in net/address.") {
+    janet_sandbox_assert(JANET_SANDBOX_NET_LISTEN);
     janet_arity(argc, 2, 3);
 
     /* Get host, port, and handler*/

@@ -1559,6 +1559,9 @@ int janet_init(void) {
     janet_vm.scratch_len = 0;
     janet_vm.scratch_cap = 0;
 
+    /* Sandbox flags */
+    janet_vm.sandbox_flags = 0;
+
     /* Initialize registry */
     janet_vm.registry = NULL;
     janet_vm.registry_cap = 0;
@@ -1598,6 +1601,18 @@ int janet_init(void) {
     janet_net_init();
 #endif
     return 0;
+}
+
+/* Disable some features at runtime with no way to re-enable them */
+void janet_sandbox(uint32_t flags) {
+    janet_sandbox_assert(JANET_SANDBOX_SANDBOX);
+    janet_vm.sandbox_flags |= flags;
+}
+
+void janet_sandbox_assert(uint32_t forbidden_flags) {
+    if (forbidden_flags & janet_vm.sandbox_flags) {
+        janet_panic("operation forbidden by sandbox");
+    }
 }
 
 /* Clear all memory associated with the VM */

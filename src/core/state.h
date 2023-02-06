@@ -135,6 +135,9 @@ struct JanetVM {
     size_t scratch_cap;
     size_t scratch_len;
 
+    /* Sandbox flags */
+    uint32_t sandbox_flags;
+
     /* Random number generator */
     JanetRNG rng;
 

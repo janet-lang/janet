@@ -878,6 +878,7 @@ static JanetFile *get_stdio_for_handle(JanetHandle handle, void *orig, int iswri
 #endif
 
 static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_arity(argc, 1, 3);
 
     /* Get flags */
@@ -1171,6 +1172,7 @@ static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
 JANET_CORE_FN(os_shell,
               "(os/shell str)",
               "Pass a command string str directly to the system shell.") {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_arity(argc, 0, 1);
     const char *cmd = argc
                       ? janet_getcstring(argv, 0)
@@ -1190,6 +1192,7 @@ JANET_CORE_FN(os_shell,
 JANET_CORE_FN(os_environ,
               "(os/environ)",
               "Get a copy of the OS environment table.") {
+    janet_sandbox_assert(JANET_SANDBOX_ENV);
     (void) argv;
     janet_fixarity(argc, 0);
     int32_t nenv = 0;
@@ -1221,6 +1224,7 @@ JANET_CORE_FN(os_environ,
 JANET_CORE_FN(os_getenv,
               "(os/getenv variable &opt dflt)",
               "Get the string value of an environment variable.") {
+    janet_sandbox_assert(JANET_SANDBOX_ENV);
     janet_arity(argc, 1, 2);
     const char *cstr = janet_getcstring(argv, 0);
     const char *res = getenv(cstr);
@@ -1244,6 +1248,7 @@ JANET_CORE_FN(os_setenv,
 #define SETENV(K,V) setenv(K, V, 1)
 #define UNSETENV(K) unsetenv(K)
 #endif
+    janet_sandbox_assert(JANET_SANDBOX_ENV);
     janet_arity(argc, 1, 2);
     const char *ks = janet_getcstring(argv, 0);
     const char *vs = janet_optcstring(argv, argc, 1, NULL);
@@ -1271,6 +1276,7 @@ JANET_CORE_FN(os_clock,
               "(os/clock)",
               "Return the number of whole + fractional seconds since some fixed point in time. The clock "
               "is guaranteed to be non-decreasing in real time.") {
+    janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_fixarity(argc, 0);
     (void) argv;
     struct timespec tv;
@@ -1512,6 +1518,7 @@ JANET_CORE_FN(os_link,
               "Iff symlink is truthy, creates a symlink. "
               "Iff symlink is falsey or not provided, "
               "creates a hard link. Does not work on Windows.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_arity(argc, 2, 3);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1530,6 +1537,7 @@ JANET_CORE_FN(os_link,
 JANET_CORE_FN(os_symlink,
               "(os/symlink oldpath newpath)",
               "Create a symlink from oldpath to newpath, returning nil. Same as `(os/link oldpath newpath true)`.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 2);
 #ifdef JANET_WINDOWS
     (void) argc;
@@ -1552,6 +1560,7 @@ JANET_CORE_FN(os_mkdir,
               "Create a new directory. The path will be relative to the current directory if relative, otherwise "
               "it will be an absolute path. Returns true if the directory was created, false if the directory already exists, and "
               "errors otherwise.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1567,6 +1576,7 @@ JANET_CORE_FN(os_mkdir,
 JANET_CORE_FN(os_rmdir,
               "(os/rmdir path)",
               "Delete a directory. The directory must be empty to succeed.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1581,6 +1591,7 @@ JANET_CORE_FN(os_rmdir,
 JANET_CORE_FN(os_cd,
               "(os/cd path)",
               "Change current directory to path. Returns nil on success, errors on failure.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1596,6 +1607,7 @@ JANET_CORE_FN(os_touch,
               "(os/touch path &opt actime modtime)",
               "Update the access time and modification times for a file. By default, sets "
               "times to the current time.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
     struct utimbuf timebuf, *bufp;
@@ -1845,6 +1857,7 @@ static const struct OsStatGetter os_stat_getters[] = {
 };
 
 static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
+    janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, 2);
     const char *path = janet_getcstring(argv, 0);
     JanetTable *tab = NULL;
@@ -1926,6 +1939,7 @@ JANET_CORE_FN(os_chmod,
               "`os/perm-string`, or an integer as returned by `os/perm-int`. "
               "When `mode` is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
               "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 2);
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1941,6 +1955,7 @@ JANET_CORE_FN(os_chmod,
 JANET_CORE_FN(os_umask,
               "(os/umask mask)",
               "Set a new umask, returns the old umask.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 1);
     int mask = (int) os_getmode(argv, 0);
 #ifdef JANET_WINDOWS
@@ -1956,6 +1971,7 @@ JANET_CORE_FN(os_dir,
               "(os/dir dir &opt array)",
               "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
               "with only the file name or directory name and no prefix.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, 2);
     const char *dir = janet_getcstring(argv, 0);
     JanetArray *paths = (argc == 2) ? janet_getarray(argv, 1) : janet_array(0);
@@ -1993,6 +2009,7 @@ JANET_CORE_FN(os_dir,
 JANET_CORE_FN(os_rename,
               "(os/rename oldname newname)",
               "Rename a file on disk to a new path. Returns nil.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 2);
     const char *src = janet_getcstring(argv, 0);
     const char *dest = janet_getcstring(argv, 1);
@@ -2007,6 +2024,7 @@ JANET_CORE_FN(os_realpath,
               "(os/realpath path)",
               "Get the absolute path for a given path, following ../, ./, and symlinks. "
               "Returns an absolute path as a string.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_fixarity(argc, 1);
     const char *src = janet_getcstring(argv, 0);
 #ifdef JANET_NO_REALPATH
@@ -2101,19 +2119,23 @@ JANET_CORE_FN(os_open,
             case 'r':
                 desiredAccess |= GENERIC_READ;
                 stream_flags |= JANET_STREAM_READABLE;
+                janet_sandbox_assert(JANET_SANDBOX_FS_READ);
                 break;
             case 'w':
                 desiredAccess |= GENERIC_WRITE;
                 stream_flags |= JANET_STREAM_WRITABLE;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             case 'c':
                 creatUnix |= OCREAT;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             case 'e':
                 creatUnix |= OEXCL;
                 break;
             case 't':
                 creatUnix |= OTRUNC;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             /* Windows only flags */
             case 'D':
@@ -2183,19 +2205,23 @@ JANET_CORE_FN(os_open,
             case 'r':
                 read_flag = 1;
                 stream_flags |= JANET_STREAM_READABLE;
+                janet_sandbox_assert(JANET_SANDBOX_FS_READ);
                 break;
             case 'w':
                 write_flag = 1;
                 stream_flags |= JANET_STREAM_WRITABLE;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             case 'c':
                 open_flags |= O_CREAT;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             case 'e':
                 open_flags |= O_EXCL;
                 break;
             case 't':
                 open_flags |= O_TRUNC;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
             /* posix only */
             case 'x':
@@ -2270,48 +2296,65 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/arch", os_arch),
         JANET_CORE_REG("os/compiler", os_compiler),
 #ifndef JANET_REDUCED_OS
+
+        /* misc (un-sandboxed) */
+        JANET_CORE_REG("os/cpu-count", os_cpu_count),
+        JANET_CORE_REG("os/cwd", os_cwd),
+        JANET_CORE_REG("os/cryptorand", os_cryptorand),
+        JANET_CORE_REG("os/perm-string", os_permission_string),
+        JANET_CORE_REG("os/perm-int", os_permission_int),
+        JANET_CORE_REG("os/mktime", os_mktime),
+        JANET_CORE_REG("os/time", os_time), /* not high resolution */
+        JANET_CORE_REG("os/date", os_date), /* not high resolution */
+        JANET_CORE_REG("os/sleep", os_sleep),
+
+        /* env functions */
         JANET_CORE_REG("os/environ", os_environ),
         JANET_CORE_REG("os/getenv", os_getenv),
+        JANET_CORE_REG("os/setenv", os_setenv),
+
+        /* fs read */
         JANET_CORE_REG("os/dir", os_dir),
         JANET_CORE_REG("os/stat", os_stat),
         JANET_CORE_REG("os/lstat", os_lstat),
         JANET_CORE_REG("os/chmod", os_chmod),
         JANET_CORE_REG("os/touch", os_touch),
+        JANET_CORE_REG("os/realpath", os_realpath),
         JANET_CORE_REG("os/cd", os_cd),
-        JANET_CORE_REG("os/cpu-count", os_cpu_count),
 #ifndef JANET_NO_UMASK
         JANET_CORE_REG("os/umask", os_umask),
 #endif
+#ifndef JANET_NO_SYMLINKS
+        JANET_CORE_REG("os/readlink", os_readlink),
+#endif
+
+        /* fs write */
         JANET_CORE_REG("os/mkdir", os_mkdir),
         JANET_CORE_REG("os/rmdir", os_rmdir),
         JANET_CORE_REG("os/rm", os_remove),
         JANET_CORE_REG("os/link", os_link),
+        JANET_CORE_REG("os/rename", os_rename),
 #ifndef JANET_NO_SYMLINKS
         JANET_CORE_REG("os/symlink", os_symlink),
-        JANET_CORE_REG("os/readlink", os_readlink),
 #endif
+
+        /* processes */
 #ifndef JANET_NO_PROCESSES
         JANET_CORE_REG("os/execute", os_execute),
         JANET_CORE_REG("os/spawn", os_spawn),
         JANET_CORE_REG("os/shell", os_shell),
+        /* no need to sandbox process management if you can't create processes
+         * (allows for limited functionality if use exposes C-functions to create specific processes) */
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
         JANET_CORE_REG("os/proc-kill", os_proc_kill),
         JANET_CORE_REG("os/proc-close", os_proc_close),
 #endif
-        JANET_CORE_REG("os/setenv", os_setenv),
-        JANET_CORE_REG("os/time", os_time),
-        JANET_CORE_REG("os/mktime", os_mktime),
+
+        /* high resolution timers */
         JANET_CORE_REG("os/clock", os_clock),
-        JANET_CORE_REG("os/sleep", os_sleep),
-        JANET_CORE_REG("os/cwd", os_cwd),
-        JANET_CORE_REG("os/cryptorand", os_cryptorand),
-        JANET_CORE_REG("os/date", os_date),
-        JANET_CORE_REG("os/rename", os_rename),
-        JANET_CORE_REG("os/realpath", os_realpath),
-        JANET_CORE_REG("os/perm-string", os_permission_string),
-        JANET_CORE_REG("os/perm-int", os_permission_int),
+
 #ifdef JANET_EV
-        JANET_CORE_REG("os/open", os_open),
+        JANET_CORE_REG("os/open", os_open), /* fs read and write */
         JANET_CORE_REG("os/pipe", os_pipe),
 #endif
 #endif

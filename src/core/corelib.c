@@ -667,6 +667,59 @@ JANET_CORE_FN(janet_core_memcmp,
     return janet_wrap_integer(memcmp(a.bytes + offset_a, b.bytes + offset_b, (size_t) len));
 }
 
+typedef struct SandboxOption {
+    const char *name;
+    uint32_t flag;
+} SandboxOption;
+
+static const SandboxOption sandbox_options[] = {
+    {"all", JANET_SANDBOX_ALL},
+    {"env", JANET_SANDBOX_ENV},
+    {"ffi", JANET_SANDBOX_FFI},
+    {"fs", JANET_SANDBOX_FS},
+    {"fs-read", JANET_SANDBOX_FS_READ},
+    {"fs-write", JANET_SANDBOX_FS_WRITE},
+    {"hrtime", JANET_SANDBOX_HRTIME},
+    {"net", JANET_SANDBOX_NET},
+    {"net-connect", JANET_SANDBOX_NET_CONNECT},
+    {"net-listen", JANET_SANDBOX_NET_LISTEN},
+    {"sandbox", JANET_SANDBOX_SANDBOX},
+    {"subprocess", JANET_SANDBOX_SUBPROCESS},
+    {NULL, 0}
+};
+
+JANET_CORE_FN(janet_core_sandbox,
+              "(sandbox & forbidden-capabilities)",
+              "Disable feature sets to prevent the interpreter from using certain system resources. "
+              "Once a feature is disabled, there is no way to re-enable it. Cabapiblities can be:\n\n"
+              "* :sandbox - disallow calling this function\n"
+              "* :fs - disallow access to the file system\n"
+              "* :fs-read - disallow read access to the file system\n"
+              "* :fs-write - disallow write access to the file system\n"
+              "* :env - disallow reading and write env variables\n"
+              "* :subprocess - disallow running subprocesses\n"
+              "* :hrtime - disallow high-resolution timers\n"
+              "* :ffi - disallow FFI (recommended if disabling anythin else)\n"
+              "* :net-connect - disallow making outbound network connctions\n"
+              "* :net-listen - disallow accepting inbound network connctions\n"
+              "* :net - disallow network access\n"
+              "* :all - disallow all (except IO to stdout, stderr, and stdin)") {
+    uint32_t flags = 0;
+    for (int32_t i = 0; i < argc; i++) {
+        JanetKeyword kw = janet_getkeyword(argv, i);
+        const SandboxOption *opt = sandbox_options;
+        while (opt->name != NULL) {
+            if (janet_cstrcmp(kw, opt->name) == 0) {
+                flags |= opt->flag;
+                break;
+            }
+            opt++;
+        }
+    }
+    janet_sandbox(flags);
+    return janet_wrap_nil();
+}
+
 #ifdef JANET_BOOTSTRAP
 
 /* Utility for inline assembly */
@@ -970,6 +1023,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("signal", janet_core_signal),
         JANET_CORE_REG("memcmp", janet_core_memcmp),
         JANET_CORE_REG("getproto", janet_core_getproto),
+        JANET_CORE_REG("sandbox", janet_core_sandbox),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, corelib_cfuns);

@@ -69,12 +69,15 @@ static int32_t checkflags(const uint8_t *str) {
             break;
         case 'w':
             flags |= JANET_FILE_WRITE;
+            janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
             break;
         case 'a':
             flags |= JANET_FILE_APPEND;
+            janet_sandbox_assert(JANET_SANDBOX_FS);
             break;
         case 'r':
             flags |= JANET_FILE_READ;
+            janet_sandbox_assert(JANET_SANDBOX_FS_READ);
             break;
     }
     for (i = 1; i < len; i++) {
@@ -84,6 +87,7 @@ static int32_t checkflags(const uint8_t *str) {
                 break;
             case '+':
                 if (flags & JANET_FILE_UPDATE) return -1;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 flags |= JANET_FILE_UPDATE;
                 break;
             case 'b':
@@ -116,6 +120,7 @@ JANET_CORE_FN(cfun_io_temp,
               "(file/temp)",
               "Open an anonymous temporary file that is removed on close. "
               "Raises an error on failure.") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     (void)argv;
     janet_fixarity(argc, 0);
     // XXX use mkostemp when we can to avoid CLOEXEC race.
@@ -148,6 +153,7 @@ JANET_CORE_FN(cfun_io_fopen,
         flags = checkflags(fmode);
     } else {
         fmode = (const uint8_t *)"r";
+        janet_sandbox_assert(JANET_SANDBOX_FS_READ);
         flags = JANET_FILE_READ;
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);

@@ -1798,6 +1798,22 @@ JANET_API Janet janet_mcall(const char *name, int32_t argc, Janet *argv);
 JANET_API void janet_stacktrace(JanetFiber *fiber, Janet err);
 JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix);
 
+/* Sandboxing API */
+#define JANET_SANDBOX_SANDBOX 1
+#define JANET_SANDBOX_SUBPROCESS 2
+#define JANET_SANDBOX_NET_CONNECT 4
+#define JANET_SANDBOX_NET_LISTEN 8
+#define JANET_SANDBOX_NET (JANET_SANDBOX_NET_CONNECT | JANET_SANDBOX_NET_LISTEN)
+#define JANET_SANDBOX_FFI 16
+#define JANET_SANDBOX_FS_WRITE 32
+#define JANET_SANDBOX_FS_READ 64
+#define JANET_SANDBOX_FS (JANET_SANDBOX_FS_WRITE | JANET_SANDBOX_FS_READ)
+#define JANET_SANDBOX_HRTIME 128
+#define JANET_SANDBOX_ENV 256
+#define JANET_SANDBOX_ALL (UINT32_MAX)
+JANET_API void janet_sandbox(uint32_t flags);
+JANET_API void janet_sandbox_assert(uint32_t forbidden_flags);
+
 /* Scratch Memory API */
 typedef void (*JanetScratchFinalizer)(void *);
 
