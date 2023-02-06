@@ -2,7 +2,15 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
-- Add build-time detection for cygwin.
+- Calling `ev/cancel` on a fiber waiting on `ev/gather` will correctly
+  cancel the child fibers.
+- Add `(sandbox ...)` function to core for permission based security. Also add `janet_sandbox` to C API.
+  The sandbox allows limiting access to the file system, network, ffi, and OS resources at runtime.
+- Add `(.locals)` function to debugger to see currently bound local symbols.
+- Track symbol -> slot mapping so debugger can get symbolic information. This exposes local bindings
+  in `debug/stack` and `disasm`.
+- Add `os/compiler` to detect what host compiler was used to compile the interpreter
+- Add support for mingw and cygwin builds (mingw support also added in jpm).
 
 ## 1.26.0 - 2023-01-07
 - Add `ffi/malloc` and `ffi/free`. Useful as tools of last resort.

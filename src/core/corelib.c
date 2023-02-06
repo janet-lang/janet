@@ -691,7 +691,7 @@ static const SandboxOption sandbox_options[] = {
 JANET_CORE_FN(janet_core_sandbox,
               "(sandbox & forbidden-capabilities)",
               "Disable feature sets to prevent the interpreter from using certain system resources. "
-              "Once a feature is disabled, there is no way to re-enable it. Cabapiblities can be:\n\n"
+              "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
               "* :sandbox - disallow calling this function\n"
               "* :fs - disallow access to the file system\n"
               "* :fs-read - disallow read access to the file system\n"
