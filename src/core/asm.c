@@ -739,8 +739,12 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
                 janet_asm_error(&a, "expected tuple");
             }
             tup = janet_unwrap_tuple(entry);
-            if (!janet_checkint(tup[0])) {
+            if (janet_keyeq(tup[0], "upvalue")) {
+                ss.birth_pc = UINT32_MAX;
+            } else if (!janet_checkint(tup[0])) {
                 janet_asm_error(&a, "expected integer");
+            } else {
+                ss.birth_pc = janet_unwrap_integer(tup[0]);
             }
             if (!janet_checkint(tup[1])) {
                 janet_asm_error(&a, "expected integer");
@@ -751,7 +755,6 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             if (!janet_checktype(tup[3], JANET_SYMBOL)) {
                 janet_asm_error(&a, "expected symbol");
             }
-            ss.birth_pc = janet_unwrap_integer(tup[0]);
             ss.death_pc = janet_unwrap_integer(tup[1]);
             ss.slot_index = janet_unwrap_integer(tup[2]);
             ss.symbol = janet_unwrap_symbol(tup[3]);
