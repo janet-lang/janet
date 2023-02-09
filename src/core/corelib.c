@@ -43,6 +43,7 @@ extern size_t janet_core_image_size;
 #endif
 
 JanetModule janet_native(const char *name, const uint8_t **error) {
+    janet_sandbox_assert(JANET_SANDBOX_DYNAMIC_MODULES);
     char *processed_name = get_processed_name(name);
     Clib lib = load_clib(processed_name);
     JanetModule init;
@@ -652,7 +653,7 @@ JANET_CORE_FN(janet_core_signal,
 
 JANET_CORE_FN(janet_core_memcmp,
               "(memcmp a b &opt len offset-a offset-b)",
-              "Compare memory. Takes to byte sequences `a` and `b`, and "
+              "Compare memory. Takes two byte sequences `a` and `b`, and "
               "return 0 if they have identical contents, a negative integer if a is less than b, "
               "and a positive integer if a is greater than b. Optionally take a length and offsets "
               "to compare slices of the bytes sequences.") {
@@ -680,6 +681,7 @@ static const SandboxOption sandbox_options[] = {
     {"fs-read", JANET_SANDBOX_FS_READ},
     {"fs-write", JANET_SANDBOX_FS_WRITE},
     {"hrtime", JANET_SANDBOX_HRTIME},
+    {"modules", JANET_SANDBOX_DYNAMIC_MODULES},
     {"net", JANET_SANDBOX_NET},
     {"net-connect", JANET_SANDBOX_NET_CONNECT},
     {"net-listen", JANET_SANDBOX_NET_LISTEN},
@@ -692,18 +694,19 @@ JANET_CORE_FN(janet_core_sandbox,
               "(sandbox & forbidden-capabilities)",
               "Disable feature sets to prevent the interpreter from using certain system resources. "
               "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
-              "* :sandbox - disallow calling this function\n"
+              "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
+              "* :env - disallow reading and write env variables\n"
+              "* :ffi - disallow FFI (recommended if disabling anythin else)\n"
               "* :fs - disallow access to the file system\n"
               "* :fs-read - disallow read access to the file system\n"
               "* :fs-write - disallow write access to the file system\n"
-              "* :env - disallow reading and write env variables\n"
-              "* :subprocess - disallow running subprocesses\n"
               "* :hrtime - disallow high-resolution timers\n"
-              "* :ffi - disallow FFI (recommended if disabling anythin else)\n"
+              "* :modules - disallow load dynamic modules (natives)\n"
+              "* :net - disallow network access\n"
               "* :net-connect - disallow making outbound network connctions\n"
               "* :net-listen - disallow accepting inbound network connctions\n"
-              "* :net - disallow network access\n"
-              "* :all - disallow all (except IO to stdout, stderr, and stdin)") {
+              "* :sandbox - disallow calling this function\n"
+              "* :subprocess - disallow running subprocesses") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
         JanetKeyword kw = janet_getkeyword(argv, i);

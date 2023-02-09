@@ -1810,6 +1810,7 @@ JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *pr
 #define JANET_SANDBOX_FS (JANET_SANDBOX_FS_WRITE | JANET_SANDBOX_FS_READ)
 #define JANET_SANDBOX_HRTIME 128
 #define JANET_SANDBOX_ENV 256
+#define JANET_SANDBOX_DYNAMIC_MODULES 512
 #define JANET_SANDBOX_ALL (UINT32_MAX)
 JANET_API void janet_sandbox(uint32_t flags);
 JANET_API void janet_sandbox_assert(uint32_t forbidden_flags);
