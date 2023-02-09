@@ -280,10 +280,11 @@ extern "C" {
 #ifndef JANET_NO_NANBOX
 #ifdef JANET_32
 #define JANET_NANBOX_32
-#elif defined(__x86_64__) || defined(_WIN64)
+#elif defined(__x86_64__) || defined(_WIN64) || defined(__riscv)
 /* We will only enable nanboxing by default on 64 bit systems
- * on x86. This is mainly because the approach is tied to the
- * implicit 47 bit address space. */
+ * for x64 and risc-v. This is mainly because the approach is tied to the
+ * implicit 47 bit address space. Many arches allow/require this, but not all,
+ * and it requires cooperation from the OS. ARM should also work in many configurations. */
 #define JANET_NANBOX_64
 #endif
 #endif
