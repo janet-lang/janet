@@ -120,7 +120,7 @@ JANET_CORE_FN(cfun_io_temp,
               "(file/temp)",
               "Open an anonymous temporary file that is removed on close. "
               "Raises an error on failure.") {
-    janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
+    janet_sandbox_assert(JANET_SANDBOX_FS_TEMP);
     (void)argv;
     janet_fixarity(argc, 0);
     // XXX use mkostemp when we can to avoid CLOEXEC race.

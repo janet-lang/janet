@@ -679,6 +679,7 @@ static const SandboxOption sandbox_options[] = {
     {"ffi", JANET_SANDBOX_FFI},
     {"fs", JANET_SANDBOX_FS},
     {"fs-read", JANET_SANDBOX_FS_READ},
+    {"fs-temp", JANET_SANDBOX_FS_TEMP},
     {"fs-write", JANET_SANDBOX_FS_WRITE},
     {"hrtime", JANET_SANDBOX_HRTIME},
     {"modules", JANET_SANDBOX_DYNAMIC_MODULES},
@@ -696,15 +697,16 @@ JANET_CORE_FN(janet_core_sandbox,
               "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
               "* :env - disallow reading and write env variables\n"
-              "* :ffi - disallow FFI (recommended if disabling anythin else)\n"
+              "* :ffi - disallow FFI (recommended if disabling anything else)\n"
               "* :fs - disallow access to the file system\n"
               "* :fs-read - disallow read access to the file system\n"
+              "* :fs-temp - disallow creating temporary files\n"
               "* :fs-write - disallow write access to the file system\n"
               "* :hrtime - disallow high-resolution timers\n"
               "* :modules - disallow load dynamic modules (natives)\n"
               "* :net - disallow network access\n"
-              "* :net-connect - disallow making outbound network connctions\n"
-              "* :net-listen - disallow accepting inbound network connctions\n"
+              "* :net-connect - disallow making outbound network connections\n"
+              "* :net-listen - disallow accepting inbound network connections\n"
               "* :sandbox - disallow calling this function\n"
               "* :subprocess - disallow running subprocesses") {
     uint32_t flags = 0;
