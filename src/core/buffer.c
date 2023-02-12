@@ -28,6 +28,13 @@
 #include "state.h"
 #endif
 
+/* Allow for managed buffers that cannot realloc/free their backing memory */
+static void janet_buffer_can_realloc(JanetBuffer *buffer) {
+    if (buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC) {
+        janet_panic("buffer cannot reallocate foreign memory");
+    }
+}
+
 /* Initialize a buffer */
 static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, int32_t capacity) {
     uint8_t *data = NULL;
@@ -53,7 +60,9 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
 
 /* Deinitialize a buffer (free data memory) */
 void janet_buffer_deinit(JanetBuffer *buffer) {
-    janet_free(buffer->data);
+    if (!(buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC)) {
+        janet_free(buffer->data);
+    }
 }
 
 /* Initialize a buffer */
@@ -67,6 +76,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
     uint8_t *new_data;
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
+    janet_buffer_can_realloc(buffer);
     int64_t big_capacity = ((int64_t) capacity) * growth;
     capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
@@ -99,6 +109,7 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
     }
     int32_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
+        janet_buffer_can_realloc(buffer);
         int32_t new_capacity = (new_size > (INT32_MAX / 2)) ? INT32_MAX : (new_size * 2);
         uint8_t *new_data = janet_realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
@@ -220,6 +231,7 @@ JANET_CORE_FN(cfun_buffer_trim,
               "modified buffer.") {
     janet_fixarity(argc, 1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    janet_buffer_can_realloc(buffer);
     if (buffer->count < buffer->capacity) {
         int32_t newcap = buffer->count > 4 ? buffer->count : 4;
         uint8_t *newData = janet_realloc(buffer->data, newcap);

@@ -24,6 +24,7 @@
 #include "features.h"
 #include <janet.h>
 #include "util.h"
+#include "gc.h"
 #endif
 
 #ifdef JANET_FFI
@@ -309,6 +310,7 @@ static JanetFFIPrimType decode_ffi_prim(const uint8_t *name) {
     if (!janet_cstrcmp(name, "void")) return JANET_FFI_TYPE_VOID;
     if (!janet_cstrcmp(name, "bool")) return JANET_FFI_TYPE_BOOL;
     if (!janet_cstrcmp(name, "ptr")) return JANET_FFI_TYPE_PTR;
+    if (!janet_cstrcmp(name, "pointer")) return JANET_FFI_TYPE_PTR;
     if (!janet_cstrcmp(name, "string")) return JANET_FFI_TYPE_STRING;
     if (!janet_cstrcmp(name, "float")) return JANET_FFI_TYPE_FLOAT;
     if (!janet_cstrcmp(name, "double")) return JANET_FFI_TYPE_DOUBLE;
@@ -1481,23 +1483,44 @@ JANET_CORE_FN(janet_core_native_close,
 
 JANET_CORE_FN(cfun_ffi_malloc,
               "(ffi/malloc size)",
-              "Allocates memory directly using the system memory allocator. Memory allocated in this way must be freed manually! Returns a raw pointer, or nil if size = 0.") {
+              "Allocates memory directly using the janet memory allocator. Memory allocated in this way must be freed manually! Returns a raw pointer, or nil if size = 0.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI);
     janet_fixarity(argc, 1);
     size_t size = janet_getsize(argv, 0);
     if (size == 0) return janet_wrap_nil();
-    return janet_wrap_pointer(malloc(size));
+    return janet_wrap_pointer(janet_malloc(size));
 }
 
 JANET_CORE_FN(cfun_ffi_free,
               "(ffi/free pointer)",
-              "Free memory allocated with `ffi/malloc`.") {
+              "Free memory allocated with `ffi/malloc`. Returns nil.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI);
     janet_fixarity(argc, 1);
     if (janet_checktype(argv[0], JANET_NIL)) return janet_wrap_nil();
     void *pointer = janet_getpointer(argv, 0);
-    free(pointer);
+    janet_free(pointer);
     return janet_wrap_nil();
+}
+
+JANET_CORE_FN(cfun_ffi_pointer_buffer,
+              "(ffi/pointer-buffer pointer capacity &opt count offset)",
+              "Create a buffer from a pointer. The underlying memory of the buffer will not be "
+              "reallocated or freed by the garbage collector, allowing unmanaged, mutable memory "
+              "to be manipulated with buffer functions. Attempts to resize or extend the buffer "
+              "beyond it's initial capacity will raise an error. As with many FFI functions, it is memory "
+              "unsafe and can potentially allow out of bounds memory access. Returns a new buffer.") {
+    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_arity(argc, 2, 4);
+    void *pointer = janet_getpointer(argv, 0);
+    int32_t capacity = janet_getnat(argv, 1);
+    int32_t count = janet_optnat(argv, argc, 2, 0);
+    int64_t offset = janet_optinteger64(argv, argc, 3, 0);
+    JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
+    buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
+    buffer->capacity = capacity;
+    buffer->count = count;
+    buffer->data = ((uint8_t *) pointer) + offset;
+    return janet_wrap_buffer(buffer);
 }
 
 void janet_lib_ffi(JanetTable *env) {
@@ -1516,6 +1539,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/jitfn", cfun_ffi_jitfn),
         JANET_CORE_REG("ffi/malloc", cfun_ffi_malloc),
         JANET_CORE_REG("ffi/free", cfun_ffi_free),
+        JANET_CORE_REG("ffi/pointer-buffer", cfun_ffi_pointer_buffer),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);

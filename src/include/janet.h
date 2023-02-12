@@ -1585,6 +1585,7 @@ JANET_API Janet janet_array_pop(JanetArray *array);
 JANET_API Janet janet_array_peek(JanetArray *array);
 
 /* Buffer functions */
+#define JANET_BUFFER_FLAG_NO_REALLOC 0x10000
 JANET_API JanetBuffer *janet_buffer(int32_t capacity);
 JANET_API JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity);
 JANET_API void janet_buffer_deinit(JanetBuffer *buffer);
