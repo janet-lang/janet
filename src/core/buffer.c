@@ -307,17 +307,8 @@ JANET_CORE_FN(cfun_buffer_chars,
     return argv[0];
 }
 
-JANET_CORE_FN(cfun_buffer_push,
-              "(buffer/push buffer & xs)",
-              "Push both individual bytes and byte sequences to a buffer. For each x in xs, "
-              "push the byte if x is an integer, otherwise push the bytesequence to the buffer. "
-              "Thus, this function behaves like both `buffer/push-string` and `buffer/push-byte`. "
-              "Returns the modified buffer. "
-              "Will throw an error if the buffer overflows.") {
-    int32_t i;
-    janet_arity(argc, 1, -1);
-    JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    for (i = 1; i < argc; i++) {
+static void buffer_push_impl(JanetBuffer *buffer, Janet *argv, int32_t argc_offset, int32_t argc) {
+    for (int32_t i = argc_offset; i < argc; i++) {
         if (janet_checktype(argv[i], JANET_NUMBER)) {
             janet_buffer_push_u8(buffer, (uint8_t)(janet_getinteger(argv, i) & 0xFF));
         } else {
@@ -329,6 +320,36 @@ JANET_CORE_FN(cfun_buffer_push,
             janet_buffer_push_bytes(buffer, view.bytes, view.len);
         }
     }
+}
+
+JANET_CORE_FN(cfun_buffer_push_at,
+              "(buffer/push-at buffer index & xs)",
+              "Same as buffer/push, but inserts new data at index `index`.") {
+    janet_arity(argc, 2, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    int32_t index = janet_getinteger(argv, 1);
+    int32_t old_count = buffer->count;
+    if (index < 0 || index > old_count) {
+        janet_panicf("index out of range [0, %d)", old_count);
+    }
+    buffer->count = index;
+    buffer_push_impl(buffer, argv, 2, argc);
+    if (buffer->count < old_count) {
+        buffer->count = old_count;
+    }
+    return argv[0];
+}
+
+JANET_CORE_FN(cfun_buffer_push,
+              "(buffer/push buffer & xs)",
+              "Push both individual bytes and byte sequences to a buffer. For each x in xs, "
+              "push the byte if x is an integer, otherwise push the bytesequence to the buffer. "
+              "Thus, this function behaves like both `buffer/push-string` and `buffer/push-byte`. "
+              "Returns the modified buffer. "
+              "Will throw an error if the buffer overflows.") {
+    janet_arity(argc, 1, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    buffer_push_impl(buffer, argv, 1, argc);
     return argv[0];
 }
 
@@ -492,6 +513,7 @@ void janet_lib_buffer(JanetTable *env) {
         JANET_CORE_REG("buffer/push-word", cfun_buffer_word),
         JANET_CORE_REG("buffer/push-string", cfun_buffer_chars),
         JANET_CORE_REG("buffer/push", cfun_buffer_push),
+        JANET_CORE_REG("buffer/push-at", cfun_buffer_push_at),
         JANET_CORE_REG("buffer/popn", cfun_buffer_popn),
         JANET_CORE_REG("buffer/clear", cfun_buffer_clear),
         JANET_CORE_REG("buffer/slice", cfun_buffer_slice),

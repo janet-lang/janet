@@ -1374,7 +1374,7 @@ JANET_CORE_FN(cfun_ffi_call,
 
 JANET_CORE_FN(cfun_ffi_buffer_write,
               "(ffi/write ffi-type data &opt buffer)",
-              "Append a native tyep to a buffer such as it would appear in memory. This can be used "
+              "Append a native type to a buffer such as it would appear in memory. This can be used "
               "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
               "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI);

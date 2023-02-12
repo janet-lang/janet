@@ -19,7 +19,6 @@
                symbolslots)
         "symbolslots survive disasm/asm")
 
-# need to fix upvalues
 (comment
   (setdyn *debug* true)
   (setdyn :pretty-format "%.40M")
@@ -40,5 +39,10 @@
                  [2 7 3 'y]
                  [3 7 4 'z]])
         "arg & inner symbolslots")
+
+# buffer/push-at
+(assert (deep= @"abc456" (buffer/push-at @"abc123" 3 "456")) "buffer/push-at 1")
+(assert (deep= @"abc456789" (buffer/push-at @"abc123" 3 "456789")) "buffer/push-at 2")
+(assert (deep= @"abc423" (buffer/push-at @"abc123" 3 "4")) "buffer/push-at 3")
 
 (end-suite)
