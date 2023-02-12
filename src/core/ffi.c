@@ -1515,12 +1515,8 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
     int32_t capacity = janet_getnat(argv, 1);
     int32_t count = janet_optnat(argv, argc, 2, 0);
     int64_t offset = janet_optinteger64(argv, argc, 3, 0);
-    JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
-    buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
-    buffer->capacity = capacity;
-    buffer->count = count;
-    buffer->data = ((uint8_t *) pointer) + offset;
-    return janet_wrap_buffer(buffer);
+    uint8_t *offset_pointer = ((uint8_t *) pointer) + offset;
+    return janet_wrap_buffer(janet_pointer_buffer_unsafe(offset_pointer, capacity, count));
 }
 
 void janet_lib_ffi(JanetTable *env) {

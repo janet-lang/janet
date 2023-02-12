@@ -334,6 +334,7 @@ JANET_CORE_FN(cfun_net_sockaddr,
               "given in the port argument. On Linux, abstract "
               "unix domain sockets are specified with a leading '@' character in port. If `multi` is truthy, will "
               "return all address that match in an array instead of just the first.") {
+    janet_sandbox_assert(JANET_SANDBOX_NET_CONNECT); /* connect OR listen */
     janet_arity(argc, 2, 4);
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;

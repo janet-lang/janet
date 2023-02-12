@@ -67,7 +67,8 @@ enum {
     LB_UNSAFE_POINTER, /* 222 */
     LB_STRUCT_PROTO, /* 223 */
 #ifdef JANET_EV
-    LB_THREADED_ABSTRACT/* 224 */
+    LB_THREADED_ABSTRACT, /* 224 */
+    LB_POINTER_BUFFER, /* 224 */
 #endif
 } LeadBytes;
 
@@ -151,6 +152,10 @@ static void pushbyte(MarshalState *st, uint8_t b) {
 
 static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
     janet_buffer_push_bytes(st->buf, bytes, len);
+}
+
+static void pushpointer(MarshalState *st, void *ptr) {
+    janet_buffer_push_bytes(st->buf, (const uint8_t *) &ptr, sizeof(ptr));
 }
 
 /* Marshal a size_t onto the buffer */
@@ -511,6 +516,16 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             JanetBuffer *buffer = janet_unwrap_buffer(x);
             /* Record reference */
             MARK_SEEN();
+#ifdef JANET_EV
+            if ((flags & JANET_MARSHAL_UNSAFE) &&
+                    (buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC)) {
+                pushbyte(st, LB_POINTER_BUFFER);
+                pushint(st, buffer->count);
+                pushint(st, buffer->capacity);
+                pushpointer(st, buffer->data);
+                return;
+            }
+#endif
             pushbyte(st, LB_BUFFER);
             pushint(st, buffer->count);
             pushbytes(st, buffer->data, buffer->count);
@@ -606,8 +621,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             if (!(flags & JANET_MARSHAL_UNSAFE)) goto no_registry;
             MARK_SEEN();
             pushbyte(st, LB_UNSAFE_POINTER);
-            void *ptr = janet_unwrap_pointer(x);
-            pushbytes(st, (uint8_t *) &ptr, sizeof(void *));
+            pushpointer(st, janet_unwrap_pointer(x));
             return;
         }
     no_registry:
@@ -1412,6 +1426,27 @@ static const uint8_t *unmarshal_one(
             memcpy(u.bytes, data, sizeof(void *));
             data += sizeof(void *);
             *out = janet_wrap_pointer(u.ptr);
+            janet_v_push(st->lookup, *out);
+            return data;
+        }
+        case LB_POINTER_BUFFER: {
+            data++;
+            int32_t count = readnat(st, &data);
+            int32_t capacity = readnat(st, &data);
+            MARSH_EOS(st, data + sizeof(void *));
+            union {
+                void *ptr;
+                uint8_t bytes[sizeof(void *)];
+            } u;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) {
+                janet_panicf("unsafe flag not given, "
+                             "will not unmarshal raw pointer at index %d",
+                             (int)(data - st->start));
+            }
+            memcpy(u.bytes, data, sizeof(void *));
+            data += sizeof(void *);
+            JanetBuffer *buffer = janet_pointer_buffer_unsafe(u.ptr, capacity, count);
+            *out = janet_wrap_buffer(buffer);
             janet_v_push(st->lookup, *out);
             return data;
         }

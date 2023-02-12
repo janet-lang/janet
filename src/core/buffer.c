@@ -58,6 +58,18 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
     return buffer;
 }
 
+/* Initialize an unmanaged buffer */
+JanetBuffer *janet_pointer_buffer_unsafe(void *memory, int32_t capacity, int32_t count) {
+    if (count < 0) janet_panic("count < 0");
+    if (capacity < count) janet_panic("capacity < count");
+    JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
+    buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
+    buffer->capacity = capacity;
+    buffer->count = count;
+    buffer->data = (uint8_t *) memory;
+    return buffer;
+}
+
 /* Deinitialize a buffer (free data memory) */
 void janet_buffer_deinit(JanetBuffer *buffer) {
     if (!(buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC)) {

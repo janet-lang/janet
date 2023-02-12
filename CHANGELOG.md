@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `ffi/pointer-buffer` to convert pointers to buffers the cannot be reallocated. This
+  allows easier manipulation of FFI memory, memory mapped files, and buffer memory shared between threads.
 - Calling `ev/cancel` on a fiber waiting on `ev/gather` will correctly
   cancel the child fibers.
 - Add `(sandbox ...)` function to core for permission based security. Also add `janet_sandbox` to C API.
