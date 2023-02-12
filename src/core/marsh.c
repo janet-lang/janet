@@ -1429,6 +1429,7 @@ static const uint8_t *unmarshal_one(
             janet_v_push(st->lookup, *out);
             return data;
         }
+#ifdef JANET_EV
         case LB_POINTER_BUFFER: {
             data++;
             int32_t count = readnat(st, &data);
@@ -1450,6 +1451,7 @@ static const uint8_t *unmarshal_one(
             janet_v_push(st->lookup, *out);
             return data;
         }
+#endif
         case LB_UNSAFE_CFUNCTION: {
             MARSH_EOS(st, data + sizeof(JanetCFunction));
             data++;

@@ -1311,7 +1311,11 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     size_t alloc_size = ((size_t) bytes.len + FFI_PAGE_MASK) & ~FFI_PAGE_MASK;
 
 #ifdef JANET_FFI_JIT
+#ifdef JANET_EV
     JanetFFIJittedFn *fn = janet_abstract_threaded(&janet_type_ffijit, sizeof(JanetFFIJittedFn));
+#else
+    JanetFFIJittedFn *fn = janet_abstract(&janet_type_ffijit, sizeof(JanetFFIJittedFn));
+#endif
     fn->function_pointer = NULL;
     fn->size = 0;
 #ifdef JANET_WINDOWS
