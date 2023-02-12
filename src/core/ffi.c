@@ -1373,19 +1373,25 @@ JANET_CORE_FN(cfun_ffi_call,
 }
 
 JANET_CORE_FN(cfun_ffi_buffer_write,
-              "(ffi/write ffi-type data &opt buffer)",
+              "(ffi/write ffi-type data &opt buffer index)",
               "Append a native type to a buffer such as it would appear in memory. This can be used "
               "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
               "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI);
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, 4);
     JanetFFIType type = decode_ffi_type(argv[0]);
     uint32_t el_size = (uint32_t) type_size(type);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
+    int32_t index = janet_optnat(argv, argc, 3, 0);
+    int32_t old_count = buffer->count;
+    if (index > old_count) janet_panic("index out of bounds");
+    buffer->count = index;
     janet_buffer_extra(buffer, el_size);
-    memset(buffer->data, 0, el_size);
-    janet_ffi_write_one(buffer->data, argv, 1, type, JANET_FFI_MAX_RECUR);
-    buffer->count += el_size;
+    buffer->count = old_count;
+    memset(buffer->data + index, 0, el_size);
+    janet_ffi_write_one(buffer->data + index, argv, 1, type, JANET_FFI_MAX_RECUR);
+    index += el_size;
+    if (buffer->count < index) buffer->count = index;
     return janet_wrap_buffer(buffer);
 }
 
