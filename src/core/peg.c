@@ -1034,7 +1034,7 @@ static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_CAPTURE_NUM, rule, base, tag);
     return;
 error:
-    peg_panicf(b, "expected integer between 2 and 36, got %v", argv[2]);
+    peg_panicf(b, "expected integer between 2 and 36, got %v", argv[1]);
 }
 
 static void spec_reference(Builder *b, int32_t argc, const Janet *argv) {
