@@ -294,9 +294,12 @@
 (assert-error "comptime issue" (eval '(comptime (error "oops"))))
 
 (with [f (file/temp)]
+  (assert (= 0 (file/tell f)) "start of file")
   (file/write f "foo\n")
+  (assert (= 4 (file/tell f)) "after written string")
   (file/flush f)
   (file/seek f :set 0)
+  (assert (= 0 (file/tell f)) "start of file again")
   (assert (= (string (file/read f :all)) "foo\n") "temp files work"))
 
 (var counter 0)

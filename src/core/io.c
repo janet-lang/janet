@@ -348,11 +348,24 @@ JANET_CORE_FN(cfun_io_fseek,
     return argv[0];
 }
 
+JANET_CORE_FN(cfun_io_ftell,
+              "(file/tell f)",
+              "Get the current value of the file position for file `f`.") {
+    janet_fixarity(argc, 1);
+    JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
+    if (iof->flags & JANET_FILE_CLOSED)
+        janet_panic("file is closed");
+    long pos = ftell(iof->file);
+    if (pos == -1) janet_panic("error getting position in file");
+    return janet_wrap_number((double)pos);
+}
+
 static JanetMethod io_file_methods[] = {
     {"close", cfun_io_fclose},
     {"flush", cfun_io_fflush},
     {"read", cfun_io_fread},
     {"seek", cfun_io_fseek},
+    {"tell", cfun_io_ftell},
     {"write", cfun_io_fwrite},
     {NULL, NULL}
 };
@@ -783,6 +796,7 @@ void janet_lib_io(JanetTable *env) {
         JANET_CORE_REG("file/write", cfun_io_fwrite),
         JANET_CORE_REG("file/flush", cfun_io_fflush),
         JANET_CORE_REG("file/seek", cfun_io_fseek),
+        JANET_CORE_REG("file/tell", cfun_io_ftell),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, io_cfuns);
