@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Change semantics around bracket tuples to no longer be equal to regular tuples.
+- Add `index` argument to `ffi/write` for symmetry with `ffi/read`.
 - Add `buffer/push-at`
 - Add `ffi/pointer-buffer` to convert pointers to buffers the cannot be reallocated. This
   allows easier manipulation of FFI memory, memory mapped files, and buffer memory shared between threads.

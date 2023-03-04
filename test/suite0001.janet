@@ -228,7 +228,7 @@
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
-(assert (= '[2 -2 2 0.5] (myfun 2)) "juxt")
+(assert (= [2 -2 2 0.5] (myfun 2)) "juxt")
 
 # Case statements
 (assert

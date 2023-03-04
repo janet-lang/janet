@@ -272,6 +272,7 @@ int janet_equals(Janet x, Janet y) {
                 const Janet *t1 = janet_unwrap_tuple(x);
                 const Janet *t2 = janet_unwrap_tuple(y);
                 if (t1 == t2) break;
+                if (JANET_TUPLE_FLAG_BRACKETCTOR & (janet_tuple_flag(t1) ^ janet_tuple_flag(t2))) return 0;
                 if (janet_tuple_hash(t1) != janet_tuple_hash(t2)) return 0;
                 if (janet_tuple_length(t1) != janet_tuple_length(t2)) return 0;
                 push_traversal_node(janet_tuple_head(t1), janet_tuple_head(t2), 0);
@@ -321,6 +322,7 @@ int32_t janet_hash(Janet x) {
             break;
         case JANET_TUPLE:
             hash = janet_tuple_hash(janet_unwrap_tuple(x));
+            hash += (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
             break;
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
@@ -412,6 +414,9 @@ int janet_compare(Janet x, Janet y) {
             case JANET_TUPLE: {
                 const Janet *lhs = janet_unwrap_tuple(x);
                 const Janet *rhs = janet_unwrap_tuple(y);
+                if (JANET_TUPLE_FLAG_BRACKETCTOR & (janet_tuple_flag(lhs) ^ janet_tuple_flag(rhs))) {
+                    return (janet_tuple_flag(lhs) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : -1;
+                }
                 push_traversal_node(janet_tuple_head(lhs), janet_tuple_head(rhs), 1);
                 break;
             }

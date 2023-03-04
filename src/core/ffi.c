@@ -1517,7 +1517,7 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
               "Create a buffer from a pointer. The underlying memory of the buffer will not be "
               "reallocated or freed by the garbage collector, allowing unmanaged, mutable memory "
               "to be manipulated with buffer functions. Attempts to resize or extend the buffer "
-              "beyond it's initial capacity will raise an error. As with many FFI functions, it is memory "
+              "beyond its initial capacity will raise an error. As with many FFI functions, this is memory "
               "unsafe and can potentially allow out of bounds memory access. Returns a new buffer.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI);
     janet_arity(argc, 2, 4);
