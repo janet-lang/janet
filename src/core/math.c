@@ -150,8 +150,8 @@ JANET_CORE_FN(cfun_rng_uniform,
 
 JANET_CORE_FN(cfun_rng_int,
               "(math/rng-int rng &opt max)",
-              "Extract a random random integer in the range [0, max] from the RNG. If "
-              "no max is given, the default is 2^31 - 1."
+              "Extract a random integer in the range [0, max) for max > 0 from the RNG.  "
+              "If max is 0, return 0.  If no max is given, the default is 2^31 - 1."
              ) {
     janet_arity(argc, 1, 2);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
