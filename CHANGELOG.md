@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.27.0 - 2023-03-05
 - Change semantics around bracket tuples to no longer be equal to regular tuples.
 - Add `index` argument to `ffi/write` for symmetry with `ffi/read`.
 - Add `buffer/push-at`

@@ -176,9 +176,9 @@ build/c/janet.c: build/janet_boot src/boot/boot.janet
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.26.dylib
+SONAME=libjanet.1.27.dylib
 else
-SONAME=libjanet.so.1.26
+SONAME=libjanet.so.1.27
 endif
 
 build/c/shell.c: src/mainclient/shell.c
