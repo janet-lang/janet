@@ -61,4 +61,9 @@
 #define _NETBSD_SOURCE
 #endif
 
+/* Needed for several things when building with -std=c99. */
+#if !__BSD_VISIBLE && defined(__DragonFly__)
+#define __BSD_VISIBLE 1
+#endif
+
 #endif

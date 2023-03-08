@@ -126,6 +126,8 @@ JANET_CORE_FN(os_which,
               "* :freebsd\n\n"
               "* :openbsd\n\n"
               "* :netbsd\n\n"
+              "* :dragonfly\n\n"
+              "* :bsd\n\n"
               "* :posix - A POSIX compatible system (default)\n\n"
               "May also return a custom keyword specified at build time.") {
     janet_fixarity(argc, 0);
@@ -150,6 +152,8 @@ JANET_CORE_FN(os_which,
     return janet_ckeywordv("netbsd");
 #elif defined(__OpenBSD__)
     return janet_ckeywordv("openbsd");
+#elif defined(__DragonFly__)
+    return janet_ckeywordv("dragonfly");
 #elif defined(JANET_BSD)
     return janet_ckeywordv("bsd");
 #else
