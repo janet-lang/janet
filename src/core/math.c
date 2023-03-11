@@ -289,7 +289,7 @@ JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that
 JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
 JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
 JANET_DEFINE_MATHOP(gamma, tgamma, "Returns gamma(x).")
-JANET_DEFINE_NAMED_MATHOP(lgamma, "log-gamma", lgamma, "Returns log-gamma(x).")
+JANET_DEFINE_NAMED_MATHOP(lgamma, log-gamma, lgamma, "Returns log-gamma(x).")
 JANET_DEFINE_MATHOP(log1p, log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
 JANET_DEFINE_MATHOP(erf, erf, "Returns the error function of x.")
 JANET_DEFINE_MATHOP(erfc, erfc, "Returns the complementary error function of x.")
