@@ -958,12 +958,26 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     max_arity = (vararg || allow_extra) ? INT32_MAX : arity;
     if (!seenopt) min_arity = arity;
 
-    /* Check for self ref */
+    /* Check for self ref (also avoid if arguments shadow own name) */
     if (selfref) {
-        JanetSlot slot = janetc_farslot(c);
-        slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
-        janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
-        janetc_nameslot(c, janet_unwrap_symbol(head), slot);
+        /* Check if the parameters shadow the function name. If so, don't
+         * emit JOP_LOAD_SELF and add a binding since that most users
+         * seem to expect that function parameters take precedence over the
+         * function name */
+        const uint8_t *sym = janet_unwrap_symbol(head);
+        int32_t len = janet_v_count(c->scope->syms);
+        int found = 0;
+        for (int32_t i = 0; i < len; i++) {
+            if (c->scope->syms[i].sym == sym) {
+                found = 1;
+            }
+        }
+        if (!found) {
+            JanetSlot slot = janetc_farslot(c);
+            slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
+            janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
+            janetc_nameslot(c, sym, slot);
+        }
     }
 
     /* Compile function body */
