@@ -1194,7 +1194,12 @@ static Janet parser_state_delimiters(const JanetParser *_p) {
             }
         }
     }
-    str = janet_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
+    if (p->buf) {
+        str = janet_string(p->buf + oldcount, (int32_t)(p->bufcount - oldcount));
+    } else {
+        janet_assert((int32_t)(p->bufcount - oldcount) == 0, "p->bufcount - oldcount == 0");
+        str = janet_string(NULL, 0);
+    }
     p->bufcount = oldcount;
     return janet_wrap_string(str);
 }
@@ -1205,11 +1210,20 @@ static Janet parser_state_frames(const JanetParser *p) {
     states->count = count;
     uint8_t *buf = p->buf;
     /* Iterate arg stack backwards */
-    Janet *args = p->args + p->argcount;
+    Janet *args = NULL;
+    if (p->args) {
+        args = p->args + p->argcount;
+    } else {
+        janet_assert(p->argcount == 0, "p->argcount == 0");
+    }
     for (int32_t i = count - 1; i >= 0; --i) {
         JanetParseState *s = p->states + i;
         if (s->flags & PFLAG_CONTAINER) {
-            args -= s->argn;
+            if (args) {
+                args -= s->argn;
+            } else {
+                janet_assert(s->argn == 0, "s->argn == 0");
+            }
         }
         states->data[i] = janet_wrap_parse_state(s, args, buf, (uint32_t) p->bufcount);
     }

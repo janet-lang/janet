@@ -636,8 +636,8 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                         JANET_OUT_OF_MEMORY;
                     }
                 }
-
-                janet_sorted_keys(kvs, cap, S->keysort_buffer + ks_start);
+                if (S->keysort_buffer == 0) janet_assert(ks_start == 0, "ks_start == 0");
+                janet_sorted_keys(kvs, cap, S->keysort_buffer ? S->keysort_buffer + ks_start : NULL);
                 S->keysort_start += len;
                 if (!(S->flags & JANET_PRETTY_NOTRUNC) && (len > JANET_PRETTY_DICT_LIMIT)) {
                     len = JANET_PRETTY_DICT_LIMIT;
