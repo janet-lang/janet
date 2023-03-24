@@ -203,8 +203,9 @@ static int destructure(JanetCompiler *c,
                     janetc_emit(c, JOP_JUMP);
                     int32_t label_loop_exit = janet_v_count(c->buffer);
 
-                    c->buffer[label_loop_cond_jump] |= (label_loop_exit - label_loop_cond_jump) << 16;
-                    c->buffer[label_loop_loop] |= (label_loop_start - label_loop_loop) << 8;
+                    /* avoid shifting negative numbers */
+                    c->buffer[label_loop_cond_jump] |= (uint32_t)(label_loop_exit - label_loop_cond_jump) << 16;
+                    c->buffer[label_loop_loop] |= (uint32_t)(label_loop_start - label_loop_loop) << 8;
 
                     janetc_freeslot(c, argi);
                     janetc_freeslot(c, arg);

@@ -118,6 +118,7 @@ const char *const janet_status_names[16] = {
 #ifndef JANET_PRF
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
+    if (NULL == str) return 5381;
     const uint8_t *end = str + len;
     uint32_t hash = 5381;
     while (str < end)
