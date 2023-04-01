@@ -625,11 +625,7 @@ JANET_CORE_FN(cfun_fiber_setmaxstack,
     return argv[0];
 }
 
-JANET_CORE_FN(cfun_fiber_can_resume,
-              "(fiber/can-resume? fiber)",
-              "Check if a fiber is finished and cannot be resumed.") {
-    janet_fixarity(argc, 1);
-    JanetFiber *fiber = janet_getfiber(argv, 0);
+int janet_fiber_can_resume(JanetFiber *fiber) {
     JanetFiberStatus s = janet_fiber_status(fiber);
     int isFinished = s == JANET_STATUS_DEAD ||
                      s == JANET_STATUS_ERROR ||
@@ -638,7 +634,15 @@ JANET_CORE_FN(cfun_fiber_can_resume,
                      s == JANET_STATUS_USER2 ||
                      s == JANET_STATUS_USER3 ||
                      s == JANET_STATUS_USER4;
-    return janet_wrap_boolean(!isFinished);
+    return !isFinished;
+}
+
+JANET_CORE_FN(cfun_fiber_can_resume,
+              "(fiber/can-resume? fiber)",
+              "Check if a fiber is finished and cannot be resumed.") {
+    janet_fixarity(argc, 1);
+    JanetFiber *fiber = janet_getfiber(argv, 0);
+    return janet_wrap_boolean(janet_fiber_can_resume(fiber));
 }
 
 JANET_CORE_FN(cfun_fiber_last_value,

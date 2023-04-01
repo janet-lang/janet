@@ -472,8 +472,12 @@ const JanetAbstractType janet_stream_type = {
 /* Register a fiber to resume with value */
 void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
     if (fiber->gc.flags & JANET_FIBER_EV_FLAG_CANCELED) return;
-    fiber->gc.flags |= JANET_FIBER_FLAG_ROOT;
+    if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+        Janet task_element = janet_wrap_fiber(fiber);
+        janet_table_put(&janet_vm.active_tasks, task_element, janet_wrap_true());
+    }
     JanetTask t = { fiber, value, sig, ++fiber->sched_id };
+    fiber->gc.flags |= JANET_FIBER_FLAG_ROOT;
     if (sig == JANET_SIGNAL_ERROR) fiber->gc.flags |= JANET_FIBER_EV_FLAG_CANCELED;
     janet_q_push(&janet_vm.spawn, &t, sizeof(t));
 }
@@ -559,6 +563,7 @@ void janet_ev_init_common(void) {
     janet_vm.tq_count = 0;
     janet_vm.tq_capacity = 0;
     janet_table_init_raw(&janet_vm.threaded_abstracts, 0);
+    janet_table_init_raw(&janet_vm.active_tasks, 0);
     janet_rng_seed(&janet_vm.ev_rng, 0);
 #ifndef JANET_WINDOWS
     pthread_attr_init(&janet_vm.new_thread_attr);
@@ -573,13 +578,15 @@ void janet_ev_deinit_common(void) {
     janet_free(janet_vm.listeners);
     janet_vm.listeners = NULL;
     janet_table_deinit(&janet_vm.threaded_abstracts);
+    janet_table_deinit(&janet_vm.active_tasks);
 #ifndef JANET_WINDOWS
     pthread_attr_destroy(&janet_vm.new_thread_attr);
 #endif
 }
 
-/* Short hand to yield to event loop */
+/* Shorthand to yield to event loop */
 void janet_await(void) {
+    /* Store the fiber in a gobal table */
     janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
@@ -1252,16 +1259,7 @@ JanetFiber *janet_loop1(void) {
     while (peek_timeout(&to) && to.when <= now) {
         pop_timeout(0);
         if (to.curr_fiber != NULL) {
-            /* This is a deadline (for a fiber, not a function call) */
-            JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
-            int isFinished = (s == JANET_STATUS_DEAD ||
-                              s == JANET_STATUS_ERROR ||
-                              s == JANET_STATUS_USER0 ||
-                              s == JANET_STATUS_USER1 ||
-                              s == JANET_STATUS_USER2 ||
-                              s == JANET_STATUS_USER3 ||
-                              s == JANET_STATUS_USER4);
-            if (!isFinished) {
+            if (janet_fiber_can_resume(to.curr_fiber)) {
                 janet_cancel(to.fiber, janet_cstringv("deadline expired"));
             }
         } else {
@@ -1285,6 +1283,9 @@ JanetFiber *janet_loop1(void) {
         if (task.expected_sched_id != task.fiber->sched_id) continue;
         Janet res;
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
+        if (!janet_fiber_can_resume(task.fiber)) {
+            janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(task.fiber));
+        }
         void *sv = task.fiber->supervisor_channel;
         int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
         if (is_suspended) {
@@ -1316,15 +1317,8 @@ JanetFiber *janet_loop1(void) {
         /* Drop timeouts that are no longer needed */
         while ((has_timeout = peek_timeout(&to))) {
             if (to.curr_fiber != NULL) {
-                JanetFiberStatus s = janet_fiber_status(to.curr_fiber);
-                int is_finished = (s == JANET_STATUS_DEAD ||
-                                   s == JANET_STATUS_ERROR ||
-                                   s == JANET_STATUS_USER0 ||
-                                   s == JANET_STATUS_USER1 ||
-                                   s == JANET_STATUS_USER2 ||
-                                   s == JANET_STATUS_USER3 ||
-                                   s == JANET_STATUS_USER4);
-                if (is_finished) {
+                if (!janet_fiber_can_resume(to.curr_fiber)) {
+                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
                     pop_timeout(0);
                     continue;
                 }
@@ -3174,6 +3168,20 @@ JANET_CORE_FN(janet_cfun_rwlock_write_release,
     return argv[0];
 }
 
+JANET_CORE_FN(janet_cfun_ev_all_tasks,
+              "(ev/all-tasks)",
+              "Get an array of all active fibers that are being used by the scheduler.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    JanetArray *array = janet_array(janet_vm.active_tasks.count);
+    for (int32_t i = 0; i < janet_vm.active_tasks.capacity; i++) {
+        if (!janet_checktype(janet_vm.active_tasks.data[i].key, JANET_NIL)) {
+            janet_array_push(array, janet_vm.active_tasks.data[i].key);
+        }
+    }
+    return janet_wrap_array(array);
+}
+
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3204,6 +3212,7 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/acquire-wlock", janet_cfun_rwlock_write_lock),
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
+        JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };
 

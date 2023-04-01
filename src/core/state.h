@@ -23,6 +23,7 @@
 #ifndef JANET_STATE_H_defined
 #define JANET_STATE_H_defined
 
+#include <janet.h>
 #include <stdint.h>
 
 #ifdef JANET_EV
@@ -158,6 +159,7 @@ struct JanetVM {
     size_t listener_cap;
     size_t extra_listeners;
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
+    JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
 #ifdef JANET_WINDOWS
     void **iocp;
 #elif defined(JANET_EV_EPOLL)

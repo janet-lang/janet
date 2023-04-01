@@ -92,8 +92,8 @@ const char *const janet_signal_names[14] = {
     "user5",
     "user6",
     "user7",
-    "user8",
-    "user9"
+    "interrupt",
+    "await"
 };
 
 const char *const janet_status_names[16] = {
@@ -109,8 +109,8 @@ const char *const janet_status_names[16] = {
     "user5",
     "user6",
     "user7",
-    "user8",
-    "user9",
+    "interrupted",
+    "suspended",
     "new",
     "alive"
 };

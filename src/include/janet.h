@@ -1687,6 +1687,7 @@ JANET_API void janet_table_clear(JanetTable *table);
 JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
+JANET_API int janet_fiber_can_resume(JanetFiber *fiber);
 JANET_API JanetFiber *janet_current_fiber(void);
 JANET_API JanetFiber *janet_root_fiber(void);
 

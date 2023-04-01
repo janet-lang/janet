@@ -254,45 +254,45 @@ JANET_CORE_FN(janet_srand,
     return janet_wrap_nil();
 }
 
-#define JANET_DEFINE_NAMED_MATHOP(c_name, janet_name, fop, doc)\
-JANET_CORE_FN(janet_##c_name, "(math/" #janet_name " x)", doc) {\
+#define JANET_DEFINE_NAMED_MATHOP(janet_name, fop, doc)\
+JANET_CORE_FN(janet_##fop, "(math/" janet_name " x)", doc) {\
     janet_fixarity(argc, 1); \
     double x = janet_getnumber(argv, 0); \
     return janet_wrap_number(fop(x)); \
 }
 
-#define JANET_DEFINE_MATHOP(name, fop, doc) JANET_DEFINE_NAMED_MATHOP(name, name, fop, doc)
+#define JANET_DEFINE_MATHOP(fop, doc) JANET_DEFINE_NAMED_MATHOP(#fop, fop, doc)
 
-JANET_DEFINE_MATHOP(acos, acos, "Returns the arccosine of x.")
-JANET_DEFINE_MATHOP(asin, asin, "Returns the arcsin of x.")
-JANET_DEFINE_MATHOP(atan, atan, "Returns the arctangent of x.")
-JANET_DEFINE_MATHOP(cos, cos, "Returns the cosine of x.")
-JANET_DEFINE_MATHOP(cosh, cosh, "Returns the hyperbolic cosine of x.")
-JANET_DEFINE_MATHOP(acosh, acosh, "Returns the hyperbolic arccosine of x.")
-JANET_DEFINE_MATHOP(sin, sin, "Returns the sine of x.")
-JANET_DEFINE_MATHOP(sinh, sinh, "Returns the hyperbolic sine of x.")
-JANET_DEFINE_MATHOP(asinh, asinh, "Returns the hyperbolic arcsine of x.")
-JANET_DEFINE_MATHOP(tan, tan, "Returns the tangent of x.")
-JANET_DEFINE_MATHOP(tanh, tanh, "Returns the hyperbolic tangent of x.")
-JANET_DEFINE_MATHOP(atanh, atanh, "Returns the hyperbolic arctangent of x.")
-JANET_DEFINE_MATHOP(exp, exp, "Returns e to the power of x.")
-JANET_DEFINE_MATHOP(exp2, exp2, "Returns 2 to the power of x.")
-JANET_DEFINE_MATHOP(expm1, expm1, "Returns e to the power of x minus 1.")
-JANET_DEFINE_MATHOP(log, log, "Returns the natural logarithm of x.")
-JANET_DEFINE_MATHOP(log10, log10, "Returns the log base 10 of x.")
-JANET_DEFINE_MATHOP(log2, log2, "Returns the log base 2 of x.")
-JANET_DEFINE_MATHOP(sqrt, sqrt, "Returns the square root of x.")
-JANET_DEFINE_MATHOP(cbrt, cbrt, "Returns the cube root of x.")
-JANET_DEFINE_MATHOP(ceil, ceil, "Returns the smallest integer value number that is not less than x.")
-JANET_DEFINE_MATHOP(abs, fabs, "Return the absolute value of x.")
-JANET_DEFINE_MATHOP(floor, floor, "Returns the largest integer value number that is not greater than x.")
-JANET_DEFINE_MATHOP(trunc, trunc, "Returns the integer between x and 0 nearest to x.")
-JANET_DEFINE_MATHOP(round, round, "Returns the integer nearest to x.")
-JANET_DEFINE_MATHOP(gamma, tgamma, "Returns gamma(x).")
-JANET_DEFINE_NAMED_MATHOP(lgamma, log-gamma, lgamma, "Returns log-gamma(x).")
-JANET_DEFINE_MATHOP(log1p, log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
-JANET_DEFINE_MATHOP(erf, erf, "Returns the error function of x.")
-JANET_DEFINE_MATHOP(erfc, erfc, "Returns the complementary error function of x.")
+JANET_DEFINE_MATHOP(acos, "Returns the arccosine of x.")
+JANET_DEFINE_MATHOP(asin, "Returns the arcsin of x.")
+JANET_DEFINE_MATHOP(atan, "Returns the arctangent of x.")
+JANET_DEFINE_MATHOP(cos, "Returns the cosine of x.")
+JANET_DEFINE_MATHOP(cosh, "Returns the hyperbolic cosine of x.")
+JANET_DEFINE_MATHOP(acosh, "Returns the hyperbolic arccosine of x.")
+JANET_DEFINE_MATHOP(sin, "Returns the sine of x.")
+JANET_DEFINE_MATHOP(sinh, "Returns the hyperbolic sine of x.")
+JANET_DEFINE_MATHOP(asinh, "Returns the hyperbolic arcsine of x.")
+JANET_DEFINE_MATHOP(tan, "Returns the tangent of x.")
+JANET_DEFINE_MATHOP(tanh, "Returns the hyperbolic tangent of x.")
+JANET_DEFINE_MATHOP(atanh, "Returns the hyperbolic arctangent of x.")
+JANET_DEFINE_MATHOP(exp, "Returns e to the power of x.")
+JANET_DEFINE_MATHOP(exp2, "Returns 2 to the power of x.")
+JANET_DEFINE_MATHOP(expm1, "Returns e to the power of x minus 1.")
+JANET_DEFINE_MATHOP(log, "Returns the natural logarithm of x.")
+JANET_DEFINE_MATHOP(log10, "Returns the log base 10 of x.")
+JANET_DEFINE_MATHOP(log2, "Returns the log base 2 of x.")
+JANET_DEFINE_MATHOP(sqrt, "Returns the square root of x.")
+JANET_DEFINE_MATHOP(cbrt, "Returns the cube root of x.")
+JANET_DEFINE_MATHOP(ceil, "Returns the smallest integer value number that is not less than x.")
+JANET_DEFINE_MATHOP(floor, "Returns the largest integer value number that is not greater than x.")
+JANET_DEFINE_MATHOP(trunc, "Returns the integer between x and 0 nearest to x.")
+JANET_DEFINE_MATHOP(round, "Returns the integer nearest to x.")
+JANET_DEFINE_MATHOP(log1p, "Returns (log base e of x) + 1 more accurately than (+ (math/log x) 1)")
+JANET_DEFINE_MATHOP(erf, "Returns the error function of x.")
+JANET_DEFINE_MATHOP(erfc, "Returns the complementary error function of x.")
+JANET_DEFINE_NAMED_MATHOP("log-gamma", lgamma, "Returns log-gamma(x).")
+JANET_DEFINE_NAMED_MATHOP("abs", fabs, "Return the absolute value of x.")
+JANET_DEFINE_NAMED_MATHOP("gamma", tgamma, "Returns gamma(x).")
 
 #define JANET_DEFINE_MATH2OP(name, fop, signature, doc)\
 JANET_CORE_FN(janet_##name, signature, doc) {\
@@ -370,7 +370,7 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/floor", janet_floor),
         JANET_CORE_REG("math/ceil", janet_ceil),
         JANET_CORE_REG("math/pow", janet_pow),
-        JANET_CORE_REG("math/abs", janet_abs),
+        JANET_CORE_REG("math/abs", janet_fabs),
         JANET_CORE_REG("math/sinh", janet_sinh),
         JANET_CORE_REG("math/cosh", janet_cosh),
         JANET_CORE_REG("math/tanh", janet_tanh),
@@ -385,7 +385,7 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/hypot", janet_hypot),
         JANET_CORE_REG("math/exp2", janet_exp2),
         JANET_CORE_REG("math/log1p", janet_log1p),
-        JANET_CORE_REG("math/gamma", janet_gamma),
+        JANET_CORE_REG("math/gamma", janet_tgamma),
         JANET_CORE_REG("math/log-gamma", janet_lgamma),
         JANET_CORE_REG("math/erfc", janet_erfc),
         JANET_CORE_REG("math/erf", janet_erf),
