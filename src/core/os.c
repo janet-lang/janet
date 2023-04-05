@@ -2271,6 +2271,30 @@ JANET_CORE_FN(os_pipe,
     return janet_wrap_tuple(janet_tuple_n(tup, 2));
 }
 
+JANET_CORE_FN(os_pid,
+              "(os/pid)",
+              "Get process id that invoke this function.") {
+    (void) argv;
+    janet_fixarity(argc, 0);
+#ifdef JANET_WINDOWS
+    return janet_wrap_integer(_getpid())
+#else
+    return janet_wrap_integer(getpid());
+#endif
+}
+
+JANET_CORE_FN(os_ppid,
+              "(os/ppid)",
+              "Get parent process id that invoke this function.") {
+    (void) argv;
+    janet_fixarity(argc, 0);
+#ifdef JANET_WINDOWS
+    return janet_wrap_integer(_getppid())
+#else
+    return janet_wrap_integer(getppid());
+#endif
+}
+
 #endif
 
 #endif /* JANET_REDUCED_OS */
@@ -2347,6 +2371,8 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/execute", os_execute),
         JANET_CORE_REG("os/spawn", os_spawn),
         JANET_CORE_REG("os/shell", os_shell),
+        JANET_CORE_REG("os/pid", os_pid),
+        JANET_CORE_REG("os/ppid", os_ppid),
         /* no need to sandbox process management if you can't create processes
          * (allows for limited functionality if use exposes C-functions to create specific processes) */
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
