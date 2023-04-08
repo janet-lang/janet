@@ -1085,7 +1085,14 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
 
     os_execute_cleanup(envp, child_argv);
     if (status) {
-        janet_panicf("%p: %s", argv[0], strerror(errno));
+        switch (errno) {
+            // on macOS, the binary not existing does not cause errno to be set
+            case 0:
+                janet_panicf("%p: No such file or directory", argv[0]);
+                break;
+            default:
+                janet_panicf("%p: %s", argv[0], strerror(errno));
+        }
     }
 
 #endif
