@@ -600,7 +600,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                     break;
                 }
             case JANET_SYSOP_ADDRESS:
-                janet_formatb(buffer, "_r%u = &_r%u;\n", instruction.two.dest, instruction.two.src);
+                janet_formatb(buffer, "_r%u = (char *) &_r%u;\n", instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_JUMP:
                 janet_formatb(buffer, "goto _i%u;\n", instruction.jump.to);
@@ -679,10 +679,10 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 janet_formatb(buffer, "_r%u = ~_r%u;\n", instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_LOAD:
-                janet_formatb(buffer, "_r%u = *_r%u", instruction.two.dest, instruction.two.src);
+                janet_formatb(buffer, "_r%u = *((%s *) _r%u)", instruction.two.dest, c_prim_names[ir->types[instruction.two.dest]], instruction.two.src);
                 break;
             case JANET_SYSOP_STORE:
-                janet_formatb(buffer, "*_r%u = _r%u", instruction.two.dest, instruction.two.src);
+                janet_formatb(buffer, "*((%s *) _r%u) = _r%u", c_prim_names[ir->types[instruction.two.src]], instruction.two.dest, instruction.two.src);
                 break;
         }
     }
