@@ -44,6 +44,43 @@
 (assert (= :brackets (tuple/type (1 (macex1 '~[1 2 3 4])))) "macex1 qq bracket tuple")
 (assert (deep= (macex1 '~@[1 2 3 4 ,blah]) '~@[1 2 3 4 ,blah]) "macex1 qq array")
 
+# Sourcemaps in threading macros
+(defn check-threading [macro expansion]
+  (def expanded (macex1 (tuple macro 0 '(x) '(y))))
+  (assert (= expanded expansion) (string macro " expansion value"))
+  (def smap-x (tuple/sourcemap (get expanded 1)))
+  (def smap-y (tuple/sourcemap expanded))
+  (def line first)
+  (defn column [t] (t 1))
+  (assert (not= smap-x [-1 -1]) (string macro " x sourcemap existence"))
+  (assert (not= smap-y [-1 -1]) (string macro " y sourcemap existence"))
+  (assert (or (< (line smap-x) (line smap-y))
+              (and (= (line smap-x) (line smap-y))
+                   (< (column smap-x) (column smap-y))))
+          (string macro " relation between x and y sourcemap")))
+
+(check-threading '-> '(y (x 0)))
+(check-threading '->> '(y (x 0)))
+
+# keep-syntax
+(let [brak '[1 2 3]
+      par '(1 2 3)]
+
+  (tuple/setmap brak 2 1)
+
+  (assert (deep= (keep-syntax brak @[1 2 3]) @[1 2 3]) "keep-syntax brackets ignore array")
+  (assert (= (keep-syntax! brak @[1 2 3]) '[1 2 3]) "keep-syntax! brackets replace array")
+
+  (assert (= (keep-syntax! par (map inc @[1 2 3])) '(2 3 4)) "keep-syntax! parens coerce array")
+  (assert (not= (keep-syntax! brak @[1 2 3]) '(1 2 3)) "keep-syntax! brackets not parens")
+  (assert (not= (keep-syntax! par @[1 2 3]) '[1 2 3]) "keep-syntax! parens not brackets")
+  (assert (= (tuple/sourcemap brak)
+             (tuple/sourcemap (keep-syntax! brak @[1 2 3]))) "keep-syntax! brackets source map")
+
+  (keep-syntax par brak)
+  (assert (not= (tuple/sourcemap brak) (tuple/sourcemap par)) "keep-syntax no mutate")
+  (assert (= (keep-syntax 1 brak) brak) "keep-syntax brackets ignore type"))
+
 # Cancel test
 (def f (fiber/new (fn [&] (yield 1) (yield 2) (yield 3) 4) :yti))
 (assert (= 1 (resume f)) "cancel resume 1")

@@ -1232,6 +1232,29 @@
      (,eprintf (,dyn :pretty-format "%q") ,s)
      ,s))
 
+(defn keep-syntax
+  ``Creates a tuple with the tuple type and sourcemap of `before` but the
+  elements of `after`. If either one of its argements is not a tuple, returns
+  `after` unmodified. Useful to preserve syntactic information when transforming
+  an ast in macros.``
+  [before after]
+  (if (and (= :tuple (type before))
+           (= :tuple (type after)))
+    (do
+      (def res (if (= :parens (tuple/type before))
+                 (tuple/slice after)
+                 (tuple/brackets ;after)))
+      (tuple/setmap res ;(tuple/sourcemap before)))
+    after))
+
+(defn keep-syntax!
+  ``Like `keep-syntax`, but if `after` is an array, it is coerced into a tuple.
+  Useful to preserve syntactic information when transforming an ast in macros.``
+  [before after]
+  (keep-syntax before (if (= :array (type after))
+                        (tuple/slice after)
+                        after)))
+
 (defmacro ->
   ``Threading macro. Inserts x as the second value in the first form
   in `forms`, and inserts the modified first form into the second form
@@ -1242,7 +1265,7 @@
                  (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h last] t))
-    (tuple/slice parts 0))
+    (keep-syntax! n parts))
   (reduce fop x forms))
 
 (defmacro ->>
@@ -1255,7 +1278,7 @@
                  (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h] t @[last]))
-    (tuple/slice parts 0))
+    (keep-syntax! n parts))
   (reduce fop x forms))
 
 (defmacro -?>
@@ -1271,7 +1294,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
-    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
+    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defmacro -?>>
@@ -1287,7 +1310,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
-    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
+    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defn- walk-ind [f form]
@@ -1311,10 +1334,7 @@
     :table (walk-dict f form)
     :struct (table/to-struct (walk-dict f form))
     :array (walk-ind f form)
-    :tuple (let [x (walk-ind f form)]
-             (if (= :parens (tuple/type form))
-               (tuple/slice x)
-               (tuple/brackets ;x)))
+    :tuple (keep-syntax! form (walk-ind f form))
     form))
 
 (defn postwalk
