@@ -809,9 +809,9 @@ static const char *scanformat(
     *(form++) = '%';
     const char *p2 = strfrmt;
     while (p2 <= p) {
-        if (strchr(FMT_REPLACE_INTTYPES, *p2) != NULL) {
+        char *loc = strchr(FMT_REPLACE_INTTYPES, *p2);
+        if (loc != NULL && *loc != '\0') {
             const char *mapping = get_fmt_mapping(*p2++);
-            if (!mapping) janet_panic("invalid format (found null)");
             size_t len = strlen(mapping);
             strcpy(form, mapping);
             form += len;
