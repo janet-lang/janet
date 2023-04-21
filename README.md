@@ -7,14 +7,14 @@
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
 **Janet** is a functional and imperative programming language and bytecode interpreter. It is a
-lisp-like language, but lists are replaced
+Lisp-like language, but lists are replaced
 by other data structures (arrays, tables (hash table), struct (immutable hash table), tuples).
 The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
 
 There is a REPL for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
 Janet can be embedded in other programs. Try Janet in your browser at
-[https://janet-lang.org](https://janet-lang.org).
+<https://janet-lang.org>.
 
 If you'd like to financially support the ongoing development of Janet, consider
 [sponsoring its primary author](https://github.com/sponsors/bakpakin) through GitHub.
@@ -41,8 +41,8 @@ Lua, but smaller than GNU Guile or Python.
 * Macros
 * Multithreading
 * Per-thread event loop for efficient evented IO
-* Byte code interpreter with an assembly interface, as well as bytecode verification
-* Tail call Optimization
+* Bytecode interpreter with an assembly interface, as well as bytecode verification
+* Tail-call optimization
 * Direct interop with C via abstract types and C functions
 * Dynamically load C libraries
 * Functional and imperative standard library
@@ -57,7 +57,7 @@ Lua, but smaller than GNU Guile or Python.
 ## Documentation
 
 * For a quick tutorial, see [the introduction](https://janet-lang.org/docs/index.html) for more details.
-* For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/api/index.html)
+* For the full API for all functions in the core library, see [the core API doc](https://janet-lang.org/api/index.html).
 
 Documentation is also available locally in the REPL.
 Use the `(doc symbol-name)` macro to get API
@@ -65,7 +65,7 @@ documentation for symbols in the core library. For example,
 ```
 (doc apply)
 ```
-Shows documentation for the `apply` function.
+shows documentation for the `apply` function.
 
 To get a list of all bindings in the default
 environment, use the `(all-bindings)` function. You
@@ -84,7 +84,7 @@ the SourceHut mirror is actively maintained.
 
 The Makefile is non-portable and requires GNU-flavored make.
 
-```
+```sh
 cd somewhere/my/projects/janet
 make
 make test
@@ -100,7 +100,7 @@ Find out more about the available make targets by running `make help`.
 32-bit Haiku build instructions are the same as the UNIX-like build instructions,
 but you need to specify an alternative compiler, such as `gcc-x86`.
 
-```
+```sh
 cd somewhere/my/projects/janet
 make CC=gcc-x86
 make test
@@ -112,10 +112,9 @@ make install-jpm-git
 ### FreeBSD
 
 FreeBSD build instructions are the same as the UNIX-like build instructions,
-but you need `gmake` to compile. Alternatively, install directly from
-packages, using `pkg install lang/janet`.
+but you need `gmake` to compile. Alternatively, install the package directly with `pkg install lang/janet`.
 
-```
+```sh
 cd somewhere/my/projects/janet
 gmake
 gmake test
@@ -127,19 +126,19 @@ gmake install-jpm-git
 ### NetBSD
 
 NetBSD build instructions are the same as the FreeBSD build instructions.
-Alternatively, install directly from packages, using `pkgin install janet`.
+Alternatively, install the package directly with `pkgin install janet`.
 
 ### Windows
 
-1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#) or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#)
-2. Run a Visual Studio Command Prompt (cl.exe and link.exe need to be on the PATH) and cd to the directory with janet.
-3. Run `build_win` to compile janet.
+1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#) or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#).
+2. Run a Visual Studio Command Prompt (`cl.exe` and `link.exe` need to be on your PATH) and `cd` to the directory with Janet.
+3. Run `build_win` to compile Janet.
 4. Run `build_win test` to make sure everything is working.
 
 To build an `.msi` installer executable, in addition to the above steps, you will have to:
 
-5. Install, or otherwise add to your PATH the [WiX 3.11 Toolset](https://github.com/wixtoolset/wix3/releases)
-6. run `build_win dist`
+5. Install, or otherwise add to your PATH the [WiX 3.11 Toolset](https://github.com/wixtoolset/wix3/releases).
+6. Run `build_win dist`.
 
 Now you should have an `.msi`. You can run `build_win install` to install the `.msi`, or execute the file itself.
 
@@ -175,9 +174,9 @@ ninja -C build install
 
 Janet can be hacked on with pretty much any environment you like, but for IDE
 lovers, [Gnome Builder](https://wiki.gnome.org/Apps/Builder) is probably the
-best option, as it has excellent meson integration. It also offers code completion
+best option, as it has excellent Meson integration. It also offers code completion
 for Janet's C API right out of the box, which is very useful for exploring. VSCode, Vim,
-Emacs, and Atom will have syntax packages for the Janet language, though.
+Emacs, and Atom each have syntax packages for the Janet language, though.
 
 ## Installation
 
@@ -186,8 +185,8 @@ to try out the language, you don't need to install anything. You can also move t
 
 ## Usage
 
-A REPL is launched when the binary is invoked with no arguments. Pass the -h flag
-to display the usage information. Individual scripts can be run with `./janet myscript.janet`
+A REPL is launched when the binary is invoked with no arguments. Pass the `-h` flag
+to display the usage information. Individual scripts can be run with `./janet myscript.janet`.
 
 If you are looking to explore, you can print a list of all available macros, functions, and constants
 by entering the command `(all-bindings)` into the REPL.
@@ -226,8 +225,8 @@ If installed, you can also run `man janet` to get usage information.
 Janet can be embedded in a host program very easily. The normal build
 will create a file `build/janet.c`, which is a single C file
 that contains all the source to Janet. This file, along with
-`src/include/janet.h` and `src/conf/janetconf.h` can be dragged into any C
-project and compiled into the project. Janet should be compiled with `-std=c99`
+`src/include/janet.h` and `src/conf/janetconf.h`, can be dragged into any C
+project and compiled into it. Janet should be compiled with `-std=c99`
 on most compilers, and will need to be linked to the math library, `-lm`, and
 the dynamic linker, `-ldl`, if one wants to be able to load dynamic modules. If
 there is no need for dynamic modules, add the define
@@ -237,24 +236,24 @@ See the [Embedding Section](https://janet-lang.org/capi/embedding.html) on the w
 
 ## Examples
 
-See the examples directory for some example janet code.
+See the examples directory for some example Janet code.
 
 ## Discussion
 
-Feel free to ask questions and join the discussion on the [Janet Gitter Channel](https://gitter.im/janet-language/community).
-Gitter provides Matrix and irc bridges as well.
+Feel free to ask questions and join the discussion on the [Janet Gitter channel](https://gitter.im/janet-language/community).
+Gitter provides Matrix and IRC bridges as well.
 
 ## FAQ
 
 ### Where is (favorite feature from other language)?
 
-It may exist, it may not. If you want to propose major language features, go ahead and open an issue, but
-they will likely by closed as "will not implement". Often, such features make one usecase simpler at the expense
+It may exist, it may not. If you want to propose a major language feature, go ahead and open an issue, but
+it will likely be closed as "will not implement". Often, such features make one usecase simpler at the expense
 of 5 others by making the language more complicated.
 
 ### Is there a language spec?
 
-There is not currently a spec besides the documentation at https://janet-lang.org.
+There is not currently a spec besides the documentation at <https://janet-lang.org>.
 
 ### Is this Scheme/Common Lisp? Where are the cons cells?
 
@@ -270,13 +269,13 @@ Internally, Janet is not at all like Clojure.
 No. They are immutable arrays and hash tables. Don't try and use them like Clojure's vectors
 and maps, instead they work well as table keys or other identifiers.
 
-### Can I do Object Oriented programming with Janet?
+### Can I do object-oriented programming with Janet?
 
 To some extent, yes. However, it is not the recommended method of abstraction, and performance may suffer.
 That said, tables can be used to make mutable objects with inheritance and polymorphism, where object
-methods are implemeted with keywords.
+methods are implemented with keywords.
 
-```
+```clj
 (def Car @{:honk (fn [self msg] (print "car " self " goes " msg)) })
 (def my-car (table/setproto @{} Car))
 (:honk my-car "Beep!")
@@ -287,9 +286,9 @@ methods are implemeted with keywords.
 Usually, one of a few reasons:
 - Often, it already exists in a different form and the Clojure port would be redundant.
 - Clojure programs often generate a lot of garbage and rely on the JVM to clean it up.
-  Janet does not run on the JVM, and has a more primitive garbage collector.
-- We want to keep the Janet core small. With Lisps, usually a feature can be added as a library
-  without feeling "bolted on", especially when compared to ALGOL like languages. Adding features
+  Janet does not run on the JVM and has a more primitive garbage collector.
+- We want to keep the Janet core small. With Lisps, a feature can usually be added as a library
+  without feeling "bolted on", especially when compared to ALGOL-like languages. Adding features
   to the core also makes it a bit more difficult to keep Janet maximally portable.
 
 ### Why is my terminal spitting out junk when I run the REPL?
@@ -297,7 +296,7 @@ Usually, one of a few reasons:
 Make sure your terminal supports ANSI escape codes. Most modern terminals will
 support these, but some older terminals, Windows consoles, or embedded terminals
 will not. If your terminal does not support ANSI escape codes, run the REPL with
-the `-n` flag, which disables color output. You can also try the `-s` if further issues
+the `-n` flag, which disables color output. You can also try the `-s` flag if further issues
 ensue.
 
 ## Why is it called "Janet"?
