@@ -397,7 +397,7 @@ JANET_CORE_FN(cfun_string_replace,
         kmp_deinit(&s.kmp);
         return janet_stringv(s.kmp.text, s.kmp.textlen);
     }
-    JanetByteView subst = janet_text_substitution(&s.subst, s.kmp.text + result, s.kmp.patlen);
+    JanetByteView subst = janet_text_substitution(&s.subst, s.kmp.text + result, s.kmp.patlen, NULL);
     buf = janet_string_begin(s.kmp.textlen - s.kmp.patlen + subst.len);
     safe_memcpy(buf, s.kmp.text, result);
     safe_memcpy(buf + result, subst.bytes, subst.len);
@@ -422,7 +422,7 @@ JANET_CORE_FN(cfun_string_replaceall,
     replacesetup(argc, argv, &s);
     janet_buffer_init(&b, s.kmp.textlen);
     while ((result = kmp_next(&s.kmp)) >= 0) {
-        JanetByteView subst = janet_text_substitution(&s.subst, s.kmp.text + result, s.kmp.patlen);
+        JanetByteView subst = janet_text_substitution(&s.subst, s.kmp.text + result, s.kmp.patlen, NULL);
         janet_buffer_push_bytes(&b, s.kmp.text + lastindex, result - lastindex);
         janet_buffer_push_bytes(&b, subst.bytes, subst.len);
         lastindex = result + s.kmp.patlen;

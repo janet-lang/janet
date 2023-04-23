@@ -1738,7 +1738,7 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
                 trail = i;
             }
             int32_t nexti = (int32_t)(result - c.bytes.bytes);
-            JanetByteView subst = janet_text_substitution(&c.subst, c.bytes.bytes + i, nexti - i);
+            JanetByteView subst = janet_text_substitution(&c.subst, c.bytes.bytes + i, nexti - i, c.s.captures);
             janet_buffer_push_bytes(ret, subst.bytes, subst.len);
             trail = nexti;
             if (nexti == i) nexti++;
@@ -1758,8 +1758,8 @@ JANET_CORE_FN(cfun_peg_replace_all,
               "(peg/replace-all peg subst text &opt start & args)",
               "Replace all matches of `peg` in `text` with `subst`, returning a new buffer. "
               "The peg does not need to make captures to do replacement. "
-              "If `subst` is a function, it will be called once for each match "
-              "and should return the actual replacement text to use.") {
+              "If `subst` is a function, it will be called with the "
+              "matching text followed by any captures.") {
     return cfun_peg_replace_generic(argc, argv, 0);
 }
 
@@ -1767,8 +1767,8 @@ JANET_CORE_FN(cfun_peg_replace,
               "(peg/replace peg repl text &opt start & args)",
               "Replace first match of `peg` in `text` with `subst`, returning a new buffer. "
               "The peg does not need to make captures to do replacement. "
-              "If `subst` is a function, it will be called with the matching text, "
-              "and should return the actual replacement text to use. "
+              "If `subst` is a function, it will be called with the "
+              "matching text followed by any captures. "
               "If no matches are found, returns the input string in a new buffer.") {
     return cfun_peg_replace_generic(argc, argv, 1);
 }

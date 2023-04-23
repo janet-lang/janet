@@ -688,19 +688,32 @@ static JanetByteView to_byte_view(Janet value) {
     return result;
 }
 
-JanetByteView janet_text_substitution(Janet *subst, const uint8_t *bytes, uint32_t len) {
-  switch (janet_type(*subst)) {
-      case JANET_CFUNCTION: {
-          Janet matched = janet_stringv(bytes, len);
-          return to_byte_view(janet_unwrap_cfunction(*subst)(1, &matched));
-      }
-      case JANET_FUNCTION: {
-          Janet matched = janet_stringv(bytes, len);
-          return to_byte_view(janet_call(janet_unwrap_function(*subst), 1, &matched));
-      }
-      default:
-          return memoize_byte_view(subst);
-  }
+JanetByteView janet_text_substitution(
+    Janet *subst,
+    const uint8_t *bytes,
+    uint32_t len,
+    JanetArray *extra_argv) {
+    int32_t extra_argc = extra_argv == NULL ? 0 : extra_argv->count;
+    JanetType type = janet_type(*subst);
+    switch (type) {
+        case JANET_FUNCTION:
+        case JANET_CFUNCTION: {
+            int32_t argc = 1 + extra_argc;
+            Janet *argv = janet_tuple_begin(argc);
+            argv[0] = janet_stringv(bytes, len);
+            for (int32_t i = 0; i < extra_argc; i++) {
+                argv[i + 1] = extra_argv->data[i];
+            }
+            janet_tuple_end(argv);
+            if (type == JANET_FUNCTION) {
+                return to_byte_view(janet_call(janet_unwrap_function(*subst), argc, argv));
+            } else {
+                return to_byte_view(janet_unwrap_cfunction(*subst)(argc, argv));
+            }
+        }
+        default:
+            return memoize_byte_view(subst);
+    }
 }
 
 JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
