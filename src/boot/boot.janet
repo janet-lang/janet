@@ -3865,7 +3865,7 @@
                -v : Print the version string
                -s : Use raw stdin instead of getline like functionality
                -e code : Execute a string of janet
-               -E code arguments... : Evaluate  an expression as a short-fn with arguments
+               -E code arguments... : Evaluate an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
