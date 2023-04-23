@@ -93,6 +93,7 @@ void janet_buffer_format(
     Janet *argv);
 Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
 JanetBinding janet_binding_from_entry(Janet entry);
+JanetByteView janet_text_substitution(Janet *subst, const uint8_t *bytes, uint32_t len);
 
 /* Registry functions */
 void janet_registry_put(

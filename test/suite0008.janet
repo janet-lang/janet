@@ -330,7 +330,6 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= (peg/find-all '"/" p) @[0 4 10 14]) "peg find-all")
 
 # Peg replace and replace-all
-(var ti 0)
 (defn check-replacer
   [x y z]
   (assert (= (string/replace x y z) (string (peg/replace x y z))) "replacer test replace")
@@ -339,6 +338,14 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (check-replacer "abc" "Z" "")
 (check-replacer "aba" "ZZZZZZ" "ababababababa")
 (check-replacer "aba" "" "ababababababa")
+(check-replacer "aba" string/ascii-upper "ababababababa")
+(check-replacer "aba" 123 "ababababababa")
+(assert (= (string (peg/replace-all ~(set "ab") string/ascii-upper "abcaa"))
+           "ABcAA")
+        "peg/replace-all cfunction")
+(assert (= (string (peg/replace-all ~(set "ab") |$ "abcaa"))
+           "abcaa")
+        "peg/replace-all function")
 
 # Peg bug
 (assert (deep= @[] (peg/match '(any 1) @"")) "peg empty pattern 1")
