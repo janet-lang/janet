@@ -1140,16 +1140,17 @@
   (take-until (complement pred) ind))
 
 (defn drop
-  ``Drop the first n elements in an indexed or bytes type. Returns a new tuple or string
-  instance, respectively.``
+  ``Drop the first `n elements in an indexed or bytes type. Returns a new tuple or string
+  instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
   (def len (length ind))
-  # make sure start is in [0, len]
-  (def m (if (> n 0) n 0))
-  (def start (if (> m len) len m))
-  (f ind start -1))
+  (def [start end]
+    (if (>= n 0)
+      [(min n len) len]
+      [0 (max 0 (+ len n))]))
+  (f ind start end))
 
 (defn drop-until
   "Same as `(drop-while (complement pred) ind)`."
