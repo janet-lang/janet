@@ -1085,7 +1085,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
 
     os_execute_cleanup(envp, child_argv);
     if (status) {
-        janet_panicf("%p: %s", argv[0], strerror(errno));
+        /* correct for macos bug where errno is not set */
+        janet_panicf("%p: %s", argv[0], strerror(errno ? errno : ENOENT));
     }
 
 #endif
