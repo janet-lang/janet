@@ -83,8 +83,13 @@
 (assert (deep= (drop 10 []) []) "drop 2")
 (assert (deep= (drop 0 [1 2 3 4 5]) [1 2 3 4 5]) "drop 3")
 (assert (deep= (drop 10 [1 2 3]) []) "drop 4")
-(assert (deep= (drop -2 [:a :b :c]) [:a :b :c]) "drop 5")
-(assert-error :invalid-type (drop 3 {}) "drop 6")
+(assert (deep= (drop -1 [1 2 3]) [1 2]) "drop 5")
+(assert (deep= (drop -10 [1 2 3]) []) "drop 6")
+(assert (deep= (drop 1 "abc") "bc") "drop 7")
+(assert (deep= (drop 10 "abc") "") "drop 8")
+(assert (deep= (drop -1 "abc") "ab") "drop 9")
+(assert (deep= (drop -10 "abc") "") "drop 10")
+(assert-error :invalid-type (drop 3 {}) "drop 11")
 
 # drop-until
 
