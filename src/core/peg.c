@@ -1637,7 +1637,7 @@ typedef struct {
     JanetPeg *peg;
     PegState s;
     JanetByteView bytes;
-    JanetByteView repl;
+    Janet subst;
     int32_t start;
 } PegCall;
 
@@ -1653,7 +1653,7 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
         ret.peg = compile_peg(argv[0]);
     }
     if (get_replace) {
-        ret.repl = janet_getbytes(argv, 1);
+        ret.subst = argv[1];
         ret.bytes = janet_getbytes(argv, 2);
     } else {
         ret.bytes = janet_getbytes(argv, 1);
@@ -1738,7 +1738,8 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
                 trail = i;
             }
             int32_t nexti = (int32_t)(result - c.bytes.bytes);
-            janet_buffer_push_bytes(ret, c.repl.bytes, c.repl.len);
+            JanetByteView subst = janet_text_substitution(&c.subst, c.bytes.bytes + i, nexti - i, c.s.captures);
+            janet_buffer_push_bytes(ret, subst.bytes, subst.len);
             trail = nexti;
             if (nexti == i) nexti++;
             i = nexti;
@@ -1754,14 +1755,20 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
 }
 
 JANET_CORE_FN(cfun_peg_replace_all,
-              "(peg/replace-all peg repl text &opt start & args)",
-              "Replace all matches of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement.") {
+              "(peg/replace-all peg subst text &opt start & args)",
+              "Replace all matches of `peg` in `text` with `subst`, returning a new buffer. "
+              "The peg does not need to make captures to do replacement. "
+              "If `subst` is a function, it will be called with the "
+              "matching text followed by any captures.") {
     return cfun_peg_replace_generic(argc, argv, 0);
 }
 
 JANET_CORE_FN(cfun_peg_replace,
               "(peg/replace peg repl text &opt start & args)",
-              "Replace first match of peg in text with repl, returning a new buffer. The peg does not need to make captures to do replacement. "
+              "Replace first match of `peg` in `text` with `subst`, returning a new buffer. "
+              "The peg does not need to make captures to do replacement. "
+              "If `subst` is a function, it will be called with the "
+              "matching text followed by any captures. "
               "If no matches are found, returns the input string in a new buffer.") {
     return cfun_peg_replace_generic(argc, argv, 1);
 }

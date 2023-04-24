@@ -663,6 +663,59 @@ JanetBinding janet_binding_from_entry(Janet entry) {
     return binding;
 }
 
+/* If the value at the given address can be coerced to a byte view,
+   return that byte view. If it can't, replace the value at the address
+   with the result of janet_to_string, and return a byte view over that
+   string. */
+static JanetByteView memoize_byte_view(Janet *value) {
+    JanetByteView result;
+    if (!janet_bytes_view(*value, &result.bytes, &result.len)) {
+        JanetString str = janet_to_string(*value);
+        *value = janet_wrap_string(str);
+        result.bytes = str;
+        result.len = janet_string_length(str);
+    }
+    return result;
+}
+
+static JanetByteView to_byte_view(Janet value) {
+    JanetByteView result;
+    if (!janet_bytes_view(value, &result.bytes, &result.len)) {
+        JanetString str = janet_to_string(value);
+        result.bytes = str;
+        result.len = janet_string_length(str);
+    }
+    return result;
+}
+
+JanetByteView janet_text_substitution(
+    Janet *subst,
+    const uint8_t *bytes,
+    uint32_t len,
+    JanetArray *extra_argv) {
+    int32_t extra_argc = extra_argv == NULL ? 0 : extra_argv->count;
+    JanetType type = janet_type(*subst);
+    switch (type) {
+        case JANET_FUNCTION:
+        case JANET_CFUNCTION: {
+            int32_t argc = 1 + extra_argc;
+            Janet *argv = janet_tuple_begin(argc);
+            argv[0] = janet_stringv(bytes, len);
+            for (int32_t i = 0; i < extra_argc; i++) {
+                argv[i + 1] = extra_argv->data[i];
+            }
+            janet_tuple_end(argv);
+            if (type == JANET_FUNCTION) {
+                return to_byte_view(janet_call(janet_unwrap_function(*subst), argc, argv));
+            } else {
+                return to_byte_view(janet_unwrap_cfunction(*subst)(argc, argv));
+            }
+        }
+        default:
+            return memoize_byte_view(subst);
+    }
+}
+
 JanetBinding janet_resolve_ext(JanetTable *env, const uint8_t *sym) {
     Janet entry = janet_table_get(env, janet_wrap_symbol(sym));
     return janet_binding_from_entry(entry);
