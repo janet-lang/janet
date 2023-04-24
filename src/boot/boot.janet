@@ -611,6 +611,13 @@
   (def $accum (gensym))
   ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
 
+(defmacro catseq
+  ``Similar to `loop`, but concatenates each element from the loop body into an array and returns that.
+  See `loop` for details.``
+  [head & body]
+  (def $accum (gensym))
+  ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
+
 (defmacro tabseq
   ``Similar to `loop`, but accumulates key value pairs into a table.
   See `loop` for details.``

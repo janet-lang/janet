@@ -252,6 +252,9 @@
 (def xs (apply tuple (seq [x :down [8 -2] :when (even? x)] (tuple (/ x 2) x))))
 (assert (= xs '((4 8) (3 6) (2 4) (1 2) (0 0))) "seq macro 2")
 
+(def xs (catseq [x :range [0 3]] [x x]))
+(assert (deep= xs @[0 0 1 1 2 2]) "catseq")
+
 # :range-to and :down-to
 (assert (deep= (seq [x :range-to [0 10]] x) (seq [x :range [0 11]] x)) "loop :range-to")
 (assert (deep= (seq [x :down-to [10 0]] x) (seq [x :down [10 -1]] x)) "loop :down-to")
