@@ -1146,10 +1146,9 @@
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
   (def len (length ind))
-  (def [start end]
-    (if (>= n 0)
-      [(min n len) len]
-      [0 (max 0 (+ len n))]))
+  (def negn (>= n 0))
+  (def start (if negn (min n len) 0))
+  (def end (if negn len (max 0 (+ len n))))
   (f ind start end))
 
 (defn drop-until
