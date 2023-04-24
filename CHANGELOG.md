@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Change the names of `:user8` and `:user9` sigals to `:interrupt` and `:await`
+- Change the names of `:user8` and `:user9` fiber statuses to `:interrupted` and `:suspended`.
+- Add `ev/all-tasks` to see all currently suspended fibers.
+- Add `keep-syntax` and `keep-syntax!` functions to make writing macros easier.
+
 ## 1.27.0 - 2023-03-05
 - Change semantics around bracket tuples to no longer be equal to regular tuples.
 - Add `index` argument to `ffi/write` for symmetry with `ffi/read`.
