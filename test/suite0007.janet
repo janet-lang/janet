@@ -60,7 +60,7 @@
     :buffer (/ '(* "@" :bytes) (constant :string))
     :long-bytes {:delim (some "`")
                  :open (capture :delim :n)
-                 :close (cmt (* (not (> -1 "`")) (-> :n) ':delim) ,=)
+                 :close (cmt (* (not (> -1 "`")) (-> :n) '(backmatch :n)) ,=)
                  :main (drop (* :open (any (if-not :close 1)) :close))}
     :long-string (/ ':long-bytes (constant :string))
     :long-buffer (/ '(* "@" :long-bytes) (constant :string))
