@@ -274,18 +274,19 @@
   `Evaluates to the last argument if all preceding elements are truthy, otherwise
   evaluates to the first falsey argument.`
   [& forms]
-  (var ret true)
   (def len (length forms))
-  (var i len)
+  (var i (- len 1))
+  (var ret (if (< i 0) true (forms i)))
+  (if (= (get ret 0) 'splice)
+    (set ret (and ;(get ret 1))))
   (while (> i 0)
     (-- i)
     (def v (in forms i))
-    (set ret (if (= ret true)
-               v
-               (if (idempotent? v)
-                 ['if v ret v]
-                 (do (def s (gensym))
-                   ['if ['def s v] ret s])))))
+    (set ret
+      (cond
+        (idempotent? v) ['if v ret v]
+        (= (get v 0) 'splice) (and ;(get v 1) ret)
+        (do (def s (gensym)) ['if ['def s v] ret s]))))
   ret)
 
 (defmacro or
@@ -295,15 +296,16 @@
   (def len (length forms))
   (var i (- len 1))
   (var ret (get forms i))
+  (if (= (get ret 0) 'splice)
+    (set ret (or ;(get ret 1))))
   (while (> i 0)
     (-- i)
-    (def fi (in forms i))
-    (set ret (if (idempotent? fi)
-               (tuple 'if fi fi ret)
-               (do
-                 (def $fi (gensym))
-                 (tuple 'do (tuple 'def $fi fi)
-                        (tuple 'if $fi $fi ret))))))
+    (def v (in forms i))
+    (set ret
+      (cond
+        (idempotent? v) ['if v v ret]
+        (= (get v 0) 'splice) (or ;(get v 1) ret)
+        (do (def s (gensym)) ['if ['def s v] s ret]))))
   ret)
 
 (defmacro with-syms
