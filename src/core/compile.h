@@ -187,6 +187,7 @@ struct JanetCompiler {
 #define JANET_FOPTS_TAIL 0x10000
 #define JANET_FOPTS_HINT 0x20000
 #define JANET_FOPTS_DROP 0x40000
+#define JANET_FOPTS_ACCEPT_SPLICE 0x80000
 
 /* Options for compiling a single form */
 struct JanetFopts {

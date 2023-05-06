@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Disallow using `(splice x)` in contexts where it doesn't make sense rather than silently coercing to `x`.
 - Change the names of `:user8` and `:user9` sigals to `:interrupt` and `:await`
 - Change the names of `:user8` and `:user9` fiber statuses to `:interrupted` and `:suspended`.
 - Add `ev/all-tasks` to see all currently suspended fibers.

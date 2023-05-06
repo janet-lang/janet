@@ -24,6 +24,11 @@
   (def errsym (keyword (gensym)))
   ~(assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
 
+(defn check-compile-error
+  [form]
+  (def result (compile form))
+  (assert (table? result) (string/format "expected compilation error for %j, but compiled without error" form)))
+
 (defmacro assert-no-error
   [msg & forms]
   (def errsym (keyword (gensym)))
