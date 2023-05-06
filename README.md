@@ -201,20 +201,26 @@ Hello, World!
 nil
 janet:3:> (os/exit)
 $ janet -h
-usage: build/janet [options] script args...
+usage: janet [options] script args...
 Options are:
   -h : Show this help
   -v : Print the version string
   -s : Use raw stdin instead of getline like functionality
   -e code : Execute a string of janet
+  -E code arguments... : Evaluate an expression as a short-fn with arguments
+  -d : Set the debug flag in the REPL
   -r : Enter the REPL after running all scripts
+  -R : Disables loading profile.janet when JANET_PROFILE is present
   -p : Keep on executing if there is a top-level error (persistent)
-  -q : Hide prompt, logo, and REPL output (quiet)
+  -q : Hide logo (quiet)
   -k : Compile scripts but do not execute (flycheck)
   -m syspath : Set system path for loading global modules
   -c source output : Compile janet source code into an image
+  -i : Load the script argument as an image file instead of source code
   -n : Disable ANSI color output in the REPL
-  -l path : Execute code in a file before running the main script
+  -l lib : Use a module before processing more arguments
+  -w level : Set the lint warning level - default is "normal"
+  -x level : Set the lint error level - default is "none"
   -- : Stop handling options
 ```
 
