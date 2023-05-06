@@ -280,7 +280,7 @@
   (while (> i 0)
     (-- i)
     (def v (in forms i))
-    (set ret (if (= ret true)
+    (set ret (if (= i (- len 1))
                v
                (if (idempotent? v)
                  ['if v ret v]

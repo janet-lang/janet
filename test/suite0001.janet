@@ -345,6 +345,8 @@
 (assert (= (and 0 1 nil) nil) "and 0 1 nil")
 (assert (= (and 1) 1) "and 1")
 (assert (= (and) true) "and with no arguments")
+(assert (= (and 1 true) true) "and with trailing true")
+(assert (= (and 1 true 2) 2) "and with internal true")
 
 (assert (= (or true true) true) "or true true")
 (assert (= (or true false) true) "or true false")
