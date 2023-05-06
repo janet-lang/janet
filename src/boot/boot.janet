@@ -3855,6 +3855,7 @@
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
+  (set colorize (not (getenv-alias "NO_COLOR")))
 
   (defn- get-lint-level
     [i]
@@ -3883,6 +3884,7 @@
                -c source output : Compile janet source code into an image
                -i : Load the script argument as an image file instead of source code
                -n : Disable ANSI color output in the REPL
+               -N : Enable ANSI color output in the REPL
                -l lib : Use a module before processing more arguments
                -w level : Set the lint warning level - default is "normal"
                -x level : Set the lint error level - default is "none"
@@ -3898,6 +3900,7 @@
      "i" (fn [&] (set expect-image true) 1)
      "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
      "n" (fn [&] (set colorize false) 1)
+     "N" (fn [&] (set colorize true) 1)
      "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))

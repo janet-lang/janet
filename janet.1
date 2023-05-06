@@ -184,6 +184,10 @@ default repl.
 Disable ANSI colors in the repl. Has no effect if no repl is run.
 
 .TP
+.BR \-N
+Enable ANSI colors in the repl. Has no effect if no repl is run.
+
+.TP
 .BR \-r
 Open a REPL (Read Eval Print Loop) after executing all sources. By default, if Janet is called with no
 arguments, a REPL is opened.
@@ -266,6 +270,12 @@ To disable randomization of Janet's PRF on start up, one can set this variable. 
 effect of making programs deterministic that otherwise would depend on the random seed chosen at program start.
 This variable does nothing in the default configuration of Janet, as PRF is disabled by default. Also, JANET_REDUCED_OS
 cannot be defined for this variable to have an effect.
+.RE
+
+.B NO_COLOR
+.RS
+Turn off color by default in the repl and in the error handler of scripts. This can be changed at runtime
+via dynamic bindings *err-color* and *pretty-format*, or via the command line parameters -n and -N.
 .RE
 
 .SH AUTHOR
