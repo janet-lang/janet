@@ -2,8 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Fix `ev/select` on threaded channels sometimes live-locking.
 - Support the `NO_COLOR` environment variable to turn off VT100 color codes in repl (and in scripts).
+  See http://no-color.org/
 - Disallow using `(splice x)` in contexts where it doesn't make sense rather than silently coercing to `x`.
+  Instead, raise a compiler error.
 - Change the names of `:user8` and `:user9` sigals to `:interrupt` and `:await`
 - Change the names of `:user8` and `:user9` fiber statuses to `:interrupted` and `:suspended`.
 - Add `ev/all-tasks` to see all currently suspended fibers.
