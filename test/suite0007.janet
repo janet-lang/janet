@@ -239,6 +239,12 @@
 (assert (= (os/mktime (os/date now true) true) now) "local os/mktime")
 (assert (= (os/mktime {:year 1970}) 0) "os/mktime default values")
 
+# OS strftime test
+
+(assert (= (os/strftime "%Y-%m-%d %H:%M:%S" 0) "1970-01-01 00:00:00") "strftime UTC epoch")
+(assert (= (os/strftime "%Y-%m-%d %H:%M:%S" 1388608200) "2014-01-01 20:30:00") "strftime january 2014")
+(assert (= (try (os/strftime "%%%d%t") ([err] err)) "invalid conversion specifier '%t'") "invalid conversion specifier")
+
 # Appending buffer to self
 
 (with-dyns [:out @""]

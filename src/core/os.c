@@ -1351,6 +1351,41 @@ JANET_CORE_FN(os_cryptorand,
     return janet_wrap_buffer(buffer);
 }
 
+/* Helper function to get given or current time as local or UTC struct tm.
+ * - arg n+0: optional time_t to be converted, uses current time if not given
+ * - arg n+1: optional truthy to indicate the convnersion uses local time */
+static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct tm *t_infos)
+{
+    time_t t;
+    if (argc > n && !janet_checktype(argv[n], JANET_NIL)) {
+        int64_t integer = janet_getinteger64(argv, n);
+        t = (time_t) integer;
+    } else {
+        time(&t);
+    }
+    struct tm *t_info = NULL;
+    if (argc > n+1 && janet_truthy(argv[n+1])) {
+        /* local time */
+#ifdef JANET_WINDOWS
+        _tzset();
+        localtime_s(t_infos, &t);
+        t_info = t_infos;
+#else
+        tzset();
+        t_info = localtime_r(&t, t_infos);
+#endif
+    } else {
+        /* utc time */
+#ifdef JANET_WINDOWS
+        gmtime_s(t_infos, &t);
+        t_info = t_infos;
+#else
+        t_info = gmtime_r(&t, t_infos);
+#endif
+    }
+    return t_info;
+}
+
 JANET_CORE_FN(os_date,
               "(os/date &opt time local)",
               "Returns the given time as a date struct, or the current time if `time` is not given. "
@@ -1368,34 +1403,8 @@ JANET_CORE_FN(os_date,
               "* :dst - if Day Light Savings is in effect") {
     janet_arity(argc, 0, 2);
     (void) argv;
-    time_t t;
     struct tm t_infos;
-    struct tm *t_info = NULL;
-    if (argc && !janet_checktype(argv[0], JANET_NIL)) {
-        int64_t integer = janet_getinteger64(argv, 0);
-        t = (time_t) integer;
-    } else {
-        time(&t);
-    }
-    if (argc >= 2 && janet_truthy(argv[1])) {
-        /* local time */
-#ifdef JANET_WINDOWS
-        _tzset();
-        localtime_s(&t_infos, &t);
-        t_info = &t_infos;
-#else
-        tzset();
-        t_info = localtime_r(&t, &t_infos);
-#endif
-    } else {
-        /* utc time */
-#ifdef JANET_WINDOWS
-        gmtime_s(&t_infos, &t);
-        t_info = &t_infos;
-#else
-        t_info = gmtime_r(&t, &t_infos);
-#endif
-    }
+    struct tm *t_info = time_to_tm(argv, argc, 0, &t_infos);
     JanetKV *st = janet_struct_begin(9);
     janet_struct_put(st, janet_ckeywordv("seconds"), janet_wrap_number(t_info->tm_sec));
     janet_struct_put(st, janet_ckeywordv("minutes"), janet_wrap_number(t_info->tm_min));
@@ -1407,6 +1416,34 @@ JANET_CORE_FN(os_date,
     janet_struct_put(st, janet_ckeywordv("year-day"), janet_wrap_number(t_info->tm_yday));
     janet_struct_put(st, janet_ckeywordv("dst"), janet_wrap_boolean(t_info->tm_isdst));
     return janet_wrap_struct(janet_struct_end(st));
+}
+
+#define SIZETIMEFMT     250
+
+JANET_CORE_FN(os_strftime,
+        "(os/strftime fmt &opt time local)",
+        "Format the given time as a string, or the current time if `time` is not given. "
+        "The time is formatted according to the same rules as the ISO C89 function strftime(). "
+        "The time is formatted in UTC unless `local` is truthy, in which case the date is formatted for "
+        "the local timezone.") {
+    janet_arity(argc, 1, 3);
+    const char *fmt = janet_getcstring(argv, 0);
+    /* ANSI X3.159-1989, section 4.12.3.5 "The strftime function" */
+    static const char *valid = "aAbBcdHIjmMpSUwWxXyYZ%";
+    const char *p = fmt;
+    while (*p) {
+        if (*p++ == '%') {
+            if(!strchr(valid, *p)) {
+                janet_panicf("invalid conversion specifier '%%%c'", *p);
+            }
+            p++;
+        }
+    }
+    struct tm t_infos;
+    struct tm *t_info = time_to_tm(argv, argc, 1, &t_infos);
+    char buf[SIZETIMEFMT];
+    (void)strftime(buf, SIZETIMEFMT, fmt, t_info);
+    return janet_cstringv(buf);
 }
 
 static int entry_getdst(Janet env_entry) {
@@ -2311,6 +2348,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/mktime", os_mktime),
         JANET_CORE_REG("os/time", os_time), /* not high resolution */
         JANET_CORE_REG("os/date", os_date), /* not high resolution */
+        JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
 
         /* env functions */
