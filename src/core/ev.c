@@ -1012,11 +1012,16 @@ static void chan_unlock_args(const Janet *argv, int32_t n) {
 
 JANET_CORE_FN(cfun_channel_choice,
               "(ev/select & clauses)",
-              "Block until the first of several channel operations occur. Returns a tuple of the form [:give chan], [:take chan x], or [:close chan], where "
-              "a :give tuple is the result of a write and :take tuple is the result of a read. Each clause must be either a channel (for "
-              "a channel take operation) or a tuple [channel x] for a channel give operation. Operations are tried in order, such that the first "
-              "clauses will take precedence over later clauses. Both and give and take operations can return a [:close chan] tuple, which indicates that "
-              "the specified channel was closed while waiting, or that the channel was already closed.") {
+              "Block until the first of several channel operations occur. Returns a "
+	      "tuple of the form [:give chan], [:take chan x], or [:close chan], "
+	      "where a :give tuple is the result of a write and a :take tuple is the "
+	      "result of a read. Each clause must be either a channel (for a channel "
+	      "take operation) or a tuple [channel x] (for a channel give operation). "
+	      "Operations are tried in order such that earlier clauses take "
+	      "precedence over later clauses. Both give and take operations can "
+	      "return a [:close chan] tuple, which indicates that the specified "
+	      "channel was closed while waiting, or that the channel was already "
+	      "closed.") {
     janet_arity(argc, 1, -1);
     int32_t len;
     const Janet *data;
