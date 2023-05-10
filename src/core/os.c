@@ -1043,21 +1043,21 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     if (pipe_in != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
         posix_spawn_file_actions_addclose(&actions, pipe_in);
-    } else if (new_in != JANET_HANDLE_NONE) {
+    } else if (new_in != JANET_HANDLE_NONE && new_in != 0) {
         posix_spawn_file_actions_adddup2(&actions, new_in, 0);
         posix_spawn_file_actions_addclose(&actions, new_in);
     }
     if (pipe_out != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_out, 1);
         posix_spawn_file_actions_addclose(&actions, pipe_out);
-    } else if (new_out != JANET_HANDLE_NONE) {
+    } else if (new_out != JANET_HANDLE_NONE && new_out != 1) {
         posix_spawn_file_actions_adddup2(&actions, new_out, 1);
         posix_spawn_file_actions_addclose(&actions, new_out);
     }
     if (pipe_err != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_err, 2);
         posix_spawn_file_actions_addclose(&actions, pipe_err);
-    } else if (new_err != JANET_HANDLE_NONE) {
+    } else if (new_err != JANET_HANDLE_NONE && new_err != 2) {
         posix_spawn_file_actions_adddup2(&actions, new_err, 2);
         posix_spawn_file_actions_addclose(&actions, new_err);
     }
