@@ -1878,7 +1878,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* sourcemaps only */
 #define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
-    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const int32_t CNAME##_sourceline_ = __LINE__; \
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_S(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, NULL, __FILE__, __LINE__)
@@ -1894,7 +1894,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* sourcemaps and docstrings */
 #define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
-    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
