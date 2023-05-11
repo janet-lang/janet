@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `os/strftime` for date formatting.
 - Fix `ev/select` on threaded channels sometimes live-locking.
 - Support the `NO_COLOR` environment variable to turn off VT100 color codes in repl (and in scripts).
   See http://no-color.org/

@@ -1354,8 +1354,7 @@ JANET_CORE_FN(os_cryptorand,
 /* Helper function to get given or current time as local or UTC struct tm.
  * - arg n+0: optional time_t to be converted, uses current time if not given
  * - arg n+1: optional truthy to indicate the convnersion uses local time */
-static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct tm *t_infos)
-{
+static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct tm *t_infos) {
     time_t t;
     if (argc > n && !janet_checktype(argv[n], JANET_NIL)) {
         int64_t integer = janet_getinteger64(argv, n);
@@ -1364,7 +1363,7 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
         time(&t);
     }
     struct tm *t_info = NULL;
-    if (argc > n+1 && janet_truthy(argv[n+1])) {
+    if (argc > n + 1 && janet_truthy(argv[n + 1])) {
         /* local time */
 #ifdef JANET_WINDOWS
         _tzset();
@@ -1421,11 +1420,11 @@ JANET_CORE_FN(os_date,
 #define SIZETIMEFMT     250
 
 JANET_CORE_FN(os_strftime,
-        "(os/strftime fmt &opt time local)",
-        "Format the given time as a string, or the current time if `time` is not given. "
-        "The time is formatted according to the same rules as the ISO C89 function strftime(). "
-        "The time is formatted in UTC unless `local` is truthy, in which case the date is formatted for "
-        "the local timezone.") {
+              "(os/strftime fmt &opt time local)",
+              "Format the given time as a string, or the current time if `time` is not given. "
+              "The time is formatted according to the same rules as the ISO C89 function strftime(). "
+              "The time is formatted in UTC unless `local` is truthy, in which case the date is formatted for "
+              "the local timezone.") {
     janet_arity(argc, 1, 3);
     const char *fmt = janet_getcstring(argv, 0);
     /* ANSI X3.159-1989, section 4.12.3.5 "The strftime function" */
@@ -1433,7 +1432,7 @@ JANET_CORE_FN(os_strftime,
     const char *p = fmt;
     while (*p) {
         if (*p++ == '%') {
-            if(!strchr(valid, *p)) {
+            if (!strchr(valid, *p)) {
                 janet_panicf("invalid conversion specifier '%%%c'", *p);
             }
             p++;
