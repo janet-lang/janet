@@ -261,4 +261,12 @@
 (modcheck -10 3)
 (modcheck -10 -3)
 
+# Check for issue #1130
+(var d (int/s64 7))
+(mod 0 d)
+
+(var d (int/s64 7))
+(def result (seq [n :in (range -21 0)] (mod n d)))
+(assert (deep= result (map int/s64 @[0 1 2 3 4 5 6 0 1 2 3 4 5 6 0 1 2 3 4 5 6])) "issue #1130")
+
 (end-suite)

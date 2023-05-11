@@ -502,6 +502,18 @@ static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     return janet_wrap_abstract(box);
 }
 
+static Janet cfun_it_s64_modi(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
+    int64_t op2 = janet_unwrap_s64(argv[0]);
+    int64_t op1 = janet_unwrap_s64(argv[1]);
+    int64_t x = op1 % op2;
+    *box = (op1 > 0)
+           ? ((op2 > 0) ? x : (0 == x ? x : x + op2))
+           : ((op2 > 0) ? (0 == x ? x : x + op2) : x);
+    return janet_wrap_abstract(box);
+}
+
 OPMETHOD(int64_t, s64, add, +)
 OPMETHOD(int64_t, s64, sub, -)
 OPMETHODINVERT(int64_t, s64, subi, -)
@@ -509,6 +521,7 @@ OPMETHOD(int64_t, s64, mul, *)
 DIVMETHOD_SIGNED(int64_t, s64, div, /)
 DIVMETHOD_SIGNED(int64_t, s64, rem, %)
 DIVMETHODINVERT_SIGNED(int64_t, s64, divi, /)
+DIVMETHODINVERT_SIGNED(int64_t, s64, remi, /)
 OPMETHOD(int64_t, s64, and, &)
 OPMETHOD(int64_t, s64, or, |)
 OPMETHOD(int64_t, s64, xor, ^)
@@ -521,6 +534,7 @@ OPMETHOD(uint64_t, u64, mul, *)
 DIVMETHOD(uint64_t, u64, div, /)
 DIVMETHOD(uint64_t, u64, mod, %)
 DIVMETHODINVERT(uint64_t, u64, divi, /)
+DIVMETHODINVERT(uint64_t, u64, modi, %)
 OPMETHOD(uint64_t, u64, and, &)
 OPMETHOD(uint64_t, u64, or, |)
 OPMETHOD(uint64_t, u64, xor, ^)
@@ -542,9 +556,9 @@ static JanetMethod it_s64_methods[] = {
     {"/", cfun_it_s64_div},
     {"r/", cfun_it_s64_divi},
     {"mod", cfun_it_s64_mod},
-    {"rmod", cfun_it_s64_mod},
+    {"rmod", cfun_it_s64_modi},
     {"%", cfun_it_s64_rem},
-    {"r%", cfun_it_s64_rem},
+    {"r%", cfun_it_s64_remi},
     {"&", cfun_it_s64_and},
     {"r&", cfun_it_s64_and},
     {"|", cfun_it_s64_or},
@@ -567,9 +581,9 @@ static JanetMethod it_u64_methods[] = {
     {"/", cfun_it_u64_div},
     {"r/", cfun_it_u64_divi},
     {"mod", cfun_it_u64_mod},
-    {"rmod", cfun_it_u64_mod},
+    {"rmod", cfun_it_u64_modi},
     {"%", cfun_it_u64_mod},
-    {"r%", cfun_it_u64_mod},
+    {"r%", cfun_it_u64_modi},
     {"&", cfun_it_u64_and},
     {"r&", cfun_it_u64_and},
     {"|", cfun_it_u64_or},
