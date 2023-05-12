@@ -209,12 +209,26 @@ const char *janet_optcstring(const Janet *argv, int32_t argc, int32_t n, const c
 #undef DEFINE_OPTLEN
 
 const char *janet_getcstring(const Janet *argv, int32_t n) {
-    const uint8_t *jstr = janet_getstring(argv, n);
-    const char *cstr = (const char *)jstr;
-    if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
-        janet_panic("string contains embedded 0s");
+    if (!janet_checktype(argv[n], JANET_STRING)) {
+        janet_panic_type(argv[n], n, JANET_TFLAG_STRING);
+    }
+    return janet_getcbytes(argv, n);
+}
+
+const char *janet_getcbytes(const Janet *argv, int32_t n) {
+    JanetByteView view = janet_getbytes(argv, n);
+    const char *cstr = (const char *)view.bytes;
+    if (strlen(cstr) != (size_t) view.len) {
+        janet_panic("bytes contain embedded 0s");
     }
     return cstr;
+}
+
+const char *janet_optcbytes(const Janet *argv, int32_t argc, int32_t n, const char *dflt) {
+    if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
+        return dflt;
+    }
+    return janet_getcbytes(argv, n);
 }
 
 int32_t janet_getnat(const Janet *argv, int32_t n) {

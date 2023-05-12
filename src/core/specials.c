@@ -39,6 +39,10 @@ static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) 
 
 static JanetSlot janetc_splice(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetSlot ret;
+    if (!(opts.flags & JANET_FOPTS_ACCEPT_SPLICE)) {
+        janetc_cerror(opts.compiler, "splice can only be used in function parameters and data constructors, it has no effect here");
+        return janetc_cslot(janet_wrap_nil());
+    }
     if (argn != 1) {
         janetc_cerror(opts.compiler, "expected 1 argument to splice");
         return janetc_cslot(janet_wrap_nil());
@@ -75,7 +79,9 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
                 const uint8_t *head = janet_unwrap_symbol(tup[0]);
                 if (!janet_cstrcmp(head, "unquote")) {
                     if (level == 0) {
-                        return janetc_value(janetc_fopts_default(opts.compiler), tup[1]);
+                        JanetFopts subopts = janetc_fopts_default(opts.compiler);
+                        subopts.flags |= JANET_FOPTS_ACCEPT_SPLICE;
+                        return janetc_value(subopts, tup[1]);
                     } else {
                         level--;
                     }
@@ -488,6 +494,7 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     /* Get options */
     condopts = janetc_fopts_default(c);
     bodyopts = opts;
+    bodyopts.flags &= ~JANET_FOPTS_ACCEPT_SPLICE;
 
     /* Set target for compilation */
     target = (drop || tail)
@@ -564,6 +571,7 @@ static JanetSlot janetc_do(JanetFopts opts, int32_t argn, const Janet *argv) {
             subopts.flags = JANET_FOPTS_DROP;
         } else {
             subopts = opts;
+            subopts.flags &= ~JANET_FOPTS_ACCEPT_SPLICE;
         }
         ret = janetc_value(subopts, argv[i]);
         if (i != argn - 1) {
@@ -587,6 +595,7 @@ static JanetSlot janetc_upscope(JanetFopts opts, int32_t argn, const Janet *argv
             subopts.flags = JANET_FOPTS_DROP;
         } else {
             subopts = opts;
+            subopts.flags &= ~JANET_FOPTS_ACCEPT_SPLICE;
         }
         ret = janetc_value(subopts, argv[i]);
         if (i != argn - 1) {

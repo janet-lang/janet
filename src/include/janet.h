@@ -1878,7 +1878,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* sourcemaps only */
 #define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
-    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const int32_t CNAME##_sourceline_ = __LINE__; \
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_S(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, NULL, __FILE__, __LINE__)
@@ -1894,7 +1894,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 /* sourcemaps and docstrings */
 #define JANET_REG_SD(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
-    static int32_t CNAME##_sourceline_ = __LINE__; \
+    static const int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
@@ -1968,6 +1968,7 @@ JANET_API JanetTable *janet_gettable(const Janet *argv, int32_t n);
 JANET_API JanetStruct janet_getstruct(const Janet *argv, int32_t n);
 JANET_API JanetString janet_getstring(const Janet *argv, int32_t n);
 JANET_API const char *janet_getcstring(const Janet *argv, int32_t n);
+JANET_API const char *janet_getcbytes(const Janet *argv, int32_t n);
 JANET_API JanetSymbol janet_getsymbol(const Janet *argv, int32_t n);
 JANET_API JanetKeyword janet_getkeyword(const Janet *argv, int32_t n);
 JANET_API JanetBuffer *janet_getbuffer(const Janet *argv, int32_t n);
@@ -1997,6 +1998,7 @@ JANET_API JanetTuple janet_opttuple(const Janet *argv, int32_t argc, int32_t n, 
 JANET_API JanetStruct janet_optstruct(const Janet *argv, int32_t argc, int32_t n, JanetStruct dflt);
 JANET_API JanetString janet_optstring(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
 JANET_API const char *janet_optcstring(const Janet *argv, int32_t argc, int32_t n, const char *dflt);
+JANET_API const char *janet_optcbytes(const Janet *argv, int32_t argc, int32_t n, const char *dflt);
 JANET_API JanetSymbol janet_optsymbol(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
 JANET_API JanetKeyword janet_optkeyword(const Janet *argv, int32_t argc, int32_t n, JanetString dflt);
 JANET_API JanetFiber *janet_optfiber(const Janet *argv, int32_t argc, int32_t n, JanetFiber *dflt);

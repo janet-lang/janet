@@ -495,6 +495,8 @@ JANET_CORE_FN(cfun_fiber_new,
               "* :t - block termination signals: error + user[0-4]\n"
               "* :u - block user signals\n"
               "* :y - block yield signals\n"
+              "* :w - block await signals (user9)\n"
+              "* :r - block interrupt signals (user8)\n"
               "* :0-9 - block a specific user signal\n\n"
               "The sigmask argument also can take environment flags. If any mutually "
               "exclusive flags are present, the last flag takes precedence.\n\n"
@@ -518,7 +520,7 @@ JANET_CORE_FN(cfun_fiber_new,
             } else {
                 switch (view.bytes[i]) {
                     default:
-                        janet_panicf("invalid flag %c, expected a, t, d, e, u, y, i, or p", view.bytes[i]);
+                        janet_panicf("invalid flag %c, expected a, t, d, e, u, y, w, r, i, or p", view.bytes[i]);
                         break;
                     case 'a':
                         fiber->flags |=
@@ -548,6 +550,12 @@ JANET_CORE_FN(cfun_fiber_new,
                     case 'y':
                         fiber->flags |= JANET_FIBER_MASK_YIELD;
                         break;
+                    case 'w':
+                        fiber->flags |= JANET_FIBER_MASK_USER9;
+                        break;
+                    case 'r':
+                        fiber->flags |= JANET_FIBER_MASK_USER8;
+                        break;
                     case 'i':
                         if (!janet_vm.fiber->env) {
                             janet_vm.fiber->env = janet_table(0);
@@ -575,7 +583,9 @@ JANET_CORE_FN(cfun_fiber_status,
               "* :error - the fiber has errored out\n"
               "* :debug - the fiber is suspended in debug mode\n"
               "* :pending - the fiber has been yielded\n"
-              "* :user(0-9) - the fiber is suspended by a user signal\n"
+              "* :user(0-7) - the fiber is suspended by a user signal\n"
+              "* :interrupted - the fiber was interrupted\n"
+              "* :suspended - the fiber is waiting to be resumed by the scheduler\n"
               "* :alive - the fiber is currently running and cannot be resumed\n"
               "* :new - the fiber has just been created and not yet run") {
     janet_fixarity(argc, 1);

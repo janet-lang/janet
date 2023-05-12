@@ -349,7 +349,7 @@
 (def janet-longstring
   ~{:delim (some "`")
     :open (capture :delim :n)
-    :close (cmt (* (not (> -1 "`")) (-> :n) (<- :delim)) ,=)
+    :close (cmt (* (not (> -1 "`")) (-> :n) (<- (backmatch :n))) ,=)
     :main (* :open (any (if-not :close 1)) :close -1)})
 
 (check-match janet-longstring "`john" false)
@@ -359,6 +359,7 @@
 (check-match janet-longstring "``  ``" true)
 (check-match janet-longstring "``` `` ```" true)
 (check-match janet-longstring "``  ```" false)
+(check-match janet-longstring "`a``b`" false)
 
 # Line and column capture
 

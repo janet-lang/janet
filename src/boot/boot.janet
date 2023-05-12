@@ -280,7 +280,7 @@
   (while (> i 0)
     (-- i)
     (def v (in forms i))
-    (set ret (if (= ret true)
+    (set ret (if (= i (- len 1))
                v
                (if (idempotent? v)
                  ['if v ret v]
@@ -610,6 +610,13 @@
   [head & body]
   (def $accum (gensym))
   ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
+
+(defmacro catseq
+  ``Similar to `loop`, but concatenates each element from the loop body into an array and returns that.
+  See `loop` for details.``
+  [head & body]
+  (def $accum (gensym))
+  ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
 
 (defmacro tabseq
   ``Similar to `loop`, but accumulates key value pairs into a table.
@@ -1133,16 +1140,16 @@
   (take-until (complement pred) ind))
 
 (defn drop
-  ``Drop the first n elements in an indexed or bytes type. Returns a new tuple or string
-  instance, respectively.``
+  ``Drop the first `n elements in an indexed or bytes type. Returns a new tuple or string
+  instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
   (def use-str (bytes? ind))
   (def f (if use-str string/slice tuple/slice))
   (def len (length ind))
-  # make sure start is in [0, len]
-  (def m (if (> n 0) n 0))
-  (def start (if (> m len) len m))
-  (f ind start -1))
+  (def negn (>= n 0))
+  (def start (if negn (min n len) 0))
+  (def end (if negn len (max 0 (+ len n))))
+  (f ind start end))
 
 (defn drop-until
   "Same as `(drop-while (complement pred) ind)`."
@@ -1232,6 +1239,29 @@
      (,eprintf (,dyn :pretty-format "%q") ,s)
      ,s))
 
+(defn keep-syntax
+  ``Creates a tuple with the tuple type and sourcemap of `before` but the
+  elements of `after`. If either one of its argements is not a tuple, returns
+  `after` unmodified. Useful to preserve syntactic information when transforming
+  an ast in macros.``
+  [before after]
+  (if (and (= :tuple (type before))
+           (= :tuple (type after)))
+    (do
+      (def res (if (= :parens (tuple/type before))
+                 (tuple/slice after)
+                 (tuple/brackets ;after)))
+      (tuple/setmap res ;(tuple/sourcemap before)))
+    after))
+
+(defn keep-syntax!
+  ``Like `keep-syntax`, but if `after` is an array, it is coerced into a tuple.
+  Useful to preserve syntactic information when transforming an ast in macros.``
+  [before after]
+  (keep-syntax before (if (= :array (type after))
+                        (tuple/slice after)
+                        after)))
+
 (defmacro ->
   ``Threading macro. Inserts x as the second value in the first form
   in `forms`, and inserts the modified first form into the second form
@@ -1242,7 +1272,7 @@
                  (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h last] t))
-    (tuple/slice parts 0))
+    (keep-syntax! n parts))
   (reduce fop x forms))
 
 (defmacro ->>
@@ -1255,7 +1285,7 @@
                  (tuple (in n 0) (array/slice n 1))
                  (tuple n @[])))
     (def parts (array/concat @[h] t @[last]))
-    (tuple/slice parts 0))
+    (keep-syntax! n parts))
   (reduce fop x forms))
 
 (defmacro -?>
@@ -1271,7 +1301,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
-    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
+    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defmacro -?>>
@@ -1287,7 +1317,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
-    ~(let [,sym ,last] (if ,sym ,(tuple/slice parts 0))))
+    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defn- walk-ind [f form]
@@ -1311,10 +1341,7 @@
     :table (walk-dict f form)
     :struct (table/to-struct (walk-dict f form))
     :array (walk-ind f form)
-    :tuple (let [x (walk-ind f form)]
-             (if (= :parens (tuple/type form))
-               (tuple/slice x)
-               (tuple/brackets ;x)))
+    :tuple (keep-syntax! form (walk-ind f form))
     form))
 
 (defn postwalk
@@ -3828,6 +3855,7 @@
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
+  (set colorize (not (getenv-alias "NO_COLOR")))
 
   (defn- get-lint-level
     [i]
@@ -3845,7 +3873,7 @@
                -v : Print the version string
                -s : Use raw stdin instead of getline like functionality
                -e code : Execute a string of janet
-               -E code arguments... : Evaluate  an expression as a short-fn with arguments
+               -E code arguments... : Evaluate an expression as a short-fn with arguments
                -d : Set the debug flag in the REPL
                -r : Enter the REPL after running all scripts
                -R : Disables loading profile.janet when JANET_PROFILE is present
@@ -3856,6 +3884,7 @@
                -c source output : Compile janet source code into an image
                -i : Load the script argument as an image file instead of source code
                -n : Disable ANSI color output in the REPL
+               -N : Enable ANSI color output in the REPL
                -l lib : Use a module before processing more arguments
                -w level : Set the lint warning level - default is "normal"
                -x level : Set the lint error level - default is "none"
@@ -3871,6 +3900,7 @@
      "i" (fn [&] (set expect-image true) 1)
      "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
      "n" (fn [&] (set colorize false) 1)
+     "N" (fn [&] (set colorize true) 1)
      "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))

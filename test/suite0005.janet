@@ -83,8 +83,13 @@
 (assert (deep= (drop 10 []) []) "drop 2")
 (assert (deep= (drop 0 [1 2 3 4 5]) [1 2 3 4 5]) "drop 3")
 (assert (deep= (drop 10 [1 2 3]) []) "drop 4")
-(assert (deep= (drop -2 [:a :b :c]) [:a :b :c]) "drop 5")
-(assert-error :invalid-type (drop 3 {}) "drop 6")
+(assert (deep= (drop -1 [1 2 3]) [1 2]) "drop 5")
+(assert (deep= (drop -10 [1 2 3]) []) "drop 6")
+(assert (deep= (drop 1 "abc") "bc") "drop 7")
+(assert (deep= (drop 10 "abc") "") "drop 8")
+(assert (deep= (drop -1 "abc") "ab") "drop 9")
+(assert (deep= (drop -10 "abc") "") "drop 10")
+(assert-error :invalid-type (drop 3 {}) "drop 11")
 
 # drop-until
 
@@ -97,5 +102,19 @@
 
 # Quasiquote bracketed tuples
 (assert (= (tuple/type ~[1 2 3]) (tuple/type '[1 2 3])) "quasiquote bracket tuples")
+
+# No useless splices
+(check-compile-error '((splice [1 2 3]) 0))
+(check-compile-error '(if ;[1 2] 5))
+(check-compile-error '(while ;[1 2 3] (print :hi)))
+(check-compile-error '(def x ;[1 2 3]))
+(check-compile-error '(fn [x] ;[x 1 2 3]))
+
+# No splice propagation
+(check-compile-error '(+ 1 (do ;[2 3 4]) 5))
+(check-compile-error '(+ 1 (upscope ;[2 3 4]) 5))
+# compiler inlines when condition is constant, ensure that optimization doesn't break
+(check-compile-error '(+ 1 (if true ;[3 4])))
+(check-compile-error '(+ 1 (if false nil ;[3 4])))
 
 (end-suite)
