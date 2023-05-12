@@ -31,6 +31,7 @@ LIBDIR?=$(PREFIX)/lib
 JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
 CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
+JANET_BOOT=build/janet_boot
 JANET_IMPORT_LIB=build/janet.lib
 JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
@@ -47,6 +48,7 @@ HOSTCC?=$(CC)
 HOSTAR?=$(AR)
 CFLAGS?=-O2
 LDFLAGS?=-rdynamic
+RUN:=$(RUN)
 
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 -g $(COMMON_CFLAGS)
@@ -56,7 +58,7 @@ BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
 LDCONFIG:=ldconfig "$(LIBDIR)"
 
 # Check OS
-UNAME:=$(shell uname -s)
+UNAME?=$(shell uname -s)
 ifeq ($(UNAME), Darwin)
 	CLIBS:=$(CLIBS) -ldl
 	SONAME_SETTER:=-Wl,-install_name,
@@ -82,6 +84,8 @@ endif
 ifeq ($(findstring MINGW,$(UNAME)), MINGW)
 	CLIBS:=-lws2_32 -lpsapi -lwsock32
 	LDFLAGS:=-Wl,--out-implib,$(JANET_IMPORT_LIB)
+	JANET_TARGET:=$(JANET_TARGET).exe
+	JANET_BOOT:=$(JANET_BOOT).exe
 endif
 
 $(shell mkdir -p build/core build/c build/boot)
@@ -163,12 +167,12 @@ $(JANET_BOOT_OBJECTS): $(JANET_BOOT_HEADERS)
 build/%.boot.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 	$(CC) $(BOOT_CFLAGS) -o $@ -c $<
 
-build/janet_boot: $(JANET_BOOT_OBJECTS)
+$(JANET_BOOT): $(JANET_BOOT_OBJECTS)
 	$(CC) $(BOOT_CFLAGS) -o $@ $(JANET_BOOT_OBJECTS) $(CLIBS)
 
 # Now the reason we bootstrap in the first place
-build/c/janet.c: build/janet_boot src/boot/boot.janet
-	build/janet_boot . JANET_PATH '$(JANET_PATH)' > $@
+build/c/janet.c: $(JANET_BOOT) src/boot/boot.janet
+	$(RUN) $(JANET_BOOT) . JANET_PATH '$(JANET_PATH)' > $@
 	cksum $@
 
 ########################
@@ -185,7 +189,7 @@ build/c/shell.c: src/mainclient/shell.c
 	cp $< $@
 
 build/janet.h: $(JANET_TARGET) src/include/janet.h $(JANETCONF_HEADER)
-	./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h $(JANETCONF_HEADER) $@
+	$(RUN) ./$(JANET_TARGET) tools/patch-header.janet src/include/janet.h $(JANETCONF_HEADER) $@
 
 build/janetconf.h: $(JANETCONF_HEADER)
 	cp $< $@
@@ -214,7 +218,7 @@ $(JANET_STATIC_LIBRARY): build/janet.o build/shell.o
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
 
 repl: $(JANET_TARGET)
-	./$(JANET_TARGET)
+	$(RUN) ./$(JANET_TARGET)
 
 debug: $(JANET_TARGET)
 	$(DEBUGGER) ./$(JANET_TARGET)
@@ -225,8 +229,8 @@ valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
 test: $(JANET_TARGET) $(TEST_PROGRAMS)
-	for f in test/suite*.janet; do ./$(JANET_TARGET) "$$f" || exit; done
-	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
+	for f in test/suite*.janet; do $(RUN) ./$(JANET_TARGET) "$$f" || exit; done
+	for f in examples/*.janet; do $(RUN) ./$(JANET_TARGET) -k "$$f"; done
 
 valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
@@ -265,7 +269,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 docs: build/doc.html
 
 build/doc.html: $(JANET_TARGET) tools/gendoc.janet
-	$(JANET_TARGET) tools/gendoc.janet > build/doc.html
+	$(RUN) $(JANET_TARGET) tools/gendoc.janet > build/doc.html
 
 ########################
 ##### Installation #####
@@ -281,7 +285,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo "Name: janet" >> $@
 	echo "Url: https://janet-lang.org" >> $@
 	echo "Description: Library for the Janet programming language." >> $@
-	$(JANET_TARGET) -e '(print "Version: " janet/version)' >> $@
+	$(RUN) $(JANET_TARGET) -e '(print "Version: " janet/version)' >> $@
 	echo 'Cflags: -I$${includedir}' >> $@
 	echo 'Libs: -L$${libdir} -ljanet' >> $@
 	echo 'Libs.private: $(CLIBS)' >> $@
@@ -321,7 +325,7 @@ install-jpm-git: $(JANET_TARGET)
 		JANET_HEADERPATH='$(INCLUDEDIR)/janet' \
 		JANET_BINPATH='$(BINDIR)' \
 		JANET_LIBPATH='$(LIBDIR)' \
-		../../$(JANET_TARGET) ./bootstrap.janet
+		$(RUN) ../../$(JANET_TARGET) ./bootstrap.janet
 
 uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/janet'
@@ -341,7 +345,7 @@ format:
 
 grammar: build/janet.tmLanguage
 build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
-	$(JANET_TARGET) $< > $@
+	$(RUN) $(JANET_TARGET) $< > $@
 
 compile-commands:
 	# Requires pip install copmiledb
