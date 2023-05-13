@@ -2209,6 +2209,7 @@
   (defn saw-special-arg
     [num]
     (set max-param-seen (max max-param-seen num)))
+  (def prefix (gensym))
   (defn on-binding
     [x]
     (if (string/has-prefix? '$ x)
@@ -2216,22 +2217,24 @@
         (= '$ x)
         (do
           (saw-special-arg 0)
-          '$0)
+          (symbol prefix '$0))
         (= '$& x)
         (do
           (set vararg true)
-          x)
+          (symbol prefix x))
         :else
         (do
           (def num (scan-number (string/slice x 1)))
           (if (nat? num)
-            (saw-special-arg num))
-          x))
+            (do
+              (saw-special-arg num)
+              (symbol prefix x))
+            x)))
       x))
   (def expanded (macex arg on-binding))
   (def name-splice (if name [name] []))
-  (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
-  ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
+  (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol prefix '$ i)))
+  ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& (symbol prefix '$&)] [])] ,expanded))
 
 ###
 ###

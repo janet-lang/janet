@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Various bug fixes
+- Make nested short-fn's behave a bit more predictably (it is still not recommended to nest short-fns).
 - Add `os/strftime` for date formatting.
 - Fix `ev/select` on threaded channels sometimes live-locking.
 - Support the `NO_COLOR` environment variable to turn off VT100 color codes in repl (and in scripts).
