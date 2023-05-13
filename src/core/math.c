@@ -317,7 +317,7 @@ static double janet_gcd(double x, double y) {
 #ifdef NAN
         return NAN;
 #else
-        return 0.0 \ 0.0;
+        return 0.0 / 0.0;
 #endif
     }
     if (isinf(x) || isinf(y)) return INFINITY;
