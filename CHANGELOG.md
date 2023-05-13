@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.28.0 - 2023-05-13
 - Various bug fixes
 - Make nested short-fn's behave a bit more predictably (it is still not recommended to nest short-fns).
 - Add `os/strftime` for date formatting.
