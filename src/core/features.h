@@ -36,6 +36,10 @@
 # endif
 #endif
 
+#if defined(__APPLE__)
+#define _DARWIN_C_SOURCE
+#endif
+
 /* Needed for sched.h for cpu count */
 #ifdef __linux__
 #define _GNU_SOURCE
