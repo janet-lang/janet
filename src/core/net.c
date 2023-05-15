@@ -894,32 +894,32 @@ static const struct sockopt_type sockopt_type_list[] = {
 };
 
 JANET_CORE_FN(cfun_net_setsockopt,
-             "(net/setsockopt stream option value)",
-             "set socket options.\n"
-             "\n"
-             "supported options and associated value types:\n"
-             "- :SO_BROADCAST boolean\n"
-             "- :SO_REUSEADDR boolean\n"
-             "- :SO_KEEPALIVE boolean\n"
-             "- :IP_MULTICAST_TTL number\n"
-             "- :IP_ADD_MEMBERSHIP string\n"
-             "- :IP_DROP_MEMBERSHIP string\n"
-             "- :IPV6_JOIN_GROUP string\n"
-             "- :IPV6_LEAVE_GROUP string\n") {
+              "(net/setsockopt stream option value)",
+              "set socket options.\n"
+              "\n"
+              "supported options and associated value types:\n"
+              "- :SO_BROADCAST boolean\n"
+              "- :SO_REUSEADDR boolean\n"
+              "- :SO_KEEPALIVE boolean\n"
+              "- :IP_MULTICAST_TTL number\n"
+              "- :IP_ADD_MEMBERSHIP string\n"
+              "- :IP_DROP_MEMBERSHIP string\n"
+              "- :IPV6_JOIN_GROUP string\n"
+              "- :IPV6_LEAVE_GROUP string\n") {
     janet_arity(argc, 3, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);
     JanetKeyword optstr = janet_getkeyword(argv, 1);
 
     const struct sockopt_type *st = sockopt_type_list;
-    while(st->name) {
+    while (st->name) {
         if (janet_cstrcmp(optstr, st->name) == 0) {
             break;
         }
         st++;
     }
 
-    if(st->name == NULL) {
+    if (st->name == NULL) {
         janet_panicf("unknown socket option %q", argv[1]);
     }
 
@@ -932,19 +932,19 @@ JANET_CORE_FN(cfun_net_setsockopt,
     void *optval = (void *)&val;
     socklen_t optlen = 0;
 
-    if(st->type == JANET_BOOLEAN) {
+    if (st->type == JANET_BOOLEAN) {
         val.v_int = janet_getboolean(argv, 2);
         optlen = sizeof(val.v_int);
-    } else if(st->type == JANET_NUMBER) {
+    } else if (st->type == JANET_NUMBER) {
         val.v_int = janet_getinteger(argv, 2);
         optlen = sizeof(val.v_int);
-    } else if(st->optname == IP_ADD_MEMBERSHIP || st->optname == IP_DROP_MEMBERSHIP) {
+    } else if (st->optname == IP_ADD_MEMBERSHIP || st->optname == IP_DROP_MEMBERSHIP) {
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq, 0, sizeof val.v_mreq);
         val.v_mreq.imr_interface.s_addr = htonl(INADDR_ANY);
         val.v_mreq.imr_multiaddr.s_addr = inet_addr(addr);
         optlen = sizeof(val.v_mreq);
-    } else if(st->optname == IPV6_JOIN_GROUP || st->optname == IPV6_LEAVE_GROUP) {
+    } else if (st->optname == IPV6_JOIN_GROUP || st->optname == IPV6_LEAVE_GROUP) {
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq6, 0, sizeof val.v_mreq6);
         val.v_mreq6.ipv6mr_interface = 0;
@@ -957,7 +957,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
     janet_assert(optlen != 0, "invalid socket option value");
 
     int r = setsockopt((JSock) stream->handle, st->level, st->optname, optval, optlen);
-    if(r == -1) {
+    if (r == -1) {
         janet_panicf("setsockopt(%q): %s", argv[1], strerror(errno));
     }
 
