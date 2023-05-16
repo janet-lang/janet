@@ -53,7 +53,7 @@
   (assert (not= retval 24) "Process was *not* terminated by parent"))
 
 (let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
-  (os/proc-kill p false :kill)
+  (os/proc-kill p false :term)
   (def retval (os/proc-wait p))
   (assert (not= retval 24) "Process was *not* terminated by parent"))
 

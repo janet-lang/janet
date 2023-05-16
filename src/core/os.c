@@ -629,7 +629,9 @@ struct keyword_signal {
     int signal;
 };
 static const struct keyword_signal signal_keywords[] = {
+#ifdef SIGKILL
     {"kill", SIGKILL},
+#endif
     {"int", SIGINT},
     {"abrt", SIGABRT},
     {"fpe", SIGFPE},
@@ -716,9 +718,8 @@ JANET_CORE_FN(os_proc_kill,
     if (proc->flags & JANET_PROC_WAITED) {
         janet_panicf("cannot kill process that has already finished");
     }
-    int signal = SIGKILL;
+    int signal = -1;
     if(argc == 3){
-        int signal = -1;
         JanetKeyword signal_kw = janet_getkeyword(argv, 2);
         const struct keyword_signal *ptr = signal_keywords;
         while (ptr->keyword){
@@ -737,7 +738,7 @@ JANET_CORE_FN(os_proc_kill,
         janet_panicf("cannot close process handle that is already closed");
     }
     proc->flags |= JANET_PROC_CLOSED;
-    if(signal == SIGKILL){
+    if(signal == -1){
         TerminateProcess(proc->pHandle, 1);
     }else{
         int status = kill(proc->pid, signal);
@@ -748,6 +749,7 @@ JANET_CORE_FN(os_proc_kill,
     CloseHandle(proc->pHandle);
     CloseHandle(proc->tHandle);
 #else
+    if(signal == -1){signal=SIGKILL;}
     int status = kill(proc->pid, signal);
     if (status) {
         janet_panic(strerror(errno));
