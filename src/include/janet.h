@@ -1202,6 +1202,13 @@ struct JanetParser {
 };
 
 /* A context for marshaling and unmarshaling abstract types */
+struct JanetMarshalContext {
+    void *m_state;
+    void *u_state;
+    int flags;
+    const uint8_t *data;
+    const JanetAbstractType *at;
+};
 typedef struct JanetMarshalContext JanetMarshalContext;
 
 /* Defines an abstract type. Use a const pointer to one of these structures
