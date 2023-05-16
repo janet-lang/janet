@@ -477,14 +477,20 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
+    /* Wrap socket in abstract type JanetStream */
+    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
+
+    /* Set the socket to non-blocking mode */
+    janet_net_socknoblock(sock);
+
     /* Connect to socket */
 #ifdef JANET_WINDOWS
     int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
-    Janet lasterr = janet_ev_lasterr();
+    int err = WSAGetLastError();
     freeaddrinfo(ai);
 #else
     int status = connect(sock, addr, addrlen);
-    Janet lasterr = janet_ev_lasterr();
+    int err = errno;
     if (is_unix) {
         janet_free(ai);
     } else {
@@ -492,17 +498,22 @@ JANET_CORE_FN(cfun_net_connect,
     }
 #endif
 
-    if (status == -1) {
-        JSOCKCLOSE(sock);
-        janet_panicf("could not connect socket: %V", lasterr);
+    if (status != 0) {
+#ifdef JANET_WINDOWS
+        if (err != WSAEWOULDBLOCK) {
+#else
+        if (err != EINPROGRESS) {
+#endif
+            JSOCKCLOSE(sock);
+            Janet lasterr = janet_ev_lasterr();
+            janet_panicf("could not connect socket: %V", lasterr);
+        }
     }
 
-    /* Set up the socket for non-blocking IO after connect - TODO - non-blocking connect? */
-    janet_net_socknoblock(sock);
+    /* Handle the connect() result in the event loop*/
+    janet_ev_connect(stream, MSG_NOSIGNAL);
 
-    /* Wrap socket in abstract type JanetStream */
-    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
-    return janet_wrap_abstract(stream);
+    janet_await();
 }
 
 static const char *serverify_socket(JSock sfd) {

@@ -2456,7 +2456,8 @@ void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, in
 typedef enum {
     JANET_ASYNC_WRITEMODE_WRITE,
     JANET_ASYNC_WRITEMODE_SEND,
-    JANET_ASYNC_WRITEMODE_SENDTO
+    JANET_ASYNC_WRITEMODE_SENDTO,
+    JANET_ASYNC_WRITEMODE_CONNECT
 } JanetWriteMode;
 
 typedef struct {
@@ -2479,6 +2480,31 @@ typedef struct {
     int32_t start;
 #endif
 } StateWrite;
+
+static JanetAsyncStatus handle_connect(JanetListenerState *s) {
+#ifdef JANET_WINDOWS
+    int res = 0;
+    int size = sizeof(res);
+    int r = getsockopt((SOCKET)s->stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
+#else
+    int res = 0;
+    socklen_t size = sizeof res;
+    int r = getsockopt(s->stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+#endif
+    if (r == 0) {
+        if (res == 0) {
+            janet_schedule(s->fiber, janet_wrap_abstract(s->stream));
+        } else {
+            // TODO help needed. janet_stream_close(s->stream);
+            janet_cancel(s->fiber, janet_cstringv(strerror(res)));
+        }
+    } else {
+        // TODO help needed. janet_stream_close(s->stream);
+        janet_cancel(s->fiber, janet_ev_lasterr());
+    }
+    return JANET_ASYNC_STATUS_DONE;
+}
+
 
 JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) {
     StateWrite *state = (StateWrite *) s;
@@ -2509,6 +2535,11 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
         }
         break;
         case JANET_ASYNC_EVENT_USER: {
+#ifdef JANET_NET
+            if (state->mode == JANET_ASYNC_WRITEMODE_CONNECT) {
+                return handle_connect(s);
+            }
+#endif
             /* Begin write */
             int32_t len;
             const uint8_t *bytes;
@@ -2572,6 +2603,11 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
             janet_cancel(s->fiber, janet_cstringv("stream hup"));
             return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_WRITE: {
+#ifdef JANET_NET
+            if (state->mode == JANET_ASYNC_WRITEMODE_CONNECT) {
+                return handle_connect(s);
+            }
+#endif
             int32_t start, len;
             const uint8_t *bytes;
             start = state->start;
@@ -2673,6 +2709,10 @@ void janet_ev_sendto_buffer(JanetStream *stream, JanetBuffer *buf, void *dest, i
 
 void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, int flags) {
     janet_ev_write_generic(stream, (void *) str, dest, JANET_ASYNC_WRITEMODE_SENDTO, 0, flags);
+}
+
+void janet_ev_connect(JanetStream *stream, int flags) {
+    janet_ev_write_generic(stream, NULL, NULL, JANET_ASYNC_WRITEMODE_CONNECT, 0, flags);
 }
 #endif
 
