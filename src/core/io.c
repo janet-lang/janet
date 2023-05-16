@@ -424,7 +424,11 @@ static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
         if (iof->flags & JANET_FILE_NOT_CLOSEABLE) {
             fno = fileno(iof->file);
         } else {
+#ifdef JANET_PLAN9
+			fno = dup(fileno(iof->file), -1);
+#else
             fno = dup(fileno(iof->file));
+#endif
         }
 #endif
         janet_marshal_int(ctx, fno);
