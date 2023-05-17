@@ -879,18 +879,18 @@ struct sockopt_type {
     enum JanetType type;
 };
 
-// List of supported socket options; The type JANET_POINTER is used
-// for options that require special handling depending on the type.
+/* List of supported socket options; The type JANET_POINTER is used
+ * for options that require special handling depending on the type. */
 static const struct sockopt_type sockopt_type_list[] = {
-    { "so_broadcast", SOL_SOCKET, SO_BROADCAST, JANET_BOOLEAN },
-    { "so_reuseaddr", SOL_SOCKET, SO_REUSEADDR, JANET_BOOLEAN },
-    { "so_keepalive", SOL_SOCKET, SO_KEEPALIVE, JANET_BOOLEAN },
-    { "ip_multicast_ttl", IPPROTO_IP, IP_MULTICAST_TTL, JANET_NUMBER },
-    { "ip_add_membership", IPPROTO_IP, IP_ADD_MEMBERSHIP, JANET_POINTER },
-    { "ip_drop_membership", IPPROTO_IP, IP_DROP_MEMBERSHIP, JANET_POINTER },
-    { "ipv6_join_group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
-    { "ipv6_leave_group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
-    { NULL }
+    { "so-broadcast", SOL_SOCKET, SO_BROADCAST, JANET_BOOLEAN },
+    { "so-reuseaddr", SOL_SOCKET, SO_REUSEADDR, JANET_BOOLEAN },
+    { "so-keepalive", SOL_SOCKET, SO_KEEPALIVE, JANET_BOOLEAN },
+    { "ip-multicast-ttl", IPPROTO_IP, IP_MULTICAST_TTL, JANET_NUMBER },
+    { "ip-add-membership", IPPROTO_IP, IP_ADD_MEMBERSHIP, JANET_POINTER },
+    { "ip-drop-membership", IPPROTO_IP, IP_DROP_MEMBERSHIP, JANET_POINTER },
+    { "ipv6-join-group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
+    { "ipv6-leave-group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
+    { NULL, 0, 0, JANET_POINTER }
 };
 
 JANET_CORE_FN(cfun_net_setsockopt,
@@ -898,14 +898,14 @@ JANET_CORE_FN(cfun_net_setsockopt,
               "set socket options.\n"
               "\n"
               "supported options and associated value types:\n"
-              "- :so_broadcast boolean\n"
-              "- :so_reuseaddr boolean\n"
-              "- :so_keepalive boolean\n"
-              "- :ip_multicast_ttl number\n"
-              "- :ip_add_membership string\n"
-              "- :ip_drop_membership string\n"
-              "- :ipv6_join_group string\n"
-              "- :ipv6_leave_group string\n") {
+              "- :so-broadcast boolean\n"
+              "- :so-reuseaddr boolean\n"
+              "- :so-keepalive boolean\n"
+              "- :ip-multicast-ttl number\n"
+              "- :ip-add-membership string\n"
+              "- :ip-drop-membership string\n"
+              "- :ipv6-join-group string\n"
+              "- :ipv6-leave-group string\n") {
     janet_arity(argc, 3, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);

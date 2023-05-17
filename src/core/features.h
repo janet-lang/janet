@@ -26,9 +26,10 @@
 #define JANET_FEATURES_H_defined
 
 #if defined(__NetBSD__) || defined(__APPLE__) || defined(__OpenBSD__) \
-    || defined(__bsdi__) || defined(__DragonFly__)
+    || defined(__bsdi__) || defined(__DragonFly__) || defined(__FreeBSD__)
 /* Use BSD source on any BSD systems, include OSX */
 # define _BSD_SOURCE
+# define _POSIX_C_SOURCE 200809L
 #else
 /* Use POSIX feature flags */
 # ifndef _POSIX_C_SOURCE
@@ -66,7 +67,7 @@
 #endif
 
 /* Needed for several things when building with -std=c99. */
-#if !__BSD_VISIBLE && defined(__DragonFly__)
+#if !__BSD_VISIBLE && (defined(__DragonFly__) || defined(__FreeBSD__))
 #define __BSD_VISIBLE 1
 #endif
 
