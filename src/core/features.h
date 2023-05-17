@@ -29,6 +29,7 @@
     || defined(__bsdi__) || defined(__DragonFly__)
 /* Use BSD source on any BSD systems, include OSX */
 # define _BSD_SOURCE
+# define _POSIX_C_SOURCE 200809L
 #else
 /* Use POSIX feature flags */
 # ifndef _POSIX_C_SOURCE
