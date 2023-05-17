@@ -47,11 +47,11 @@ SONAME_SETTER=-Wl,-soname,
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
 CFLAGS?=-O2
-LDFLAGS?=-rdynamic
+LDFLAGS?=-rdynamic -g
 RUN:=$(RUN)
 
-COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
-BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 -g $(COMMON_CFLAGS)
+COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC -g
+BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 $(COMMON_CFLAGS)
 BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
 
 # For installation
@@ -223,7 +223,7 @@ repl: $(JANET_TARGET)
 debug: $(JANET_TARGET)
 	$(DEBUGGER) ./$(JANET_TARGET)
 
-VALGRIND_COMMAND=valgrind --leak-check=full
+VALGRIND_COMMAND=valgrind --leak-check=full --quiet
 
 valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
@@ -293,6 +293,7 @@ build/janet.pc: $(JANET_TARGET)
 install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
+	strip '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
 	ln -sf -T ./janet/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet.h' || true #fixme bsd
