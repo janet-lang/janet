@@ -1502,6 +1502,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
                     state = state->_next;
                 }
             }
+            /* Close the stream if requested and no more listeners are left */
+            if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
+                janet_stream_close(stream);
+            }
         }
     }
 }
@@ -1655,6 +1659,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                         status4 == JANET_ASYNC_STATUS_DONE)
                     janet_unlisten(state, 0);
                 state = next_state;
+            }
+            /* Close the stream if requested and no more listeners are left */
+            if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
+                janet_stream_close(stream);
             }
         }
     }
@@ -1854,6 +1862,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
                 state = next_state;
             }
+            /* Close the stream if requested and no more listeners are left */
+            if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
+                janet_stream_close(stream);
+            }
         }
     }
 }
@@ -1970,6 +1982,11 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 status3 == JANET_ASYNC_STATUS_DONE ||
                 status4 == JANET_ASYNC_STATUS_DONE)
             janet_unlisten(state, 0);
+        /* Close the stream if requested and no more listeners are left */
+        JanetStream *stream = state->stream;
+        if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
+            janet_stream_close(stream);
+        }
     }
 }
 
@@ -2495,11 +2512,11 @@ static JanetAsyncStatus handle_connect(JanetListenerState *s) {
         if (res == 0) {
             janet_schedule(s->fiber, janet_wrap_abstract(s->stream));
         } else {
-            // TODO help needed. janet_stream_close(s->stream);
+            s->stream->flags |= JANET_STREAM_TOCLOSE;
             janet_cancel(s->fiber, janet_cstringv(strerror(res)));
         }
     } else {
-        // TODO help needed. janet_stream_close(s->stream);
+        s->stream->flags |= JANET_STREAM_TOCLOSE;
         janet_cancel(s->fiber, janet_ev_lasterr());
     }
     return JANET_ASYNC_STATUS_DONE;
