@@ -50,6 +50,11 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+/* needed for inet_pton and InitializeSRWLock */
+#ifdef __MINGW32__
+#define _WIN32_WINNT _WIN32_WINNT_VISTA
+#endif
+
 /* Needed for realpath on linux, as well as pthread rwlocks. */
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
