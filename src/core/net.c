@@ -872,6 +872,98 @@ JANET_CORE_FN(cfun_stream_flush,
     return argv[0];
 }
 
+struct sockopt_type {
+    const char *name;
+    int level;
+    int optname;
+    enum JanetType type;
+};
+
+/* List of supported socket options; The type JANET_POINTER is used
+ * for options that require special handling depending on the type. */
+static const struct sockopt_type sockopt_type_list[] = {
+    { "so-broadcast", SOL_SOCKET, SO_BROADCAST, JANET_BOOLEAN },
+    { "so-reuseaddr", SOL_SOCKET, SO_REUSEADDR, JANET_BOOLEAN },
+    { "so-keepalive", SOL_SOCKET, SO_KEEPALIVE, JANET_BOOLEAN },
+    { "ip-multicast-ttl", IPPROTO_IP, IP_MULTICAST_TTL, JANET_NUMBER },
+    { "ip-add-membership", IPPROTO_IP, IP_ADD_MEMBERSHIP, JANET_POINTER },
+    { "ip-drop-membership", IPPROTO_IP, IP_DROP_MEMBERSHIP, JANET_POINTER },
+    { "ipv6-join-group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
+    { "ipv6-leave-group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
+    { NULL, 0, 0, JANET_POINTER }
+};
+
+JANET_CORE_FN(cfun_net_setsockopt,
+              "(net/setsockopt stream option value)",
+              "set socket options.\n"
+              "\n"
+              "supported options and associated value types:\n"
+              "- :so-broadcast boolean\n"
+              "- :so-reuseaddr boolean\n"
+              "- :so-keepalive boolean\n"
+              "- :ip-multicast-ttl number\n"
+              "- :ip-add-membership string\n"
+              "- :ip-drop-membership string\n"
+              "- :ipv6-join-group string\n"
+              "- :ipv6-leave-group string\n") {
+    janet_arity(argc, 3, 3);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    janet_stream_flags(stream, JANET_STREAM_SOCKET);
+    JanetKeyword optstr = janet_getkeyword(argv, 1);
+
+    const struct sockopt_type *st = sockopt_type_list;
+    while (st->name) {
+        if (janet_cstrcmp(optstr, st->name) == 0) {
+            break;
+        }
+        st++;
+    }
+
+    if (st->name == NULL) {
+        janet_panicf("unknown socket option %q", argv[1]);
+    }
+
+    union {
+        int v_int;
+        struct ip_mreq v_mreq;
+        struct ipv6_mreq v_mreq6;
+    } val;
+
+    void *optval = (void *)&val;
+    socklen_t optlen = 0;
+
+    if (st->type == JANET_BOOLEAN) {
+        val.v_int = janet_getboolean(argv, 2);
+        optlen = sizeof(val.v_int);
+    } else if (st->type == JANET_NUMBER) {
+        val.v_int = janet_getinteger(argv, 2);
+        optlen = sizeof(val.v_int);
+    } else if (st->optname == IP_ADD_MEMBERSHIP || st->optname == IP_DROP_MEMBERSHIP) {
+        const char *addr = janet_getcstring(argv, 2);
+        memset(&val.v_mreq, 0, sizeof val.v_mreq);
+        val.v_mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+        val.v_mreq.imr_multiaddr.s_addr = inet_addr(addr);
+        optlen = sizeof(val.v_mreq);
+    } else if (st->optname == IPV6_JOIN_GROUP || st->optname == IPV6_LEAVE_GROUP) {
+        const char *addr = janet_getcstring(argv, 2);
+        memset(&val.v_mreq6, 0, sizeof val.v_mreq6);
+        val.v_mreq6.ipv6mr_interface = 0;
+        inet_pton(AF_INET6, addr, &val.v_mreq6.ipv6mr_multiaddr);
+        optlen = sizeof(val.v_mreq6);
+    } else {
+        janet_panicf("invalid socket option type");
+    }
+
+    janet_assert(optlen != 0, "invalid socket option value");
+
+    int r = setsockopt((JSock) stream->handle, st->level, st->optname, optval, optlen);
+    if (r == -1) {
+        janet_panicf("setsockopt(%q): %s", argv[1], strerror(errno));
+    }
+
+    return janet_wrap_nil();
+}
+
 static const JanetMethod net_stream_methods[] = {
     {"chunk", cfun_stream_chunk},
     {"close", janet_cfun_stream_close},
@@ -886,6 +978,7 @@ static const JanetMethod net_stream_methods[] = {
     {"evchunk", janet_cfun_stream_chunk},
     {"evwrite", janet_cfun_stream_write},
     {"shutdown", cfun_net_shutdown},
+    {"setsockopt", cfun_net_setsockopt},
     {NULL, NULL}
 };
 
@@ -910,6 +1003,7 @@ void janet_lib_net(JanetTable *env) {
         JANET_CORE_REG("net/peername", cfun_net_getpeername),
         JANET_CORE_REG("net/localname", cfun_net_getsockname),
         JANET_CORE_REG("net/address-unpack", cfun_net_address_unpack),
+        JANET_CORE_REG("net/setsockopt", cfun_net_setsockopt),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, net_cfuns);

@@ -182,7 +182,7 @@ extern "C" {
 /* Enable or disable the FFI library. Currently, FFI only enabled on
  * x86-64 operating systems. */
 #ifndef JANET_NO_FFI
-#if !defined(__EMSCRIPTEN__) && (defined(__x86_64__) || defined(_M_X64))
+#if !defined(__EMSCRIPTEN__)
 #define JANET_FFI
 #endif
 #endif

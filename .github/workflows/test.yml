@@ -57,3 +57,20 @@ jobs:
       - name: Build the project
         shell: cmd
         run: make -j CC=gcc
+
+  test-mingw-linux:
+    name: Build and test with Mingw on Linux + Wine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup Mingw and wine
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install libstdc++6:i386 libgcc-s1:i386
+          sudo apt-get install gcc-mingw-w64-x86-64-win32 wine wine32 wine64
+      - name: Compile the project
+        run: make clean && make CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-gcc UNAME=MINGW RUN=wine
+      - name: Test the project
+        run: make test UNAME=MINGW RUN=wine
