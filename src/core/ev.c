@@ -1969,6 +1969,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         JanetAsyncStatus status3 = JANET_ASYNC_STATUS_NOT_DONE;
         JanetAsyncStatus status4 = JANET_ASYNC_STATUS_NOT_DONE;
         state->event = pfd;
+        JanetStream *stream = state->stream;
         if (mask & POLLOUT)
             status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
         if (mask & POLLIN)
@@ -1983,7 +1984,6 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 status4 == JANET_ASYNC_STATUS_DONE)
             janet_unlisten(state, 0);
         /* Close the stream if requested and no more listeners are left */
-        JanetStream *stream = state->stream;
         if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
             janet_stream_close(stream);
         }
