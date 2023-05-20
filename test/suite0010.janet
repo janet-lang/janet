@@ -253,4 +253,13 @@
 # Check missing struct proto bug.
 (assert (struct/getproto (struct/with-proto {:a 1} :b 2 :c nil)) "missing struct proto")
 
+# Test thaw and freeze
+(def table-to-freeze @{:c 22 :b [1 2 3 4] :d @"test" :e "test2"})
+(def table-to-freeze-with-inline-proto @{:a @[1 2 3] :b @[1 2 3 4] :c 22 :d @"test" :e @"test2"})
+(def struct-to-thaw (struct/with-proto {:a [1 2 3]} :c 22 :b [1 2 3 4] :d "test" :e "test2"))
+(table/setproto table-to-freeze @{:a @[1 2 3]})
+(assert (deep= {:a [1 2 3] :b [1 2 3 4] :c 22 :d "test" :e "test2"} (freeze table-to-freeze)))
+(assert (deep= table-to-freeze-with-inline-proto (thaw table-to-freeze)))
+(assert (deep= table-to-freeze-with-inline-proto (thaw struct-to-thaw)))
+
 (end-suite)

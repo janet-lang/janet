@@ -2148,10 +2148,10 @@
   types will not be recursively thawed, but all other types will`
   [ds]
   (case (type ds)
-    :table (walk-dict thaw (table/proto-flatten ds))
-    :struct (walk-dict thaw (struct/proto-flatten ds))
     :array (walk-ind thaw ds)
     :tuple (walk-ind thaw ds)
+    :table (walk-dict thaw (table/proto-flatten ds))
+    :struct (walk-dict thaw (struct/proto-flatten ds))
     :string (buffer ds)
     ds))
 
