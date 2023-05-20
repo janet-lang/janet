@@ -901,8 +901,20 @@ int janet_gettime(struct timespec *spec) {
     return 0;
 }
 #else
-int janet_gettime(struct timespec *spec) {
-    return clock_gettime(CLOCK_MONOTONIC, spec);
+int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
+    clockid_t cid = JANET_TIME_REALTIME;
+    switch (source) {
+        case JANET_TIME_REALTIME:
+            cid = CLOCK_REALTIME;
+            break;
+        case JANET_TIME_MONOTONIC:
+            cid = CLOCK_MONOTONIC;
+            break;
+        case JANET_TIME_CPUTIME:
+            cid = CLOCK_PROCESS_CPUTIME_ID;
+            break;
+    }
+    return clock_gettime(cid, spec);
 }
 #endif
 #endif
