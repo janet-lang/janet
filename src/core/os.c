@@ -1280,8 +1280,8 @@ JANET_CORE_FN(os_time,
 JANET_CORE_FN(os_clock,
               "(os/clock &opt source)",
               "Return the number of whole + fractional seconds of the requested clock source.\n\n"
-              "The `source` argument is the identifier of the particular clock source to use, when not "
-              "specified the default is `:realtime`:\n"
+              "The `source` argument selects the clock source to use, when not specified the default "
+              "is `:realtime`:\n"
               "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
               "  jumps in the system time\n"
               "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
@@ -1299,7 +1299,7 @@ JANET_CORE_FN(os_clock,
         } else if (janet_cstrcmp(sourcestr, "cputime") == 0) {
             source = JANET_TIME_CPUTIME;
         } else {
-            janet_panicf("expected :real-time, :monotonic, or :cputime, got %v", argv[0]);
+            janet_panicf("expected :realtime, :monotonic, or :cputime, got %v", argv[0]);
         }
     }
     struct timespec tv;
