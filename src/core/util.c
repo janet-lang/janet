@@ -892,11 +892,13 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
         QueryPerformanceCounter(&count);
         QueryPerformanceFrequency(&perf_freq);
         spec->tv_sec = count.QuadPart / perf_freq.QuadPart;
-        spec->tv_nsec = (count.QuadPart % perf_freq.QuadPart) * 1000000000 / perf_freq.QuadPart;
+        spec->tv_nsec = (long)((count.QuadPart % perf_freq.QuadPart) * 1000000000 / perf_freq.QuadPart);
     } else if (source == JANET_TIME_CPUTIME) {
-        float tmp = clock();
-        spec->tv_sec = tmp / CLOCKS_PER_SEC;
-        spec->tv_nsec = (tmp - spec->tv_sec * CLOCKS_PER_SEC) * 1e9 / CLOCKS_PER_SEC;
+        FILETIME creationTime, exitTime, kernelTime, userTime;
+        GetProcessTimes(GetCurrentProcess(), &creationTime, &exitTime, &kernelTime, &userTime);
+        int64_t tmp = ((int64_t)userTime.dwHighDateTime << 32) + userTime.dwLowDateTime;
+        spec->tv_sec = tmp / 10000000LL;
+        spec->tv_nsec = tmp % 10000000LL * 100;
     }
     return 0;
 }

@@ -334,16 +334,16 @@
 (assert (pos? (length (gensym))) "gensym not empty, regression #753")
 
 
-# os/clock
+# os/clock. These tests might prove fragile under CI because they
+# rely on measured time. We'll see.
 
 (defmacro measure-time [clocks & body]
-  (def t1 (gensym))
-  (def t2 (gensym))
+  (def [t1 t2] [(gensym) (gensym)])
   ~(do
     (def ,t1 (map |(os/clock $) ,clocks))
     ,;body
     (def ,t2 (map |(os/clock $) ,clocks))
-    (zipcoll ,clocks [ (- (,t2 0) (,t1 0)) (- (,t2 1) (,t1 1)) (- (,t2 2) (,t1 2))]))
+    (zipcoll ,clocks (map |(- ;$) (map tuple ,t2 ,t1))))
 )
 
 # Spin for 0.1 seconds
