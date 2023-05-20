@@ -902,7 +902,7 @@ int janet_gettime(struct timespec *spec) {
 }
 #else
 int janet_gettime(struct timespec *spec) {
-    return clock_gettime(CLOCK_REALTIME, spec);
+    return clock_gettime(CLOCK_MONOTONIC, spec);
 }
 #endif
 #endif
