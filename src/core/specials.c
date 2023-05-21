@@ -264,7 +264,7 @@ static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
 
 static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 2) {
-        janetc_cerror(opts.compiler, "expected 2 arguments");
+        janetc_cerror(opts.compiler, "expected 2 arguments to set");
         return janetc_cslot(janet_wrap_nil());
     }
     JanetFopts subopts = janetc_fopts_default(opts.compiler);
@@ -335,11 +335,11 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
     return tab;
 }
 
-static JanetSlot dohead(JanetCompiler *c, JanetFopts opts, Janet *head, int32_t argn, const Janet *argv) {
+static JanetSlot dohead(const char *kind, JanetCompiler *c, JanetFopts opts, Janet *head, int32_t argn, const Janet *argv) {
     JanetFopts subopts = janetc_fopts_default(c);
     JanetSlot ret;
     if (argn < 2) {
-        janetc_cerror(c, "expected at least 2 arguments");
+        janetc_error(c, janet_formatc("expected at least 2 arguments to %s", kind));
         return janetc_cslot(janet_wrap_nil());
     }
     *head = argv[0];
@@ -404,7 +404,7 @@ static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     Janet head;
     JanetTable *attr_table = handleattr(c, argn, argv);
-    JanetSlot ret = dohead(c, opts, &head, argn, argv);
+    JanetSlot ret = dohead("var", c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
     destructure(c, argv[0], ret, varleaf, attr_table);
@@ -454,7 +454,7 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     Janet head;
     opts.flags &= ~JANET_FOPTS_HINT;
     JanetTable *attr_table = handleattr(c, argn, argv);
-    JanetSlot ret = dohead(c, opts, &head, argn, argv);
+    JanetSlot ret = dohead("def", c, opts, &head, argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR)
         return janetc_cslot(janet_wrap_nil());
     destructure(c, argv[0], ret, defleaf, attr_table);
@@ -708,7 +708,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     uint8_t ifnjmp = JOP_JUMP_IF_NOT;
 
     if (argn < 2) {
-        janetc_cerror(c, "expected at least 2 arguments");
+        janetc_cerror(c, "expected at least 2 arguments to while");
         return janetc_cslot(janet_wrap_nil());
     }
 
