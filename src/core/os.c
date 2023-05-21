@@ -650,7 +650,7 @@ static const struct keyword_signal signal_keywords[] = {
 #endif
 #ifdef SIGPIPE
     {"pipe", SIGPIPE},
- #endif
+#endif
 #ifdef SIGQUIT
     {"quit", SIGQUIT},
 #endif
@@ -731,17 +731,17 @@ JANET_CORE_FN(os_proc_kill,
     CloseHandle(proc->tHandle);
 #else
     int signal = -1;
-    if(argc == 3){
+    if (argc == 3) {
         JanetKeyword signal_kw = janet_getkeyword(argv, 2);
         const struct keyword_signal *ptr = signal_keywords;
-        while (ptr->keyword){
-            if(!janet_cstrcmp(signal_kw, ptr->keyword)){
+        while (ptr->keyword) {
+            if (!janet_cstrcmp(signal_kw, ptr->keyword)) {
                 signal = ptr->signal;
                 break;
             }
             ptr++;
         }
-        if(signal == -1){
+        if (signal == -1) {
             janet_panic("undefined signal");
         }
     }
