@@ -953,7 +953,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq, 0, sizeof val.v_mreq);
         val.v_mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-        val.v_mreq.imr_multiaddr.s_addr = inet_addr(addr);
+        inet_pton(AF_INET, addr, &val.v_mreq.imr_multiaddr.s_addr);
         optlen = sizeof(val.v_mreq);
     } else if (st->optname == IPV6_JOIN_GROUP || st->optname == IPV6_LEAVE_GROUP) {
         const char *addr = janet_getcstring(argv, 2);
