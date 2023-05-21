@@ -333,4 +333,29 @@
 
 (assert (pos? (length (gensym))) "gensym not empty, regression #753")
 
+
+# os/clock. These tests might prove fragile under CI because they
+# rely on measured time. We'll see.
+
+(defmacro measure-time [clocks & body]
+  (def [t1 t2] [(gensym) (gensym)])
+  ~(do
+    (def ,t1 (map |(os/clock $) ,clocks))
+    ,;body
+    (def ,t2 (map |(os/clock $) ,clocks))
+    (zipcoll ,clocks (map |(- ;$) (map tuple ,t2 ,t1))))
+)
+
+# Spin for 0.1 seconds
+(def dt (measure-time [:realtime :monotonic :cputime]
+  (def t1 (os/clock :monotonic))
+  (while (< (- (os/clock :monotonic) t1) 0.1) true)))
+(assert (> (dt :monotonic) 0.10))
+(assert (> (dt :cputime) 0.05))
+
+# Sleep for 0.1 seconds
+(def dt (measure-time [:realtime :monotonic :cputime] (os/sleep 0.1)))
+(assert (> (dt :monotonic) 0.10))
+(assert (< (dt :cputime) 0.05))
+
 (end-suite)
