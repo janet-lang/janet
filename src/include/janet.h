@@ -568,6 +568,7 @@ typedef void *JanetAbstract;
 #define JANET_STREAM_WRITABLE 0x400
 #define JANET_STREAM_ACCEPTABLE 0x800
 #define JANET_STREAM_UDPSERVER 0x1000
+#define JANET_STREAM_TOCLOSE 0x10000
 
 typedef enum {
     JANET_ASYNC_EVENT_INIT,
@@ -1479,6 +1480,7 @@ JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t
 JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_connect(JanetStream *stream, int flags);
 #endif
 
 /* Write async to a stream */

@@ -126,7 +126,12 @@ void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetReg
 
 /* Clock gettime */
 #ifdef JANET_GETTIME
-int janet_gettime(struct timespec *spec);
+enum JanetTimeSource {
+    JANET_TIME_REALTIME,
+    JANET_TIME_MONOTONIC,
+    JANET_TIME_CPUTIME
+};
+int janet_gettime(struct timespec *spec, enum JanetTimeSource source);
 #endif
 
 /* strdup */

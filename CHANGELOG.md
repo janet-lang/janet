@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Make imperative arithmetic macros variadic
+- `ev/connect` now yields to the event loop instead of blocking while waiting for an ACK.
+
 ## 1.28.0 - 2023-05-13
 - Various bug fixes
 - Make nested short-fn's behave a bit more predictably (it is still not recommended to nest short-fns).

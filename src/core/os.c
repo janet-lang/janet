@@ -1380,14 +1380,32 @@ JANET_CORE_FN(os_time,
 }
 
 JANET_CORE_FN(os_clock,
-              "(os/clock)",
-              "Return the number of whole + fractional seconds since some fixed point in time. The clock "
-              "is guaranteed to be non-decreasing in real time.") {
+              "(os/clock &opt source)",
+              "Return the number of whole + fractional seconds of the requested clock source.\n\n"
+              "The `source` argument selects the clock source to use, when not specified the default "
+              "is `:realtime`:\n"
+              "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
+              "  jumps in the system time\n"
+              "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
+              "  time. The clock is guaranteed to be non-decreasing in real time.\n"
+              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n") {
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
-    janet_fixarity(argc, 0);
-    (void) argv;
+    janet_arity(argc, 0, 1);
+    enum JanetTimeSource source = JANET_TIME_REALTIME;
+    if (argc == 1) {
+        JanetKeyword sourcestr = janet_getkeyword(argv, 0);
+        if (janet_cstrcmp(sourcestr, "realtime") == 0) {
+            source = JANET_TIME_REALTIME;
+        } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
+            source = JANET_TIME_MONOTONIC;
+        } else if (janet_cstrcmp(sourcestr, "cputime") == 0) {
+            source = JANET_TIME_CPUTIME;
+        } else {
+            janet_panicf("expected :realtime, :monotonic, or :cputime, got %v", argv[0]);
+        }
+    }
     struct timespec tv;
-    if (janet_gettime(&tv)) janet_panic("could not get time");
+    if (janet_gettime(&tv, source)) janet_panic("could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     return janet_wrap_number(dtime);
 }

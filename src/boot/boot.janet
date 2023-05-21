@@ -147,10 +147,10 @@
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x n] ~(set ,x (,+ ,x ,n)))
-(defmacro -= "Decrements the var x by n." [x n] ~(set ,x (,- ,x ,n)))
-(defmacro *= "Shorthand for (set x (\\* x n))." [x n] ~(set ,x (,* ,x ,n)))
-(defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
+(defmacro += "Increments the var x by n." [x & ns] ~(set ,x (,+ ,x ,;ns)))
+(defmacro -= "Decrements the var x by n." [x & ns] ~(set ,x (,- ,x ,;ns)))
+(defmacro *= "Shorthand for (set x (\\* x n))." [x & ns] ~(set ,x (,* ,x ,;ns)))
+(defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
 (defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
 
 (defmacro assert
@@ -2141,6 +2141,19 @@
     :struct (struct ;(map freeze (kvs x)))
     :buffer (string x)
     x))
+
+(defn thaw
+  `Thaw an object (make it mutable) and do a deep copy, making
+  child value also mutable. Closures, fibers, and abstract
+  types will not be recursively thawed, but all other types will`
+  [ds]
+  (case (type ds)
+    :array (walk-ind thaw ds)
+    :tuple (walk-ind thaw ds)
+    :table (walk-dict thaw (table/proto-flatten ds))
+    :struct (walk-dict thaw (struct/proto-flatten ds))
+    :string (buffer ds)
+    ds))
 
 (defn macex
   ``Expand macros completely.
