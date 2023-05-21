@@ -628,6 +628,8 @@ struct keyword_signal {
     const char *keyword;
     int signal;
 };
+
+#ifndef JANET_WINDOWS
 static const struct keyword_signal signal_keywords[] = {
 #ifdef SIGKILL
     {"kill", SIGKILL},
@@ -705,6 +707,7 @@ static const struct keyword_signal signal_keywords[] = {
 #endif
     {NULL, 0},
 };
+#endif
 
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait signal)",
@@ -712,12 +715,21 @@ JANET_CORE_FN(os_proc_kill,
               "handle on windows. If `wait` is truthy, will wait for the process to finish and "
               "returns the exit code. Otherwise, returns `proc`. If signal is specified send it instead."
               "Signal keywords are named after their C counterparts but in lowercase with the leading "
-              "`SIG` stripped") {
+              "`SIG` stripped. Signals are ignored on windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
         janet_panicf("cannot kill process that has already finished");
     }
+#ifdef JANET_WINDOWS
+    if (proc->flags & JANET_PROC_CLOSED) {
+        janet_panicf("cannot close process handle that is already closed");
+    }
+    proc->flags |= JANET_PROC_CLOSED;
+    TerminateProcess(proc->pHandle, 1);
+    CloseHandle(proc->pHandle);
+    CloseHandle(proc->tHandle);
+#else
     int signal = -1;
     if(argc == 3){
         JanetKeyword signal_kw = janet_getkeyword(argv, 2);
@@ -733,24 +745,7 @@ JANET_CORE_FN(os_proc_kill,
             janet_panic("undefined signal");
         }
     }
-#ifdef JANET_WINDOWS
-    if (proc->flags & JANET_PROC_CLOSED) {
-        janet_panicf("cannot close process handle that is already closed");
-    }
-    proc->flags |= JANET_PROC_CLOSED;
-    if(signal == -1){
-        TerminateProcess(proc->pHandle, 1);
-    }else{
-        int status = kill(proc->pid, signal);
-        if (status) {
-            janet_panic(strerror(errno));
-        }
-    }
-    CloseHandle(proc->pHandle);
-    CloseHandle(proc->tHandle);
-#else
-    if(signal == -1){signal=SIGKILL;}
-    int status = kill(proc->pid, signal);
+    int status = kill(proc->pid, signal == -1 ? SIGKILL : signal);
     if (status) {
         janet_panic(strerror(errno));
     }
