@@ -736,7 +736,7 @@ static void pushtypes(JanetBuffer *buffer, int types) {
             if (first) {
                 first = 0;
             } else {
-                janet_buffer_push_u8(buffer, '|');
+                janet_buffer_push_cstring(buffer, (types == 1) ? " or " : ", ");
             }
             janet_buffer_push_cstring(buffer, janet_type_names[i]);
         }
