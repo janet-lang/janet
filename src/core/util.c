@@ -933,7 +933,7 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
 }
 #else
 int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
-    clockid_t cid = JANET_TIME_REALTIME;
+    clockid_t cid = CLOCK_REALTIME;
     if (source == JANET_TIME_REALTIME) {
         cid = CLOCK_REALTIME;
     } else if (source == JANET_TIME_MONOTONIC) {
