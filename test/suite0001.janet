@@ -263,6 +263,11 @@
 (assert (not= 1 1 0) "not= 1")
 (assert (not= 0 1 1) "not= 2")
 
+# Some testing for deep-not=
+# Issue #1149
+(assert (= (deep-not= [1] [1]) false) "deep-not= returns false 1")
+(assert (= (deep-not= {:ohm [0]} {:ohm [0]}) false) "deep-not= returns false 2")
+
 # Closure in while loop
 (def closures (seq [i :range [0 5]] (fn [] i)))
 (assert (= 0 ((get closures 0))) "closure in loop 0")

@@ -2114,8 +2114,8 @@
   (or
     (not= tx (type y))
     (case tx
-      :tuple (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
-      :array (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
+      :tuple (or (not= (length x) (length y)) (some identity (map deep-not= x y)) false)
+      :array (or (not= (length x) (length y)) (some identity (map deep-not= x y)) false)
       :struct (deep-not= (kvs x) (kvs y))
       :table (deep-not= (table/to-struct x) (table/to-struct y))
       :buffer (not= (string x) (string y))
