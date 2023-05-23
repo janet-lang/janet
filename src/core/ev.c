@@ -2911,7 +2911,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
         JanetFiber *fiber;
         if (!janet_checktype(fiberv, JANET_FIBER)) {
             if (!janet_checktype(fiberv, JANET_FUNCTION)) {
-                janet_panicf("expected function|fiber, got %v", fiberv);
+                janet_panicf("expected function or fiber, got %v", fiberv);
             }
             JanetFunction *func = janet_unwrap_function(fiberv);
             if (func->def->min_arity > 1) {

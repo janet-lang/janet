@@ -1100,7 +1100,7 @@ static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
     Janet fun = argv[1];
     if (!janet_checktype(fun, JANET_FUNCTION) &&
             !janet_checktype(fun, JANET_CFUNCTION)) {
-        peg_panicf(b, "expected function|cfunction, got %v", fun);
+        peg_panicf(b, "expected function or cfunction, got %v", fun);
     }
     uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
     uint32_t cindex = emit_constant(b, fun);
