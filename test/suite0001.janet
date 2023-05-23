@@ -329,6 +329,8 @@
 (assert (deep= (map + [1 2 3 4] [10 20 30] [100 200]) @[111 222]))
 (assert (deep= (map + [1 2 3 4] [10 20 30] [100 200] [1000]) @[1111]))
 
+(assert (= false (deep-not= [1] [1])) "issue #1149")
+
 # Sort function
 (assert (deep=
           (range 99)
