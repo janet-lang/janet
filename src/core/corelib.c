@@ -458,7 +458,7 @@ JANET_CORE_FN(janet_core_getproto,
                ? janet_wrap_struct(janet_struct_proto(st))
                : janet_wrap_nil();
     }
-    janet_panicf("expected struct|table, got %v", argv[0]);
+    janet_panicf("expected struct or table, got %v", argv[0]);
 }
 
 JANET_CORE_FN(janet_core_struct,

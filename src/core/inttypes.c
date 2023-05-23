@@ -138,7 +138,7 @@ int64_t janet_unwrap_s64(Janet x) {
             break;
         }
     }
-    janet_panicf("bad s64 initializer: %t", x);
+    janet_panicf("can not convert %t %q to 64 bit signed integer", x, x);
     return 0;
 }
 
@@ -169,7 +169,7 @@ uint64_t janet_unwrap_u64(Janet x) {
             break;
         }
     }
-    janet_panicf("bad u64 initializer: %t", x);
+    janet_panicf("can not convert %t %q to a 64 bit unsigned integer", x, x);
     return 0;
 }
 
