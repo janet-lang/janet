@@ -707,8 +707,8 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     uint8_t ifjmp = JOP_JUMP_IF;
     uint8_t ifnjmp = JOP_JUMP_IF_NOT;
 
-    if (argn < 2) {
-        janetc_cerror(c, "expected at least 2 arguments to while");
+    if (argn < 1) {
+        janetc_cerror(c, "expected at least 1 argument to while");
         return janetc_cslot(janet_wrap_nil());
     }
 
