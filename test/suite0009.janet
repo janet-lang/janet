@@ -102,6 +102,19 @@
     (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
     (file/flush f)))
 
+# each-line iterator
+
+(assert-no-error "file/lines iterator"
+   (def outstream (os/open "unique.txt" :wct))
+   (def buf1 "123\n456\n")
+   (defer (:close outstream)
+     (:write outstream buf1))
+   (var buf2 "")
+   (each line (file/lines "unique.txt")
+      (set buf2 (string buf2 line)))
+   (assert (= buf1 buf2) "file/lines iterator")
+   (os/rm "unique.txt"))
+
 # Issue #593
 (assert-no-error "file writing 3"
   (def outfile (file/open "unique.txt" :w))
