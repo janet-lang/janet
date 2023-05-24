@@ -1423,6 +1423,7 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             *out = in;
             janet_fiber_set_status(fiber, sig);
+            fiber->last_value = child->last_value;
             return sig;
         }
         /* Check if we need any special handling for certain opcodes */

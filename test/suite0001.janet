@@ -360,4 +360,11 @@
 (assert (= (or 1) 1) "or 1")
 (assert (= (or) nil) "or with no arguments")
 
+(def yielder
+  (coro
+    (defer (yield :end)
+      (repeat 5 (yield :item)))))
+(def items (seq [x :in yielder] x))
+(assert (deep= @[:item :item :item :item :item :end] items) "yield within nested fibers")
+
 (end-suite)
