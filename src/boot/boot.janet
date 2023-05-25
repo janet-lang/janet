@@ -1747,7 +1747,8 @@
   ``Pretty-print to stdout or `(dyn *out*)`. The format string used is `(dyn *pretty-format* "%q")`.``
   [x]
   (printf (dyn *pretty-format* "%q") x)
-  (flush))
+  (flush)
+  x)
 
 ###
 ###
