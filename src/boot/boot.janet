@@ -952,7 +952,10 @@
     (def ninds (length ,inds))
     (case ninds
       0 (each x ,ind (map-aggregator ,maptype ,res (,f x)))
-      ,;(kvs(tabseq [k :range [1 5]] k ~(map-n ,k ,maptype ,res ,f ,ind ,inds)))
+      1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
+      2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
+      3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
+      4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
       (do
         (def iter-keys (array/new-filled ninds))
         (def call-buffer (array/new-filled ninds))
