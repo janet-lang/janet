@@ -1746,6 +1746,14 @@
   (printf (dyn *pretty-format* "%q") x)
   (flush))
 
+
+(defn file/lines
+  "Return an iterator over the lines of a file."
+  [file]
+  (coro
+    (while (def line (file/read file :line))
+      (yield line))))
+
 ###
 ###
 ### Pattern Matching
