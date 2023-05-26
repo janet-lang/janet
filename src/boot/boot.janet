@@ -923,67 +923,68 @@
     (set k (next ind k)))
   ret)
 
+(defmacro- map-aggregator
+  `Aggregation logic for various map functions.`
+  [maptype res val]
+  (case maptype
+    :map ~(array/push ,res ,val)
+    :mapcat ~(array/concat ,res ,val)
+    :keep ~(if (def y ,val) (array/push ,res y))
+    :count ~(if ,val (++ ,res))
+    :some ~(if (def y ,val) (do (set ,res y) (break)))
+    :all ~(if (def y ,val) nil (do (set ,res y) (break)))))
+
+(defmacro- map-n
+  `Generates efficient map logic for a specific number of
+  indexed beyond the first.`
+  [n maptype res f ind inds]
+  ~(do
+    (def ,(seq [k :range [0 n]] (symbol 'ind k)) ,inds)
+    ,;(seq [k :range [0 n]] ~(var ,(symbol 'key k) nil))
+    (each x ,ind
+      ,;(seq [k :range [0 n]]
+        ~(if (= nil (set ,(symbol 'key k) (next ,(symbol 'ind k) ,(symbol 'key k)))) (break)))
+      (map-aggregator ,maptype ,res (,f x ,;(seq [k :range [0 n]] ~(in ,(symbol 'ind k) ,(symbol 'key k))))))))
+
+(defmacro- map-template
+  [maptype res f ind inds]
+  ~(do
+    (def ninds (length ,inds))
+    (case ninds
+      0 (each x ,ind (map-aggregator ,maptype ,res (,f x)))
+      1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
+      2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
+      3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
+      4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
+      (do
+        (def iter-keys (array/new-filled ninds))
+        (def call-buffer (array/new-filled ninds))
+        (var done false)
+        (each x ,ind
+          (forv i 0 ninds
+            (let [old-key (in iter-keys i)
+                  ii (in ,inds i)
+                  new-key (next ii old-key)]
+              (if (= nil new-key)
+                (do (set done true) (break))
+                (do (set (iter-keys i) new-key) (set (call-buffer i) (in ii new-key))))))
+          (if done (break))
+          (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
+
 (defn map
   `Map a function over every value in a data structure and
   return an array of the results.`
-  [f & inds]
-  (def ninds (length inds))
-  (if (= 0 ninds) (error "expected at least 1 indexed collection"))
+  [f ind & inds]
   (def res @[])
-  (def [i1 i2 i3 i4] inds)
-  (case ninds
-    1 (each x i1 (array/push res (f x)))
-    2 (do
-        (var k1 nil)
-        (var k2 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2)))))
-    3 (do
-        (var k1 nil)
-        (var k2 nil)
-        (var k3 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3)))))
-    4 (do
-        (var k1 nil)
-        (var k2 nil)
-        (var k3 nil)
-        (var k4 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
-          (if (= nil (set k4 (next i4 k4))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3) (in i4 k4)))))
-    (do
-      (def iterkeys (array/new-filled ninds))
-      (var done false)
-      (def call-buffer @[])
-      (while true
-        (forv i 0 ninds
-          (let [old-key (in iterkeys i)
-                ii (in inds i)
-                new-key (next ii old-key)]
-            (if (= nil new-key)
-              (do (set done true) (break))
-              (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
-        (if done (break))
-        (array/push res (f ;call-buffer))
-        (array/clear call-buffer))))
+  (map-template :map res f ind inds)
   res)
 
 (defn mapcat
   ``Map a function over every element in an array or tuple and
   use `array/concat` to concatenate the results.``
-  [f ind]
+  [f ind & inds]
   (def res @[])
-  (each x ind
-    (array/concat res (f x)))
+  (map-template :mapcat res f ind inds)
   res)
 
 (defn filter
@@ -999,23 +1000,19 @@
 (defn count
   ``Count the number of items in `ind` for which `(pred item)`
   is true.``
-  [pred ind]
-  (var counter 0)
-  (each item ind
-    (if (pred item)
-      (++ counter)))
-  counter)
+  [pred ind & inds]
+  (var res 0)
+  (map-template :count res pred ind inds)
+  res)
 
 (defn keep
   ``Given a predicate `pred`, return a new array containing the truthy results
   of applying `pred` to each element in the indexed collection `ind`. This is
   different from `filter` which returns an array of the original elements where
   the predicate is truthy.``
-  [pred ind]
+  [pred ind & inds]
   (def res @[])
-  (each item ind
-    (if-let [y (pred item)]
-      (array/push res y)))
+  (map-template :keep res pred ind inds)
   res)
 
 (defn range
@@ -2090,21 +2087,21 @@
   ret)
 
 (defn all
-  ``Returns true if `(pred item)` returns a truthy value for every item in `xs`.
-  Otherwise, returns the first falsey `(pred item)` result encountered.
-  Returns true if `xs` is empty.``
-  [pred xs]
-  (var ret true)
-  (loop [x :in xs :while ret] (set ret (pred x)))
-  ret)
+  ``Returns true if `(pred item)` is truthy for every item in `ind`.
+  Otherwise, returns the first falsey result encountered.
+  Returns true if `ind` is empty.``
+  [pred ind & inds]
+  (var res true)
+  (map-template :all res pred ind inds)
+  res)
 
 (defn some
-  ``Returns nil if all `xs` are false or nil, otherwise returns the result of the
-  first truthy predicate, `(pred x)`.``
-  [pred xs]
-  (var ret nil)
-  (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
-  ret)
+  ``Returns nil if `(pred item)` is false or nil for every item in `ind`.
+  Otherwise, returns the first truthy result encountered.``
+  [pred ind & inds]
+  (var res nil)
+  (map-template :some res pred ind inds)
+  res)
 
 (defn deep-not=
   ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
