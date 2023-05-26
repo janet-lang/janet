@@ -323,11 +323,25 @@
 (assert (deep= (map + [1 2 3] [10 20 30] [100 200 300]) @[111 222 333]))
 (assert (deep= (map + [1 2 3] [10 20 30] [100 200 300] [1000 2000 3000]) @[1111 2222 3333]))
 (assert (deep= (map + [1 2 3] [10 20 30] [100 200 300] [1000 2000 3000] [10000 20000 30000]) @[11111 22222 33333]))
+(assert (deep= (map + [1 2 3] [10 20 30] [100 200 300] [1000 2000 3000] [10000 20000 30000] [100000 200000 300000]) @[111111 222222 333333]))
 
 # Mapping uses the shortest sequence
 (assert (deep= (map + [1 2 3 4] [10 20 30]) @[11 22 33]))
 (assert (deep= (map + [1 2 3 4] [10 20 30] [100 200]) @[111 222]))
 (assert (deep= (map + [1 2 3 4] [10 20 30] [100 200] [1000]) @[1111]))
+(assert (deep= (map + [1 2 3 4] [10 20 30] [100 200] [1000] []) @[]))
+
+# Variadic arguments to map-like functions
+(assert (deep= (mapcat tuple [1 2 3 4] [5 6 7 8]) @[1 5 2 6 3 7 4 8]))
+(assert (deep= (keep |(if (> $1 0) (/ $0 $1)) [1 2 3 4 5] [1 2 1 0 1]) @[1 1 3 5]))
+
+(assert (= (count = [1 3 2 4 3 5 4 2 1] [1 2 3 4 5 4 3 2 1]) 4))
+
+(assert (= (some not= (range 5) (range 5)) nil))
+(assert (= (some = [1 2 3 4 5] [5 4 3 2 1]) true))
+
+(assert (= (all = (range 5) (range 5)) true))
+(assert (= (all not= [1 2 3 4 5] [5 4 3 2 1]) false))
 
 (assert (= false (deep-not= [1] [1])) "issue #1149")
 
