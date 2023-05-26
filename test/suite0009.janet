@@ -110,8 +110,9 @@
    (defer (:close outstream)
      (:write outstream buf1))
    (var buf2 "")
-   (each line (file/lines "unique.txt")
-      (set buf2 (string buf2 line)))
+   (with [f (file/open "unique.txt" :r)]
+     (each line (file/lines f)
+        (set buf2 (string buf2 line))))
    (assert (= buf1 buf2) "file/lines iterator")
    (os/rm "unique.txt"))
 
