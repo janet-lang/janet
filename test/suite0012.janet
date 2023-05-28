@@ -28,7 +28,8 @@
 (assert (= (thunk) 1) "delay 3")
 (assert (= counter 1) "delay 4")
 
-(def has-ffi (dyn 'ffi/native))
+# We should get ARM support...
+(def has-ffi (and (dyn 'ffi/native) (= (os/arch) :x64)))
 
 # FFI check
 (compwhen has-ffi
