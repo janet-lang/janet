@@ -354,7 +354,17 @@ static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, Janet
     int isUnnamedRegister = !(ret.flags & JANET_SLOT_NAMED) &&
                             ret.index > 0 &&
                             ret.envindex >= 0;
-    if (!isUnnamedRegister) {
+    /* optimization for `(def x my-def)` - don't emit a movn/movf instruction, we can just alias my-def */
+    /* TODO - implement optimization for `(def x my-var)` correctly as well w/ de-aliasing */
+    int canAlias = !(flags & JANET_SLOT_MUTABLE) &&
+                   !(ret.flags & JANET_SLOT_MUTABLE) &&
+                   (ret.flags & JANET_SLOT_NAMED) &&
+                   (ret.index >= 0) &&
+                   (ret.envindex == -1);
+    if (canAlias) {
+        ret.flags &= ~JANET_SLOT_MUTABLE;
+        isUnnamedRegister = 1; /* don't free slot after use - is an alias for another slot */
+    } else if (!isUnnamedRegister) {
         /* Slot is not able to be named */
         JanetSlot localslot = janetc_farslot(c);
         janetc_copy(c, localslot, ret);

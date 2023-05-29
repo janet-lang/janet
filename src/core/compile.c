@@ -989,6 +989,10 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
+    /* Do basic optimization */
+    janet_bytecode_movopt(def);
+    janet_bytecode_remove_noops(def);
+
     return def;
 }
 
