@@ -846,7 +846,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 }
                 case 'd':
                 case 'i': {
-                    int64_t n = va_arg(args, long);
+                    int64_t n = va_arg(args, int);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
@@ -854,7 +854,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 'X':
                 case 'o':
                 case 'u': {
-                    uint64_t n = va_arg(args, unsigned long);
+                    uint64_t n = va_arg(args, unsigned int);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
