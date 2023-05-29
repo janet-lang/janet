@@ -177,18 +177,22 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
  * noops. Input is assumed valid bytecode. */
 void janet_bytecode_movopt(JanetFuncDef *def) {
     JanetcRegisterAllocator ra;
-    janetc_regalloc_init(&ra);
+    int recur = 1;
 
-    /* Look for slots that have writes but no reads (and aren't in the closure bitset). */
-    if (def->closure_bitset != NULL) {
-        for (int32_t i = 0; i < def->slotcount; i++) {
-            int32_t index = i >> 5;
-            uint32_t mask = 1U << (((uint32_t) i) & 31);
-            if (def->closure_bitset[index] & mask) {
-                janetc_regalloc_touch(&ra, i);
+    /* Iterate this until no more instructions can be removed. */
+    while (recur) {
+        janetc_regalloc_init(&ra);
+
+        /* Look for slots that have writes but no reads (and aren't in the closure bitset). */
+        if (def->closure_bitset != NULL) {
+            for (int32_t i = 0; i < def->slotcount; i++) {
+                int32_t index = i >> 5;
+                uint32_t mask = 1U << (((uint32_t) i) & 31);
+                if (def->closure_bitset[index] & mask) {
+                    janetc_regalloc_touch(&ra, i);
+                }
             }
         }
-    }
 
 #define AA ((instr >> 8)  & 0xFF)
 #define BB ((instr >> 16) & 0xFF)
@@ -196,188 +200,193 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
 #define DD (instr >> 8)
 #define EE (instr >> 16)
 
-    /* Check reads and writes */
-    for (int32_t i = 0; i < def->bytecode_length; i++) {
-        uint32_t instr = def->bytecode[i];
-        switch (instr & 0x7F) {
+        /* Check reads and writes */
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            uint32_t instr = def->bytecode[i];
+            switch (instr & 0x7F) {
 
-            /* Group instructions my how they read from slots */
+                /* Group instructions my how they read from slots */
 
-            /* No reads or writes */
-            default:
-                janet_assert(0, "unhandled instruction");
-            case JOP_JUMP:
-            case JOP_NOOP:
-            case JOP_RETURN_NIL:
-            /* Write A */
-            case JOP_LOAD_INTEGER:
-            case JOP_LOAD_CONSTANT:
-            case JOP_LOAD_UPVALUE:
-            case JOP_CLOSURE:
-            /* Write D */
-            case JOP_LOAD_NIL:
-            case JOP_LOAD_TRUE:
-            case JOP_LOAD_FALSE:
-            case JOP_LOAD_SELF:
-            case JOP_MAKE_ARRAY:
-            case JOP_MAKE_BUFFER:
-            case JOP_MAKE_STRING:
-            case JOP_MAKE_STRUCT:
-            case JOP_MAKE_TABLE:
-            case JOP_MAKE_TUPLE:
-            case JOP_MAKE_BRACKET_TUPLE:
-                break;
+                /* No reads or writes */
+                default:
+                    janet_assert(0, "unhandled instruction");
+                case JOP_JUMP:
+                case JOP_NOOP:
+                case JOP_RETURN_NIL:
+                /* Write A */
+                case JOP_LOAD_INTEGER:
+                case JOP_LOAD_CONSTANT:
+                case JOP_LOAD_UPVALUE:
+                case JOP_CLOSURE:
+                /* Write D */
+                case JOP_LOAD_NIL:
+                case JOP_LOAD_TRUE:
+                case JOP_LOAD_FALSE:
+                case JOP_LOAD_SELF:
+                case JOP_MAKE_ARRAY:
+                case JOP_MAKE_BUFFER:
+                case JOP_MAKE_STRING:
+                case JOP_MAKE_STRUCT:
+                case JOP_MAKE_TABLE:
+                case JOP_MAKE_TUPLE:
+                case JOP_MAKE_BRACKET_TUPLE:
+                    break;
 
-            /* Read A */
-            case JOP_ERROR:
-            case JOP_TYPECHECK:
-            case JOP_JUMP_IF:
-            case JOP_JUMP_IF_NOT:
-            case JOP_JUMP_IF_NIL:
-            case JOP_JUMP_IF_NOT_NIL:
-            case JOP_SET_UPVALUE:
-            /* Write E, Read A */
-            case JOP_MOVE_FAR:
-                janetc_regalloc_touch(&ra, AA);
-                break;
+                /* Read A */
+                case JOP_ERROR:
+                case JOP_TYPECHECK:
+                case JOP_JUMP_IF:
+                case JOP_JUMP_IF_NOT:
+                case JOP_JUMP_IF_NIL:
+                case JOP_JUMP_IF_NOT_NIL:
+                case JOP_SET_UPVALUE:
+                /* Write E, Read A */
+                case JOP_MOVE_FAR:
+                    janetc_regalloc_touch(&ra, AA);
+                    break;
 
-            /* Read B */
-            case JOP_SIGNAL:
-            /* Write A, Read B */
-            case JOP_ADD_IMMEDIATE:
-            case JOP_MULTIPLY_IMMEDIATE:
-            case JOP_DIVIDE_IMMEDIATE:
-            case JOP_SHIFT_LEFT_IMMEDIATE:
-            case JOP_SHIFT_RIGHT_IMMEDIATE:
-            case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
-            case JOP_GREATER_THAN_IMMEDIATE:
-            case JOP_LESS_THAN_IMMEDIATE:
-            case JOP_EQUALS_IMMEDIATE:
-            case JOP_NOT_EQUALS_IMMEDIATE:
-            case JOP_GET_INDEX:
-                janetc_regalloc_touch(&ra, BB);
-                break;
+                /* Read B */
+                case JOP_SIGNAL:
+                /* Write A, Read B */
+                case JOP_ADD_IMMEDIATE:
+                case JOP_MULTIPLY_IMMEDIATE:
+                case JOP_DIVIDE_IMMEDIATE:
+                case JOP_SHIFT_LEFT_IMMEDIATE:
+                case JOP_SHIFT_RIGHT_IMMEDIATE:
+                case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
+                case JOP_GREATER_THAN_IMMEDIATE:
+                case JOP_LESS_THAN_IMMEDIATE:
+                case JOP_EQUALS_IMMEDIATE:
+                case JOP_NOT_EQUALS_IMMEDIATE:
+                case JOP_GET_INDEX:
+                    janetc_regalloc_touch(&ra, BB);
+                    break;
 
-            /* Read D */
-            case JOP_RETURN:
-            case JOP_PUSH:
-            case JOP_PUSH_ARRAY:
-            case JOP_TAILCALL:
-                janetc_regalloc_touch(&ra, DD);
-                break;
+                /* Read D */
+                case JOP_RETURN:
+                case JOP_PUSH:
+                case JOP_PUSH_ARRAY:
+                case JOP_TAILCALL:
+                    janetc_regalloc_touch(&ra, DD);
+                    break;
 
-            /* Write A, Read E */
-            case JOP_MOVE_NEAR:
-            case JOP_LENGTH:
-            case JOP_BNOT:
-            case JOP_CALL:
-                janetc_regalloc_touch(&ra, EE);
-                break;
+                /* Write A, Read E */
+                case JOP_MOVE_NEAR:
+                case JOP_LENGTH:
+                case JOP_BNOT:
+                case JOP_CALL:
+                    janetc_regalloc_touch(&ra, EE);
+                    break;
 
-            /* Read A, B */
-            case JOP_PUT_INDEX:
-                janetc_regalloc_touch(&ra, AA);
-                janetc_regalloc_touch(&ra, BB);
-                break;
+                /* Read A, B */
+                case JOP_PUT_INDEX:
+                    janetc_regalloc_touch(&ra, AA);
+                    janetc_regalloc_touch(&ra, BB);
+                    break;
 
-            /* Read A, E */
-            case JOP_PUSH_2:
-                janetc_regalloc_touch(&ra, AA);
-                janetc_regalloc_touch(&ra, EE);
-                break;
+                /* Read A, E */
+                case JOP_PUSH_2:
+                    janetc_regalloc_touch(&ra, AA);
+                    janetc_regalloc_touch(&ra, EE);
+                    break;
 
-            /* Read B, C */
-            case JOP_PROPAGATE:
-            /* Write A, Read B and C */
-            case JOP_BAND:
-            case JOP_BOR:
-            case JOP_BXOR:
-            case JOP_ADD:
-            case JOP_SUBTRACT:
-            case JOP_MULTIPLY:
-            case JOP_DIVIDE:
-            case JOP_MODULO:
-            case JOP_REMAINDER:
-            case JOP_SHIFT_LEFT:
-            case JOP_SHIFT_RIGHT:
-            case JOP_SHIFT_RIGHT_UNSIGNED:
-            case JOP_GREATER_THAN:
-            case JOP_LESS_THAN:
-            case JOP_EQUALS:
-            case JOP_COMPARE:
-            case JOP_IN:
-            case JOP_GET:
-            case JOP_GREATER_THAN_EQUAL:
-            case JOP_LESS_THAN_EQUAL:
-            case JOP_NOT_EQUALS:
-            case JOP_CANCEL:
-            case JOP_RESUME:
-            case JOP_NEXT:
-                janetc_regalloc_touch(&ra, BB);
-                janetc_regalloc_touch(&ra, CC);
-                break;
+                /* Read B, C */
+                case JOP_PROPAGATE:
+                /* Write A, Read B and C */
+                case JOP_BAND:
+                case JOP_BOR:
+                case JOP_BXOR:
+                case JOP_ADD:
+                case JOP_SUBTRACT:
+                case JOP_MULTIPLY:
+                case JOP_DIVIDE:
+                case JOP_MODULO:
+                case JOP_REMAINDER:
+                case JOP_SHIFT_LEFT:
+                case JOP_SHIFT_RIGHT:
+                case JOP_SHIFT_RIGHT_UNSIGNED:
+                case JOP_GREATER_THAN:
+                case JOP_LESS_THAN:
+                case JOP_EQUALS:
+                case JOP_COMPARE:
+                case JOP_IN:
+                case JOP_GET:
+                case JOP_GREATER_THAN_EQUAL:
+                case JOP_LESS_THAN_EQUAL:
+                case JOP_NOT_EQUALS:
+                case JOP_CANCEL:
+                case JOP_RESUME:
+                case JOP_NEXT:
+                    janetc_regalloc_touch(&ra, BB);
+                    janetc_regalloc_touch(&ra, CC);
+                    break;
 
-            /* Read A, B, C */
-            case JOP_PUT:
-            case JOP_PUSH_3:
-                janetc_regalloc_touch(&ra, AA);
-                janetc_regalloc_touch(&ra, BB);
-                janetc_regalloc_touch(&ra, CC);
-                break;
+                /* Read A, B, C */
+                case JOP_PUT:
+                case JOP_PUSH_3:
+                    janetc_regalloc_touch(&ra, AA);
+                    janetc_regalloc_touch(&ra, BB);
+                    janetc_regalloc_touch(&ra, CC);
+                    break;
+            }
         }
-    }
 
-    /* Iterate and set noops on instructions that make writes that no one ever reads.
-     * Only set noops for instructions with no side effects - moves, loads, etc. that can't
-     * raise errors (outside of systemic errors like oom or stack overflow). */
-    for (int32_t i = 0; i < def->bytecode_length; i++) {
-        uint32_t instr = def->bytecode[i];
-        switch (instr & 0x7F) {
-            default:
+        /* Iterate and set noops on instructions that make writes that no one ever reads.
+         * Only set noops for instructions with no side effects - moves, loads, etc. that can't
+         * raise errors (outside of systemic errors like oom or stack overflow). */
+        recur = 0;
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            uint32_t instr = def->bytecode[i];
+            switch (instr & 0x7F) {
+                default:
+                    break;
+                /* Write D */
+                case JOP_LOAD_NIL:
+                case JOP_LOAD_TRUE:
+                case JOP_LOAD_FALSE:
+                case JOP_LOAD_SELF:
+                case JOP_MAKE_ARRAY:
+                case JOP_MAKE_TUPLE:
+                case JOP_MAKE_BRACKET_TUPLE: {
+                    if (!janetc_regalloc_check(&ra, DD)) {
+                        def->bytecode[i] = JOP_NOOP;
+                        recur = 1;
+                    }
+                }
                 break;
-            /* Write D */
-            case JOP_LOAD_NIL:
-            case JOP_LOAD_TRUE:
-            case JOP_LOAD_FALSE:
-            case JOP_LOAD_SELF:
-            case JOP_MAKE_ARRAY:
-            case JOP_MAKE_TUPLE:
-            case JOP_MAKE_BRACKET_TUPLE: {
-                if (!janetc_regalloc_check(&ra, DD)) {
-                    def->bytecode[i] = JOP_NOOP;
+                /* Write E, Read A */
+                case JOP_MOVE_FAR: {
+                    if (!janetc_regalloc_check(&ra, EE)) {
+                        def->bytecode[i] = JOP_NOOP;
+                        recur = 1;
+                    }
                 }
-            }
-            break;
-            /* Write E, Read A */
-            case JOP_MOVE_FAR: {
-                if (!janetc_regalloc_check(&ra, EE)) {
-                    def->bytecode[i] = JOP_NOOP;
+                break;
+                /* Write A, Read E */
+                case JOP_MOVE_NEAR:
+                /* Write A, Read B */
+                case JOP_GET_INDEX:
+                /* Write A */
+                case JOP_LOAD_INTEGER:
+                case JOP_LOAD_CONSTANT:
+                case JOP_LOAD_UPVALUE:
+                case JOP_CLOSURE: {
+                    if (!janetc_regalloc_check(&ra, AA)) {
+                        def->bytecode[i] = JOP_NOOP;
+                        recur = 1;
+                    }
                 }
+                break;
             }
-            break;
-            /* Write A, Read E */
-            case JOP_MOVE_NEAR:
-            /* Write A, Read B */
-            case JOP_GET_INDEX:
-            /* Write A */
-            case JOP_LOAD_INTEGER:
-            case JOP_LOAD_CONSTANT:
-            case JOP_LOAD_UPVALUE:
-            case JOP_CLOSURE: {
-                if (!janetc_regalloc_check(&ra, AA)) {
-                    def->bytecode[i] = JOP_NOOP;
-                }
-            }
-            break;
         }
-    }
 
-    janetc_regalloc_deinit(&ra);
+        janetc_regalloc_deinit(&ra);
 #undef AA
 #undef BB
 #undef CC
 #undef DD
 #undef EE
+    }
 }
 
 /* Verify some bytecode */
