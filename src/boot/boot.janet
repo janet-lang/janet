@@ -444,9 +444,21 @@
          (def ,binding
            ,(case kind
               :each ~(,in ,ds ,k)
-              :keys k
-              :pairs ~(,tuple ,k (,in ,ds ,k))))
+              :keys k))
          ,;body
+         (set ,k (,next ,ds ,k))))))
+
+(defn- each-pair-template
+  [[i x] inx body]
+  (with-syms [k]
+    (def ds (if (idempotent? inx) inx (gensym)))
+    ~(do
+       ,(unless (= ds inx) ~(def ,ds ,inx))
+       (var ,k (,next ,ds nil))
+       (while (,not= nil ,k)
+         (let [,i ,k
+               ,x (,in ,ds ,k)]
+           ,;body)
          (set ,k (,next ,ds ,k))))))
 
 (defn- iterate-template
@@ -492,7 +504,7 @@
       :down (range-template binding object rest - >)
       :down-to (range-template binding object rest - >=)
       :keys (each-template binding object :keys [rest])
-      :pairs (each-template binding object :pairs [rest])
+      :pairs (each-pair-template binding object [rest])
       :in (each-template binding object :each [rest])
       :iterate (iterate-template binding object rest)
       (error (string "unexpected loop verb " verb)))))
@@ -516,7 +528,7 @@
 (defmacro eachp
   "Loop over each (key, value) pair in `ds`. Returns nil."
   [x ds & body]
-  (each-template x ds :pairs body))
+  (each-pair-template x ds body))
 
 (defmacro repeat
   "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
