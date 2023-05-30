@@ -2320,6 +2320,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
             if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
                 state->wbuf.len = (ULONG) chunk_size;
                 state->wbuf.buf = (char *) state->chunk_buf;
+                state->fromlen = sizeof(state->from);
                 status = WSARecvFrom((SOCKET) s->stream->handle, &state->wbuf, 1,
                                      NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
