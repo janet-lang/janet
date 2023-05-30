@@ -460,7 +460,7 @@ JANET_CORE_FN(cfun_net_connect,
     if (binding) {
         struct addrinfo *rp = NULL;
         int did_bind = 0;
-        for (rp = ai; rp != NULL; rp = rp->ai_next) {
+        for (rp = binding; rp != NULL; rp = rp->ai_next) {
             if (bind(sock, rp->ai_addr, (int) rp->ai_addrlen) == 0) {
                 did_bind = 1;
                 break;

@@ -30,7 +30,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <shlwapi.h>
-#include <versionhelpers.h>
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
@@ -147,9 +146,8 @@ static void setup_console_output(void) {
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD dwMode = 0;
     GetConsoleMode(hOut, &dwMode);
-    if (IsWindows10OrGreater()) {
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-    }
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    dwMode |= ENABLE_PROCESSED_OUTPUT;
     SetConsoleMode(hOut, dwMode);
     if (IsValidCodePage(65001)) {
         SetConsoleOutputCP(65001);
@@ -165,10 +163,8 @@ static int rawmode(void) {
     dwMode &= ~ENABLE_LINE_INPUT;
     dwMode &= ~ENABLE_INSERT_MODE;
     dwMode &= ~ENABLE_ECHO_INPUT;
-    if (IsWindows10OrGreater()) {
-        dwMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
-        dwMode &= ~ENABLE_PROCESSED_INPUT;
-    }
+    dwMode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+    dwMode &= ~ENABLE_PROCESSED_INPUT;
     if (!SetConsoleMode(hOut, dwMode)) return 1;
     gbl_israwmode = 1;
     return 0;
@@ -183,10 +179,8 @@ static void norawmode(void) {
     dwMode |= ENABLE_LINE_INPUT;
     dwMode |= ENABLE_INSERT_MODE;
     dwMode |= ENABLE_ECHO_INPUT;
-    if (IsWindows10OrGreater()) {
-        dwMode &= ~ENABLE_VIRTUAL_TERMINAL_INPUT;
-        dwMode |= ENABLE_PROCESSED_INPUT;
-    }
+    dwMode &= ~ENABLE_VIRTUAL_TERMINAL_INPUT;
+    dwMode |= ENABLE_PROCESSED_INPUT;
     SetConsoleMode(hOut, dwMode);
     gbl_israwmode = 0;
 }

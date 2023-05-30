@@ -324,7 +324,8 @@ static void buffer_push_impl(JanetBuffer *buffer, Janet *argv, int32_t argc_offs
 
 JANET_CORE_FN(cfun_buffer_push_at,
               "(buffer/push-at buffer index & xs)",
-              "Same as buffer/push, but inserts new data at index `index`.") {
+              "Same as buffer/push, but copies the new data into the buffer "
+              " at index `index`.") {
     janet_arity(argc, 2, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int32_t index = janet_getinteger(argv, 1);
