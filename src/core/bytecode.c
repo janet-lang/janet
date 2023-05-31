@@ -170,6 +170,7 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
     }
 
     def->bytecode_length = new_bytecode_length;
+    def->bytecode = janet_realloc(def->bytecode, def->bytecode_length * sizeof(uint32_t));
     janet_sfree(pc_map);
 }
 

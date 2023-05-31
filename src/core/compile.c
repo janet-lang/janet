@@ -971,12 +971,13 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     for (int32_t i = 0; i < janet_v_count(scope->syms); i++) {
         SymPair pair = scope->syms[i];
         if (pair.sym2) {
-            if (pair.death_pc == UINT32_MAX) {
-                pair.death_pc = def->bytecode_length;
-            }
             JanetSymbolMap jsm;
-            jsm.birth_pc = pair.birth_pc;
-            jsm.death_pc = pair.death_pc;
+            if (pair.death_pc == UINT32_MAX) {
+                jsm.death_pc = def->bytecode_length;
+            } else {
+                jsm.death_pc = pair.death_pc - scope->bytecode_start;
+            }
+            jsm.birth_pc = pair.birth_pc - scope->bytecode_start;
             jsm.slot_index = pair.slot.index;
             jsm.symbol = pair.sym2;
             janet_v_push(locals, jsm);
