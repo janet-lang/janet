@@ -445,7 +445,7 @@
            ,(case kind
               :each ~(,in ,ds ,k)
               :keys k
-              :pairs ~(,tuple ,k (,in ,ds ,k))))
+              :pairs ~[,k (,in ,ds ,k)]))
          ,;body
          (set ,k (,next ,ds ,k))))))
 
