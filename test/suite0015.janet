@@ -4,7 +4,7 @@
 (start-suite 15)
 
 (assert (deep= (in (disasm (defn a [] (def x 10) x)) :symbolmap)
-               @[[0 3 0 'a] [1 3 1 'x]])
+               @[[0 2 0 'a] [0 2 1 'x]])
         "symbolslots when *debug* is true")
 
 (defn a [arg]
@@ -33,16 +33,18 @@
                                (def y 20)
                                (def z 30)
                                (+ x y z)))) :symbolmap)
-               @[[0 7 0 'arg]
-                 [0 7 1 'a]
-                 [1 7 2 'x]
-                 [2 7 3 'y]
-                 [3 7 4 'z]])
+               @[[0 6 0 'arg]
+                 [0 6 1 'a]
+                 [0 6 2 'x]
+                 [1 6 3 'y]
+                 [2 6 4 'z]])
         "arg & inner symbolslots")
 
 # buffer/push-at
 (assert (deep= @"abc456" (buffer/push-at @"abc123" 3 "456")) "buffer/push-at 1")
 (assert (deep= @"abc456789" (buffer/push-at @"abc123" 3 "456789")) "buffer/push-at 2")
 (assert (deep= @"abc423" (buffer/push-at @"abc123" 3 "4")) "buffer/push-at 3")
+
+(assert (= 10 (do (var x 10) (def y x) (++ x) y)) "no invalid aliasing")
 
 (end-suite)
