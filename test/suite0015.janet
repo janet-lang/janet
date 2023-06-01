@@ -47,4 +47,15 @@
 
 (assert (= 10 (do (var x 10) (def y x) (++ x) y)) "no invalid aliasing")
 
+# Crash issue #1174 - bad debug info
+(defn crash []
+  (debug/stack (fiber/current)))
+(do
+  (math/random)
+  (defn foo [_]
+    (crash)
+    1)
+  (foo 0)
+  10)
+
 (end-suite)

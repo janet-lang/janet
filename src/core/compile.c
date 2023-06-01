@@ -978,7 +978,14 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
                 jsm.death_pc = pair.death_pc - scope->bytecode_start;
             }
             /* Handle birth_pc == 0 correctly */
-            jsm.birth_pc = pair.birth_pc ? pair.birth_pc - scope->bytecode_start : 0;
+            if ((uint32_t) scope->bytecode_start > pair.birth_pc) {
+                jsm.birth_pc = 0;
+            } else {
+                jsm.birth_pc = pair.birth_pc - scope->bytecode_start;
+            }
+            janet_assert(jsm.birth_pc <= jsm.death_pc, "birth pc after death pc");
+            janet_assert(jsm.birth_pc < (uint32_t) def->bytecode_length, "bad birth pc");
+            janet_assert(jsm.death_pc <= (uint32_t) def->bytecode_length, "bad death pc");
             jsm.slot_index = pair.slot.index;
             jsm.symbol = pair.sym2;
             janet_v_push(locals, jsm);
