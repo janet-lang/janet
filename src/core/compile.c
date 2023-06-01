@@ -977,7 +977,8 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
             } else {
                 jsm.death_pc = pair.death_pc - scope->bytecode_start;
             }
-            jsm.birth_pc = pair.birth_pc - scope->bytecode_start;
+            /* Handle birth_pc == 0 correctly */
+            jsm.birth_pc = pair.birth_pc ? pair.birth_pc - scope->bytecode_start : 0;
             jsm.slot_index = pair.slot.index;
             jsm.symbol = pair.sym2;
             janet_v_push(locals, jsm);
