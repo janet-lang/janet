@@ -1197,45 +1197,15 @@
   ~(def ,alias :dyn ,;more ,kw))
 
 
-(defn contains-key?
-  ```Checks if a collection contains the specified key.
-  
-  Semantically equivalent to `(not (nil? (get collection key)))`.
-  
-  Arrays, tuples, and buffer types (string, buffer, keyword, symbol) are all indexed by integer keys.
-  For those types, this function simply checks if the index is less than the length. 
-  
-  If this function succeeds, then a call to `(in collection key)` is guarenteed
-  to succeed as well.
-  
-  Note that tables or structs (dictionaries) never contain null keys```
-  [collection key]
-  (not (nil? (get collection key))))
+(defn has-key?
+  "Check if a data structure `ds` contains the key `key`."
+  [ds key]
+  (not= nil (get ds key)))
 
-(defn contains?
-  ```Checks if a collection contains the specified value.
-  
-  This supports any iterable type by way of the `next` function.
-  This includes buffers, dictionaries, arrays, fibers, and possibly abstract types.
-  
-  For tables and structs, this checks the values, not the keys.
-  For arrays, tuples (and any other iterable type), this simply checks if any of the values are equal.
-  
-  For buffer types (strings, buffers, keywords), this checks if the specified byte is present.
-  This is because, buffer types (strings, keywords, symbols) are simply sequences, with byte values.
-  This means they will also work with `next` and `index-of`.
-  
-  However, it also means this function will not check for substrings, only integer bytes (which could be unexpected).
-  In other words is `(contains? "foo bar" "foo")` is always false, because "foo" is not an integer byte
-  If you want to check for a substring in a buffer, then use `(truthy? (string/find substr buffer))`,
-  or just `(if (string/find substr buffer) then else)`
-  
-  In general this function has O(n) performance, since it requires iterating over all the values.
-  
-  Note that tables or structs (dictionaries) never contain null values```
-  [collection val]
-  (not (nil? (index-of val collection))))
-
+(defn has-value?
+  "Check if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
+  [ds value]
+  (not= nil (index-of value ds)))
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
   Use this to prevent keyword collisions between dynamic bindings.``)
