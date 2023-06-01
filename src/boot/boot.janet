@@ -4157,10 +4157,11 @@
 
   (defn do-one-file
     [fname]
-    (print "\n/* " fname " */")
-    (print "#line 0 \"" fname "\"\n")
-    (def source (slurp fname))
-    (print (string/replace-all "\r" "" source)))
+    (if-not (has-value? boot/args "image-only") (do
+      (print "\n/* " fname " */")
+      (print "#line 0 \"" fname "\"\n")
+      (def source (slurp fname))
+      (print (string/replace-all "\r" "" source)))))
 
   (do-one-file feature-header)
 

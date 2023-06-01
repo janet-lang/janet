@@ -39,6 +39,8 @@ JANET_PATH?=$(LIBDIR)/janet
 JANET_MANPATH?=$(PREFIX)/share/man/man1/
 JANET_PKG_CONFIG_PATH?=$(LIBDIR)/pkgconfig
 JANET_DIST_DIR?=janet-dist
+JANET_BOOT_FLAGS:=. JANET_PATH '$(JANET_PATH)'
+JANET_TARGET_OBJECTS=build/janet.o build/shell.o
 JPM_TAG?=master
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
@@ -53,6 +55,12 @@ RUN:=$(RUN)
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 $(COMMON_CFLAGS) -g
 BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
+
+# Disable amalgamated build
+ifeq ($(JANET_NO_AMALG), 1)
+	JANET_TARGET_OBJECTS+=$(patsubst src/%.c,build/%.bin.o,$(JANET_CORE_SOURCES))
+	JANET_BOOT_FLAGS+=image-only
+endif
 
 # For installation
 LDCONFIG:=ldconfig "$(LIBDIR)"
@@ -88,7 +96,7 @@ ifeq ($(findstring MINGW,$(UNAME)), MINGW)
 	JANET_BOOT:=$(JANET_BOOT).exe
 endif
 
-$(shell mkdir -p build/core build/c build/boot)
+$(shell mkdir -p build/core build/c build/boot build/mainclient)
 all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
 
 ######################
@@ -172,8 +180,15 @@ $(JANET_BOOT): $(JANET_BOOT_OBJECTS)
 
 # Now the reason we bootstrap in the first place
 build/c/janet.c: $(JANET_BOOT) src/boot/boot.janet
-	$(RUN) $(JANET_BOOT) . JANET_PATH '$(JANET_PATH)' > $@
+	$(RUN) $(JANET_BOOT) $(JANET_BOOT_FLAGS) > $@
 	cksum $@
+
+##################
+##### Quicky #####
+##################
+
+build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
+	$(HOSTCC) $(BUILD_CFLAGS) -o $@ -c $<
 
 ########################
 ##### Amalgamation #####
@@ -200,13 +215,13 @@ build/janet.o: build/c/janet.c $(JANETCONF_HEADER) src/include/janet.h
 build/shell.o: build/c/shell.c $(JANETCONF_HEADER) src/include/janet.h
 	$(HOSTCC) $(BUILD_CFLAGS) -c $< -o $@
 
-$(JANET_TARGET): build/janet.o build/shell.o
+$(JANET_TARGET): $(JANET_TARGET_OBJECTS)
 	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) -o $@ $^ $(CLIBS)
 
-$(JANET_LIBRARY): build/janet.o build/shell.o
+$(JANET_LIBRARY): $(JANET_TARGET_OBJECTS)
 	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
 
-$(JANET_STATIC_LIBRARY): build/janet.o build/shell.o
+$(JANET_STATIC_LIBRARY): $(JANET_TARGET_OBJECTS)
 	$(HOSTAR) rcs $@ $^
 
 ###################
