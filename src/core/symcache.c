@@ -108,6 +108,7 @@ static const uint8_t **janet_symcache_findmem(
         }
 notfound:
     *success = 0;
+    janet_assert(firstEmpty != NULL, "symcache failed to get memory");
     return firstEmpty;
 }
 

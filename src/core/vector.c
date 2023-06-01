@@ -40,7 +40,7 @@ void *janet_v_grow(void *v, int32_t increment, int32_t itemsize) {
 
 /* Convert a buffer to normal allocated memory (forget capacity) */
 void *janet_v_flattenmem(void *v, int32_t itemsize) {
-    int32_t *p;
+    char *p;
     if (NULL == v) return NULL;
     size_t size = (size_t) itemsize * janet_v__cnt(v);
     p = janet_malloc(size);

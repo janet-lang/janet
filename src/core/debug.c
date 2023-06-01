@@ -314,6 +314,7 @@ static Janet doframe(JanetStackFrame *frame) {
     if (frame->func && frame->pc) {
         Janet *stack = (Janet *)frame + JANET_FRAME_SIZE;
         JanetArray *slots;
+        janet_assert(def != NULL, "def != NULL");
         off = (int32_t)(frame->pc - def->bytecode);
         janet_table_put(t, janet_ckeywordv("pc"), janet_wrap_integer(off));
         if (def->sourcemap) {

@@ -81,6 +81,7 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
         }
         fiber->stacktop = newstacktop;
     }
+    /* Don't panic on failure since we use this to implement janet_pcall */
     if (janet_fiber_funcframe(fiber, callee)) return NULL;
     janet_fiber_frame(fiber)->flags |= JANET_STACKFRAME_ENTRANCE;
 #ifdef JANET_EV
@@ -92,7 +93,9 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
 
 /* Create a new fiber with argn values on the stack. */
 JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv) {
-    return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
+    JanetFiber *result = janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
+    if (NULL == result) janet_panic("cannot create fiber");
+    return result;
 }
 
 #ifdef JANET_DEBUG

@@ -775,7 +775,7 @@ static const char *get_fmt_mapping(char c) {
         if (format_mappings[i].c == c)
             return format_mappings[i].mapping;
     }
-    return NULL;
+    janet_assert(0, "bad format mapping");
 }
 
 static const char *scanformat(

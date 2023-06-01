@@ -499,7 +499,7 @@ typedef struct {
 static void namebuf_init(NameBuf *namebuf, const char *prefix) {
     size_t plen = strlen(prefix);
     namebuf->plen = plen;
-    namebuf->buf = janet_malloc(namebuf->plen + 256);
+    namebuf->buf = janet_smalloc(namebuf->plen + 256);
     if (NULL == namebuf->buf) {
         JANET_OUT_OF_MEMORY;
     }
@@ -508,12 +508,12 @@ static void namebuf_init(NameBuf *namebuf, const char *prefix) {
 }
 
 static void namebuf_deinit(NameBuf *namebuf) {
-    janet_free(namebuf->buf);
+    janet_sfree(namebuf->buf);
 }
 
 static char *namebuf_name(NameBuf *namebuf, const char *suffix) {
     size_t slen = strlen(suffix);
-    namebuf->buf = janet_realloc(namebuf->buf, namebuf->plen + 2 + slen);
+    namebuf->buf = janet_srealloc(namebuf->buf, namebuf->plen + 2 + slen);
     if (NULL == namebuf->buf) {
         JANET_OUT_OF_MEMORY;
     }

@@ -1019,6 +1019,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     for (i = 0; i < paramcount; i++) {
         Janet param = params[i];
         if (!janet_checktype(param, JANET_SYMBOL)) {
+            janet_assert(janet_v_count(destructed_params) > j, "out of bounds");
             JanetSlot reg = destructed_params[j++];
             destructure(c, param, reg, defleaf, NULL);
             janetc_freeslot(c, reg);
