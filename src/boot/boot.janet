@@ -3903,7 +3903,9 @@
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
-  (set colorize (not (getenv-alias "NO_COLOR")))
+  (set colorize (and
+                  (not (getenv-alias "NO_COLOR"))
+                  (os/isatty stdout)))
 
   (defn- get-lint-level
     [i]
