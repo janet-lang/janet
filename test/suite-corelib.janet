@@ -28,6 +28,13 @@
 # d6967a5
 (assert (= 4 (blshift 1 2)) "left shift")
 (assert (= 1 (brshift 4 2)) "right shift")
+# unsigned shift
+(assert (= 32768 (brushift 0x80000000 16)) "right shift unsigned 1")
+(assert (= -32768 (brshift 0x80000000 16)) "right shift unsigned 2")
+# non-immediate forms
+(assert (= 32768 (brushift 0x80000000 (+ 0 16))) "right shift unsigned non-immediate")
+(assert (= -32768 (brshift 0x80000000 (+ 0 16))) "right shift non-immediate")
+(assert (= 32768 (blshift 1 (+ 0 15))) "left shift non-immediate")
 # 7e46ead
 (assert (< 1 2 3 4 5 6) "less than integers")
 (assert (< 1.0 2.0 3.0 4.0 5.0 6.0) "less than reals")
@@ -115,6 +122,20 @@
 (with-dyns [:syspath ".janet/.janet"]
   (assert (= (string (module/expand-path "hello" ":sys:/:all:.janet"))
              ".janet/.janet/hello.janet") "module/expand-path 1"))
+
+# int?
+(assert (int? 1) "int? 1")
+(assert (int? -1) "int? -1")
+(assert (not (int? true)) "int? true")
+(assert (not (int? 3.14)) "int? 3.14")
+(assert (not (int? 8589934592)) "int? 8589934592")
+
+# memcmp
+(assert (= (memcmp "123helloabcd" "1234helloabc" 5 3 4) 0) "memcmp 1")
+(assert (< (memcmp "123hellaabcd" "1234helloabc" 5 3 4) 0) "memcmp 2")
+(assert (> (memcmp "123helloabcd" "1234hellaabc" 5 3 4) 0) "memcmp 3")
+(assert-error "invalid offset-a: 1" (memcmp "a" "b" 1 1 0))
+(assert-error "invalid offset-b: 1" (memcmp "a" "b" 1 0 1))
 
 (end-suite)
 

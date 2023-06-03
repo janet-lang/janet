@@ -46,5 +46,36 @@
 (assert (deep= (array/remove @[1 2 3 4 5] 2 200) @[1 2]) "array/remove 3")
 (assert (deep= (array/remove @[1 2 3 4 5] -3 200) @[1 2 3]) "array/remove 4")
 
+
+# array/peek
+(assert (nil? (array/peek @[])) "array/peek empty")
+
+# array/fill
+(assert (deep= (array/fill @[1 1] 2) @[2 2]) "array/fill 1")
+
+# array/concat
+(assert (deep= (array/concat @[1 2] @[3 4] 5 6) @[1 2 3 4 5 6]) "array/concat 1")
+(def a @[1 2])
+(assert (deep= (array/concat a a) @[1 2 1 2]) "array/concat self")
+
+# array/insert
+(assert (deep= (array/insert @[:a :a :a :a] 2 :b :b) @[:a :a :b :b :a :a]) "array/insert 1")
+(assert (deep= (array/insert @[:a :b] -1 :c :d) @[:a :b :c :d]) "array/insert 2")
+
+# array/remove
+(assert-error "removal index 3 out of range [0,2]" (array/remove @[1 2] 3))
+(assert-error "expected non-negative integer for argument n, got -1" (array/remove @[1 2] 1 -1))
+
+# array/pop
+(assert (= (array/pop @[1]) 1) "array/pop 1")
+(assert (= (array/pop @[]) nil) "array/pop empty")
+
+# Code coverage
+(def a @[1])
+(array/pop a)
+(array/trim a)
+(array/ensure @[1 1] 6 2)
+
+
 (end-suite)
 

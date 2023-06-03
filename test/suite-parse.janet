@@ -165,5 +165,28 @@
 (loop [v :iterate (parser/produce p2)])
 (parser/state p2)
 
+# parser delimiter errors
+(defn test-error [delim fmt]
+  (def p (parser/new))
+  (parser/consume p delim)
+  (parser/eof p)
+  (def msg (string/format fmt delim))
+  (assert (= (parser/error p) msg) "delimiter error"))
+(each c [ "(" "{" "[" "\"" "``" ]
+  (test-error c "unexpected end of source, %s opened at line 1, column 1"))
+
+# parser/insert
+(def p (parser/new))
+(parser/consume p "(")
+(parser/insert p "hello")
+(parser/consume p ")")
+(assert (= (parser/produce p) ["hello"]))
+
+(def p (parser/new))
+(parser/consume p `("hel`)
+(parser/insert p `lo`)
+(parser/consume p `")`)
+(assert (= (parser/produce p) ["hello"]))
+
 (end-suite)
 

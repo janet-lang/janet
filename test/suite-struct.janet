@@ -78,5 +78,17 @@
 (assert (struct/getproto (struct/with-proto {:a 1} :b 2 :c nil))
         "missing struct proto")
 
+# struct/with-proto
+(assert-error "expected odd number of arguments" (struct/with-proto {} :a))
+
+# struct/to-table
+(def s (struct/with-proto {:a 1 :b 2} :name "john" ))
+(def t1 (struct/to-table s true))
+(def t2 (struct/to-table s false))
+(assert (deep= t1 @{:name "john"}) "struct/to-table 1")
+(assert (deep= t2 @{:name "john"}) "struct/to-table 2")
+(assert (deep= (getproto t1) @{:a 1 :b 2}) "struct/to-table 3")
+(assert (deep= (getproto t2) nil) "struct/to-table 4")
+
 (end-suite)
 
