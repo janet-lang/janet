@@ -939,37 +939,37 @@
   indexed beyond the first.`
   [n maptype res f ind inds]
   ~(do
-    (def ,(seq [k :range [0 n]] (symbol 'ind k)) ,inds)
-    ,;(seq [k :range [0 n]] ~(var ,(symbol 'key k) nil))
-    (each x ,ind
-      ,;(seq [k :range [0 n]]
-        ~(if (= nil (set ,(symbol 'key k) (next ,(symbol 'ind k) ,(symbol 'key k)))) (break)))
-      (map-aggregator ,maptype ,res (,f x ,;(seq [k :range [0 n]] ~(in ,(symbol 'ind k) ,(symbol 'key k))))))))
+     (def ,(seq [k :range [0 n]] (symbol 'ind k)) ,inds)
+     ,;(seq [k :range [0 n]] ~(var ,(symbol 'key k) nil))
+     (each x ,ind
+       ,;(seq [k :range [0 n]]
+           ~(if (= nil (set ,(symbol 'key k) (next ,(symbol 'ind k) ,(symbol 'key k)))) (break)))
+       (map-aggregator ,maptype ,res (,f x ,;(seq [k :range [0 n]] ~(in ,(symbol 'ind k) ,(symbol 'key k))))))))
 
 (defmacro- map-template
   [maptype res f ind inds]
   ~(do
-    (def ninds (length ,inds))
-    (case ninds
-      0 (each x ,ind (map-aggregator ,maptype ,res (,f x)))
-      1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
-      2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
-      3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
-      4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
-      (do
-        (def iter-keys (array/new-filled ninds))
-        (def call-buffer (array/new-filled ninds))
-        (var done false)
-        (each x ,ind
-          (forv i 0 ninds
-            (let [old-key (in iter-keys i)
-                  ii (in ,inds i)
-                  new-key (next ii old-key)]
-              (if (= nil new-key)
-                (do (set done true) (break))
-                (do (set (iter-keys i) new-key) (set (call-buffer i) (in ii new-key))))))
-          (if done (break))
-          (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
+     (def ninds (length ,inds))
+     (case ninds
+       0 (each x ,ind (map-aggregator ,maptype ,res (,f x)))
+       1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
+       2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
+       3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
+       4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
+       (do
+         (def iter-keys (array/new-filled ninds))
+         (def call-buffer (array/new-filled ninds))
+         (var done false)
+         (each x ,ind
+           (forv i 0 ninds
+             (let [old-key (in iter-keys i)
+                   ii (in ,inds i)
+                   new-key (next ii old-key)]
+               (if (= nil new-key)
+                 (do (set done true) (break))
+                 (do (set (iter-keys i) new-key) (set (call-buffer i) (in ii new-key))))))
+           (if done (break))
+           (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
 
 (defn map
   `Map a function over every value in a data structure and
@@ -2131,23 +2131,23 @@
     (not= tx (type y))
     (case tx
       :tuple (or (not= (length x) (length y))
-                (do
-                  (var ret false)
-                  (forv i 0 (length x)
-                    (def xx (in x i))
-                    (def yy (in y i))
-                    (if (deep-not= xx yy)
-                      (break (set ret true))))
-                  ret))
+                 (do
+                   (var ret false)
+                   (forv i 0 (length x)
+                     (def xx (in x i))
+                     (def yy (in y i))
+                     (if (deep-not= xx yy)
+                       (break (set ret true))))
+                   ret))
       :array (or (not= (length x) (length y))
-                (do
-                  (var ret false)
-                  (forv i 0 (length x)
-                    (def xx (in x i))
-                    (def yy (in y i))
-                    (if (deep-not= xx yy)
-                      (break (set ret true))))
-                  ret))
+                 (do
+                   (var ret false)
+                   (forv i 0 (length x)
+                     (def xx (in x i))
+                     (def yy (in y i))
+                     (if (deep-not= xx yy)
+                       (break (set ret true))))
+                   ret))
       :struct (deep-not= (kvs x) (kvs y))
       :table (deep-not= (table/to-struct x) (table/to-struct y))
       :buffer (not= (string x) (string y))
@@ -3213,16 +3213,17 @@
       (cond
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
         (= b (chr "`")) (delim :code)
-        (not (modes :code)) (cond
+        (not (modes :code))
+        (cond
           (= b (chr `\`)) (do
                             (++ token-length)
                             (buffer/push token (get line (++ i))))
           (= b (chr "_")) (delim :underline)
           (= b (chr "*"))
-            (if (= (chr "*") (get line (+ i 1)))
-              (do (++ i)
-                (delim :bold))
-              (delim :italics))
+          (if (= (chr "*") (get line (+ i 1)))
+            (do (++ i)
+              (delim :bold))
+            (delim :italics))
           (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
@@ -3766,10 +3767,10 @@
     (defn make-ptr []
       (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
     (if lazy
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
 
 ###
 ###
