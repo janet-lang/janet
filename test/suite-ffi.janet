@@ -19,25 +19,34 @@
 # IN THE SOFTWARE.
 
 (import ./helper :prefix "" :exit true)
-(start-suite 13)
+(start-suite)
 
-(assert (deep= (tabseq [i :in (range 3)] i (* 3 i))
-               @{0 0 1 3 2 6}))
+# We should get ARM support...
+(def has-ffi (and (dyn 'ffi/native) (= (os/arch) :x64)))
 
-(assert (deep= (tabseq [i :in (range 3)] i)
-               @{}))
+# FFI check
+# d80356158
+(compwhen has-ffi
+  (ffi/context))
 
-(def- sym-prefix-peg
-  (peg/compile
-    ~{:symchar (+ (range "\x80\xff" "AZ" "az" "09") (set "!$%&*+-./:<?=>@^_"))
-      :anchor (drop (cmt ($) ,|(= $ 0)))
-      :cap (* (+ (> -1 (not :symchar)) :anchor) (* ($) '(some :symchar)))
-      :recur (+ :cap (> -1 :recur))
-      :main (> -1 :recur)}))
+(compwhen has-ffi
+  (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
+(compwhen has-ffi
+  (def buffer1 @"aaaa")
+  (def buffer2 @"bbbb")
+  (memcpy buffer1 buffer2 4)
+  (assert (= (string buffer1) "bbbb") "ffi 1 - memcpy"))
 
-(assert (deep= (peg/match sym-prefix-peg @"123" 3) @[0 "123"]) "peg lookback")
-(assert (deep= (peg/match sym-prefix-peg @"1234" 4) @[0 "1234"]) "peg lookback 2")
-
-(assert (deep= (peg/replace-all '(* (<- 1) 1 (backmatch)) "xxx" "aba cdc efa") @"xxx xxx efa") "peg replace-all 1")
+# cfaae47ce
+(compwhen has-ffi
+  (assert (= 8 (ffi/size [:int :char])) "size unpacked struct 1")
+  (assert (= 5 (ffi/size [:pack :int :char])) "size packed struct 1")
+  (assert (= 5 (ffi/size [:int :pack-all :char])) "size packed struct 2")
+  (assert (= 4 (ffi/align [:int :char])) "align 1")
+  (assert (= 1 (ffi/align [:pack :int :char])) "align 2")
+  (assert (= 1 (ffi/align [:int :char :pack-all])) "align 3")
+  (assert (= 26 (ffi/size [:char :pack :int @[:char 21]]))
+          "array struct size"))
 
 (end-suite)
+

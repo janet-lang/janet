@@ -2,7 +2,7 @@
 
 (var num-tests-passed 0)
 (var num-tests-run 0)
-(var suite-num 0)
+(var suite-name 0)
 (var start-time 0)
 
 (def is-verbose (os/getenv "VERBOSE"))
@@ -34,13 +34,20 @@
   (def errsym (keyword (gensym)))
   ~(assert (not= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
 
-(defn start-suite [x]
-  (set suite-num x)
+(defn start-suite [&opt x]
+  (default x (dyn :current-file))
+  (set suite-name
+       (cond
+         (number? x) (string x)
+         (string? x) (string/slice x
+                                   (length "test/suite-")
+                                   (- (inc (length ".janet"))))
+         (string x)))
   (set start-time (os/clock))
-  (eprint "Starting suite " x "..."))
+  (eprint "Starting suite " suite-name "..."))
 
 (defn end-suite []
   (def delta (- (os/clock) start-time))
-  (eprinf "Finished suite %d in %.3f seconds - " suite-num delta)
+  (eprinf "Finished suite %s in %.3f seconds - " suite-name delta)
   (eprint num-tests-passed " of " num-tests-run " tests passed.")
   (if (not= num-tests-passed num-tests-run) (os/exit 1)))
