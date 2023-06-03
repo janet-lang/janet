@@ -1431,6 +1431,23 @@ JANET_CORE_FN(os_sleep,
     return janet_wrap_nil();
 }
 
+JANET_CORE_FN(os_isatty,
+              "(os/isatty &opt file)",
+              "Returns true if `file` is a terminal. If `file` is not specified, "
+              "it will default to standard output.") {
+    janet_arity(argc, 0, 1);
+    FILE *f = (argc == 1) ? janet_getfile(argv, 0, NULL) : stdout;
+#ifdef JANET_WINDOWS
+    int fd = _fileno(f);
+    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    return janet_wrap_boolean(_isatty(fd));
+#else
+    int fd = fileno(f);
+    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    return janet_wrap_boolean(isatty(fd));
+#endif
+}
+
 JANET_CORE_FN(os_cwd,
               "(os/cwd)",
               "Returns the current working directory.") {
@@ -2469,6 +2486,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/date", os_date), /* not high resolution */
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
+        JANET_CORE_REG("os/isatty", os_isatty),
 
         /* env functions */
         JANET_CORE_REG("os/environ", os_environ),
