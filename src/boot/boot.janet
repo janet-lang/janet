@@ -3882,7 +3882,7 @@
   "Path to profile file loaded when starting up the repl.")
 
 (compwhen (not (dyn 'os/isatty))
-  (defmacro (os/isatty) [&] true))
+  (defmacro os/isatty [&] true))
 
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
