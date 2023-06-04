@@ -677,6 +677,9 @@ static const SandboxOption sandbox_options[] = {
     {"all", JANET_SANDBOX_ALL},
     {"env", JANET_SANDBOX_ENV},
     {"ffi", JANET_SANDBOX_FFI},
+    {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
+    {"ffi-jit", JANET_SANDBOX_FFI_JIT},
+    {"ffi-use", JANET_SANDBOX_FFI_USE},
     {"fs", JANET_SANDBOX_FS},
     {"fs-read", JANET_SANDBOX_FS_READ},
     {"fs-temp", JANET_SANDBOX_FS_TEMP},
@@ -698,6 +701,9 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
               "* :env - disallow reading and write env variables\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
+              "* :ffi-define - disallow loading new FFI modules and binding new functions\n"
+              "* :ffi-jit - disallow calling `ffi/jitfn`\n"
+              "* :ffi-use - disallow using any previously bound FFI functions and memory-unsafe functions.\n"
               "* :fs - disallow access to the file system\n"
               "* :fs-read - disallow read access to the file system\n"
               "* :fs-temp - disallow creating temporary files\n"

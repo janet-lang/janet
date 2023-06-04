@@ -1303,7 +1303,7 @@ JANET_CORE_FN(cfun_ffi_jitfn,
               "(ffi/jitfn bytes)",
               "Create an abstract type that can be used as the pointer argument to `ffi/call`. The content "
               "of `bytes` is architecture specific machine code that will be copied into executable memory.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_JIT);
     janet_fixarity(argc, 1);
     JanetByteView bytes = janet_getbytes(argv, 0);
 
@@ -1356,7 +1356,7 @@ JANET_CORE_FN(cfun_ffi_call,
               "(ffi/call pointer signature & args)",
               "Call a raw pointer as a function pointer. The function signature specifies "
               "how Janet values in `args` are converted to native machine types.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, -1);
     void *function_pointer = janet_ffi_get_callable_pointer(argv, 0);
     JanetFFISignature *signature = janet_getabstract(argv, 1, &janet_signature_type);
@@ -1381,7 +1381,7 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
               "Append a native type to a buffer such as it would appear in memory. This can be used "
               "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
               "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     JanetFFIType type = decode_ffi_type(argv[0]);
     uint32_t el_size = (uint32_t) type_size(type);
@@ -1404,7 +1404,7 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
               "Parse a native struct out of a buffer and convert it to normal Janet data structures. "
               "This function is the inverse of `ffi/write`. `bytes` can also be a raw pointer, although "
               "this is unsafe.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 3);
     JanetFFIType type = decode_ffi_type(argv[0]);
     size_t offset = (size_t) janet_optnat(argv, argc, 2, 0);
@@ -1451,7 +1451,7 @@ JANET_CORE_FN(janet_core_raw_native,
               " or run any code from it. This is different than `native`, which will "
               "run initialization code to get a module table. If `path` is nil, opens the current running binary. "
               "Returns a `core/native`.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_arity(argc, 0, 1);
     const char *path = janet_optcstring(argv, argc, 0, NULL);
     Clib lib = load_clib(path);
@@ -1467,7 +1467,7 @@ JANET_CORE_FN(janet_core_native_lookup,
               "(ffi/lookup native symbol-name)",
               "Lookup a symbol from a native object. All symbol lookups will return a raw pointer "
               "if the symbol is found, else nil.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 2);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
     const char *sym = janet_getcstring(argv, 1);
@@ -1481,7 +1481,7 @@ JANET_CORE_FN(janet_core_native_close,
               "(ffi/close native)",
               "Free a native object. Dereferencing pointers to symbols in the object will have undefined "
               "behavior after freeing.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 1);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
     if (anative->closed) janet_panic("native object already closed");
@@ -1494,7 +1494,7 @@ JANET_CORE_FN(janet_core_native_close,
 JANET_CORE_FN(cfun_ffi_malloc,
               "(ffi/malloc size)",
               "Allocates memory directly using the janet memory allocator. Memory allocated in this way must be freed manually! Returns a raw pointer, or nil if size = 0.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_fixarity(argc, 1);
     size_t size = janet_getsize(argv, 0);
     if (size == 0) return janet_wrap_nil();
@@ -1504,7 +1504,7 @@ JANET_CORE_FN(cfun_ffi_malloc,
 JANET_CORE_FN(cfun_ffi_free,
               "(ffi/free pointer)",
               "Free memory allocated with `ffi/malloc`. Returns nil.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_fixarity(argc, 1);
     if (janet_checktype(argv[0], JANET_NIL)) return janet_wrap_nil();
     void *pointer = janet_getpointer(argv, 0);
@@ -1519,7 +1519,7 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
               "to be manipulated with buffer functions. Attempts to resize or extend the buffer "
               "beyond its initial capacity will raise an error. As with many FFI functions, this is memory "
               "unsafe and can potentially allow out of bounds memory access. Returns a new buffer.") {
-    janet_sandbox_assert(JANET_SANDBOX_FFI);
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     void *pointer = janet_getpointer(argv, 0);
     int32_t capacity = janet_getnat(argv, 1);

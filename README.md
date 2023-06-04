@@ -6,7 +6,7 @@
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
-**Janet** is a dynamic language and bytecode interpreter for system scripting, expressive automation, and
+**Janet** is a programming language for system scripting, expressive automation, and
 extending programs written in C or C++ with user scripting capabilities.
 
 There is a REPL for trying out the language, as well as the ability
@@ -105,34 +105,31 @@ See the examples directory for all provided example programs.
 ## Use Cases
 
 Janet makes a good system scripting language, or a language to embed in other programs.
-It's like Lua and Guile in that regard. It has more built-in functionality and a richer core language than
+It's like Lua and GNU Guile in that regard. It has more built-in functionality and a richer core language than
 Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than Python or Guile.
 
-## Features
+Some people use janet for sysadmin scripting, web development, or small video games.
+
+## Language Features
 
 * 600+ functions and macros in the core library
 * Built-in socket networking, threading, subprocesses, and file system functions.
 * Parsing Expression Grammars (PEG) engine as a more robust Regex alternative
-* Macros
+* Macros and compile-time computation
 * Per-thread event loop for efficient IO (epoll/IOCP/kqueue)
-* Built-in C FFI lets you load existing binaries and run them.
+* First-class green threads (continuations) as well as OS threads
 * Erlang-style supervision trees that integrate with the event loop
-* Configurable at build time - turn features on or off for a smaller or more featureful build
 * First-class closures
 * Garbage collection
-* First-class green threads (continuations)
+* Distributed as janet.c and janet.h for embedding into a larger program.
 * Python-style generators (implemented as a plain macro)
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
-* Multithreading
-* Bytecode interpreter with an assembly interface, as well as bytecode verification
-* Tail-call optimization
-* Interface with C via abstract types and C functions
-* Dynamically load C libraries
-* REPL
-* Embedding Janet in other programs
-* Interactive environment with detailed stack traces
+* Tail recursion
+* Interface with C functions and dynamically load plugins ("natives").
+* Built-in C FFI for when the native bindings are too much work
+* REPL development with debugger and inspectable runtime
 
 ## Documentation
 
@@ -329,9 +326,7 @@ Gitter provides Matrix and IRC bridges as well.
 
 ### How fast is it?
 
-Medium speed.
-
-In all seriousness, it is about the same speed as most interpreted languages without a JIT compiler. Tight, critical
+It is about the same speed as most interpreted languages without a JIT compiler. Tight, critical
 loops should probably be written in C or C++ . Programs tend to be a bit faster than
 they would be in a language like Python due to the discouragement of slow Object-Oriented abstraction
 with lots of hash-table lookups, and making late-binding explicit. All values are boxed in an 8-byte
