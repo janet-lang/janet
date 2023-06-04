@@ -2915,10 +2915,10 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                 janet_panicf("expected function or fiber, got %v", fiberv);
             }
             JanetFunction *func = janet_unwrap_function(fiberv);
-            if (func->def->min_arity > 1) {
+            fiber = janet_fiber(func, 64, func->def->min_arity, &value);
+            if (fiber == NULL) {
                 janet_panicf("thread function must accept 0 or 1 arguments");
             }
-            fiber = janet_fiber(func, 64, func->def->min_arity, &value);
             fiber->flags |=
                 JANET_FIBER_MASK_ERROR |
                 JANET_FIBER_MASK_USER0 |
