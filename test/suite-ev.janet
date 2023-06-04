@@ -168,6 +168,13 @@
 (assert (deep= @[] (ev/gather)) "ev/gather 2")
 (assert-error "ev/gather 3" (ev/gather 1 2 (error 3)))
 
+(var cancel-counter 0)
+(assert-error "ev/gather 4.1" (ev/gather
+                               (defer (++ cancel-counter) (ev/take (ev/chan)))
+                               (defer (++ cancel-counter) (ev/take (ev/chan)))
+                               (error :oops)))
+(assert (= cancel-counter 2) "ev/gather 4.2")
+
 # Net testing
 # 2904c19ed
 (repeat 10
