@@ -1196,7 +1196,6 @@
   (def kw (keyword prefix (slice alias 1 -2)))
   ~(def ,alias :dyn ,;more ,kw))
 
-
 (defn has-key?
   "Check if a data structure `ds` contains the key `key`."
   [ds key]
@@ -1215,6 +1214,7 @@
 (defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
+(defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrecny control.")
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
