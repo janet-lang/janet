@@ -27,8 +27,11 @@
 (buffer/bit-set b 100)
 (buffer/bit-clear b 100)
 (assert (zero? (sum b)) "buffer bit set and clear")
+(assert (= false (buffer/bit b 101)) "bit get false")
 (buffer/bit-toggle b 101)
+(assert (= true (buffer/bit b 101)) "bit get true")
 (assert (= 32 (sum b)) "buffer bit set and clear")
+(assert-error "invalid bit index 1000" (buffer/bit-toggle b 1000))
 
 (def b2 @"hello world")
 
@@ -41,6 +44,17 @@
 (buffer/blit b2 "abcdefg" 5 6)
 (assert (= (string b2) "joytogjoyto") "buffer/blit 3")
 
+# buffer/push
+
+(assert (deep= (buffer/push @"AA" @"BB") @"AABB") "buffer/push buffer")
+(assert (deep= (buffer/push @"AA" 66 66) @"AABB") "buffer/push int")
+(def b @"AA")
+(assert (deep= (buffer/push b b) @"AAAA") "buffer/push buffer self")
+
+# buffer/push-byte
+(assert (deep= (buffer/push-byte @"AA" 66) @"AAB") "buffer/push-byte")
+(assert-error "bad slot #1, expected 32 bit signed integer" (buffer/push-byte @"AA" :flap))
+
 # Buffer push word
 # e755f9830
 (def b3 @"")
@@ -51,6 +65,7 @@
 (buffer/push-word b3 0xFFFFFFFF 0x1100)
 (assert (= 8 (length b3)) "buffer/push-word 3")
 (assert (= "\xFF\xFF\xFF\xFF\0\x11\0\0" (string b3)) "buffer/push-word 4")
+(assert-error "cannot convert 0.5 to machine word" (buffer/push-word @"" 0.5))
 
 # Buffer push string
 # 175925207

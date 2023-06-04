@@ -228,5 +228,31 @@
     (assert (= c (compare x y))
             (string/format "compare polymorphic %q %q %d" x y c))))
 
+# marshal
+(def m1 (u64 3141592654))
+(def m2 (unmarshal (marshal m1)))
+(assert (= m1 m2) "marshal/unmarshal")
+
+# compare u64/u64
+(assert (= (compare (u64 1) (u64 2)) -1) "compare 1")
+(assert (= (compare (u64 1) (u64 1))  0) "compare 2")
+(assert (= (compare (u64 2) (u64 1)) +1) "compare 3")
+
+# compare i64/i64
+(assert (= (compare (i64 -1) (i64 +1)) -1) "compare 4")
+(assert (= (compare (i64 +1) (i64 +1))  0) "compare 5")
+(assert (= (compare (i64 +1) (i64 -1)) +1) "compare 6")
+
+# compare u64/i64
+(assert (= (compare (u64 1) (i64 2)) -1) "compare 7")
+(assert (= (compare (u64 1) (i64 -1)) +1) "compare 8")
+(assert (= (compare (u64 -1) (i64 -1)) +1) "compare 9")
+
+# compare i64/u64
+(assert (= (compare (i64 1) (u64 2)) -1) "compare 10")
+(assert (= (compare (i64 -1) (u64 1)) -1) "compare 11")
+(assert (= (compare (i64 -1) (u64 -1)) -1) "compare 12")
+
+
 (end-suite)
 

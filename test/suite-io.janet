@@ -68,5 +68,15 @@
           "trace to custom err function")
   (assert (deep= @"trace (dummy 1 2 3)\n" b) "trace buffer correct"))
 
+
+# xprintf
+(def b @"")
+(defn to-b [a] (buffer/push b a))
+(xprintf to-b "123")
+(assert (deep= b @"123\n") "xprintf to buffer")
+
+
+(assert-error "cannot print to 3" (xprintf 3 "123"))
+
 (end-suite)
 
