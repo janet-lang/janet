@@ -106,19 +106,18 @@ See the examples directory for all provided example programs.
 
 Janet makes a good system scripting language, or a language to embed in other programs.
 It's like Lua and Guile in that regard. It has more built-in functionality and a richer core language than
-Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than these languages.
+Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than Python or Guile.
 
 ## Features
 
 * 600+ functions and macros in the core library
-* Build in socket networking, threading, subprocesses, and more.
+* Built-in socket networking, threading, subprocesses, and file system functions.
 * Parsing Expression Grammars (PEG) engine as a more robust Regex alternative
 * Macros
 * Per-thread event loop for efficient IO (epoll/IOCP/kqueue)
 * Built-in C FFI lets you load existing binaries and run them.
 * Erlang-style supervision trees that integrate with the event loop
 * Configurable at build time - turn features on or off for a smaller or more featureful build
-* Minimal setup - one binary and you are good to go!
 * First-class closures
 * Garbage collection
 * First-class green threads (continuations)
@@ -328,6 +327,22 @@ Gitter provides Matrix and IRC bridges as well.
 
 ## FAQ
 
+### How fast is it?
+
+Medium speed.
+
+In all seriousness, it is about the same speed as most interpreted languages without a JIT compiler. Tight, critical
+loops should probably be written in C or C++ . Programs tend to be a bit faster than
+they would be in a language like Python due to the discouragement of slow Object-Oriented abstraction
+with lots of hash-table lookups, and making late-binding explicit. All values are boxed in an 8-byte
+representation by default and allocated on the heap, with the exception of numbers, nils and booleans. The
+PEG engine is a specialized interpreter that can efficiently process string and buffer data.
+
+The GC is simple and stop-the-world, but GC knobs are exposed in the core library and separate threads
+have isolated heaps and garbage collectors. Data that is shared between threads is reference counted.
+
+YMMV.
+
 ### Where is (favorite feature from other language)?
 
 It may exist, it may not. If you want to propose a major language feature, go ahead and open an issue, but
@@ -345,7 +360,7 @@ Nope. There are no cons cells here.
 ### Is this a Clojure port?
 
 No. It's similar to Clojure superficially because I like Lisps and I like the aesthetics.
-Internally, Janet is not at all like Clojure.
+Internally, Janet is not at all like Clojure, Scheme, or Common Lisp.
 
 ### Are the immutable data structures (tuples and structs) implemented as hash tries?
 
@@ -373,6 +388,14 @@ Usually, one of a few reasons:
 - We want to keep the Janet core small. With Lisps, a feature can usually be added as a library
   without feeling "bolted on", especially when compared to ALGOL-like languages. Adding features
   to the core also makes it a bit more difficult to keep Janet maximally portable.
+
+### Can I bind to Rust/Zig/Go/Java/Nim/C++/D/Pascal/Fortran/Odin/Jai/(Some new "Systems" Programming Language)?
+
+Probably, if that language has a good interface with C. But the programmer may need to do
+some extra work to map Janet's internal memory model may need some to that of the bound language. Janet
+also uses `setjmp`/`longjmp` for non-local returns internally. This
+approach is out of favor with many programmers now and doesn't always play well with other languages
+that have exceptions or stack-unwinding.
 
 ### Why is my terminal spitting out junk when I run the REPL?
 

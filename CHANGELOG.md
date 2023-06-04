@@ -2,6 +2,19 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add `net/setsockopt`
+- Add `signal` argument to `os/proc-kill` to send signals besides `SIGKILL` on Posix.
+- Add `source` argument to `os/clock` to get different time sources.
+- Various combinator functions now are variadic like `map`
+- Add `file/lines` to iterate over lines in a file lazily.
+- Reorganize test suite to be sorted by module rather than pseudo-randomly.
+- Add `*task-id*`
+- Add `env` argument to `fiber/new`.
+- Add `JANET_NO_AMALG` flag to Makefile to properly incremental builds
+- Optimize bytecode compiler to generate fewer instructions and improve loops.
+- Fix bug with `ev/gather` and hung fibers.
+- Add `os/isatty`
+- Add `has-key?` and `has-value?`
 - Make imperative arithmetic macros variadic
 - `ev/connect` now yields to the event loop instead of blocking while waiting for an ACK.
 
