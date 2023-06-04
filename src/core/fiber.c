@@ -93,9 +93,7 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
 
 /* Create a new fiber with argn values on the stack. */
 JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv) {
-    JanetFiber *result = janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
-    if (NULL == result) janet_panic("cannot create fiber");
-    return result;
+    return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
 }
 
 #ifdef JANET_DEBUG
@@ -512,6 +510,7 @@ JANET_CORE_FN(cfun_fiber_new,
         janet_panicf("fiber function must accept 0 or 1 arguments");
     }
     fiber = janet_fiber(func, 64, func->def->min_arity, NULL);
+    janet_assert(fiber != NULL, "bad fiber arity check");
     if (argc == 2) {
         int32_t i;
         JanetByteView view = janet_getbytes(argv, 1);
