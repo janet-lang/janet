@@ -3663,17 +3663,21 @@
          (,ev/deadline ,deadline nil ,f)
          (,resume ,f))))
 
-  (defn- cancel-all [fibers reason] (each f fibers (ev/cancel f reason) (put fibers f nil)))
+  (defn- cancel-all [chan fibers reason]
+    (each f fibers (ev/cancel f reason))
+    (let [n (length fibers)]
+      (table/clear fibers)
+      (repeat n (ev/take chan))))
 
   (defn- wait-for-fibers
     [chan fibers]
-    (defer (cancel-all fibers "parent canceled")
+    (defer (cancel-all chan fibers "parent canceled")
       (repeat (length fibers)
         (def [sig fiber] (ev/take chan))
         (if (= sig :ok)
           (put fibers fiber nil)
           (do
-            (cancel-all fibers "sibling canceled")
+            (cancel-all chan fibers "sibling canceled")
             (propagate (fiber/last-value fiber) fiber))))))
 
   (defmacro ev/gather
