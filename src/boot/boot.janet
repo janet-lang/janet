@@ -2530,8 +2530,8 @@
                 (set good false)
                 (def {:error err :line line :column column :fiber errf} res)
                 (on-compile-error err errf where (or line l) (or column c))))))
-        guard))
-    (fiber/setenv f env)
+        guard
+        env))
     (while (fiber/can-resume? f)
       (def res (resume f resumeval))
       (when good (set resumeval (onstatus f res)))))
@@ -3868,8 +3868,7 @@
     (def guard (if (get env :debug) :ydt :y))
     (defn wrap-main [&]
       (main ;subargs))
-    (def f (fiber/new wrap-main guard))
-    (fiber/setenv f env)
+    (def f (fiber/new wrap-main guard env))
     (var res nil)
     (while (fiber/can-resume? f)
       (set res (resume f res))

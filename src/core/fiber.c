@@ -478,10 +478,10 @@ JANET_CORE_FN(cfun_fiber_setenv,
 }
 
 JANET_CORE_FN(cfun_fiber_new,
-              "(fiber/new func &opt sigmask)",
+              "(fiber/new func &opt sigmask env)",
               "Create a new fiber with function body func. Can optionally "
-              "take a set of signals to block from the current parent fiber "
-              "when called. The mask is specified as a keyword where each character "
+              "take a set of signals `sigmask` to capture from child fibers, "
+              "and an environment table `env`. The mask is specified as a keyword where each character "
               "is used to indicate a signal to block. If the ev module is enabled, and "
               "this fiber is used as an argument to `ev/go`, these \"blocked\" signals "
               "will result in messages being sent to the supervisor channel. "
@@ -503,7 +503,7 @@ JANET_CORE_FN(cfun_fiber_new,
               "exclusive flags are present, the last flag takes precedence.\n\n"
               "* :i - inherit the environment from the current fiber\n"
               "* :p - the environment table's prototype is the current environment table") {
-    janet_arity(argc, 1, 2);
+    janet_arity(argc, 1, 3);
     JanetFunction *func = janet_getfunction(argv, 0);
     JanetFiber *fiber;
     if (func->def->min_arity > 1) {
@@ -511,7 +511,10 @@ JANET_CORE_FN(cfun_fiber_new,
     }
     fiber = janet_fiber(func, 64, func->def->min_arity, NULL);
     janet_assert(fiber != NULL, "bad fiber arity check");
-    if (argc == 2) {
+    if (argc == 3 && !janet_checktype(argv[2], JANET_NIL)) {
+        fiber->env = janet_gettable(argv, 2);
+    }
+    if (argc >= 2) {
         int32_t i;
         JanetByteView view = janet_getbytes(argv, 1);
         fiber->flags = JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
