@@ -9,6 +9,10 @@
 **Janet** is a programming language for system scripting, expressive automation, and
 extending programs written in C or C++ with user scripting capabilities.
 
+Janet makes a good system scripting language, or a language to embed in other programs.
+It's like Lua and GNU Guile in that regard. It has more built-in functionality and a richer core language than
+Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than Python or Guile.
+
 There is a REPL for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
 Janet can be embedded in other programs. Try Janet in your browser at
@@ -101,14 +105,6 @@ See the examples directory for all provided example programs.
 
 (MessageBoxA nil "Hello, World!" "Test" 0)
 ```
-
-## Use Cases
-
-Janet makes a good system scripting language, or a language to embed in other programs.
-It's like Lua and GNU Guile in that regard. It has more built-in functionality and a richer core language than
-Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than Python or Guile.
-
-Some people use janet for sysadmin scripting, web development, or small video games.
 
 ## Language Features
 
