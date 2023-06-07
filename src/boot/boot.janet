@@ -1095,6 +1095,9 @@
   (cond
     (bytes? ind) (take-n-slice string/slice n ind)
     (indexed? ind) (take-n-slice tuple/slice n ind)
+    (dictionary? ind) (do
+                        (var left n)
+                        (tabseq [[i x] :pairs ind :until (< (-- left) 0)] i x))
     (do
       (def res @[])
       (var key nil)
@@ -1116,6 +1119,7 @@
   (cond
     (bytes? ind) (take-until-slice string/slice pred ind)
     (indexed? ind) (take-until-slice tuple/slice pred ind)
+    (dictionary? ind) (tabseq [[i x] :pairs ind :until (pred x)] i x)
     (seq [x :in ind :until (pred x)] x)))
 
 (defn take-while
@@ -1132,6 +1136,13 @@
   (def end (if negn (max 0 (+ len n)) len))
   (f ind start end))
 
+(defn- drop-n-dict
+  [f n ind]
+  (def res (f ind))
+  (var left n)
+  (loop [[i x] :pairs ind :until (< (-- left) 0)] (set (res i) nil))
+  res)
+
 (defn drop
   ``Drop the first `n` elements in an indexed or bytes type. Returns a new tuple or string
   instance, respectively. If `n` is negative, drops the last `n` elements instead.``
@@ -1139,6 +1150,8 @@
   (cond
     (bytes? ind) (drop-n-slice string/slice n ind)
     (indexed? ind) (drop-n-slice tuple/slice n ind)
+    (struct? ind) (drop-n-dict struct/to-table n ind)
+    (table? ind) (drop-n-dict table/clone n ind)
     (do
       (var key nil)
       (repeat n
@@ -1152,12 +1165,20 @@
   (def start (if (nil? i) len i))
   (f ind start))
 
+(defn- drop-until-dict
+  [f pred ind]
+  (def res (f ind))
+  (loop [[i x] :pairs ind :until (pred x)] (set (res i) nil))
+  res)
+
 (defn drop-until
   "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
   (cond
     (bytes? ind) (drop-until-slice string/slice pred ind)
     (indexed? ind) (drop-until-slice tuple/slice pred ind)
+    (struct? ind) (drop-until-dict struct/to-table pred ind)
+    (table? ind) (drop-until-dict table/clone pred ind)
     (do (find pred ind) ind)))
 
 (defn drop-while

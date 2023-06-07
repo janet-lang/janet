@@ -513,6 +513,14 @@
 (def sqr2 (drop 10 (squares)))
 (assert (deep= (take 1 sqr2) @[100]) "drop fiber next value")
 
+(def dict @{:a 1 :b 2 :c 3 :d 4 :e 5})
+(def dict1 (take 2 dict))
+(def dict2 (drop 2 dict))
+
+(assert (= (length dict1) 2) "take dictionary")
+(assert (= (length dict2) 3) "drop dictionary")
+(assert (deep= (merge dict1 dict2) dict) "take-drop symmetry for dictionary")
+
 # Comment macro
 # issue #110 - 698e89aba
 (comment 1)
