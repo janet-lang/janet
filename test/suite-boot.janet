@@ -439,7 +439,7 @@
 (assert (deep= (take 10 []) []) "take 2")
 (assert (deep= (take 0 [1 2 3 4 5]) []) "take 3")
 (assert (deep= (take 10 [1 2 3]) [1 2 3]) "take 4")
-(assert (deep= (take -1 [:a :b :c]) []) "take 5")
+(assert (deep= (take -1 [:a :b :c]) [:c]) "take 5")
 # 34019222c
 (assert (deep= (take 3 (generate [x :in [1 2 3 4 5]] x)) @[1 2 3])
         "take from fiber")
@@ -482,7 +482,6 @@
 (assert (deep= (drop 10 "abc") "") "drop 8")
 (assert (deep= (drop -1 "abc") "ab") "drop 9")
 (assert (deep= (drop -10 "abc") "") "drop 10")
-(assert-error :invalid-type (drop 3 {}) "drop 11")
 
 # drop-until
 # 75dc08f
@@ -492,6 +491,27 @@
 (assert (deep= (drop-until pos? @[-1 -2 3]) [3]) "drop-until 4")
 (assert (deep= (drop-until pos? @[-1 1 -2]) [1 -2]) "drop-until 5")
 (assert (deep= (drop-until |(= $ 115) "books") "s") "drop-until 6")
+
+# take-drop symmetry #1178
+(def items-list ['abcde :abcde "abcde" @"abcde" [1 2 3 4 5] @[1 2 3 4 5]])
+
+(each items items-list
+  (def len (length items))
+  (for i 0 (+ len 1)
+    (assert (deep= (take i items) (drop (- i len) items)) (string/format "take-drop symmetry %q %d" items i))
+    (assert (deep= (take (- i) items) (drop (- len i) items)) (string/format "take-drop symmetry %q %d" items i))))
+
+(defn squares []
+  (coro
+    (var [a b] [0 1])
+    (forever (yield a) (+= a b) (+= b 2))))
+
+(def sqr1 (squares))
+(assert (deep= (take 10 sqr1) @[0 1 4 9 16 25 36 49 64 81]))
+(assert (deep= (take 1 sqr1) @[100]) "take fiber next value")
+
+(def sqr2 (drop 10 (squares)))
+(assert (deep= (take 1 sqr2) @[100]) "drop fiber next value")
 
 # Comment macro
 # issue #110 - 698e89aba
@@ -649,9 +669,9 @@
 # NOTE: These is a motivation for the has-value? and has-key? functions below
 
 # returns false despite key present
-(assert (= false (index-of 8 {true 7 false 8})) 
+(assert (= false (index-of 8 {true 7 false 8}))
         "index-of corner key (false) 1")
-(assert (= false (index-of 8 @{false 8})) 
+(assert (= false (index-of 8 @{false 8}))
         "index-of corner key (false) 2")
 # still returns null
 (assert (= nil (index-of 7 {false 8})) "index-of corner key (false) 3")
@@ -670,11 +690,11 @@
 (assert (= false (has-value? "abc" "1")) "has-value? 10")
 # weird true/false corner cases, should align with "index-of corner
 # key {k}" cases
-(assert (= true (has-value? {true 7 false 8} 8)) 
+(assert (= true (has-value? {true 7 false 8} 8))
         "has-value? corner key (false) 1")
-(assert (= true (has-value? @{false 8} 8)) 
+(assert (= true (has-value? @{false 8} 8))
         "has-value? corner key (false) 2")
-(assert (= false (has-value? {false 8} 7)) 
+(assert (= false (has-value? {false 8} 7))
         "has-value? corner key (false) 3")
 
 # has-key?
@@ -713,16 +733,16 @@
   (test-has-key "abc" 4 false) # 11
   # weird true/false corner cases
   #
-  # Tries to mimic the corresponding corner cases in has-value? and 
+  # Tries to mimic the corresponding corner cases in has-value? and
   # index-of, but with keys/values inverted
   #
-  # in the first two cases (truthy? (get val col)) would have given false 
+  # in the first two cases (truthy? (get val col)) would have given false
   # negatives
-  (test-has-key {7 true 8 false} 8 true :name 
+  (test-has-key {7 true 8 false} 8 true :name
                 "has-key? corner value (false) 1")
-  (test-has-key @{8 false} 8 true :name 
+  (test-has-key @{8 false} 8 true :name
                 "has-key? corner value (false) 2")
-  (test-has-key @{8 false} 7 false :name 
+  (test-has-key @{8 false} 7 false :name
                 "has-key? corner value (false) 3"))
 
 # Regression
