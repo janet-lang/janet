@@ -321,5 +321,25 @@
 (assert (= item1 "hello"))
 (assert (= item2 "world"))
 
+# ev/take, suspended, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/take ch) nil))
+
+# ev/give, suspended, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/give ch 1) nil))
+
+# ev/select, suspended take operation, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/select ch) [:close ch]))
+
+# ev/select, suspended give operation, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/select [ch 1]) [:close ch]))
+
 (end-suite)
 
