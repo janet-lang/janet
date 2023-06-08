@@ -1134,7 +1134,7 @@
   (cond
     (<= 0 n len) (f ind n)
     (< (- len) n 0) (f ind 0 (+ len n))
-    (f ind 0 0)))
+    (f ind len)))
 
 (defn- drop-n-dict
   [f n ind]
