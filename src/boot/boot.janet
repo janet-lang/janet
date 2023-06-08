@@ -1083,9 +1083,9 @@
 (defn- take-n-slice
   [f n ind]
   (def len (length ind))
-  (def negn (< n 0))
-  (def start (if negn (max 0 (+ len n)) 0))
-  (def end (if negn len (min n len)))
+  (def m (+ len n))
+  (def start (if (< n 0 m) m 0))
+  (def end (if (<= 0 n len) n len))
   (f ind start end))
 
 (defn take
@@ -1093,8 +1093,8 @@
   respectively. If `n` is negative, takes the last `n` elements instead.``
   [n ind]
   (cond
-    (bytes? ind) (take-n-slice string/slice n ind)
     (indexed? ind) (take-n-slice tuple/slice n ind)
+    (bytes? ind) (take-n-slice string/slice n ind)
     (dictionary? ind) (do
                         (var left n)
                         (tabseq [[i x] :pairs ind :until (< (-- left) 0)] i x))
@@ -1117,8 +1117,8 @@
   "Same as `(take-while (complement pred) ind)`."
   [pred ind]
   (cond
-    (bytes? ind) (take-until-slice string/slice pred ind)
     (indexed? ind) (take-until-slice tuple/slice pred ind)
+    (bytes? ind) (take-until-slice string/slice pred ind)
     (dictionary? ind) (tabseq [[i x] :pairs ind :until (pred x)] i x)
     (seq [x :in ind :until (pred x)] x)))
 
@@ -1131,10 +1131,10 @@
 (defn- drop-n-slice
   [f n ind]
   (def len (length ind))
-  (def negn (< n 0))
-  (def start (if negn 0 (min n len)))
-  (def end (if negn (max 0 (+ len n)) len))
-  (f ind start end))
+  (cond
+    (<= 0 n len) (f ind n)
+    (< (- len) n 0) (f ind 0 (+ len n))
+    (f ind 0 0)))
 
 (defn- drop-n-dict
   [f n ind]
@@ -1148,8 +1148,8 @@
   instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
   (cond
-    (bytes? ind) (drop-n-slice string/slice n ind)
     (indexed? ind) (drop-n-slice tuple/slice n ind)
+    (bytes? ind) (drop-n-slice string/slice n ind)
     (struct? ind) (drop-n-dict struct/to-table n ind)
     (table? ind) (drop-n-dict table/clone n ind)
     (do
@@ -1175,8 +1175,8 @@
   "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
   (cond
-    (bytes? ind) (drop-until-slice string/slice pred ind)
     (indexed? ind) (drop-until-slice tuple/slice pred ind)
+    (bytes? ind) (drop-until-slice string/slice pred ind)
     (struct? ind) (drop-until-dict struct/to-table pred ind)
     (table? ind) (drop-until-dict table/clone pred ind)
     (do (find pred ind) ind)))
