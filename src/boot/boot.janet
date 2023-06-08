@@ -1080,42 +1080,33 @@
     (set k (next ind k)))
   ret)
 
-(defn- take-n-fallback
-  [n xs]
-  (def res @[])
-  (when (> n 0)
-    (var left n)
-    (each x xs
-      (array/push res x)
-      (-- left)
-      (if (= 0 left) (break))))
-  res)
-
-(defn- take-until-fallback
-  [pred xs]
-  (def res @[])
-  (each x xs
-    (if (pred x) (break))
-    (array/push res x))
-  res)
-
-(defn- slice-n
+(defn- take-n-slice
   [f n ind]
   (def len (length ind))
-  # make sure end is in [0, len]
-  (def m (if (> n 0) n 0))
-  (def end (if (> m len) len m))
-  (f ind 0 end))
+  (def m (+ len n))
+  (def start (if (< n 0 m) m 0))
+  (def end (if (<= 0 n len) n len))
+  (f ind start end))
 
 (defn take
-  "Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string, respectively."
+  ``Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string,
+  respectively. If `n` is negative, takes the last `n` elements instead.``
   [n ind]
   (cond
-    (bytes? ind) (slice-n string/slice n ind)
-    (indexed? ind) (slice-n tuple/slice n ind)
-    (take-n-fallback n ind)))
+    (indexed? ind) (take-n-slice tuple/slice n ind)
+    (bytes? ind) (take-n-slice string/slice n ind)
+    (dictionary? ind) (do
+                        (var left n)
+                        (tabseq [[i x] :pairs ind :until (< (-- left) 0)] i x))
+    (do
+      (def res @[])
+      (var key nil)
+      (repeat n
+        (if (= nil (set key (next ind key))) (break))
+        (array/push res (in ind key)))
+      res)))
 
-(defn- slice-until
+(defn- take-until-slice
   [f pred ind]
   (def len (length ind))
   (def i (find-index pred ind))
@@ -1126,9 +1117,10 @@
   "Same as `(take-while (complement pred) ind)`."
   [pred ind]
   (cond
-    (bytes? ind) (slice-until string/slice pred ind)
-    (indexed? ind) (slice-until tuple/slice pred ind)
-    (take-until-fallback pred ind)))
+    (indexed? ind) (take-until-slice tuple/slice pred ind)
+    (bytes? ind) (take-until-slice string/slice pred ind)
+    (dictionary? ind) (tabseq [[i x] :pairs ind :until (pred x)] i x)
+    (seq [x :in ind :until (pred x)] x)))
 
 (defn take-while
   `Given a predicate, take only elements from a fiber, indexed, or bytes type that satisfy
@@ -1136,27 +1128,58 @@
   [pred ind]
   (take-until (complement pred) ind))
 
+(defn- drop-n-slice
+  [f n ind]
+  (def len (length ind))
+  (cond
+    (<= 0 n len) (f ind n)
+    (< (- len) n 0) (f ind 0 (+ len n))
+    (f ind len)))
+
+(defn- drop-n-dict
+  [f n ind]
+  (def res (f ind))
+  (var left n)
+  (loop [[i x] :pairs ind :until (< (-- left) 0)] (set (res i) nil))
+  res)
+
 (defn drop
-  ``Drop the first `n elements in an indexed or bytes type. Returns a new tuple or string
+  ``Drop the first `n` elements in an indexed or bytes type. Returns a new tuple or string
   instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+  (cond
+    (indexed? ind) (drop-n-slice tuple/slice n ind)
+    (bytes? ind) (drop-n-slice string/slice n ind)
+    (struct? ind) (drop-n-dict struct/to-table n ind)
+    (table? ind) (drop-n-dict table/clone n ind)
+    (do
+      (var key nil)
+      (repeat n
+        (if (= nil (set key (next ind key))) (break)))
+      ind)))
+
+(defn- drop-until-slice
+  [f pred ind]
   (def len (length ind))
-  (def negn (>= n 0))
-  (def start (if negn (min n len) 0))
-  (def end (if negn len (max 0 (+ len n))))
-  (f ind start end))
+  (def i (find-index pred ind))
+  (def start (if (nil? i) len i))
+  (f ind start))
+
+(defn- drop-until-dict
+  [f pred ind]
+  (def res (f ind))
+  (loop [[i x] :pairs ind :until (pred x)] (set (res i) nil))
+  res)
 
 (defn drop-until
   "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
-  (def i (find-index pred ind))
-  (def len (length ind))
-  (def start (if (nil? i) len i))
-  (f ind start))
+  (cond
+    (indexed? ind) (drop-until-slice tuple/slice pred ind)
+    (bytes? ind) (drop-until-slice string/slice pred ind)
+    (struct? ind) (drop-until-dict struct/to-table pred ind)
+    (table? ind) (drop-until-dict table/clone pred ind)
+    (do (find pred ind) ind)))
 
 (defn drop-while
   `Given a predicate, remove elements from an indexed or bytes type that satisfy
@@ -4166,11 +4189,11 @@
 
   (defn do-one-file
     [fname]
-    (if-not (has-value? boot/args "image-only") (do
+    (unless (has-value? boot/args "image-only")
       (print "\n/* " fname " */")
       (print "#line 0 \"" fname "\"\n")
       (def source (slurp fname))
-      (print (string/replace-all "\r" "" source)))))
+      (print (string/replace-all "\r" "" source))))
 
   (do-one-file feature-header)
 
