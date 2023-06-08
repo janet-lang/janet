@@ -1364,6 +1364,7 @@ JANET_CORE_FN(cfun_ffi_call,
     switch (signature->cc) {
         default:
         case JANET_FFI_CC_NONE:
+            (void) function_pointer;
             janet_panic("calling convention not supported");
 #ifdef JANET_FFI_WIN64_ENABLED
         case JANET_FFI_CC_WIN_64:
@@ -1529,6 +1530,26 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
     return janet_wrap_buffer(janet_pointer_buffer_unsafe(offset_pointer, capacity, count));
 }
 
+JANET_CORE_FN(cfun_ffi_supported_calling_conventions,
+        "(ffi/calling-conventions)",
+        "Get an array of all supported calling conventions on the current arhcitecture. Some architectures may have some FFI "
+        "functionality (ffi/malloc, ffi/free, ffi/read, ffi/write, etc.) but not support "
+        "any calling conventions. This function can be used to get all supported calling conventions "
+        "that can be used on this architecture. All architectures support the :none calling "
+        "convention which is a placeholder that cannot be used at runtime.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+    JanetArray *array = janet_array(4);
+#ifdef JANET_FFI_WIN64_ENABLED
+    janet_array_push(array, janet_ckeywordv("win64"));
+#endif
+#ifdef JANET_FFI_SYSV64_ENABLED
+    janet_array_push(array, janet_ckeywordv("sysv64"));
+#endif
+    janet_array_push(array, janet_ckeywordv("none"));
+    return janet_wrap_array(array);
+}
+
 void janet_lib_ffi(JanetTable *env) {
     JanetRegExt ffi_cfuns[] = {
         JANET_CORE_REG("ffi/native", janet_core_raw_native),
@@ -1546,6 +1567,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/malloc", cfun_ffi_malloc),
         JANET_CORE_REG("ffi/free", cfun_ffi_free),
         JANET_CORE_REG("ffi/pointer-buffer", cfun_ffi_pointer_buffer),
+        JANET_CORE_REG("ffi/calling-conventions", cfun_ffi_supported_calling_conventions),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, ffi_cfuns);

@@ -22,7 +22,12 @@
 (start-suite)
 
 # We should get ARM support...
-(def has-ffi (and (dyn 'ffi/native) (= (os/arch) :x64)))
+(def has-ffi (dyn 'ffi/native))
+(def has-full-ffi
+  (and has-ffi
+       (when-let [entry (dyn 'ffi/calling-conventions)]
+         (def fficc (entry :value))
+         (> (length (fficc)) 1)))) # all arches support :none
 
 # FFI check
 # d80356158
@@ -31,7 +36,7 @@
 
 (compwhen has-ffi
   (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
-(compwhen has-ffi
+(compwhen has-full-ffi
   (def buffer1 @"aaaa")
   (def buffer2 @"bbbb")
   (memcpy buffer1 buffer2 4)
