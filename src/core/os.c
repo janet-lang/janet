@@ -289,7 +289,6 @@ JANET_CORE_FN(os_cpu_count,
 #endif
 }
 
-
 #ifndef JANET_NO_PROCESSES
 
 /* Get env for os_execute */
@@ -1075,7 +1074,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     } else {
         startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
     }
-
 
     if (pipe_out != JANET_HANDLE_NONE) {
         startupInfo.hStdOutput = pipe_out;

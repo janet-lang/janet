@@ -70,6 +70,5 @@ int system_test() {
 
     assert(janet_equals(tuple1, tuple2));
 
-
     return 0;
 }

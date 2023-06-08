@@ -182,7 +182,6 @@ static int destructure(JanetCompiler *c,
                         return 1;
                     }
 
-
                     if (!janet_checktype(values[i + 1], JANET_SYMBOL)) {
                         janetc_error(c, janet_formatc("expected symbol following '& in destructuring pattern, found %q", values[i + 1]));
                         return 1;
@@ -650,7 +649,6 @@ static JanetSlot janetc_do(JanetFopts opts, int32_t argn, const Janet *argv) {
     janetc_popscope_keepslot(c, ret);
     return ret;
 }
-
 
 /* Compile an upscope form. Upscope forms execute their body sequentially and
  * evaluate to the last expression in the body, but without lexical scope. */
@@ -1124,4 +1122,3 @@ const JanetSpecial *janetc_special(const uint8_t *name) {
                sizeof(JanetSpecial),
                name);
 }
-

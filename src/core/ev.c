@@ -20,7 +20,6 @@
 * IN THE SOFTWARE.
 */
 
-
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
@@ -364,7 +363,6 @@ static void janet_stream_close_impl(JanetStream *stream, int is_gc) {
 void janet_stream_close(JanetStream *stream) {
     janet_stream_close_impl(stream, 0);
 }
-
 
 /* Called to clean up a stream */
 static int janet_stream_gc(void *p, size_t s) {
@@ -1453,7 +1451,6 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     return state;
 }
 
-
 static void janet_unlisten(JanetListenerState *state, int is_gc) {
     janet_unlisten_impl(state, is_gc);
 }
@@ -2173,7 +2170,6 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
     janet_gcunroot(janet_wrap_fiber(return_value.fiber));
 }
 
-
 /* Convenience method for common case */
 JANET_NO_RETURN
 void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp) {
@@ -2523,7 +2519,6 @@ static JanetAsyncStatus handle_connect(JanetListenerState *s) {
     return JANET_ASYNC_STATUS_DONE;
 }
 
-
 JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) {
     StateWrite *state = (StateWrite *) s;
     switch (event) {
@@ -2702,7 +2697,6 @@ static void janet_ev_write_generic(JanetStream *stream, void *buf, void *dest_ab
     state->flags = flags;
 #endif
 }
-
 
 void janet_ev_write_buffer(JanetStream *stream, JanetBuffer *buf) {
     janet_ev_write_generic(stream, buf, NULL, JANET_ASYNC_WRITEMODE_WRITE, 1, 0);

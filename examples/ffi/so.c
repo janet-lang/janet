@@ -78,7 +78,6 @@ double double_lots(
     return i + j;
 }
 
-
 EXPORTER
 double double_lots_2(
     double a,
@@ -204,5 +203,3 @@ EXPORTER
 int sixints_fn_3(SixInts s, int x) {
     return x + s.u + s.v + s.w + s.x + s.y + s.z;
 }
-
-

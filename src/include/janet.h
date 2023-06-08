@@ -354,7 +354,6 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 #include <stddef.h>
 #include <stdio.h>
 
-
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
 #define JANET_OUT_OF_MEMORY do { fprintf(stderr, "%s:%d - janet out of memory\n", __FILE__, __LINE__); exit(1); } while (0)
@@ -1904,7 +1903,6 @@ JANET_API Janet janet_resolve_core(const char *name);
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, DOC, __FILE__, __LINE__)
-
 
 /* Choose defaults for source mapping and docstring based on config defs */
 #if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)

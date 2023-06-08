@@ -354,7 +354,6 @@ JANET_CORE_FN(cfun_buffer_push,
     return argv[0];
 }
 
-
 JANET_CORE_FN(cfun_buffer_clear,
               "(buffer/clear buffer)",
               "Sets the size of a buffer to 0 and empties it. The buffer retains "

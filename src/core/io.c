@@ -504,7 +504,6 @@ static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
     return janet_wrap_nil();
 }
 
-
 static Janet cfun_io_print_impl(int32_t argc, Janet *argv,
                                 int newline, const char *name, FILE *dflt_file) {
     Janet x = janet_dyn(name);

@@ -949,7 +949,6 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
     return janet_wrap_array(symbolslots);
 }
 
-
 static Janet janet_disasm_bytecode(JanetFuncDef *def) {
     JanetArray *bcode = janet_array(def->bytecode_length);
     for (int32_t i = 0; i < def->bytecode_length; i++) {

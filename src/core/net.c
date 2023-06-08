@@ -256,7 +256,6 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
     janet_await();
 }
 
-
 #endif
 
 /* Adress info */
@@ -416,7 +415,6 @@ JANET_CORE_FN(cfun_net_connect,
             janet_panicf("could not get address info for bindhost: %s", gai_strerror(status));
         }
     }
-
 
     /* Create socket */
     JSock sock = JSOCKDEFAULT;

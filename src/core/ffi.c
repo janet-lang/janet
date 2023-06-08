@@ -1531,12 +1531,12 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
 }
 
 JANET_CORE_FN(cfun_ffi_supported_calling_conventions,
-        "(ffi/calling-conventions)",
-        "Get an array of all supported calling conventions on the current arhcitecture. Some architectures may have some FFI "
-        "functionality (ffi/malloc, ffi/free, ffi/read, ffi/write, etc.) but not support "
-        "any calling conventions. This function can be used to get all supported calling conventions "
-        "that can be used on this architecture. All architectures support the :none calling "
-        "convention which is a placeholder that cannot be used at runtime.") {
+              "(ffi/calling-conventions)",
+              "Get an array of all supported calling conventions on the current arhcitecture. Some architectures may have some FFI "
+              "functionality (ffi/malloc, ffi/free, ffi/read, ffi/write, etc.) but not support "
+              "any calling conventions. This function can be used to get all supported calling conventions "
+              "that can be used on this architecture. All architectures support the :none calling "
+              "convention which is a placeholder that cannot be used at runtime.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetArray *array = janet_array(4);

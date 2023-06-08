@@ -548,7 +548,6 @@ static void kdeletew(void) {
     refresh();
 }
 
-
 /* See tools/symchargen.c */
 static int is_symbol_char_gen(uint8_t c) {
     if (c & 0x80) return 1;
