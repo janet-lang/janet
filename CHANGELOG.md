@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Allow dictionary types for `take` and `drop`
+- Fix bug with closing channels while other fibers were waiting on them - `ev/take`, `ev/give`, and `ev/select`  will now return the correct (documented) value when another fiber closes the channel.
+- Add `ffi/calling-conventions` to show all available calling conventions for FFI.
 - Add `net/setsockopt`
 - Add `signal` argument to `os/proc-kill` to send signals besides `SIGKILL` on Posix.
 - Add `source` argument to `os/clock` to get different time sources.
