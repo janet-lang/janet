@@ -877,5 +877,11 @@
 (assert (= (thunk) 1) "delay 3")
 (assert (= counter 1) "delay 4")
 
-(end-suite)
+# maclintf
+(def env (table/clone (curenv)))
+((compile '(defmacro foo [] (maclintf :strict "oops")) env :anonymous))
+(def lints @[])
+(compile (tuple/setmap '(foo) 1 2) env :anonymous lints)
+(assert (deep= lints @[[:strict 1 2 "oops"]]) "maclintf 1")
 
+(end-suite)
