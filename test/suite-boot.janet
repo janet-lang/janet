@@ -884,4 +884,15 @@
 (compile (tuple/setmap '(foo) 1 2) env :anonymous lints)
 (assert (deep= lints @[[:strict 1 2 "oops"]]) "maclintf 1")
 
+(def env (table/clone (curenv)))
+((compile '(defmacro foo [& body] (maclintf :strict "foo-oops") ~(do ,;body)) env :anonymous))
+((compile '(defmacro bar [] (maclintf :strict "bar-oops")) env :anonymous))
+(def lints @[])
+# Compile (foo (bar)), but with explicit source map values
+(def bar-invoke (tuple/setmap '(bar) 3 4))
+(compile (tuple/setmap ~(foo ,bar-invoke) 1 2) env :anonymous lints)
+(assert (deep= lints @[[:strict 1 2 "foo-oops"]
+                       [:strict 3 4 "bar-oops"]])
+        "maclintf 2")
+
 (end-suite)
