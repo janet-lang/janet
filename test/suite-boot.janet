@@ -123,10 +123,12 @@
 # Some higher order functions and macros
 # 5e2de33
 (def my-array @[1 2 3 4 5 6])
-(def x (if-let [x (get my-array 5)] x))
-(assert (= x 6) "if-let")
-(def x (if-let [y (get @{} :key)] 10 nil))
-(assert (not x) "if-let 2")
+(assert (= (if-let [x (get my-array 5)] x) 6) "if-let 1")
+(assert (= (if-let [y (get @{} :key)] 10 nil) nil) "if-let 2")
+(assert (= (if-let [a my-array k (next a)] :t :f) :t) "if-let 3")
+(assert (= (if-let [a my-array k (next a 5)] :t :f) :f) "if-let 4")
+(assert (= (if-let [[a b] my-array] a) 1) "if-let 5")
+(assert (= (if-let [{:a a :b b} {:a 1 :b 2}] b) 2) "if-let 6")
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
