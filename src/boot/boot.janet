@@ -668,18 +668,20 @@
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
+  (def res (gensym))
   (defn aux [i]
     (if (>= i len)
-      tru
+      ~(do (set ,res ,tru) true)
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
         (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal)
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)))
           ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i)))
-             ,fal)))))
-  (aux 0))
+             (do (def ,bl ,sym) ,(aux (+ 2 i))))))))
+  ~(do
+     (var ,res nil)
+     (if ,(aux 0) ,res ,fal)))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."

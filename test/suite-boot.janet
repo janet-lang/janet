@@ -130,7 +130,12 @@
 (assert (= (if-let [[a b] my-array] a) 1) "if-let 5")
 (assert (= (if-let [{:a a :b b} {:a 1 :b 2}] b) 2) "if-let 6")
 (assert (= (if-let [[a b] nil] :t :f) :f) "if-let 7")
-(assert (= (if-let [a true b false] b a) true) "if-let 8")
+
+# #1191
+(var cnt 0)
+(defmacro upcnt [] (++ cnt))
+(assert (= (if-let [a true b true c true] nil (upcnt)) nil) "issue #1191")
+(assert (= cnt 1) "issue #1191")
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
