@@ -674,7 +674,11 @@
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
-        (tuple 'if (tuple 'def bl br) (aux (+ 2 i)) fal))))
+        (if (symbol? bl)
+          (tuple 'if (tuple 'def bl br) (aux (+ 2 i)) fal)
+          (tuple 'if (tuple 'def (def sym (gensym)) br)
+                 (tuple 'do (tuple 'def bl sym) (aux (+ 2 i)))
+                 fal)))))
   (aux 0))
 
 (defmacro when-let

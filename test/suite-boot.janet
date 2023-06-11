@@ -129,6 +129,8 @@
 (assert (= (if-let [a my-array k (next a 5)] :t :f) :f) "if-let 4")
 (assert (= (if-let [[a b] my-array] a) 1) "if-let 5")
 (assert (= (if-let [{:a a :b b} {:a 1 :b 2}] b) 2) "if-let 6")
+(assert (= (if-let [[a b] nil] :t :f) :f) "if-let 7")
+(assert (= (if-let [a true b false] b a) true) "if-let 8")
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
