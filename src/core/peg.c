@@ -736,9 +736,9 @@ static const uint8_t *peg_getrange(Builder *b, Janet x) {
 }
 
 static int32_t peg_getboolean(Builder *b, Janet x) {
-	if (!janet_checktype(x, JANET_BOOLEAN))
-		peg_panicf(b, "expected boolean, got %v", x);
-	return janet_unwrap_boolean(x);
+    if (!janet_checktype(x, JANET_BOOLEAN))
+        peg_panicf(b, "expected boolean, got %v", x);
+    return janet_unwrap_boolean(x);
 }
 
 static int32_t peg_getinteger(Builder *b, Janet x) {
@@ -1268,12 +1268,12 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             peg_panic(b, "unexpected peg source");
             return 0;
 
-		case JANET_BOOLEAN: {
-			int n = peg_getboolean(b, peg);
-			Reserve r = reserve(b, 2);
-			emit_1(r, n ? RULE_NCHAR : RULE_NOTNCHAR, 0);
-			break;
-		}
+        case JANET_BOOLEAN: {
+            int n = peg_getboolean(b, peg);
+            Reserve r = reserve(b, 2);
+            emit_1(r, n ? RULE_NCHAR : RULE_NOTNCHAR, 0);
+            break;
+        }
         case JANET_NUMBER: {
             int32_t n = peg_getinteger(b, peg);
             Reserve r = reserve(b, 2);
