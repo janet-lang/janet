@@ -674,21 +674,7 @@
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
-        (def atm (idempotent? bl))
-        (def sym (if atm bl (gensym)))
-        (if atm
-          # Simple binding
-          (tuple 'do
-                 (tuple 'def sym br)
-                 (tuple 'if sym (aux (+ 2 i)) fal))
-          # Destructured binding
-          (tuple 'do
-                 (tuple 'def sym br)
-                 (tuple 'if sym
-                        (tuple 'do
-                               (tuple 'def bl sym)
-                               (aux (+ 2 i)))
-                        fal))))))
+        (tuple 'if (tuple 'def bl br) (aux (+ 2 i)) fal))))
   (aux 0))
 
 (defmacro when-let
