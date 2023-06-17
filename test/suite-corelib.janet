@@ -93,6 +93,22 @@
 (assert (not (abstract? 3)) "not abstract? 3")
 (assert (not (abstract? 5)) "not abstract? 5")
 
+# idempotent?
+(each item [@[1] [1] @{:a 1} {:a 1} @"a"]
+  (assert (= (idempotent? item) false) (string/format "(idempotent? %q)" item)))
+
+(each item ["a" :a 'a 1 (int/s64 1) (int/u64 1)]
+  (assert (= (idempotent? item) true) (string/format "(idempotent? %q)" item)))
+
+(defmacro macro-idempotent
+  [x]
+  (idempotent? x))
+
+(var var-x 1)
+(assert (= (macro-idempotent var-x) false) "macro idempotent var")
+(def def-x 1)
+(assert (= (macro-idempotent def-x) true) "macro idempotent def")
+
 # Module path expansion
 # ff3bb6627
 (setdyn :current-file "some-dir/some-file")

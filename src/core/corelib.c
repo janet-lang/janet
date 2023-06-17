@@ -374,6 +374,35 @@ JANET_CORE_FN(janet_core_is_abstract,
     return janet_wrap_boolean(janet_checktype(argv[0], JANET_ABSTRACT));
 }
 
+JANET_CORE_FN(janet_core_is_idempotent,
+              "(idempotent? x)",
+              "Check if x is a value that evaluates to itself when compiled.") {
+    janet_fixarity(argc, 1);
+    JanetType t = janet_type(argv[0]);
+    switch (t) {
+        case JANET_ARRAY:
+        case JANET_TUPLE:
+        case JANET_TABLE:
+        case JANET_STRUCT:
+        case JANET_BUFFER:
+            return janet_wrap_false();
+            break;
+        case JANET_SYMBOL:
+            if (janet_vm.fiber->env != NULL) {
+                const uint8_t *sym = janet_unwrap_symbol(argv[0]);
+                JanetBinding binding = janet_resolve_ext(janet_vm.fiber->env, sym);
+                if (binding.type == JANET_BINDING_VAR) {
+                    return janet_wrap_false();
+                }
+            }
+            return janet_wrap_true();
+            break;
+        default:
+            return janet_wrap_true();
+            break;
+    }
+}
+
 JANET_CORE_FN(janet_core_scannumber,
               "(scan-number str &opt base)",
               "Parse a number from a byte sequence and return that number, either an integer "
@@ -1012,6 +1041,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("keyword", janet_core_keyword),
         JANET_CORE_REG("buffer", janet_core_buffer),
         JANET_CORE_REG("abstract?", janet_core_is_abstract),
+        JANET_CORE_REG("idempotent?", janet_core_is_idempotent),
         JANET_CORE_REG("table", janet_core_table),
         JANET_CORE_REG("array", janet_core_array),
         JANET_CORE_REG("scan-number", janet_core_scannumber),

@@ -129,19 +129,6 @@
 # For macros, we define an imcomplete odd? function that will be overriden.
 (defn odd? [x] (= 1 (mod x 2)))
 
-(def- non-atomic-types
-  {:array true
-   :tuple true
-   :table true
-   :buffer true
-   :symbol true
-   :struct true})
-
-(defn idempotent?
-  "Check if x is a value that evaluates to itself when compiled."
-  [x]
-  (not (in non-atomic-types (type x))))
-
 # C style macros and functions for imperative sugar. No bitwise though.
 (defn inc "Returns x + 1." [x] (+ x 1))
 (defn dec "Returns x - 1." [x] (- x 1))
