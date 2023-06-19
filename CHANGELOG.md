@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.29.0 - 2023-06-19
+- Add support for passing booleans to PEGs for "always" and "never" matching.
 - Allow dictionary types for `take` and `drop`
 - Fix bug with closing channels while other fibers were waiting on them - `ev/take`, `ev/give`, and `ev/select`  will now return the correct (documented) value when another fiber closes the channel.
 - Add `ffi/calling-conventions` to show all available calling conventions for FFI.
