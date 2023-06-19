@@ -1437,11 +1437,11 @@ JANET_CORE_FN(os_isatty,
     FILE *f = (argc == 1) ? janet_getfile(argv, 0, NULL) : stdout;
 #ifdef JANET_WINDOWS
     int fd = _fileno(f);
-    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    if (fd == -1) janet_panic("not a valid stream");
     return janet_wrap_boolean(_isatty(fd));
 #else
     int fd = fileno(f);
-    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    if (fd == -1) janet_panic(strerror(errno));
     return janet_wrap_boolean(isatty(fd));
 #endif
 }
