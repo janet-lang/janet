@@ -561,12 +561,12 @@ static int janet_proc_gc(void *p, size_t s) {
     return 0;
 }
 
-static int janet_proc_mark(void *p, size_t s) {
+static int janet_proc_mark(JanetGCState *gcstate, void *p, size_t s) {
     (void) s;
     JanetProc *proc = (JanetProc *)p;
-    if (NULL != proc->in) janet_mark(janet_wrap_abstract(proc->in));
-    if (NULL != proc->out) janet_mark(janet_wrap_abstract(proc->out));
-    if (NULL != proc->err) janet_mark(janet_wrap_abstract(proc->err));
+    if (NULL != proc->in) janet_mark(gcstate, janet_wrap_abstract(proc->in));
+    if (NULL != proc->out) janet_mark(gcstate, janet_wrap_abstract(proc->out));
+    if (NULL != proc->err) janet_mark(gcstate, janet_wrap_abstract(proc->err));
     return 0;
 }
 

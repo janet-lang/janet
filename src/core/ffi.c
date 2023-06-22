@@ -179,13 +179,13 @@ typedef struct {
     JanetFFIMapping args[JANET_FFI_MAX_ARGS];
 } JanetFFISignature;
 
-int signature_mark(void *p, size_t s) {
+int signature_mark(JanetGCState *gcstate, void *p, size_t s) {
     (void) s;
     JanetFFISignature *sig = p;
     for (uint32_t i = 0; i < sig->arg_count; i++) {
         JanetFFIType t = sig->args[i].type;
         if (t.prim == JANET_FFI_TYPE_STRUCT) {
-            janet_mark(janet_wrap_abstract(t.st));
+            janet_mark(gcstate, janet_wrap_abstract(t.st));
         }
     }
     return 0;
@@ -198,13 +198,13 @@ static const JanetAbstractType janet_signature_type = {
     JANET_ATEND_GCMARK
 };
 
-int struct_mark(void *p, size_t s) {
+int struct_mark(JanetGCState *gcstate, void *p, size_t s) {
     (void) s;
     JanetFFIStruct *st = p;
     for (uint32_t i = 0; i < st->field_count; i++) {
         JanetFFIType t = st->fields[i].type;
         if (t.prim == JANET_FFI_TYPE_STRUCT) {
-            janet_mark(janet_wrap_abstract(t.st));
+            janet_mark(gcstate, janet_wrap_abstract(t.st));
         }
     }
     return 0;

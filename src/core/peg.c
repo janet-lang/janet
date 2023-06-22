@@ -1354,12 +1354,12 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
  * Post-Compilation
  */
 
-static int peg_mark(void *p, size_t size) {
+static int peg_mark(JanetGCState *gcstate, void *p, size_t size) {
     (void) size;
     JanetPeg *peg = (JanetPeg *)p;
     if (NULL != peg->constants)
         for (uint32_t i = 0; i < peg->num_constants; i++)
-            janet_mark(peg->constants[i]);
+            janet_mark(gcstate, peg->constants[i]);
     return 0;
 }
 

@@ -132,9 +132,9 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         default:
             break;
         case JANET_ASYNC_EVENT_MARK: {
-            if (state->lstream) janet_mark(janet_wrap_abstract(state->lstream));
-            if (state->astream) janet_mark(janet_wrap_abstract(state->astream));
-            if (state->function) janet_mark(janet_wrap_function(state->function));
+            if (state->lstream) janet_mark(s->event, janet_wrap_abstract(state->lstream));
+            if (state->astream) janet_mark(s->event, janet_wrap_abstract(state->astream));
+            if (state->function) janet_mark(s->event, janet_wrap_function(state->function));
             break;
         }
         case JANET_ASYNC_EVENT_CLOSE:
@@ -218,7 +218,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         default:
             break;
         case JANET_ASYNC_EVENT_MARK: {
-            if (state->function) janet_mark(janet_wrap_function(state->function));
+            if (state->function) janet_mark(s->event, janet_wrap_function(state->function));
             break;
         }
         case JANET_ASYNC_EVENT_CLOSE:

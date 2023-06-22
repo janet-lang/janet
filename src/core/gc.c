@@ -32,21 +32,21 @@
 #endif
 
 /* Helpers for marking the various gc types */
-static void janet_mark_funcenv(JanetFuncEnv *env);
-static void janet_mark_funcdef(JanetFuncDef *def);
-static void janet_mark_function(JanetFunction *func);
-static void janet_mark_array(JanetArray *array);
-static void janet_mark_table(JanetTable *table);
-static void janet_mark_struct(const JanetKV *st);
-static void janet_mark_tuple(const Janet *tuple);
-static void janet_mark_buffer(JanetBuffer *buffer);
-static void janet_mark_string(const uint8_t *str);
-static void janet_mark_fiber(JanetFiber *fiber);
-static void janet_mark_abstract(void *adata);
-
-/* Local state that is only temporary for gc */
-static JANET_THREAD_LOCAL uint32_t depth = JANET_RECURSION_GUARD;
-static JANET_THREAD_LOCAL size_t orig_rootcount;
+static void janet_mark_string(const uint8_t *str) {
+    janet_gc_mark(janet_string_head(str));
+}
+static void janet_mark_buffer(JanetBuffer *buffer) {
+    janet_gc_mark(buffer);
+}
+static void janet_mark_abstract(JanetGCState *gcstate, void *adata);
+static void janet_mark_funcenv(JanetGCState *gcstate, JanetFuncEnv *env);
+static void janet_mark_funcdef(JanetGCState *gcstate, JanetFuncDef *def);
+static void janet_mark_function(JanetGCState *gcstate, JanetFunction *func);
+static void janet_mark_array(JanetGCState *gcstate, JanetArray *array);
+static void janet_mark_table(JanetGCState *gcstate, JanetTable *table);
+static void janet_mark_struct(JanetGCState *gcstate, const JanetKV *st);
+static void janet_mark_tuple(JanetGCState *gcstate, const Janet *tuple);
+static void janet_mark_fiber(JanetGCState *gcstate, JanetFiber *fiber);
 
 /* Hint to the GC that we may need to collect */
 void janet_gcpressure(size_t s) {
@@ -54,9 +54,9 @@ void janet_gcpressure(size_t s) {
 }
 
 /* Mark a value */
-void janet_mark(Janet x) {
-    if (depth) {
-        depth--;
+void janet_mark(JanetGCState *gcstate, Janet x) {
+    if (gcstate->depth) {
+        gcstate->depth--;
         switch (janet_type(x)) {
             default:
                 break;
@@ -66,45 +66,37 @@ void janet_mark(Janet x) {
                 janet_mark_string(janet_unwrap_string(x));
                 break;
             case JANET_FUNCTION:
-                janet_mark_function(janet_unwrap_function(x));
+                janet_mark_function(gcstate, janet_unwrap_function(x));
                 break;
             case JANET_ARRAY:
-                janet_mark_array(janet_unwrap_array(x));
+                janet_mark_array(gcstate, janet_unwrap_array(x));
                 break;
             case JANET_TABLE:
-                janet_mark_table(janet_unwrap_table(x));
+                janet_mark_table(gcstate, janet_unwrap_table(x));
                 break;
             case JANET_STRUCT:
-                janet_mark_struct(janet_unwrap_struct(x));
+                janet_mark_struct(gcstate, janet_unwrap_struct(x));
                 break;
             case JANET_TUPLE:
-                janet_mark_tuple(janet_unwrap_tuple(x));
+                janet_mark_tuple(gcstate, janet_unwrap_tuple(x));
                 break;
             case JANET_BUFFER:
                 janet_mark_buffer(janet_unwrap_buffer(x));
                 break;
             case JANET_FIBER:
-                janet_mark_fiber(janet_unwrap_fiber(x));
+                janet_mark_fiber(gcstate, janet_unwrap_fiber(x));
                 break;
             case JANET_ABSTRACT:
-                janet_mark_abstract(janet_unwrap_abstract(x));
+                janet_mark_abstract(gcstate, janet_unwrap_abstract(x));
                 break;
         }
-        depth++;
+        gcstate->depth++;
     } else {
         janet_gcroot(x);
     }
 }
 
-static void janet_mark_string(const uint8_t *str) {
-    janet_gc_mark(janet_string_head(str));
-}
-
-static void janet_mark_buffer(JanetBuffer *buffer) {
-    janet_gc_mark(buffer);
-}
-
-static void janet_mark_abstract(void *adata) {
+static void janet_mark_abstract(JanetGCState *gcstate, void *adata) {
 #ifdef JANET_EV
     /* Check if abstract type is a threaded abstract type. If it is, marking means
      * updating the threaded_abstract table. */
@@ -117,69 +109,69 @@ static void janet_mark_abstract(void *adata) {
         return;
     janet_gc_mark(janet_abstract_head(adata));
     if (janet_abstract_head(adata)->type->gcmark) {
-        janet_abstract_head(adata)->type->gcmark(adata, janet_abstract_size(adata));
+        janet_abstract_head(adata)->type->gcmark(gcstate, adata, janet_abstract_size(adata));
     }
 }
 
 /* Mark a bunch of items in memory */
-static void janet_mark_many(const Janet *values, int32_t n) {
+static void janet_mark_many(JanetGCState *gcstate, const Janet *values, int32_t n) {
     if (values == NULL)
         return;
     const Janet *end = values + n;
     while (values < end) {
-        janet_mark(*values);
+        janet_mark(gcstate, *values);
         values += 1;
     }
 }
 
 /* Mark a bunch of key values items in memory */
-static void janet_mark_kvs(const JanetKV *kvs, int32_t n) {
+static void janet_mark_kvs(JanetGCState *gcstate, const JanetKV *kvs, int32_t n) {
     const JanetKV *end = kvs + n;
     while (kvs < end) {
-        janet_mark(kvs->key);
-        janet_mark(kvs->value);
+        janet_mark(gcstate, kvs->key);
+        janet_mark(gcstate, kvs->value);
         kvs++;
     }
 }
 
-static void janet_mark_array(JanetArray *array) {
+static void janet_mark_array(JanetGCState *gcstate, JanetArray *array) {
     if (janet_gc_reachable(array))
         return;
     janet_gc_mark(array);
-    janet_mark_many(array->data, array->count);
+    janet_mark_many(gcstate, array->data, array->count);
 }
 
-static void janet_mark_table(JanetTable *table) {
+static void janet_mark_table(JanetGCState *gcstate, JanetTable *table) {
 recur: /* Manual tail recursion */
     if (janet_gc_reachable(table))
         return;
     janet_gc_mark(table);
-    janet_mark_kvs(table->data, table->capacity);
+    janet_mark_kvs(gcstate, table->data, table->capacity);
     if (table->proto) {
         table = table->proto;
         goto recur;
     }
 }
 
-static void janet_mark_struct(const JanetKV *st) {
+static void janet_mark_struct(JanetGCState *gcstate, const JanetKV *st) {
 recur:
     if (janet_gc_reachable(janet_struct_head(st)))
         return;
     janet_gc_mark(janet_struct_head(st));
-    janet_mark_kvs(st, janet_struct_capacity(st));
+    janet_mark_kvs(gcstate, st, janet_struct_capacity(st));
     st = janet_struct_proto(st);
     if (st) goto recur;
 }
 
-static void janet_mark_tuple(const Janet *tuple) {
+static void janet_mark_tuple(JanetGCState *gcstate, const Janet *tuple) {
     if (janet_gc_reachable(janet_tuple_head(tuple)))
         return;
     janet_gc_mark(janet_tuple_head(tuple));
-    janet_mark_many(tuple, janet_tuple_length(tuple));
+    janet_mark_many(gcstate, tuple, janet_tuple_length(tuple));
 }
 
 /* Helper to mark function environments */
-static void janet_mark_funcenv(JanetFuncEnv *env) {
+static void janet_mark_funcenv(JanetGCState *gcstate, JanetFuncEnv *env) {
     if (janet_gc_reachable(env))
         return;
     janet_gc_mark(env);
@@ -188,22 +180,22 @@ static void janet_mark_funcenv(JanetFuncEnv *env) {
     janet_env_maybe_detach(env);
     if (env->offset > 0) {
         /* On stack */
-        janet_mark_fiber(env->as.fiber);
+        janet_mark_fiber(gcstate, env->as.fiber);
     } else {
         /* Not on stack */
-        janet_mark_many(env->as.values, env->length);
+        janet_mark_many(gcstate, env->as.values, env->length);
     }
 }
 
 /* GC helper to mark a FuncDef */
-static void janet_mark_funcdef(JanetFuncDef *def) {
+static void janet_mark_funcdef(JanetGCState *gcstate, JanetFuncDef *def) {
     int32_t i;
     if (janet_gc_reachable(def))
         return;
     janet_gc_mark(def);
-    janet_mark_many(def->constants, def->constants_length);
+    janet_mark_many(gcstate, def->constants, def->constants_length);
     for (i = 0; i < def->defs_length; ++i) {
-        janet_mark_funcdef(def->defs[i]);
+        janet_mark_funcdef(gcstate, def->defs[i]);
     }
     if (def->source)
         janet_mark_string(def->source);
@@ -217,7 +209,7 @@ static void janet_mark_funcdef(JanetFuncDef *def) {
 
 }
 
-static void janet_mark_function(JanetFunction *func) {
+static void janet_mark_function(JanetGCState *gcstate, JanetFunction *func) {
     int32_t i;
     int32_t numenvs;
     if (janet_gc_reachable(func))
@@ -227,13 +219,13 @@ static void janet_mark_function(JanetFunction *func) {
         /* this should always be true, except if function is only partially constructed */
         numenvs = func->def->environments_length;
         for (i = 0; i < numenvs; ++i) {
-            janet_mark_funcenv(func->envs[i]);
+            janet_mark_funcenv(gcstate, func->envs[i]);
         }
-        janet_mark_funcdef(func->def);
+        janet_mark_funcdef(gcstate, func->def);
     }
 }
 
-static void janet_mark_fiber(JanetFiber *fiber) {
+static void janet_mark_fiber(JanetGCState *gcstate, JanetFiber *fiber) {
     int32_t i, j;
     JanetStackFrame *frame;
 recur:
@@ -241,10 +233,11 @@ recur:
         return;
     janet_gc_mark(fiber);
 
-    janet_mark(fiber->last_value);
+    janet_mark(gcstate, fiber->last_value);
 
     /* Mark values on the argument stack */
-    janet_mark_many(fiber->data + fiber->stackstart,
+    janet_mark_many(gcstate,
+                    fiber->data + fiber->stackstart,
                     fiber->stacktop - fiber->stackstart);
 
     i = fiber->frame;
@@ -252,21 +245,21 @@ recur:
     while (i > 0) {
         frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (NULL != frame->func)
-            janet_mark_function(frame->func);
+            janet_mark_function(gcstate, frame->func);
         if (NULL != frame->env)
-            janet_mark_funcenv(frame->env);
+            janet_mark_funcenv(gcstate, frame->env);
         /* Mark all values in the stack frame */
-        janet_mark_many(fiber->data + i, j - i);
+        janet_mark_many(gcstate, fiber->data + i, j - i);
         j = i - JANET_FRAME_SIZE;
         i = frame->prevframe;
     }
 
     if (fiber->env)
-        janet_mark_table(fiber->env);
+        janet_mark_table(gcstate, fiber->env);
 
 #ifdef JANET_EV
     if (fiber->supervisor_channel) {
-        janet_mark_abstract(fiber->supervisor_channel);
+        janet_mark_abstract(gcstate, fiber->supervisor_channel);
     }
 #endif
 
@@ -436,7 +429,6 @@ static JanetScratch *janet_mem2scratch(void *mem) {
 void janet_collect(void) {
     uint32_t i;
     if (janet_vm.gc_suspend) return;
-    depth = JANET_RECURSION_GUARD;
     /* Try and prevent many major collections back to back.
      * A full collection will take O(janet_vm.block_count) time.
      * If we have a large heap, make sure our interval is not too
@@ -445,16 +437,16 @@ void janet_collect(void) {
     if (janet_vm.block_count * 8 > janet_vm.gc_interval) {
         janet_vm.gc_interval = janet_vm.block_count * sizeof(JanetGCObject);
     }
-    orig_rootcount = janet_vm.root_count;
+    JanetGCState gcstate = { .depth = JANET_RECURSION_GUARD, .orig_rootcount = janet_vm.root_count };
 #ifdef JANET_EV
-    janet_ev_mark();
+    janet_ev_mark(&gcstate);
 #endif
-    janet_mark_fiber(janet_vm.root_fiber);
-    for (i = 0; i < orig_rootcount; i++)
-        janet_mark(janet_vm.roots[i]);
-    while (orig_rootcount < janet_vm.root_count) {
+    janet_mark_fiber(&gcstate, janet_vm.root_fiber);
+    for (i = 0; i < gcstate.orig_rootcount; i++)
+        janet_mark(&gcstate, janet_vm.roots[i]);
+    while (gcstate.orig_rootcount < janet_vm.root_count) {
         Janet x = janet_vm.roots[--janet_vm.root_count];
-        janet_mark(x);
+        janet_mark(&gcstate, x);
     }
     janet_sweep();
     janet_vm.next_collection = 0;

@@ -199,7 +199,7 @@ extern const JanetAbstractType janet_address_type;
 #endif
 #ifdef JANET_EV
 void janet_lib_ev(JanetTable *env);
-void janet_ev_mark(void);
+void janet_ev_mark(JanetGCState*);
 int janet_make_pipe(JanetHandle handles[2], int mode);
 #endif
 #ifdef JANET_FFI

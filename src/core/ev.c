@@ -373,14 +373,15 @@ static int janet_stream_gc(void *p, size_t s) {
 }
 
 /* Mark a stream for GC */
-static int janet_stream_mark(void *p, size_t s) {
+static int janet_stream_mark(JanetGCState *gcstate, void *p, size_t s) {
     (void) s;
     JanetStream *stream = (JanetStream *) p;
     JanetListenerState *state = stream->state;
     while (NULL != state) {
         if (NULL != state->fiber) {
-            janet_mark(janet_wrap_fiber(state->fiber));
+            janet_mark(gcstate, janet_wrap_fiber(state->fiber));
         }
+        state->event = gcstate;
         (state->machine)(state, JANET_ASYNC_EVENT_MARK);
         state = state->_next;
     }
@@ -497,31 +498,31 @@ void janet_fiber_did_resume(JanetFiber *fiber) {
 }
 
 /* Mark all pending tasks */
-void janet_ev_mark(void) {
+void janet_ev_mark(JanetGCState *gcstate) {
 
     /* Pending tasks */
     JanetTask *tasks = janet_vm.spawn.data;
     if (janet_vm.spawn.head <= janet_vm.spawn.tail) {
         for (int32_t i = janet_vm.spawn.head; i < janet_vm.spawn.tail; i++) {
-            janet_mark(janet_wrap_fiber(tasks[i].fiber));
-            janet_mark(tasks[i].value);
+            janet_mark(gcstate, janet_wrap_fiber(tasks[i].fiber));
+            janet_mark(gcstate, tasks[i].value);
         }
     } else {
         for (int32_t i = janet_vm.spawn.head; i < janet_vm.spawn.capacity; i++) {
-            janet_mark(janet_wrap_fiber(tasks[i].fiber));
-            janet_mark(tasks[i].value);
+            janet_mark(gcstate, janet_wrap_fiber(tasks[i].fiber));
+            janet_mark(gcstate, tasks[i].value);
         }
         for (int32_t i = 0; i < janet_vm.spawn.tail; i++) {
-            janet_mark(janet_wrap_fiber(tasks[i].fiber));
-            janet_mark(tasks[i].value);
+            janet_mark(gcstate, janet_wrap_fiber(tasks[i].fiber));
+            janet_mark(gcstate, tasks[i].value);
         }
     }
 
     /* Pending timeouts */
     for (size_t i = 0; i < janet_vm.tq_count; i++) {
-        janet_mark(janet_wrap_fiber(janet_vm.tq[i].fiber));
+        janet_mark(gcstate, janet_wrap_fiber(janet_vm.tq[i].fiber));
         if (janet_vm.tq[i].curr_fiber != NULL) {
-            janet_mark(janet_wrap_fiber(janet_vm.tq[i].curr_fiber));
+            janet_mark(gcstate, janet_wrap_fiber(janet_vm.tq[i].curr_fiber));
         }
     }
 
@@ -529,9 +530,10 @@ void janet_ev_mark(void) {
     for (size_t i = 0; i < janet_vm.listener_count; i++) {
         JanetListenerState *state = janet_vm.listeners[i];
         if (NULL != state->fiber) {
-            janet_mark(janet_wrap_fiber(state->fiber));
+            janet_mark(gcstate, janet_wrap_fiber(state->fiber));
         }
-        janet_stream_mark(state->stream, sizeof(JanetStream));
+        janet_stream_mark(gcstate, state->stream, sizeof(JanetStream));
+        state->event = gcstate;
         (state->machine)(state, JANET_ASYNC_EVENT_MARK);
     }
 }
@@ -714,34 +716,34 @@ static int janet_chanat_gc(void *p, size_t s) {
     return 0;
 }
 
-static void janet_chanat_mark_fq(JanetQueue *fq) {
+static void janet_chanat_mark_fq(JanetGCState *gcstate, JanetQueue *fq) {
     JanetChannelPending *pending = fq->data;
     if (fq->head <= fq->tail) {
         for (int32_t i = fq->head; i < fq->tail; i++)
-            janet_mark(janet_wrap_fiber(pending[i].fiber));
+            janet_mark(gcstate, janet_wrap_fiber(pending[i].fiber));
     } else {
         for (int32_t i = fq->head; i < fq->capacity; i++)
-            janet_mark(janet_wrap_fiber(pending[i].fiber));
+            janet_mark(gcstate, janet_wrap_fiber(pending[i].fiber));
         for (int32_t i = 0; i < fq->tail; i++)
-            janet_mark(janet_wrap_fiber(pending[i].fiber));
+            janet_mark(gcstate, janet_wrap_fiber(pending[i].fiber));
     }
 }
 
-static int janet_chanat_mark(void *p, size_t s) {
+static int janet_chanat_mark(JanetGCState *gcstate, void *p, size_t s) {
     (void) s;
     JanetChannel *chan = p;
-    janet_chanat_mark_fq(&chan->read_pending);
-    janet_chanat_mark_fq(&chan->write_pending);
+    janet_chanat_mark_fq(gcstate, &chan->read_pending);
+    janet_chanat_mark_fq(gcstate, &chan->write_pending);
     JanetQueue *items = &chan->items;
     Janet *data = chan->items.data;
     if (items->head <= items->tail) {
         for (int32_t i = items->head; i < items->tail; i++)
-            janet_mark(data[i]);
+            janet_mark(gcstate, data[i]);
     } else {
         for (int32_t i = items->head; i < items->capacity; i++)
-            janet_mark(data[i]);
+            janet_mark(gcstate, data[i]);
         for (int32_t i = 0; i < items->tail; i++)
-            janet_mark(data[i]);
+            janet_mark(gcstate, data[i]);
     }
     return 0;
 }
@@ -2272,7 +2274,7 @@ JanetAsyncStatus ev_machine_read(JanetListenerState *s, JanetAsyncEvent event) {
         default:
             break;
         case JANET_ASYNC_EVENT_MARK:
-            janet_mark(janet_wrap_buffer(state->buf));
+            janet_mark(s->event, janet_wrap_buffer(state->buf));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
@@ -2525,11 +2527,11 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
         default:
             break;
         case JANET_ASYNC_EVENT_MARK:
-            janet_mark(state->is_buffer
+            janet_mark(s->event, state->is_buffer
                        ? janet_wrap_buffer(state->src.buf)
                        : janet_wrap_string(state->src.str));
             if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
-                janet_mark(janet_wrap_abstract(state->dest_abst));
+                janet_mark(s->event, janet_wrap_abstract(state->dest_abst));
             }
             break;
         case JANET_ASYNC_EVENT_CLOSE:

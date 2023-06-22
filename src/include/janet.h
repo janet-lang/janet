@@ -1115,11 +1115,17 @@ typedef struct {
     const JanetAbstractType *at;
 } JanetMarshalContext;
 
+/* state that only exists during gc collection */
+typedef struct {
+    uint32_t depth;
+    size_t orig_rootcount;
+} JanetGCState;
+
 /* Defines an abstract type */
 struct JanetAbstractType {
     const char *name;
     int (*gc)(void *data, size_t len);
-    int (*gcmark)(void *data, size_t len);
+    int (*gcmark)(JanetGCState *gcstate, void *data, size_t len);
     int (*get)(void *data, Janet key, Janet *out);
     void (*put)(void *data, Janet key, Janet value);
     void (*marshal)(void *p, JanetMarshalContext *ctx);
@@ -1732,7 +1738,7 @@ JANET_API JanetTable *janet_env_lookup(JanetTable *env);
 JANET_API void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix, int recurse);
 
 /* GC */
-JANET_API void janet_mark(Janet x);
+JANET_API void janet_mark(JanetGCState *gcstate, Janet x);
 JANET_API void janet_sweep(void);
 JANET_API void janet_collect(void);
 JANET_API void janet_clear_memory(void);

@@ -853,15 +853,15 @@ int janet_parser_has_more(JanetParser *parser) {
 
 /* C functions */
 
-static int parsermark(void *p, size_t size) {
+static int parsermark(JanetGCState *gcstate, void *p, size_t size) {
     size_t i;
     JanetParser *parser = (JanetParser *)p;
     (void) size;
     for (i = 0; i < parser->argcount; i++) {
-        janet_mark(parser->args[i]);
+        janet_mark(gcstate, parser->args[i]);
     }
     if (parser->flag & JANET_PARSER_GENERATED_ERROR) {
-        janet_mark(janet_wrap_string((const uint8_t *) parser->error));
+        janet_mark(gcstate, janet_wrap_string((const uint8_t *) parser->error));
     }
     return 0;
 }
