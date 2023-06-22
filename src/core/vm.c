@@ -980,7 +980,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
-            janet_stack_frame(stack)->pc = pc;
+            vm_commit();
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
