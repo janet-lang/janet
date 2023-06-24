@@ -138,7 +138,11 @@
                                "/dev/null"))
                    (os/open path :w))
                  (with [dn (devnull)]
-                   (os/execute ["ls"] :px {:out dn :err dn})))
+                   (os/execute [(dyn :executable)
+                                "-e"
+                                "(print :foo) (eprint :bar)"]
+                               :px
+                               {:out dn :err dn})))
 
 (end-suite)
 
