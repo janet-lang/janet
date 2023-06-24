@@ -94,9 +94,9 @@
   (assert (= (length buf) 2) "cryptorand appends to buffer"))
 
 # 80db68210
-(assert-no-error (os/clock :realtime) "realtime clock")
-(assert-no-error (os/clock :cputime) "cputime clock")
-(assert-no-error (os/clock :monotonic) "monotonic clock")
+(assert-no-error "realtime clock" (os/clock :realtime))
+(assert-no-error "cputime clock" (os/clock :cputime))
+(assert-no-error "monotonic clock" (os/clock :monotonic))
 
 (def before (os/clock :monotonic))
 (def after (os/clock :monotonic))
@@ -128,6 +128,21 @@
   (assert (= i (os/execute [(dyn :executable) "-e"
                             (string/format "(os/exit %d)" i)] :p))
           (string "os/execute " i)))
+
+# os/execute IO redirection
+(assert-no-error "IO redirection"
+                 (defn devnull []
+                   (def os (os/which))
+                   (def path (if (or (= os :mingw) (= os :windows))
+                               "NUL"
+                               "/dev/null"))
+                   (os/open path :w))
+                 (with [dn (devnull)]
+                   (os/execute [(dyn :executable)
+                                "-e"
+                                "(print :foo) (eprint :bar)"]
+                               :px
+                               {:out dn :err dn})))
 
 (end-suite)
 
