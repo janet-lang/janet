@@ -438,7 +438,7 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
     p->_mask = 0;
     p->state = NULL;
     p->flags = (uint32_t) janet_unmarshal_int(ctx);
-    p->methods = janet_unmarshal_ptr(ctx);
+    p->methods =  janet_unmarshal_ptr(ctx);
 #ifdef JANET_WINDOWS
     p->handle = (JanetHandle) janet_unmarshal_int64(ctx);
 #else
