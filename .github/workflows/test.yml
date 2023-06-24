@@ -88,4 +88,4 @@ jobs:
       - name: Compile the project
         run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" CC=arm-linux-gnueabi-gcc LD=arm-linux-gnueabi-gcc 
       - name: Test the project
-        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" test
+        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" SUBRUN="qemu-arm -L /usr/arm-linux-gnueabi/" test

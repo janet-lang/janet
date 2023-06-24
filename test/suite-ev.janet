@@ -26,7 +26,7 @@
 (def janet (dyn :executable))
 
 # Subprocess should inherit the "RUN" parameter for fancy testing
-(def run (filter next (string/split " " (os/getenv "RUN" ""))))
+(def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
 
 (repeat 10
 
