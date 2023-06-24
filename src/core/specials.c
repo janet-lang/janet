@@ -357,7 +357,8 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
 
     if (has_drop && can_destructure_lhs && rhs_is_indexed) {
         /* Code is of the form (def [a b] [1 2]), avoid the allocation of two tuples */
-        JanetView view_lhs, view_rhs;
+        JanetView view_lhs = {0};
+        JanetView view_rhs = {0};
         janet_indexed_view(lhs, &view_lhs.items, &view_lhs.len);
         janet_indexed_view(rhs, &view_rhs.items, &view_rhs.len);
         int found_amp = 0;

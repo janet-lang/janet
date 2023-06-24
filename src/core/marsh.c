@@ -362,6 +362,15 @@ void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
     pushint(st, value);
 }
 
+/* Only use in unsafe - don't marshal pointers otherwise */
+void janet_marshal_ptr(JanetMarshalContext *ctx, const void *ptr) {
+#ifdef JANET_32
+    janet_marshal_int(ctx, (intptr_t) ptr);
+#else
+    janet_marshal_int64(ctx, (intptr_t) ptr);
+#endif
+}
+
 void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     pushbyte(st, value);
@@ -1163,6 +1172,15 @@ size_t janet_unmarshal_size(JanetMarshalContext *ctx) {
 int64_t janet_unmarshal_int64(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
     return read64(st, &(ctx->data));
+}
+
+void *janet_unmarshal_ptr(JanetMarshalContext *ctx) {
+    UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
+#ifdef JANET_32
+    return (void *) ((intptr_t) readint(st, &(ctx->data)));
+#else
+    return (void *) ((intptr_t) read64(st, &(ctx->data)));
+#endif
 }
 
 uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx) {

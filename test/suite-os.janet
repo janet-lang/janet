@@ -21,6 +21,9 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(def janet (dyn :executable))
+(def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
+
 # OS Date test
 # 719f7ba0c
 (assert (deep= {:year-day 0
@@ -118,14 +121,14 @@
 
 # os/execute with environment variables
 # issue #636 - 7e2c433ab
-(assert (= 0 (os/execute [(dyn :executable) "-e" "(+ 1 2 3)"] :pe
+(assert (= 0 (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe
                          (merge (os/environ) {"HELLO" "WORLD"})))
         "os/execute with env")
 
 # os/execute regressions
 # 427f7c362
 (for i 0 10
-  (assert (= i (os/execute [(dyn :executable) "-e"
+  (assert (= i (os/execute [;run janet "-e"
                             (string/format "(os/exit %d)" i)] :p))
           (string "os/execute " i)))
 
@@ -138,7 +141,7 @@
                                "/dev/null"))
                    (os/open path :w))
                  (with [dn (devnull)]
-                   (os/execute [(dyn :executable)
+                   (os/execute [;run janet
                                 "-e"
                                 "(print :foo) (eprint :bar)"]
                                :px

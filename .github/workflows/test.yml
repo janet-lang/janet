@@ -74,3 +74,18 @@ jobs:
         run: make clean && make CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-gcc UNAME=MINGW RUN=wine
       - name: Test the project
         run: make test UNAME=MINGW RUN=wine
+
+  test-arm-linux:
+    name: Build and test ARM32 cross compilation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup qemu and cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-arm-linux-gnueabi qemu-user
+      - name: Compile the project
+        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" CC=arm-linux-gnueabi-gcc LD=arm-linux-gnueabi-gcc 
+      - name: Test the project
+        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" SUBRUN="qemu-arm -L /usr/arm-linux-gnueabi/" test

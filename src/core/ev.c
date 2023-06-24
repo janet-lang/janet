@@ -401,7 +401,7 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
     }
     janet_marshal_abstract(ctx, p);
     janet_marshal_int(ctx, (int32_t) s->flags);
-    janet_marshal_int64(ctx, (intptr_t) s->methods);
+    janet_marshal_ptr(ctx, s->methods);
 #ifdef JANET_WINDOWS
     /* TODO - ref counting to avoid situation where a handle is closed or GCed
      * while in transit, and it's value gets reused. DuplicateHandle does not work
@@ -438,7 +438,7 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
     p->_mask = 0;
     p->state = NULL;
     p->flags = (uint32_t) janet_unmarshal_int(ctx);
-    p->methods = (void *) janet_unmarshal_int64(ctx);
+    p->methods =  janet_unmarshal_ptr(ctx);
 #ifdef JANET_WINDOWS
     p->handle = (JanetHandle) janet_unmarshal_int64(ctx);
 #else

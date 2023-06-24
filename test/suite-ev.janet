@@ -25,38 +25,41 @@
 # 5e1a8c86f
 (def janet (dyn :executable))
 
+# Subprocess should inherit the "RUN" parameter for fancy testing
+(def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
+
 (repeat 10
 
-  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" `(print "hello")`] :p {:out :pipe})]
     (os/proc-wait p)
     (def x (:read (p :out) :all))
     (assert (deep= "hello" (string/trim x))
             "capture stdout from os/spawn pre close."))
 
-  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" `(print "hello")`] :p {:out :pipe})]
     (def x (:read (p :out) 1024))
     (os/proc-wait p)
     (assert (deep= "hello" (string/trim x))
             "capture stdout from os/spawn post close."))
 
-  (let [p (os/spawn [janet "-e" `(file/read stdin :line)`] :px
+  (let [p (os/spawn [;run janet "-e" `(file/read stdin :line)`] :px
                     {:in :pipe})]
     (:write (p :in) "hello!\n")
     (assert-no-error "pipe stdin to process" (os/proc-wait p))))
 
-(let [p (os/spawn [janet "-e" `(print (file/read stdin :line))`] :px
+(let [p (os/spawn [;run janet "-e" `(print (file/read stdin :line))`] :px
                   {:in :pipe :out :pipe})]
   (:write (p :in) "hello!\n")
   (def x (:read (p :out) 1024))
   (assert-no-error "pipe stdin to process 2" (os/proc-wait p))
   (assert (= "hello!" (string/trim x)) "round trip pipeline in process"))
 
-(let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+(let [p (os/spawn [;run janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
   (os/proc-kill p)
   (def retval (os/proc-wait p))
   (assert (not= retval 24) "Process was *not* terminated by parent"))
 
-(let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+(let [p (os/spawn [;run janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
   (os/proc-kill p false :term)
   (def retval (os/proc-wait p))
   (assert (not= retval 24) "Process was *not* terminated by parent"))
@@ -66,7 +69,7 @@
 (defn calc-1
   "Run subprocess, read from stdout, then wait on subprocess."
   [code]
-  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px
+  (let [p (os/spawn [;run janet "-e" (string `(printf "%j" ` code `)`)] :px
                     {:out :pipe})]
     (os/proc-wait p)
     (def output (:read (p :out) :all))
@@ -86,7 +89,7 @@
   to 10 bytes instead of :all
   ``
   [code]
-  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px
+  (let [p (os/spawn [;run janet "-e" (string `(printf "%j" ` code `)`)] :px
                     {:out :pipe})]
     (def output (:read (p :out) 10))
     (os/proc-wait p)
@@ -104,18 +107,18 @@
 # a1cc5ca04
 (assert-no-error "file writing 1"
   (with [f (file/temp)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
+    (os/execute [;run janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
 
 (assert-no-error "file writing 2"
   (with [f (file/open "unique.txt" :w)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
+    (os/execute [;run janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
     (file/flush f)))
 
 # Issue #593
 # a1cc5ca04
 (assert-no-error "file writing 3"
   (def outfile (file/open "unique.txt" :w))
-  (os/execute [janet "-e" "(pp (seq [i :range (1 10)] i))"] :p
+  (os/execute [;run janet "-e" "(pp (seq [i :range (1 10)] i))"] :p
               {:out outfile})
   (file/flush outfile)
   (file/close outfile)
@@ -256,7 +259,7 @@
 (ev/cancel fiber "boop")
 
 # f0dbc2e
-(assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+(assert (os/execute [;run janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
 
 # Test some channel
 # e76b8da26

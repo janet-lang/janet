@@ -30,10 +30,12 @@
 (assert (= 1 (brshift 4 2)) "right shift")
 # unsigned shift
 (assert (= 32768 (brushift 0x80000000 16)) "right shift unsigned 1")
-(assert (= -32768 (brshift 0x80000000 16)) "right shift unsigned 2")
+(assert-error "right shift unsigned 2" (= -32768 (brshift 0x80000000 16)))
+(assert (= -1 (brshift -1 16)) "right shift unsigned 3")
 # non-immediate forms
 (assert (= 32768 (brushift 0x80000000 (+ 0 16))) "right shift unsigned non-immediate")
-(assert (= -32768 (brshift 0x80000000 (+ 0 16))) "right shift non-immediate")
+(assert-error "right shift non-immediate" (= -32768 (brshift 0x80000000 (+ 0 16))))
+(assert (= -1 (brshift -1 (+ 0 16))) "right shift non-immediate 2")
 (assert (= 32768 (blshift 1 (+ 0 15))) "left shift non-immediate")
 # 7e46ead
 (assert (< 1 2 3 4 5 6) "less than integers")

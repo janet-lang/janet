@@ -698,11 +698,16 @@ Janet janet_lengthv(Janet x) {
             const JanetAbstractType *type = janet_abstract_type(abst);
             if (type->length != NULL) {
                 size_t len = type->length(abst, janet_abstract_size(abst));
-                if ((uint64_t) len <= (uint64_t) JANET_INTMAX_INT64) {
-                    return janet_wrap_number((double) len);
+                /* If len is always less then double, we can never overflow */
+#ifdef JANET_32
+                return janet_wrap_number(len);
+#else
+                if (len < (size_t) JANET_INTMAX_INT64) {
+                    return janet_wrap_number(len);
                 } else {
                     janet_panicf("integer length %u too large", len);
                 }
+#endif
             }
             Janet argv[1] = { x };
             return janet_mcall("length", 1, argv);
