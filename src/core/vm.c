@@ -138,7 +138,7 @@
             vm_pcnext();\
         }\
     }
-#define _vm_bitop_immediate(op, type1)\
+#define _vm_bitop_immediate(op, type1, rangecheck, msg)\
     {\
         Janet op1 = stack[B];\
         if (!janet_checktype(op1, JANET_NUMBER)) {\
@@ -147,13 +147,15 @@
             stack[A] = janet_mcall(#op, 2, _argv);\
             vm_checkgc_pcnext();\
         } else {\
-            type1 x1 = (type1) janet_unwrap_number(op1);\
+            double y1 = janet_unwrap_number(op1);\
+            if (!rangecheck(y1)) { vm_commit(); janet_panicf("value %v out of range for " msg, op1); }\
+            type1 x1 = (type1) y1;\
             stack[A] = janet_wrap_number((type1) (x1 op CS));\
             vm_pcnext();\
         }\
     }
-#define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t);
-#define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t);
+#define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t, janet_checkintrange, "32-bit signed integers");
+#define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t, janet_checkuintrange, "32-bit unsigned integers");
 #define _vm_binop(op, wrap)\
     {\
         Janet op1 = stack[B];\
@@ -170,13 +172,17 @@
         }\
     }
 #define vm_binop(op) _vm_binop(op, janet_wrap_number)
-#define _vm_bitop(op, type1)\
+#define _vm_bitop(op, type1, rangecheck, msg)\
     {\
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
-            type1 x1 = (type1) janet_unwrap_number(op1);\
-            int32_t x2 = janet_unwrap_integer(op2);\
+            double y1 = janet_unwrap_number(op1);\
+            double y2 = janet_unwrap_number(op2);\
+            if (!rangecheck(y1)) { vm_commit(); janet_panicf("value %v out of range for " msg, op1); }\
+            if (!janet_checkintrange(y2)) { vm_commit(); janet_panicf("rhs must be valid 32-bit signed integer, got %f", op2); }\
+            type1 x1 = (type1) y1;\
+            int32_t x2 = (int32_t) y2;\
             stack[A] = janet_wrap_number((type1) (x1 op x2));\
             vm_pcnext();\
         } else {\
@@ -185,8 +191,8 @@
             vm_checkgc_pcnext();\
         }\
     }
-#define vm_bitop(op) _vm_bitop(op, int32_t)
-#define vm_bitopu(op) _vm_bitop(op, uint32_t)
+#define vm_bitop(op) _vm_bitop(op, int32_t, janet_checkintrange, "32-bit signed integers")
+#define vm_bitopu(op) _vm_bitop(op, uint32_t, janet_checkuintrange, "32-bit unsigned integers")
 #define vm_compop(op) \
     {\
         Janet op1 = stack[B];\
