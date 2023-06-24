@@ -1145,14 +1145,16 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         posix_spawn_file_actions_addclose(&actions, pipe_in);
     } else if (new_in != JANET_HANDLE_NONE && new_in != 0) {
         posix_spawn_file_actions_adddup2(&actions, new_in, 0);
-        posix_spawn_file_actions_addclose(&actions, new_in);
+        if (new_in != new_out && new_in != new_err)
+            posix_spawn_file_actions_addclose(&actions, new_in);
     }
     if (pipe_out != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_out, 1);
         posix_spawn_file_actions_addclose(&actions, pipe_out);
     } else if (new_out != JANET_HANDLE_NONE && new_out != 1) {
         posix_spawn_file_actions_adddup2(&actions, new_out, 1);
-        posix_spawn_file_actions_addclose(&actions, new_out);
+        if (new_out != new_err)
+            posix_spawn_file_actions_addclose(&actions, new_out);
     }
     if (pipe_err != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_err, 2);
@@ -1437,11 +1439,11 @@ JANET_CORE_FN(os_isatty,
     FILE *f = (argc == 1) ? janet_getfile(argv, 0, NULL) : stdout;
 #ifdef JANET_WINDOWS
     int fd = _fileno(f);
-    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    if (fd == -1) janet_panic("not a valid stream");
     return janet_wrap_boolean(_isatty(fd));
 #else
     int fd = fileno(f);
-    if (fd == -1) janet_panicv(janet_ev_lasterr());
+    if (fd == -1) janet_panic(strerror(errno));
     return janet_wrap_boolean(isatty(fd));
 #endif
 }

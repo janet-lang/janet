@@ -129,6 +129,13 @@
 (assert (= (if-let [a my-array k (next a 5)] :t :f) :f) "if-let 4")
 (assert (= (if-let [[a b] my-array] a) 1) "if-let 5")
 (assert (= (if-let [{:a a :b b} {:a 1 :b 2}] b) 2) "if-let 6")
+(assert (= (if-let [[a b] nil] :t :f) :f) "if-let 7")
+
+# #1191
+(var cnt 0)
+(defmacro upcnt [] (++ cnt))
+(assert (= (if-let [a true b true c true] nil (upcnt)) nil) "issue #1191")
+(assert (= cnt 1) "issue #1191")
 
 (assert (= 14 (sum (map inc @[1 2 3 4]))) "sum map")
 (def myfun (juxt + - * /))
@@ -879,5 +886,22 @@
 (assert (= (thunk) 1) "delay 3")
 (assert (= counter 1) "delay 4")
 
-(end-suite)
+# maclintf
+(def env (table/clone (curenv)))
+((compile '(defmacro foo [] (maclintf :strict "oops")) env :anonymous))
+(def lints @[])
+(compile (tuple/setmap '(foo) 1 2) env :anonymous lints)
+(assert (deep= lints @[[:strict 1 2 "oops"]]) "maclintf 1")
 
+(def env (table/clone (curenv)))
+((compile '(defmacro foo [& body] (maclintf :strict "foo-oops") ~(do ,;body)) env :anonymous))
+((compile '(defmacro bar [] (maclintf :strict "bar-oops")) env :anonymous))
+(def lints @[])
+# Compile (foo (bar)), but with explicit source map values
+(def bar-invoke (tuple/setmap '(bar) 3 4))
+(compile (tuple/setmap ~(foo ,bar-invoke) 1 2) env :anonymous lints)
+(assert (deep= lints @[[:strict 1 2 "foo-oops"]
+                       [:strict 3 4 "bar-oops"]])
+        "maclintf 2")
+
+(end-suite)

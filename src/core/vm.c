@@ -147,8 +147,8 @@
             stack[A] = janet_mcall(#op, 2, _argv);\
             vm_checkgc_pcnext();\
         } else {\
-            type1 x1 = (type1) janet_unwrap_integer(op1);\
-            stack[A] = janet_wrap_integer(x1 op CS);\
+            type1 x1 = (type1) janet_unwrap_number(op1);\
+            stack[A] = janet_wrap_number((type1) (x1 op CS));\
             vm_pcnext();\
         }\
     }
@@ -175,9 +175,9 @@
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
-            type1 x1 = (type1) janet_unwrap_integer(op1);\
+            type1 x1 = (type1) janet_unwrap_number(op1);\
             int32_t x2 = janet_unwrap_integer(op2);\
-            stack[A] = janet_wrap_integer(x1 op x2);\
+            stack[A] = janet_wrap_number((type1) (x1 op x2));\
             vm_pcnext();\
         } else {\
             vm_commit();\
@@ -980,7 +980,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
-            janet_stack_frame(stack)->pc = pc;
+            vm_commit();
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",

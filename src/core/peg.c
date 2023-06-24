@@ -1261,6 +1261,13 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
         default:
             peg_panic(b, "unexpected peg source");
             return 0;
+
+        case JANET_BOOLEAN: {
+            int n = janet_unwrap_boolean(peg);
+            Reserve r = reserve(b, 2);
+            emit_1(r, n ? RULE_NCHAR : RULE_NOTNCHAR, 0);
+            break;
+        }
         case JANET_NUMBER: {
             int32_t n = peg_getinteger(b, peg);
             Reserve r = reserve(b, 2);
