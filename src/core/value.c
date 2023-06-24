@@ -699,11 +699,15 @@ Janet janet_lengthv(Janet x) {
             if (type->length != NULL) {
                 size_t len = type->length(abst, janet_abstract_size(abst));
                 /* If len is always less then double, we can never overflow */
-                if (((int64_t) SIZE_MAX <= JANET_INTMAX_INT64) || (len < (size_t) JANET_INTMAX_INT64)) {
-                    return janet_wrap_number((double) len);
+#ifdef JANET_32
+                return janet_wrap_number(len);
+#else
+                if (len < (size_t) JANET_INTMAX_INT64) {
+                    return janet_wrap_number(len);
                 } else {
                     janet_panicf("integer length %u too large", len);
                 }
+#endif
             }
             Janet argv[1] = { x };
             return janet_mcall("length", 1, argv);
