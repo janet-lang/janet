@@ -805,6 +805,13 @@ int janet_checkint(Janet x) {
     return janet_checkintrange(dval);
 }
 
+int janet_checkuint(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkuintrange(dval);
+}
+
 int janet_checkint64(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
@@ -816,7 +823,7 @@ int janet_checkuint64(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
     double dval = janet_unwrap_number(x);
-    return dval >= 0 && dval <= JANET_INTMAX_DOUBLE && dval == (uint64_t) dval;
+    return janet_checkuint64range(dval);
 }
 
 int janet_checksize(Janet x) {

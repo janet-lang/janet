@@ -868,12 +868,15 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #endif
 
 JANET_API int janet_checkint(Janet x);
+JANET_API int janet_checkuint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
+#define janet_checkuintrange(x) ((x) >= 0 && (x) <= UINT32_MAX && (x) == (uint32_t)(x))
 #define janet_checkint64range(x) ((x) >= JANET_INTMIN_DOUBLE && (x) <= JANET_INTMAX_DOUBLE && (x) == (int64_t)(x))
+#define janet_checkuint64range(x) ((x) >= 0 && (x) <= JANET_INTMAX_DOUBLE && (x) == (uint64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
