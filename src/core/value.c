@@ -703,7 +703,7 @@ Janet janet_lengthv(Janet x) {
                 return janet_wrap_number(len);
 #else
                 if (len < (size_t) JANET_INTMAX_INT64) {
-                    return janet_wrap_number(len);
+                    return janet_wrap_number((double) len);
                 } else {
                     janet_panicf("integer length %u too large", len);
                 }

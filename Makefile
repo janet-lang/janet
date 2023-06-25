@@ -357,7 +357,7 @@ uninstall:
 #################
 
 format:
-	tools/format.sh
+	sh tools/format.sh
 
 grammar: build/janet.tmLanguage
 build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
