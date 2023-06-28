@@ -75,6 +75,7 @@ static const JanetInstructionDef janet_ops[] = {
     {"cmp", JOP_COMPARE},
     {"cncl", JOP_CANCEL},
     {"div", JOP_DIVIDE},
+    {"divf", JOP_DIVIDE_FLOOR},
     {"divim", JOP_DIVIDE_IMMEDIATE},
     {"eq", JOP_EQUALS},
     {"eqim", JOP_EQUALS_IMMEDIATE},

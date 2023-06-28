@@ -490,11 +490,34 @@ static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
     return janet_wrap_abstract(box); \
 } \
 
+static Janet cfun_it_s64_divf(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
+    int64_t op1 = janet_unwrap_s64(argv[0]);
+    int64_t op2 = janet_unwrap_s64(argv[1]);
+    if (op2 == 0) janet_panic("division by zero");
+    int64_t x = op1 / op2;
+    *box = x - (((op1 ^ op2) < 0) && (x * op2 != op1));
+    return janet_wrap_abstract(box);
+}
+
+static Janet cfun_it_s64_divfi(int32_t argc, Janet *argv) {
+    janet_fixarity(argc, 2);
+    int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
+    int64_t op2 = janet_unwrap_s64(argv[0]);
+    int64_t op1 = janet_unwrap_s64(argv[1]);
+    if (op2 == 0) janet_panic("division by zero");
+    int64_t x = op1 / op2;
+    *box = x - (((op1 ^ op2) < 0) && (x * op2 != op1));
+    return janet_wrap_abstract(box);
+}
+
 static Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
     int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
     int64_t op1 = janet_unwrap_s64(argv[0]);
     int64_t op2 = janet_unwrap_s64(argv[1]);
+    if (op2 == 0) janet_panic("division by zero");
     int64_t x = op1 % op2;
     *box = (op1 > 0)
            ? ((op2 > 0) ? x : (0 == x ? x : x + op2))
@@ -507,6 +530,7 @@ static Janet cfun_it_s64_modi(int32_t argc, Janet *argv) {
     int64_t *box = janet_abstract(&janet_s64_type, sizeof(int64_t));
     int64_t op2 = janet_unwrap_s64(argv[0]);
     int64_t op1 = janet_unwrap_s64(argv[1]);
+    if (op2 == 0) janet_panic("division by zero");
     int64_t x = op1 % op2;
     *box = (op1 > 0)
            ? ((op2 > 0) ? x : (0 == x ? x : x + op2))
@@ -555,6 +579,8 @@ static JanetMethod it_s64_methods[] = {
     {"r*", cfun_it_s64_mul},
     {"/", cfun_it_s64_div},
     {"r/", cfun_it_s64_divi},
+    {"div", cfun_it_s64_divf},
+    {"rdiv", cfun_it_s64_divfi},
     {"mod", cfun_it_s64_mod},
     {"rmod", cfun_it_s64_modi},
     {"%", cfun_it_s64_rem},
@@ -580,6 +606,8 @@ static JanetMethod it_u64_methods[] = {
     {"r*", cfun_it_u64_mul},
     {"/", cfun_it_u64_div},
     {"r/", cfun_it_u64_divi},
+    {"div", cfun_it_u64_div},
+    {"rdiv", cfun_it_u64_divi},
     {"mod", cfun_it_u64_mod},
     {"rmod", cfun_it_u64_modi},
     {"%", cfun_it_u64_mod},

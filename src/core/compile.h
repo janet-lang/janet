@@ -69,6 +69,7 @@ typedef enum {
 #define JANET_FUN_REMAINDER 30
 #define JANET_FUN_CMP 31
 #define JANET_FUN_CANCEL 32
+#define JANET_FUN_DIVIDE_FLOOR 33
 
 /* Compiler typedefs */
 typedef struct JanetCompiler JanetCompiler;
