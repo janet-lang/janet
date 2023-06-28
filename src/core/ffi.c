@@ -1530,6 +1530,22 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
     return janet_wrap_buffer(janet_pointer_buffer_unsafe(offset_pointer, capacity, count));
 }
 
+JANET_CORE_FN(cfun_ffi_pointer_cfunction,
+              "(ffi/pointer-cfunction pointer &opt name source-file source-line)",
+              "Create a C Function from a raw pointer. Optionally give the cfunction a name and "
+              "source location for stack traces and debugging.") {
+    janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
+    janet_arity(argc, 1, 4);
+    void *pointer = janet_getpointer(argv, 0);
+    const char *name = janet_optcstring(argv, argc, 1, NULL);
+    const char *source = janet_optcstring(argv, argc, 2, NULL);
+    int32_t line = janet_optinteger(argv, argc, 3, -1);
+    if ((name != NULL) || (source != NULL) || (line != -1)) {
+        janet_registry_put((JanetCFunction) pointer, name, NULL, source, line);
+    }
+    return janet_wrap_cfunction((JanetCFunction) pointer);
+}
+
 JANET_CORE_FN(cfun_ffi_supported_calling_conventions,
               "(ffi/calling-conventions)",
               "Get an array of all supported calling conventions on the current arhcitecture. Some architectures may have some FFI "
@@ -1567,6 +1583,7 @@ void janet_lib_ffi(JanetTable *env) {
         JANET_CORE_REG("ffi/malloc", cfun_ffi_malloc),
         JANET_CORE_REG("ffi/free", cfun_ffi_free),
         JANET_CORE_REG("ffi/pointer-buffer", cfun_ffi_pointer_buffer),
+        JANET_CORE_REG("ffi/pointer-cfunction", cfun_ffi_pointer_cfunction),
         JANET_CORE_REG("ffi/calling-conventions", cfun_ffi_supported_calling_conventions),
         JANET_REG_END
     };
