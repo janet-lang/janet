@@ -219,8 +219,9 @@ const char *janet_getcbytes(const Janet *argv, int32_t n) {
     /* Ensure buffer 0-padded */
     if (janet_checktype(argv[n], JANET_BUFFER)) {
         JanetBuffer *b = janet_unwrap_buffer(argv[n]);
-        if (b->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC) {
-            /* Make a copy with janet_smalloc in the rare case we have a buffer that cannot be realloced */
+        if ((b->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC) && b->count == b->capacity) {
+            /* Make a copy with janet_smalloc in the rare case we have a buffer that
+             * cannot be realloced and pushing a 0 byte would panic. */
             char *new_string = janet_smalloc(b->count + 1);
             memcpy(new_string, b->data, b->count);
             new_string[b->count] = 0;
