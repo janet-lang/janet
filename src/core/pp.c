@@ -152,6 +152,12 @@ static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, in
             case '\v':
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\v", 2);
                 break;
+            case '\a':
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\a", 2);
+                break;
+            case '\b':
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\b", 2);
+                break;
             case 27:
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\e", 2);
                 break;
