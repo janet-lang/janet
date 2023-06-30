@@ -1173,11 +1173,12 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
                           "values."));
     templatize_varop(env, JANET_FUN_MODULO, "mod", 0, 1, JOP_MODULO,
-                     JDOC("(mod dividend divisor)\n\n"
-                         "Returns the modulo of dividend / divisor."));
+                     JDOC("(mod & xs)\n\n"
+                         "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
+                         "`(mod x 0)` is defined to be `x`."));
     templatize_varop(env, JANET_FUN_REMAINDER, "%", 0, 1, JOP_REMAINDER,
-                     JDOC("(% dividend divisor)\n\n"
-                         "Returns the remainder of dividend / divisor."));
+                     JDOC("(% & xs)\n\n"
+                         "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
                           "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
