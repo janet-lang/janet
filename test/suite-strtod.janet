@@ -35,10 +35,5 @@
 # c876e63
 0xf&1fffFFFF
 
-# off by 1 error in inttypes
-# a3e812b86
-(assert (= (int/s64 "-0x8000_0000_0000_0000")
-           (+ (int/s64 "0x7FFF_FFFF_FFFF_FFFF") 1)) "int types wrap around")
-
 (end-suite)
 

@@ -171,22 +171,35 @@
 (assert (not (even? (int/s64 "-1001"))) "even? 6")
 
 # integer type operations
-(defn modcheck [x y]
-  (assert (= (string (mod x y)) (string (mod (int/s64 x) y)))
-          (string "int/s64 (mod " x " " y ") expected " (mod x y) ", got "
-                  (mod (int/s64 x) y)))
-  (assert (= (string (% x y)) (string (% (int/s64 x) y)))
-          (string "int/s64 (% " x " " y ") expected " (% x y) ", got "
-                  (% (int/s64 x) y))))
+(defn opcheck [int x y]
+  (each op [mod % div]
+    (assert (compare= (op x y) (op (int x) y))
+            (string int " (" op " " x " " y ") expected " (op x y)
+                    ", got " (op (int x) y)))
+    (assert (compare= (op x y) (op x (int y)))
+            (string int " (" op " " x " " y ") expected " (op x y)
+                    ", got " (op x (int y))))
+    (assert (compare= (op x y) (op (int x) (int y)))
+            (string int " (" op " " x " " y ") expected " (op x y)
+                    ", got " (op (int x) (int y))))))
 
-(modcheck 1 2)
-(modcheck 1 3)
-(modcheck 4 2)
-(modcheck 4 1)
-(modcheck 10 3)
-(modcheck 10 -3)
-(modcheck -10 3)
-(modcheck -10 -3)
+(loop [x :in [-5 -3 0 3 5]
+       y :in [-4 -3 3 4]]
+  (opcheck int/s64 x y)
+  (if (and (>= x 0) (>= y 0))
+    (opcheck int/u64 x y)))
+
+(each int [int/s64 int/u64]
+  (each op [% / div]
+    (assert-error "division by zero" (op (int 7) 0))
+    (assert-error "division by zero" (op 7 (int 0)))
+    (assert-error "division by zero" (op (int 7) (int 0)))))
+
+(each int [int/s64 int/u64]
+  (loop [x :in [-5 -3 0 3 5]]
+    (assert (= (int x) (mod (int x) 0)) (string int " mod 0"))
+    (assert (= (int x) (mod x (int 0))) (string int " mod 0"))
+    (assert (= (int x) (mod (int x) (int 0))) (string int " mod 0"))))
 
 # Check for issue #1130
 # 7e65c2bda
@@ -253,6 +266,11 @@
 (assert (= (compare (i64 -1) (u64 1)) -1) "compare 11")
 (assert (= (compare (i64 -1) (u64 -1)) -1) "compare 12")
 
+# off by 1 error in inttypes
+# a3e812b86
+(assert (= (int/s64 "-0x8000_0000_0000_0000")
+           (+ (int/s64 "0x7FFF_FFFF_FFFF_FFFF") 1)) "int types wrap around")
+(assert (= (int/s64 "0x7FFF_FFFF_FFFF_FFFF")
+           (- (int/s64 "-0x8000_0000_0000_0000") 1)) "int types wrap around")
 
 (end-suite)
-
