@@ -46,8 +46,28 @@
 (assert (<= 1.0 2.0 3.0 3.0 4.0 5.0 6.0) "less than or equal to reals")
 (assert (>= 6 5 4 4 3 2 1) "greater than or equal to integers")
 (assert (>= 6.0 5.0 4.0 4.0 3.0 2.0 1.0) "greater than or equal to reals")
-(assert (= 7 (% 20 13)) "modulo 1")
-(assert (= -7 (% -20 13)) "modulo 2")
+
+(assert (= 7 (% 20 13)) "rem 1")
+(assert (= -7 (% -20 13)) "rem 2")
+(assert (= 7 (% 20 -13)) "rem 3")
+(assert (= -7 (% -20 -13)) "rem 4")
+(assert (nan? (% 20 0)) "rem 5")
+
+(assert (= 7 (mod 20 13)) "mod 1")
+(assert (= 6 (mod -20 13)) "mod 2")
+(assert (= -6 (mod 20 -13)) "mod 3")
+(assert (= -7 (mod -20 -13)) "mod 4")
+(assert (= 20 (mod 20 0)) "mod 5")
+
+(assert (= 1 (div 20 13)) "div 1")
+(assert (= -2 (div -20 13)) "div 2")
+(assert (= -2 (div 20 -13)) "div 3")
+(assert (= 1 (div -20 -13)) "div 4")
+(assert (= math/inf (div 20 0)) "div 5")
+
+(assert (all = (seq [n :range [0 10]] (mod n 5 3))
+               (seq [n :range [0 10]] (% n 5 3))
+               [0 1 2 0 1 0 1 2 0 1]) "variadic mod")
 
 (assert (< 1.0 nil false true
            (fiber/new (fn [] 1))

@@ -342,6 +342,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_MULTIPLY,
         &&label_JOP_DIVIDE_IMMEDIATE,
         &&label_JOP_DIVIDE,
+        &&label_JOP_DIVIDE_FLOOR,
         &&label_JOP_MODULO,
         &&label_JOP_REMAINDER,
         &&label_JOP_BAND,
@@ -405,7 +406,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_NOT_EQUALS,
         &&label_JOP_NOT_EQUALS_IMMEDIATE,
         &&label_JOP_CANCEL,
-        &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -688,14 +688,33 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     VM_OP(JOP_DIVIDE)
     vm_binop( /);
 
+    VM_OP(JOP_DIVIDE_FLOOR) {
+        Janet op1 = stack[B];
+        Janet op2 = stack[C];
+        if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {
+            double x1 = janet_unwrap_number(op1);
+            double x2 = janet_unwrap_number(op2);
+            stack[A] = janet_wrap_number(floor(x1 / x2));
+            vm_pcnext();
+        } else {
+            vm_commit();
+            stack[A] = janet_binop_call("div", "rdiv", op1, op2);
+            vm_checkgc_pcnext();
+        }
+    }
+
     VM_OP(JOP_MODULO) {
         Janet op1 = stack[B];
         Janet op2 = stack[C];
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {
             double x1 = janet_unwrap_number(op1);
             double x2 = janet_unwrap_number(op2);
-            double intres = x2 * floor(x1 / x2);
-            stack[A] = janet_wrap_number(x1 - intres);
+            if (x2 == 0) {
+              stack[A] = janet_wrap_number(x1);
+            } else {
+              double intres = x2 * floor(x1 / x2);
+              stack[A] = janet_wrap_number(x1 - intres);
+            }
             vm_pcnext();
         } else {
             vm_commit();

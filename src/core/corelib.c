@@ -985,14 +985,6 @@ static const uint32_t next_asm[] = {
     JOP_NEXT | (1 << 24),
     JOP_RETURN
 };
-static const uint32_t modulo_asm[] = {
-    JOP_MODULO | (1 << 24),
-    JOP_RETURN
-};
-static const uint32_t remainder_asm[] = {
-    JOP_REMAINDER | (1 << 24),
-    JOP_RETURN
-};
 static const uint32_t cmp_asm[] = {
     JOP_COMPARE | (1 << 24),
     JOP_RETURN
@@ -1077,14 +1069,6 @@ static void janet_load_libs(JanetTable *env) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
-    janet_quick_asm(env, JANET_FUN_MODULO,
-                    "mod", 2, 2, 2, 2, modulo_asm, sizeof(modulo_asm),
-                    JDOC("(mod dividend divisor)\n\n"
-                         "Returns the modulo of dividend / divisor."));
-    janet_quick_asm(env, JANET_FUN_REMAINDER,
-                    "%", 2, 2, 2, 2, remainder_asm, sizeof(remainder_asm),
-                    JDOC("(% dividend divisor)\n\n"
-                         "Returns the remainder of dividend / divisor."));
     janet_quick_asm(env, JANET_FUN_CMP,
                     "cmp", 2, 2, 2, 2, cmp_asm, sizeof(cmp_asm),
                     JDOC("(cmp x y)\n\n"
@@ -1183,6 +1167,18 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
                           "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
                           "values."));
+    templatize_varop(env, JANET_FUN_DIVIDE_FLOOR, "div", 1, 1, JOP_DIVIDE_FLOOR,
+                     JDOC("(div & xs)\n\n"
+                          "Returns the floored division of xs. If xs is empty, returns 1. If xs has one value x, returns "
+                          "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
+                          "values."));
+    templatize_varop(env, JANET_FUN_MODULO, "mod", 0, 1, JOP_MODULO,
+                     JDOC("(mod & xs)\n\n"
+                         "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
+                         "`(mod x 0)` is defined to be `x`."));
+    templatize_varop(env, JANET_FUN_REMAINDER, "%", 0, 1, JOP_REMAINDER,
+                     JDOC("(% & xs)\n\n"
+                         "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
                           "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
