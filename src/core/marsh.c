@@ -154,7 +154,7 @@ static void pushbytes(MarshalState *st, const uint8_t *bytes, int32_t len) {
     janet_buffer_push_bytes(st->buf, bytes, len);
 }
 
-static void pushpointer(MarshalState *st, void *ptr) {
+static void pushpointer(MarshalState *st, const void *ptr) {
     janet_buffer_push_bytes(st->buf, (const uint8_t *) &ptr, sizeof(ptr));
 }
 
@@ -364,12 +364,11 @@ void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
 
 /* Only use in unsafe - don't marshal pointers otherwise */
 void janet_marshal_ptr(JanetMarshalContext *ctx, const void *ptr) {
-    union {
-        const void *ptr;
-        uint8_t bytes[sizeof(void *)];
-    } u;
-    u.ptr = ptr;
-    pushbytes(ctx->m_state, u.bytes, sizeof(void *));
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only marshal pointers in unsafe mode");
+    }
+    MarshalState *st = (MarshalState *)(ctx->m_state);
+    pushpointer(st, ptr);
 }
 
 void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
@@ -413,6 +412,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         janet_abstract_incref(abstract);
         pushbyte(st, LB_THREADED_ABSTRACT);
         pushbytes(st, (uint8_t *) &abstract, sizeof(abstract));
+        MARK_SEEN();
         return;
     }
 #endif
@@ -422,7 +422,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         marshal_one(st, janet_csymbolv(at->name), flags + 1);
         JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
-        MARK_SEEN();
+        //MARK_SEEN();
     } else {
         janet_panicf("cannot marshal %p", x);
     }
@@ -1176,15 +1176,15 @@ int64_t janet_unmarshal_int64(JanetMarshalContext *ctx) {
 }
 
 void *janet_unmarshal_ptr(JanetMarshalContext *ctx) {
+    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+        janet_panic("can only unmarshal pointers in unsafe mode");
+    }
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
-    union {
-        void *ptr;
-        uint8_t bytes[sizeof(void *)];
-    } u;
+    void *ptr;
     MARSH_EOS(st, ctx->data + sizeof(void *) - 1);
-    memcpy(u.bytes, ctx->data, sizeof(void *));
+    memcpy((char *) &ptr, ctx->data, sizeof(void *));
     ctx->data += sizeof(void *);
-    return u.ptr;
+    return ptr;
 }
 
 uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx) {
