@@ -580,7 +580,7 @@ DIVMETHODINVERT(uint64_t, u64, mod, %)
 OPMETHOD(uint64_t, u64, and, &)
 OPMETHOD(uint64_t, u64, or, |)
 OPMETHOD(uint64_t, u64, xor, ^)
-UNARYMETHOD(int64_t, u64, not, ~)
+UNARYMETHOD(uint64_t, u64, not, ~)
 OPMETHOD(uint64_t, u64, lshift, <<)
 OPMETHOD(uint64_t, u64, rshift, >>)
 
