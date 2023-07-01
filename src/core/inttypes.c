@@ -440,6 +440,14 @@ static Janet cfun_it_##type##_##name##i(int32_t argc, Janet *argv) { \
     return janet_wrap_abstract(box); \
 } \
 
+#define UNARYMETHOD(T, type, name, oper) \
+static Janet cfun_it_##type##_##name(int32_t argc, Janet *argv) { \
+    janet_fixarity(argc, 1); \
+    T *box = janet_abstract(&janet_##type##_type, sizeof(T)); \
+    *box = oper(janet_unwrap_##type(argv[0])); \
+    return janet_wrap_abstract(box); \
+} \
+
 #define DIVZERO(name) DIVZERO_##name
 #define DIVZERO_div janet_panic("division by zero")
 #define DIVZERO_rem janet_panic("division by zero")
@@ -556,6 +564,7 @@ DIVMETHODINVERT_SIGNED(int64_t, s64, rem, %)
 OPMETHOD(int64_t, s64, and, &)
 OPMETHOD(int64_t, s64, or, |)
 OPMETHOD(int64_t, s64, xor, ^)
+UNARYMETHOD(int64_t, s64, not, ~)
 OPMETHOD(int64_t, s64, lshift, <<)
 OPMETHOD(int64_t, s64, rshift, >>)
 OPMETHOD(uint64_t, u64, add, +)
@@ -571,6 +580,7 @@ DIVMETHODINVERT(uint64_t, u64, mod, %)
 OPMETHOD(uint64_t, u64, and, &)
 OPMETHOD(uint64_t, u64, or, |)
 OPMETHOD(uint64_t, u64, xor, ^)
+UNARYMETHOD(int64_t, u64, not, ~)
 OPMETHOD(uint64_t, u64, lshift, <<)
 OPMETHOD(uint64_t, u64, rshift, >>)
 
@@ -600,6 +610,7 @@ static JanetMethod it_s64_methods[] = {
     {"r|", cfun_it_s64_or},
     {"^", cfun_it_s64_xor},
     {"r^", cfun_it_s64_xor},
+    {"~", cfun_it_s64_not},
     {"<<", cfun_it_s64_lshift},
     {">>", cfun_it_s64_rshift},
     {"compare", cfun_it_s64_compare},
@@ -627,6 +638,7 @@ static JanetMethod it_u64_methods[] = {
     {"r|", cfun_it_u64_or},
     {"^", cfun_it_u64_xor},
     {"r^", cfun_it_u64_xor},
+    {"~", cfun_it_u64_not},
     {"<<", cfun_it_u64_lshift},
     {">>", cfun_it_u64_rshift},
     {"compare", cfun_it_u64_compare},

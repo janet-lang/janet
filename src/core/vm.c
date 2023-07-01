@@ -301,6 +301,16 @@ static Janet janet_method_lookup(Janet x, const char *name) {
     return method_to_fun(janet_ckeywordv(name), x);
 }
 
+static Janet janet_unary_call(const char *method, Janet arg) {
+    Janet m = janet_method_lookup(arg, method);
+    if (janet_checktype(m, JANET_NIL)) {
+        janet_panicf("could not find method :%s for %v", method, arg);
+    } else {
+        Janet argv[1] = { arg };
+        return janet_method_invoke(m, 1, argv);
+    }
+}
+
 /* Call a method first on the righthand side, and then on the left hand side with a prefix */
 static Janet janet_binop_call(const char *lmethod, const char *rmethod, Janet lhs, Janet rhs) {
     Janet lm = janet_method_lookup(lhs, lmethod);
@@ -749,9 +759,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_BNOT) {
         Janet op = stack[E];
-        vm_assert_type(op, JANET_NUMBER);
-        stack[A] = janet_wrap_integer(~janet_unwrap_integer(op));
-        vm_pcnext();
+        if (janet_checktype(op, JANET_NUMBER)) {
+            stack[A] = janet_wrap_integer(~janet_unwrap_integer(op));
+            vm_pcnext();
+        } else {
+            vm_commit();
+            stack[A] = janet_unary_call("~", op);
+            vm_checkgc_pcnext();
+        }
     }
 
     VM_OP(JOP_SHIFT_RIGHT_UNSIGNED)
