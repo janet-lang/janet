@@ -308,7 +308,7 @@ build/janet.pc: $(JANET_TARGET)
 install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
-	strip '$(DESTDIR)$(BINDIR)/janet'
+	strip -x -S '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
 	ln -sf ./janet/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet.h'
