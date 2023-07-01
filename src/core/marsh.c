@@ -364,11 +364,12 @@ void janet_marshal_int(JanetMarshalContext *ctx, int32_t value) {
 
 /* Only use in unsafe - don't marshal pointers otherwise */
 void janet_marshal_ptr(JanetMarshalContext *ctx, const void *ptr) {
-#ifdef JANET_32
-    janet_marshal_int(ctx, (intptr_t) ptr);
-#else
-    janet_marshal_int64(ctx, (intptr_t) ptr);
-#endif
+    union {
+        const void *ptr;
+        uint8_t bytes[sizeof(void *)];
+    } u;
+    u.ptr = ptr;
+    pushbytes(ctx->m_state, u.bytes, sizeof(void *));
 }
 
 void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value) {
@@ -422,6 +423,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         marshal_one(st, janet_csymbolv(at->name), flags + 1);
         JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
+        MARK_SEEN();
     } else {
         janet_panicf("cannot marshal %p", x);
     }
@@ -926,7 +928,7 @@ static const uint8_t *unmarshal_one_def(
                 Janet value;
                 data = unmarshal_one(st, data, &value, flags + 1);
                 if (!janet_checktype(value, JANET_SYMBOL))
-                    janet_panic("expected symbol in symbol map");
+                    janet_panicf("expected symbol in unmarshal, got %v", value);
                 def->symbolmap[i].symbol = janet_unwrap_symbol(value);
             }
             def->symbolmap_length = (uint32_t) symbolmap_length;
@@ -1176,11 +1178,14 @@ int64_t janet_unmarshal_int64(JanetMarshalContext *ctx) {
 
 void *janet_unmarshal_ptr(JanetMarshalContext *ctx) {
     UnmarshalState *st = (UnmarshalState *)(ctx->u_state);
-#ifdef JANET_32
-    return (void *) ((intptr_t) readint(st, &(ctx->data)));
-#else
-    return (void *) ((intptr_t) read64(st, &(ctx->data)));
-#endif
+    union {
+        void *ptr;
+        uint8_t bytes[sizeof(void *)];
+    } u;
+    MARSH_EOS(st, ctx->data + sizeof(void *) - 1);
+    memcpy(u.bytes, ctx->data, sizeof(void *));
+    ctx->data += sizeof(void *);
+    return u.ptr;
 }
 
 uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx) {
