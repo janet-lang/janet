@@ -422,7 +422,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
         marshal_one(st, janet_csymbolv(at->name), flags + 1);
         JanetMarshalContext context = {st, NULL, flags, NULL, at};
         at->marshal(abstract, &context);
-        //MARK_SEEN();
+        MARK_SEEN();
     } else {
         janet_panicf("cannot marshal %p", x);
     }
@@ -1233,6 +1233,7 @@ static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *
         if (context.at != NULL) {
             janet_panic("janet_unmarshal_abstract not called");
         }
+        janet_v_push(st->lookup, *out);
         return context.data;
     }
     janet_panic("invalid abstract type - no unmarshal function pointer");
