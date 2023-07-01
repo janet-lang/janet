@@ -201,6 +201,14 @@
     (assert (= (int x) (mod x (int 0))) (string int " mod 0"))
     (assert (= (int x) (mod (int x) (int 0))) (string int " mod 0"))))
 
+(loop [x :in [-5 -3 0 3 5]]
+  (assert (compare= (bnot x) (bnot (int/s64 x))) "int/s64 bnot"))
+
+(loop [x :range [0 10]]
+  (assert (= (int/u64 "0xFFFF_FFFF_FFFF_FFFF")
+          (bxor (int/u64 x) (bnot (int/u64 x))))
+          "int/u64 bnot"))
+
 # Check for issue #1130
 # 7e65c2bda
 (var d (int/s64 7))
