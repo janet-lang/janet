@@ -1,6 +1,15 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add new string escape sequences `\\a`, `\\b`, `\\?`, and `\\'`.
+- Fix bug with marshalling channels
+- Add `div` for floored division
+- Make `div` and `mod` variadic
+- Support `bnot` for integer types.
+- Define `(mod x 0)` as `x`
+- Add `ffi/pointer-cfunction` to convert pointers to cfunctions
+
 ## 1.29.1 - 2023-06-19
 - Add support for passing booleans to PEGs for "always" and "never" matching.
 - Allow dictionary types for `take` and `drop`
