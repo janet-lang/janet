@@ -405,7 +405,7 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
 #ifdef JANET_WINDOWS
     /* TODO - ref counting to avoid situation where a handle is closed or GCed
      * while in transit, and it's value gets reused. DuplicateHandle does not work
-     * for network sockets, and in general for winsock it is better to nipt duplicate
+     * for network sockets, and in general for winsock it is better to not duplicate
      * unless there is a need to. */
     HANDLE duph = INVALID_HANDLE_VALUE;
     if (s->flags & JANET_STREAM_SOCKET) {

@@ -250,6 +250,10 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         case JANET_FUNCTION: {
             JanetFunction *fun = janet_unwrap_function(x);
             JanetFuncDef *def = fun->def;
+            if (def == NULL) {
+                janet_buffer_push_cstring(buffer, "<incomplete function>");
+                break;
+            }
             if (def->name) {
                 const uint8_t *n = def->name;
                 janet_buffer_push_cstring(buffer, "<function ");
