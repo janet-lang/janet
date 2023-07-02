@@ -1174,11 +1174,11 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "values."));
     templatize_varop(env, JANET_FUN_MODULO, "mod", 0, 1, JOP_MODULO,
                      JDOC("(mod & xs)\n\n"
-                         "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
-                         "`(mod x 0)` is defined to be `x`."));
+                          "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
+                          "`(mod x 0)` is defined to be `x`."));
     templatize_varop(env, JANET_FUN_REMAINDER, "%", 0, 1, JOP_REMAINDER,
                      JDOC("(% & xs)\n\n"
-                         "Returns the remainder of dividing the first value of xs by each remaining value."));
+                          "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
                           "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));

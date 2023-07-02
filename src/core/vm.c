@@ -720,10 +720,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             double x1 = janet_unwrap_number(op1);
             double x2 = janet_unwrap_number(op2);
             if (x2 == 0) {
-              stack[A] = janet_wrap_number(x1);
+                stack[A] = janet_wrap_number(x1);
             } else {
-              double intres = x2 * floor(x1 / x2);
-              stack[A] = janet_wrap_number(x1 - intres);
+                double intres = x2 * floor(x1 / x2);
+                stack[A] = janet_wrap_number(x1 - intres);
             }
             vm_pcnext();
         } else {
