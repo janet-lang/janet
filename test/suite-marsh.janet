@@ -138,5 +138,13 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 # XXX: still needed? see 72beeeea
 (gccollect)
 
+# ev/chan marshalling
+(compwhen (dyn 'ev/chan)
+  (def chan (ev/chan 10))
+  (ev/give chan chan)
+  (def newchan (unmarshal (marshal chan)))
+  (def item (ev/take newchan))
+  (assert (= item newchan) "ev/chan marshalling"))
+
 (end-suite)
 
