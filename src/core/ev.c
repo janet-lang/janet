@@ -1224,6 +1224,7 @@ static Janet janet_chanat_next(void *p, Janet key) {
 
 static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
     JanetChannel *channel = (JanetChannel *)p;
+    janet_marshal_abstract(ctx, channel);
     janet_marshal_byte(ctx, channel->closed);
     janet_marshal_int(ctx, channel->limit);
     int32_t count = janet_q_count(&channel->items);
