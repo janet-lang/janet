@@ -182,7 +182,6 @@ static int destructure(JanetCompiler *c,
                         return 1;
                     }
 
-
                     if (!janet_checktype(values[i + 1], JANET_SYMBOL)) {
                         janetc_error(c, janet_formatc("expected symbol following '& in destructuring pattern, found %q", values[i + 1]));
                         return 1;
@@ -264,7 +263,7 @@ static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
 
 static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 2) {
-        janetc_cerror(opts.compiler, "expected 2 arguments");
+        janetc_cerror(opts.compiler, "expected 2 arguments to set");
         return janetc_cslot(janet_wrap_nil());
     }
     JanetFopts subopts = janetc_fopts_default(opts.compiler);
@@ -306,12 +305,16 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
 }
 
 /* Add attributes to a global def or var table */
-static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv) {
+static JanetTable *handleattr(JanetCompiler *c, const char *kind, int32_t argn, const Janet *argv) {
     int32_t i;
     JanetTable *tab = janet_table(2);
     const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
                                ? ((const char *)janet_unwrap_symbol(argv[0]))
                                : "<multiple bindings>";
+    if (argn < 2) {
+        janetc_error(c, janet_formatc("expected at least 2 arguments to %s", kind));
+        return NULL;
+    }
     for (i = 1; i < argn - 1; i++) {
         Janet attr = argv[i];
         switch (janet_type(attr)) {
@@ -335,18 +338,52 @@ static JanetTable *handleattr(JanetCompiler *c, int32_t argn, const Janet *argv)
     return tab;
 }
 
-static JanetSlot dohead(JanetCompiler *c, JanetFopts opts, Janet *head, int32_t argn, const Janet *argv) {
+typedef struct SlotHeadPair {
+    Janet lhs;
+    JanetSlot rhs;
+} SlotHeadPair;
+
+SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopts opts, Janet lhs, Janet rhs) {
+
+    /* Detect if we can do an optimization to avoid some allocations */
+    int can_destructure_lhs = janet_checktype(lhs, JANET_TUPLE)
+                              || janet_checktype(lhs, JANET_ARRAY);
+    int rhs_is_indexed = janet_checktype(rhs, JANET_ARRAY)
+                         || (janet_checktype(rhs, JANET_TUPLE) && (janet_tuple_flag(janet_unwrap_tuple(rhs)) & JANET_TUPLE_FLAG_BRACKETCTOR));
+    uint32_t has_drop = opts.flags & JANET_FOPTS_DROP;
+
     JanetFopts subopts = janetc_fopts_default(c);
-    JanetSlot ret;
-    if (argn < 2) {
-        janetc_cerror(c, "expected at least 2 arguments");
-        return janetc_cslot(janet_wrap_nil());
-    }
-    *head = argv[0];
     subopts.flags = opts.flags & ~(JANET_FOPTS_TAIL | JANET_FOPTS_DROP);
+
+    if (has_drop && can_destructure_lhs && rhs_is_indexed) {
+        /* Code is of the form (def [a b] [1 2]), avoid the allocation of two tuples */
+        JanetView view_lhs = {0};
+        JanetView view_rhs = {0};
+        janet_indexed_view(lhs, &view_lhs.items, &view_lhs.len);
+        janet_indexed_view(rhs, &view_rhs.items, &view_rhs.len);
+        int found_amp = 0;
+        for (int32_t i = 0; i < view_lhs.len; i++) {
+            if (janet_symeq(view_lhs.items[i], "&")) {
+                found_amp = 1;
+                /* Good error will be generated later. */
+                break;
+            }
+        }
+        if (!found_amp) {
+            for (int32_t i = 0; i < view_lhs.len; i++) {
+                Janet sub_rhs = view_rhs.len <= i ? janet_wrap_nil() : view_rhs.items[i];
+                into = dohead_destructure(c, into, subopts, view_lhs.items[i], sub_rhs);
+            }
+            return into;
+        }
+    }
+
+    /* No optimization, do the simple way */
     subopts.hint = opts.hint;
-    ret = janetc_value(subopts, argv[argn - 1]);
-    return ret;
+    JanetSlot ret = janetc_value(subopts, rhs);
+    SlotHeadPair shp = {lhs, ret};
+    janet_v_push(into, shp);
+    return into;
 }
 
 /* Def or var a symbol in a local scope */
@@ -354,7 +391,17 @@ static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, Janet
     int isUnnamedRegister = !(ret.flags & JANET_SLOT_NAMED) &&
                             ret.index > 0 &&
                             ret.envindex >= 0;
-    if (!isUnnamedRegister) {
+    /* optimization for `(def x my-def)` - don't emit a movn/movf instruction, we can just alias my-def */
+    /* TODO - implement optimization for `(def x my-var)` correctly as well w/ de-aliasing */
+    int canAlias = !(flags & JANET_SLOT_MUTABLE) &&
+                   !(ret.flags & JANET_SLOT_MUTABLE) &&
+                   (ret.flags & JANET_SLOT_NAMED) &&
+                   (ret.index >= 0) &&
+                   (ret.envindex == -1);
+    if (canAlias) {
+        ret.flags &= ~JANET_SLOT_MUTABLE;
+        isUnnamedRegister = 1; /* don't free slot after use - is an alias for another slot */
+    } else if (!isUnnamedRegister) {
         /* Slot is not able to be named */
         JanetSlot localslot = janetc_farslot(c);
         janetc_copy(c, localslot, ret);
@@ -402,12 +449,23 @@ static int varleaf(
 
 static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
-    Janet head;
-    JanetTable *attr_table = handleattr(c, argn, argv);
-    JanetSlot ret = dohead(c, opts, &head, argn, argv);
-    if (c->result.status == JANET_COMPILE_ERROR)
+    JanetTable *attr_table = handleattr(c, "var", argn, argv);
+    if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
-    destructure(c, argv[0], ret, varleaf, attr_table);
+    }
+    SlotHeadPair *into = NULL;
+    into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
+    if (c->result.status == JANET_COMPILE_ERROR) {
+        janet_v_free(into);
+        return janetc_cslot(janet_wrap_nil());
+    }
+    JanetSlot ret;
+    janet_assert(janet_v_count(into) > 0, "bad destructure");
+    for (int32_t i = 0; i < janet_v_count(into); i++) {
+        destructure(c, into[i].lhs, into[i].rhs, varleaf, attr_table);
+        ret = into[i].rhs;
+    }
+    janet_v_free(into);
     return ret;
 }
 
@@ -451,13 +509,24 @@ static int defleaf(
 
 static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
-    Janet head;
-    opts.flags &= ~JANET_FOPTS_HINT;
-    JanetTable *attr_table = handleattr(c, argn, argv);
-    JanetSlot ret = dohead(c, opts, &head, argn, argv);
-    if (c->result.status == JANET_COMPILE_ERROR)
+    JanetTable *attr_table = handleattr(c, "def", argn, argv);
+    if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
-    destructure(c, argv[0], ret, defleaf, attr_table);
+    }
+    opts.flags &= ~JANET_FOPTS_HINT;
+    SlotHeadPair *into = NULL;
+    into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
+    if (c->result.status == JANET_COMPILE_ERROR) {
+        janet_v_free(into);
+        return janetc_cslot(janet_wrap_nil());
+    }
+    JanetSlot ret;
+    janet_assert(janet_v_count(into) > 0, "bad destructure");
+    for (int32_t i = 0; i < janet_v_count(into); i++) {
+        destructure(c, into[i].lhs, into[i].rhs, defleaf, attr_table);
+        ret = into[i].rhs;
+    }
+    janet_v_free(into);
     return ret;
 }
 
@@ -581,7 +650,6 @@ static JanetSlot janetc_do(JanetFopts opts, int32_t argn, const Janet *argv) {
     janetc_popscope_keepslot(c, ret);
     return ret;
 }
-
 
 /* Compile an upscope form. Upscope forms execute their body sequentially and
  * evaluate to the last expression in the body, but without lexical scope. */
@@ -707,8 +775,8 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     uint8_t ifjmp = JOP_JUMP_IF;
     uint8_t ifnjmp = JOP_JUMP_IF_NOT;
 
-    if (argn < 2) {
-        janetc_cerror(c, "expected at least 2 arguments");
+    if (argn < 1) {
+        janetc_cerror(c, "expected at least 1 argument to while");
         return janetc_cslot(janet_wrap_nil());
     }
 
@@ -950,6 +1018,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     for (i = 0; i < paramcount; i++) {
         Janet param = params[i];
         if (!janet_checktype(param, JANET_SYMBOL)) {
+            janet_assert(janet_v_count(destructed_params) > j, "out of bounds");
             JanetSlot reg = destructed_params[j++];
             destructure(c, param, reg, defleaf, NULL);
             janetc_freeslot(c, reg);
@@ -1054,4 +1123,3 @@ const JanetSpecial *janetc_special(const uint8_t *name) {
                sizeof(JanetSpecial),
                name);
 }
-

@@ -147,11 +147,11 @@
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x n] ~(set ,x (,+ ,x ,n)))
-(defmacro -= "Decrements the var x by n." [x n] ~(set ,x (,- ,x ,n)))
-(defmacro *= "Shorthand for (set x (\\* x n))." [x n] ~(set ,x (,* ,x ,n)))
-(defmacro /= "Shorthand for (set x (/ x n))." [x n] ~(set ,x (,/ ,x ,n)))
-(defmacro %= "Shorthand for (set x (% x n))." [x n] ~(set ,x (,% ,x ,n)))
+(defmacro += "Increments the var x by n." [x & ns] ~(set ,x (,+ ,x ,;ns)))
+(defmacro -= "Decrements the var x by n." [x & ns] ~(set ,x (,- ,x ,;ns)))
+(defmacro *= "Shorthand for (set x (\\* x n))." [x & ns] ~(set ,x (,* ,x ,;ns)))
+(defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
+(defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
 (defmacro assert
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
@@ -445,7 +445,7 @@
            ,(case kind
               :each ~(,in ,ds ,k)
               :keys k
-              :pairs ~(,tuple ,k (,in ,ds ,k))))
+              :pairs ~[,k (,in ,ds ,k)]))
          ,;body
          (set ,k (,next ,ds ,k))))))
 
@@ -668,28 +668,20 @@
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
+  (def res (gensym))
   (defn aux [i]
     (if (>= i len)
-      tru
+      ~(do (set ,res ,tru) true)
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
-        (def atm (idempotent? bl))
-        (def sym (if atm bl (gensym)))
-        (if atm
-          # Simple binding
-          (tuple 'do
-                 (tuple 'def sym br)
-                 (tuple 'if sym (aux (+ 2 i)) fal))
-          # Destructured binding
-          (tuple 'do
-                 (tuple 'def sym br)
-                 (tuple 'if sym
-                        (tuple 'do
-                               (tuple 'def bl sym)
-                               (aux (+ 2 i)))
-                        fal))))))
-  (aux 0))
+        (if (symbol? bl)
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)))
+          ~(if (def ,(def sym (gensym)) ,br)
+             (do (def ,bl ,sym) ,(aux (+ 2 i))))))))
+  ~(do
+     (var ,res nil)
+     (if ,(aux 0) ,res ,fal)))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
@@ -923,67 +915,68 @@
     (set k (next ind k)))
   ret)
 
+(defmacro- map-aggregator
+  `Aggregation logic for various map functions.`
+  [maptype res val]
+  (case maptype
+    :map ~(array/push ,res ,val)
+    :mapcat ~(array/concat ,res ,val)
+    :keep ~(if (def y ,val) (array/push ,res y))
+    :count ~(if ,val (++ ,res))
+    :some ~(if (def y ,val) (do (set ,res y) (break)))
+    :all ~(if (def y ,val) nil (do (set ,res y) (break)))))
+
+(defmacro- map-n
+  `Generates efficient map logic for a specific number of
+  indexed beyond the first.`
+  [n maptype res f ind inds]
+  ~(do
+     (def ,(seq [k :range [0 n]] (symbol 'ind k)) ,inds)
+     ,;(seq [k :range [0 n]] ~(var ,(symbol 'key k) nil))
+     (each x ,ind
+       ,;(seq [k :range [0 n]]
+           ~(if (= nil (set ,(symbol 'key k) (next ,(symbol 'ind k) ,(symbol 'key k)))) (break)))
+       (map-aggregator ,maptype ,res (,f x ,;(seq [k :range [0 n]] ~(in ,(symbol 'ind k) ,(symbol 'key k))))))))
+
+(defmacro- map-template
+  [maptype res f ind inds]
+  ~(do
+     (def ninds (length ,inds))
+     (case ninds
+       0 (each x ,ind (map-aggregator ,maptype ,res (,f x)))
+       1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
+       2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
+       3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
+       4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
+       (do
+         (def iter-keys (array/new-filled ninds))
+         (def call-buffer (array/new-filled ninds))
+         (var done false)
+         (each x ,ind
+           (forv i 0 ninds
+             (let [old-key (in iter-keys i)
+                   ii (in ,inds i)
+                   new-key (next ii old-key)]
+               (if (= nil new-key)
+                 (do (set done true) (break))
+                 (do (set (iter-keys i) new-key) (set (call-buffer i) (in ii new-key))))))
+           (if done (break))
+           (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
+
 (defn map
   `Map a function over every value in a data structure and
   return an array of the results.`
-  [f & inds]
-  (def ninds (length inds))
-  (if (= 0 ninds) (error "expected at least 1 indexed collection"))
+  [f ind & inds]
   (def res @[])
-  (def [i1 i2 i3 i4] inds)
-  (case ninds
-    1 (each x i1 (array/push res (f x)))
-    2 (do
-        (var k1 nil)
-        (var k2 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2)))))
-    3 (do
-        (var k1 nil)
-        (var k2 nil)
-        (var k3 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3)))))
-    4 (do
-        (var k1 nil)
-        (var k2 nil)
-        (var k3 nil)
-        (var k4 nil)
-        (while true
-          (if (= nil (set k1 (next i1 k1))) (break))
-          (if (= nil (set k2 (next i2 k2))) (break))
-          (if (= nil (set k3 (next i3 k3))) (break))
-          (if (= nil (set k4 (next i4 k4))) (break))
-          (array/push res (f (in i1 k1) (in i2 k2) (in i3 k3) (in i4 k4)))))
-    (do
-      (def iterkeys (array/new-filled ninds))
-      (var done false)
-      (def call-buffer @[])
-      (while true
-        (forv i 0 ninds
-          (let [old-key (in iterkeys i)
-                ii (in inds i)
-                new-key (next ii old-key)]
-            (if (= nil new-key)
-              (do (set done true) (break))
-              (do (set (iterkeys i) new-key) (array/push call-buffer (in ii new-key))))))
-        (if done (break))
-        (array/push res (f ;call-buffer))
-        (array/clear call-buffer))))
+  (map-template :map res f ind inds)
   res)
 
 (defn mapcat
   ``Map a function over every element in an array or tuple and
   use `array/concat` to concatenate the results.``
-  [f ind]
+  [f ind & inds]
   (def res @[])
-  (each x ind
-    (array/concat res (f x)))
+  (map-template :mapcat res f ind inds)
   res)
 
 (defn filter
@@ -999,23 +992,19 @@
 (defn count
   ``Count the number of items in `ind` for which `(pred item)`
   is true.``
-  [pred ind]
-  (var counter 0)
-  (each item ind
-    (if (pred item)
-      (++ counter)))
-  counter)
+  [pred ind & inds]
+  (var res 0)
+  (map-template :count res pred ind inds)
+  res)
 
 (defn keep
   ``Given a predicate `pred`, return a new array containing the truthy results
   of applying `pred` to each element in the indexed collection `ind`. This is
   different from `filter` which returns an array of the original elements where
   the predicate is truthy.``
-  [pred ind]
+  [pred ind & inds]
   (def res @[])
-  (each item ind
-    (if-let [y (pred item)]
-      (array/push res y)))
+  (map-template :keep res pred ind inds)
   res)
 
 (defn range
@@ -1083,42 +1072,33 @@
     (set k (next ind k)))
   ret)
 
-(defn- take-n-fallback
-  [n xs]
-  (def res @[])
-  (when (> n 0)
-    (var left n)
-    (each x xs
-      (array/push res x)
-      (-- left)
-      (if (= 0 left) (break))))
-  res)
-
-(defn- take-until-fallback
-  [pred xs]
-  (def res @[])
-  (each x xs
-    (if (pred x) (break))
-    (array/push res x))
-  res)
-
-(defn- slice-n
+(defn- take-n-slice
   [f n ind]
   (def len (length ind))
-  # make sure end is in [0, len]
-  (def m (if (> n 0) n 0))
-  (def end (if (> m len) len m))
-  (f ind 0 end))
+  (def m (+ len n))
+  (def start (if (< n 0 m) m 0))
+  (def end (if (<= 0 n len) n len))
+  (f ind start end))
 
 (defn take
-  "Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string, respectively."
+  ``Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string,
+  respectively. If `n` is negative, takes the last `n` elements instead.``
   [n ind]
   (cond
-    (bytes? ind) (slice-n string/slice n ind)
-    (indexed? ind) (slice-n tuple/slice n ind)
-    (take-n-fallback n ind)))
+    (indexed? ind) (take-n-slice tuple/slice n ind)
+    (bytes? ind) (take-n-slice string/slice n ind)
+    (dictionary? ind) (do
+                        (var left n)
+                        (tabseq [[i x] :pairs ind :until (< (-- left) 0)] i x))
+    (do
+      (def res @[])
+      (var key nil)
+      (repeat n
+        (if (= nil (set key (next ind key))) (break))
+        (array/push res (in ind key)))
+      res)))
 
-(defn- slice-until
+(defn- take-until-slice
   [f pred ind]
   (def len (length ind))
   (def i (find-index pred ind))
@@ -1129,9 +1109,10 @@
   "Same as `(take-while (complement pred) ind)`."
   [pred ind]
   (cond
-    (bytes? ind) (slice-until string/slice pred ind)
-    (indexed? ind) (slice-until tuple/slice pred ind)
-    (take-until-fallback pred ind)))
+    (indexed? ind) (take-until-slice tuple/slice pred ind)
+    (bytes? ind) (take-until-slice string/slice pred ind)
+    (dictionary? ind) (tabseq [[i x] :pairs ind :until (pred x)] i x)
+    (seq [x :in ind :until (pred x)] x)))
 
 (defn take-while
   `Given a predicate, take only elements from a fiber, indexed, or bytes type that satisfy
@@ -1139,27 +1120,58 @@
   [pred ind]
   (take-until (complement pred) ind))
 
+(defn- drop-n-slice
+  [f n ind]
+  (def len (length ind))
+  (cond
+    (<= 0 n len) (f ind n)
+    (< (- len) n 0) (f ind 0 (+ len n))
+    (f ind len)))
+
+(defn- drop-n-dict
+  [f n ind]
+  (def res (f ind))
+  (var left n)
+  (loop [[i x] :pairs ind :until (< (-- left) 0)] (set (res i) nil))
+  res)
+
 (defn drop
-  ``Drop the first `n elements in an indexed or bytes type. Returns a new tuple or string
+  ``Drop the first `n` elements in an indexed or bytes type. Returns a new tuple or string
   instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
+  (cond
+    (indexed? ind) (drop-n-slice tuple/slice n ind)
+    (bytes? ind) (drop-n-slice string/slice n ind)
+    (struct? ind) (drop-n-dict struct/to-table n ind)
+    (table? ind) (drop-n-dict table/clone n ind)
+    (do
+      (var key nil)
+      (repeat n
+        (if (= nil (set key (next ind key))) (break)))
+      ind)))
+
+(defn- drop-until-slice
+  [f pred ind]
   (def len (length ind))
-  (def negn (>= n 0))
-  (def start (if negn (min n len) 0))
-  (def end (if negn len (max 0 (+ len n))))
-  (f ind start end))
+  (def i (find-index pred ind))
+  (def start (if (nil? i) len i))
+  (f ind start))
+
+(defn- drop-until-dict
+  [f pred ind]
+  (def res (f ind))
+  (loop [[i x] :pairs ind :until (pred x)] (set (res i) nil))
+  res)
 
 (defn drop-until
   "Same as `(drop-while (complement pred) ind)`."
   [pred ind]
-  (def use-str (bytes? ind))
-  (def f (if use-str string/slice tuple/slice))
-  (def i (find-index pred ind))
-  (def len (length ind))
-  (def start (if (nil? i) len i))
-  (f ind start))
+  (cond
+    (indexed? ind) (drop-until-slice tuple/slice pred ind)
+    (bytes? ind) (drop-until-slice string/slice pred ind)
+    (struct? ind) (drop-until-dict struct/to-table pred ind)
+    (table? ind) (drop-until-dict table/clone pred ind)
+    (do (find pred ind) ind)))
 
 (defn drop-while
   `Given a predicate, remove elements from an indexed or bytes type that satisfy
@@ -1199,6 +1211,16 @@
   (def kw (keyword prefix (slice alias 1 -2)))
   ~(def ,alias :dyn ,;more ,kw))
 
+(defn has-key?
+  "Check if a data structure `ds` contains the key `key`."
+  [ds key]
+  (not= nil (get ds key)))
+
+(defn has-value?
+  "Check if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
+  [ds value]
+  (not= nil (index-of value ds)))
+
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
   Use this to prevent keyword collisions between dynamic bindings.``)
 (defdyn *out* "Where normal print functions print output to.")
@@ -1207,6 +1229,7 @@
 (defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
+(defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrecny control.")
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
@@ -1749,6 +1772,14 @@
   (printf (dyn *pretty-format* "%q") x)
   (flush))
 
+
+(defn file/lines
+  "Return an iterator over the lines of a file."
+  [file]
+  (coro
+    (while (def line (file/read file :line))
+      (yield line))))
+
 ###
 ###
 ### Pattern Matching
@@ -2090,21 +2121,21 @@
   ret)
 
 (defn all
-  ``Returns true if `(pred item)` returns a truthy value for every item in `xs`.
-  Otherwise, returns the first falsey `(pred item)` result encountered.
-  Returns true if `xs` is empty.``
-  [pred xs]
-  (var ret true)
-  (loop [x :in xs :while ret] (set ret (pred x)))
-  ret)
+  ``Returns true if `(pred item)` is truthy for every item in `ind`.
+  Otherwise, returns the first falsey result encountered.
+  Returns true if `ind` is empty.``
+  [pred ind & inds]
+  (var res true)
+  (map-template :all res pred ind inds)
+  res)
 
 (defn some
-  ``Returns nil if all `xs` are false or nil, otherwise returns the result of the
-  first truthy predicate, `(pred x)`.``
-  [pred xs]
-  (var ret nil)
-  (loop [x :in xs :while (not ret)] (if-let [y (pred x)] (set ret y)))
-  ret)
+  ``Returns nil if `(pred item)` is false or nil for every item in `ind`.
+  Otherwise, returns the first truthy result encountered.``
+  [pred ind & inds]
+  (var res nil)
+  (map-template :some res pred ind inds)
+  res)
 
 (defn deep-not=
   ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
@@ -2114,8 +2145,24 @@
   (or
     (not= tx (type y))
     (case tx
-      :tuple (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
-      :array (or (not= (length x) (length y)) (some identity (map deep-not= x y)))
+      :tuple (or (not= (length x) (length y))
+                 (do
+                   (var ret false)
+                   (forv i 0 (length x)
+                     (def xx (in x i))
+                     (def yy (in y i))
+                     (if (deep-not= xx yy)
+                       (break (set ret true))))
+                   ret))
+      :array (or (not= (length x) (length y))
+                 (do
+                   (var ret false)
+                   (forv i 0 (length x)
+                     (def xx (in x i))
+                     (def yy (in y i))
+                     (if (deep-not= xx yy)
+                       (break (set ret true))))
+                   ret))
       :struct (deep-not= (kvs x) (kvs y))
       :table (deep-not= (table/to-struct x) (table/to-struct y))
       :buffer (not= (string x) (string y))
@@ -2141,6 +2188,19 @@
     :struct (struct ;(map freeze (kvs x)))
     :buffer (string x)
     x))
+
+(defn thaw
+  `Thaw an object (make it mutable) and do a deep copy, making
+  child value also mutable. Closures, fibers, and abstract
+  types will not be recursively thawed, but all other types will`
+  [ds]
+  (case (type ds)
+    :array (walk-ind thaw ds)
+    :tuple (walk-ind thaw ds)
+    :table (walk-dict thaw (table/proto-flatten ds))
+    :struct (walk-dict thaw (struct/proto-flatten ds))
+    :string (buffer ds)
+    ds))
 
 (defn macex
   ``Expand macros completely.
@@ -2209,6 +2269,7 @@
   (defn saw-special-arg
     [num]
     (set max-param-seen (max max-param-seen num)))
+  (def prefix (gensym))
   (defn on-binding
     [x]
     (if (string/has-prefix? '$ x)
@@ -2216,22 +2277,24 @@
         (= '$ x)
         (do
           (saw-special-arg 0)
-          '$0)
+          (symbol prefix '$0))
         (= '$& x)
         (do
           (set vararg true)
-          x)
+          (symbol prefix x))
         :else
         (do
           (def num (scan-number (string/slice x 1)))
           (if (nat? num)
-            (saw-special-arg num))
-          x))
+            (do
+              (saw-special-arg num)
+              (symbol prefix x))
+            x)))
       x))
   (def expanded (macex arg on-binding))
   (def name-splice (if name [name] []))
-  (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol '$ i)))
-  ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& '$&] [])] ,expanded))
+  (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol prefix '$ i)))
+  ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& (symbol prefix '$&)] [])] ,expanded))
 
 ###
 ###
@@ -2482,8 +2545,8 @@
                 (set good false)
                 (def {:error err :line line :column column :fiber errf} res)
                 (on-compile-error err errf where (or line l) (or column c))))))
-        guard))
-    (fiber/setenv f env)
+        guard
+        env))
     (while (fiber/can-resume? f)
       (def res (resume f resumeval))
       (when good (set resumeval (onstatus f res)))))
@@ -2820,7 +2883,7 @@
     (if (= :dead fs)
       (when is-repl
         (put env '_ @{:value x})
-        (printf (get env :pretty-format "%q") x)
+        (printf (get env *pretty-format* "%q") x)
         (flush))
       (do
         (debug/stacktrace f x "")
@@ -3165,16 +3228,17 @@
       (cond
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
         (= b (chr "`")) (delim :code)
-        (not (modes :code)) (cond
+        (not (modes :code))
+        (cond
           (= b (chr `\`)) (do
                             (++ token-length)
                             (buffer/push token (get line (++ i))))
           (= b (chr "_")) (delim :underline)
           (= b (chr "*"))
-            (if (= (chr "*") (get line (+ i 1)))
-              (do (++ i)
-                (delim :bold))
-              (delim :italics))
+          (if (= (chr "*") (get line (+ i 1)))
+            (do (++ i)
+              (delim :bold))
+            (delim :italics))
           (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
@@ -3614,17 +3678,21 @@
          (,ev/deadline ,deadline nil ,f)
          (,resume ,f))))
 
-  (defn- cancel-all [fibers reason] (each f fibers (ev/cancel f reason) (put fibers f nil)))
+  (defn- cancel-all [chan fibers reason]
+    (each f fibers (ev/cancel f reason))
+    (let [n (length fibers)]
+      (table/clear fibers)
+      (repeat n (ev/take chan))))
 
   (defn- wait-for-fibers
     [chan fibers]
-    (defer (cancel-all fibers "parent canceled")
+    (defer (cancel-all chan fibers "parent canceled")
       (repeat (length fibers)
         (def [sig fiber] (ev/take chan))
         (if (= sig :ok)
           (put fibers fiber nil)
           (do
-            (cancel-all fibers "sibling canceled")
+            (cancel-all chan fibers "sibling canceled")
             (propagate (fiber/last-value fiber) fiber))))))
 
   (defmacro ev/gather
@@ -3718,10 +3786,10 @@
     (defn make-ptr []
       (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
     (if lazy
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-        ~(defn ,name ,;meta [,;formal-args]
-           (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
+      ~(defn ,name ,;meta [,;formal-args]
+         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
 
 ###
 ###
@@ -3815,8 +3883,7 @@
     (def guard (if (get env :debug) :ydt :y))
     (defn wrap-main [&]
       (main ;subargs))
-    (def f (fiber/new wrap-main guard))
-    (fiber/setenv f env)
+    (def f (fiber/new wrap-main guard env))
     (var res nil)
     (while (fiber/can-resume? f)
       (set res (resume f res))
@@ -3832,6 +3899,9 @@
 
 (defdyn *profilepath*
   "Path to profile file loaded when starting up the repl.")
+
+(compwhen (not (dyn 'os/isatty))
+  (defmacro os/isatty [&] true))
 
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
@@ -3855,7 +3925,9 @@
 
   (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
-  (set colorize (not (getenv-alias "NO_COLOR")))
+  (set colorize (and
+                  (not (getenv-alias "NO_COLOR"))
+                  (os/isatty stdout)))
 
   (defn- get-lint-level
     [i]
@@ -4110,10 +4182,11 @@
 
   (defn do-one-file
     [fname]
-    (print "\n/* " fname " */")
-    (print "#line 0 \"" fname "\"\n")
-    (def source (slurp fname))
-    (print (string/replace-all "\r" "" source)))
+    (unless (has-value? boot/args "image-only")
+      (print "\n/* " fname " */")
+      (print "#line 0 \"" fname "\"\n")
+      (def source (slurp fname))
+      (print (string/replace-all "\r" "" source))))
 
   (do-one-file feature-header)
 

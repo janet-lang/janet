@@ -75,6 +75,7 @@ static const JanetInstructionDef janet_ops[] = {
     {"cmp", JOP_COMPARE},
     {"cncl", JOP_CANCEL},
     {"div", JOP_DIVIDE},
+    {"divf", JOP_DIVIDE_FLOOR},
     {"divim", JOP_DIVIDE_IMMEDIATE},
     {"eq", JOP_EQUALS},
     {"eqim", JOP_EQUALS_IMMEDIATE},
@@ -948,7 +949,6 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
     symbolslots->count = def->symbolmap_length;
     return janet_wrap_array(symbolslots);
 }
-
 
 static Janet janet_disasm_bytecode(JanetFuncDef *def) {
     JanetArray *bcode = janet_array(def->bytecode_length);

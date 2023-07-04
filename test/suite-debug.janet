@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose & contributors
+# Copyright (c) 2023 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -19,37 +19,16 @@
 # IN THE SOFTWARE.
 
 (import ./helper :prefix "" :exit true)
-(start-suite 12)
+(start-suite)
 
-(var counter 0)
-(def thunk (delay (++ counter)))
-(assert (= (thunk) 1) "delay 1")
-(assert (= counter 1) "delay 2")
-(assert (= (thunk) 1) "delay 3")
-(assert (= counter 1) "delay 4")
-
-(def has-ffi (dyn 'ffi/native))
-
-# FFI check
-(compwhen has-ffi
-  (ffi/context))
-
-(compwhen has-ffi
-  (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
-(compwhen has-ffi
-  (def buffer1 @"aaaa")
-  (def buffer2 @"bbbb")
-  (memcpy buffer1 buffer2 4)
-  (assert (= (string buffer1) "bbbb") "ffi 1 - memcpy"))
-
-(compwhen has-ffi
-  (assert (= 8 (ffi/size [:int :char])) "size unpacked struct 1")
-  (assert (= 5 (ffi/size [:pack :int :char])) "size packed struct 1")
-  (assert (= 5 (ffi/size [:int :pack-all :char])) "size packed struct 2")
-  (assert (= 4 (ffi/align [:int :char])) "align 1")
-  (assert (= 1 (ffi/align [:pack :int :char])) "align 2")
-  (assert (= 1 (ffi/align [:int :char :pack-all])) "align 3")
-  (assert (= 26 (ffi/size [:char :pack :int @[:char 21]])) "array struct size"))
+# Simple function break
+# a8afc5b81
+(debug/fbreak map 1)
+(def f (fiber/new (fn [] (map inc [1 2 3])) :a))
+(resume f)
+(assert (= :debug (fiber/status f)) "debug/fbreak")
+(debug/unfbreak map 1)
+(map inc [1 2 3])
 
 (end-suite)
 

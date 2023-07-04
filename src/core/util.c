@@ -499,7 +499,7 @@ typedef struct {
 static void namebuf_init(NameBuf *namebuf, const char *prefix) {
     size_t plen = strlen(prefix);
     namebuf->plen = plen;
-    namebuf->buf = janet_malloc(namebuf->plen + 256);
+    namebuf->buf = janet_smalloc(namebuf->plen + 256);
     if (NULL == namebuf->buf) {
         JANET_OUT_OF_MEMORY;
     }
@@ -508,12 +508,12 @@ static void namebuf_init(NameBuf *namebuf, const char *prefix) {
 }
 
 static void namebuf_deinit(NameBuf *namebuf) {
-    janet_free(namebuf->buf);
+    janet_sfree(namebuf->buf);
 }
 
 static char *namebuf_name(NameBuf *namebuf, const char *suffix) {
     size_t slen = strlen(suffix);
-    namebuf->buf = janet_realloc(namebuf->buf, namebuf->plen + 2 + slen);
+    namebuf->buf = janet_srealloc(namebuf->buf, namebuf->plen + 2 + slen);
     if (NULL == namebuf->buf) {
         JANET_OUT_OF_MEMORY;
     }
@@ -805,6 +805,13 @@ int janet_checkint(Janet x) {
     return janet_checkintrange(dval);
 }
 
+int janet_checkuint(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkuintrange(dval);
+}
+
 int janet_checkint64(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
@@ -816,7 +823,7 @@ int janet_checkuint64(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
     double dval = janet_unwrap_number(x);
-    return dval >= 0 && dval <= JANET_INTMAX_DOUBLE && dval == (uint64_t) dval;
+    return janet_checkuint64range(dval);
 }
 
 int janet_checksize(Janet x) {
@@ -875,34 +882,73 @@ int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffe
 /* Clock shims for various platforms */
 #ifdef JANET_GETTIME
 #ifdef JANET_WINDOWS
-int janet_gettime(struct timespec *spec) {
-    FILETIME ftime;
-    GetSystemTimeAsFileTime(&ftime);
-    int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
-    /* Windows epoch is January 1, 1601 apparently */
-    wintime -= 116444736000000000LL;
-    spec->tv_sec  = wintime / 10000000LL;
-    /* Resolution is 100 nanoseconds. */
-    spec->tv_nsec = wintime % 10000000LL * 100;
+#include <profileapi.h>
+int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
+    if (source == JANET_TIME_REALTIME) {
+        FILETIME ftime;
+        GetSystemTimeAsFileTime(&ftime);
+        int64_t wintime = (int64_t)(ftime.dwLowDateTime) | ((int64_t)(ftime.dwHighDateTime) << 32);
+        /* Windows epoch is January 1, 1601 apparently */
+        wintime -= 116444736000000000LL;
+        spec->tv_sec  = wintime / 10000000LL;
+        /* Resolution is 100 nanoseconds. */
+        spec->tv_nsec = wintime % 10000000LL * 100;
+    } else if (source == JANET_TIME_MONOTONIC) {
+        LARGE_INTEGER count;
+        LARGE_INTEGER perf_freq;
+        QueryPerformanceCounter(&count);
+        QueryPerformanceFrequency(&perf_freq);
+        spec->tv_sec = count.QuadPart / perf_freq.QuadPart;
+        spec->tv_nsec = (long)((count.QuadPart % perf_freq.QuadPart) * 1000000000 / perf_freq.QuadPart);
+    } else if (source == JANET_TIME_CPUTIME) {
+        FILETIME creationTime, exitTime, kernelTime, userTime;
+        GetProcessTimes(GetCurrentProcess(), &creationTime, &exitTime, &kernelTime, &userTime);
+        int64_t tmp = ((int64_t)userTime.dwHighDateTime << 32) + userTime.dwLowDateTime;
+        spec->tv_sec = tmp / 10000000LL;
+        spec->tv_nsec = tmp % 10000000LL * 100;
+    }
     return 0;
 }
 /* clock_gettime() wasn't available on Mac until 10.12. */
 #elif defined(JANET_APPLE) && !defined(MAC_OS_X_VERSION_10_12)
 #include <mach/clock.h>
 #include <mach/mach.h>
-int janet_gettime(struct timespec *spec) {
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    spec->tv_sec = mts.tv_sec;
-    spec->tv_nsec = mts.tv_nsec;
+int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
+    if (source == JANET_TIME_REALTIME) {
+        clock_serv_t cclock;
+        mach_timespec_t mts;
+        host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+        clock_get_time(cclock, &mts);
+        mach_port_deallocate(mach_task_self(), cclock);
+        spec->tv_sec = mts.tv_sec;
+        spec->tv_nsec = mts.tv_nsec;
+    } else if (source == JANET_TIME_MONOTONIC) {
+        clock_serv_t cclock;
+        int nsecs;
+        mach_msg_type_number_t count;
+        host_get_clock_service(mach_host_self(), clock, &cclock);
+        clock_get_attributes(cclock, CLOCK_GET_TIME_RES, (clock_attr_t)&nsecs, &count);
+        mach_port_deallocate(mach_task_self(), cclock);
+        clock_getres(CLOCK_MONOTONIC, spec);
+    }
+    if (source == JANET_TIME_CPUTIME) {
+        clock_t tmp = clock();
+        spec->tv_sec = tmp;
+        spec->tv_nsec = (tmp - spec->tv_sec) * 1.0e9;
+    }
     return 0;
 }
 #else
-int janet_gettime(struct timespec *spec) {
-    return clock_gettime(CLOCK_REALTIME, spec);
+int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
+    clockid_t cid = CLOCK_REALTIME;
+    if (source == JANET_TIME_REALTIME) {
+        cid = CLOCK_REALTIME;
+    } else if (source == JANET_TIME_MONOTONIC) {
+        cid = CLOCK_MONOTONIC;
+    } else if (source == JANET_TIME_CPUTIME) {
+        cid = CLOCK_PROCESS_CPUTIME_ID;
+    }
+    return clock_gettime(cid, spec);
 }
 #endif
 #endif

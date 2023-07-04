@@ -259,6 +259,14 @@ static int checkescape(uint8_t c) {
             return '\f';
         case 'v':
             return '\v';
+        case 'a':
+            return '\a';
+        case 'b':
+            return '\b';
+        case '\'':
+            return '\'';
+        case '?':
+            return '?';
         case 'e':
             return 27;
         case '"':

@@ -6,10 +6,12 @@
 
 <img src="https://raw.githubusercontent.com/janet-lang/janet/master/assets/janet-w200.png" alt="Janet logo" width=200 align="left">
 
-**Janet** is a functional and imperative programming language and bytecode interpreter. It is a
-Lisp-like language, but lists are replaced
-by other data structures (arrays, tables (hash table), struct (immutable hash table), tuples).
-The language also supports bridging to native code written in C, meta-programming with macros, and bytecode assembly.
+**Janet** is a programming language for system scripting, expressive automation, and
+extending programs written in C or C++ with user scripting capabilities.
+
+Janet makes a good system scripting language, or a language to embed in other programs.
+It's like Lua and GNU Guile in that regard. It has more built-in functionality and a richer core language than
+Lua, but smaller than GNU Guile or Python. However, it is much easier to embed and port than Python or Guile.
 
 There is a REPL for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
@@ -21,38 +23,109 @@ If you'd like to financially support the ongoing development of Janet, consider
 
 <br>
 
-## Use Cases
+## Examples
 
-Janet makes a good system scripting language, or a language to embed in other programs.
-It's like Lua and Guile in that regard. It has more built-in functionality and a richer core language than
-Lua, but smaller than GNU Guile or Python.
+See the examples directory for all provided example programs.
 
-## Features
+### Game of Life
 
-* Configurable at build time - turn features on or off for a smaller or more featureful build
-* Minimal setup - one binary and you are good to go!
+```janet
+# John Conway's Game of Life
+
+(def- window
+  (seq [x :range [-1 2]
+         y :range [-1 2]
+         :when (not (and (zero? x) (zero? y)))]
+       [x y]))
+
+(defn- neighbors
+  [[x y]]
+  (map (fn [[x1 y1]] [(+ x x1) (+ y y1)]) window))
+
+(defn tick
+  "Get the next state in the Game Of Life."
+  [state]
+  (def cell-set (frequencies state))
+  (def neighbor-set (frequencies (mapcat neighbors state)))
+  (seq [coord :keys neighbor-set
+         :let [count (get neighbor-set coord)]
+         :when (or (= count 3) (and (get cell-set coord) (= count 2)))]
+      coord))
+
+(defn draw
+  "Draw cells in the game of life from (x1, y1) to (x2, y2)"
+  [state x1 y1 x2 y2]
+  (def cellset @{})
+  (each cell state (put cellset cell true))
+  (loop [x :range [x1 (+ 1 x2)]
+         :after (print)
+         y :range [y1 (+ 1 y2)]]
+    (file/write stdout (if (get cellset [x y]) "X " ". ")))
+  (print))
+
+# Print the first 20 generations of a glider
+(var *state* '[(0 0) (-1 0) (1 0) (1 1) (0 2)])
+(for i 0 20
+  (print "generation " i)
+  (draw *state* -7 -7 7 7)
+  (set *state* (tick *state*)))
+```
+
+### TCP Echo Server
+
+```janet
+# A simple TCP echo server using the built-in socket networking and event loop.
+
+(defn handler
+  "Simple handler for connections."
+  [stream]
+  (defer (:close stream)
+    (def id (gensym))
+    (def b @"")
+    (print "Connection " id "!")
+    (while (:read stream 1024 b)
+      (printf " %v -> %v" id b)
+      (:write stream b)
+      (buffer/clear b))
+    (printf "Done %v!" id)
+    (ev/sleep 0.5)))
+
+(net/server "127.0.0.1" "8000" handler)
+```
+
+### Windows FFI Hello, World!
+
+```janet
+# Use the FFI to popup a Windows message box - no C required
+
+(ffi/context "user32.dll")
+
+(ffi/defbind MessageBoxA :int
+  [w :ptr text :string cap :string typ :int])
+
+(MessageBoxA nil "Hello, World!" "Test" 0)
+```
+
+## Language Features
+
+* 600+ functions and macros in the core library
+* Built-in socket networking, threading, subprocesses, and file system functions.
+* Parsing Expression Grammars (PEG) engine as a more robust Regex alternative
+* Macros and compile-time computation
+* Per-thread event loop for efficient IO (epoll/IOCP/kqueue)
+* First-class green threads (continuations) as well as OS threads
+* Erlang-style supervision trees that integrate with the event loop
 * First-class closures
 * Garbage collection
-* First-class green threads (continuations)
+* Distributed as janet.c and janet.h for embedding into a larger program.
 * Python-style generators (implemented as a plain macro)
 * Mutable and immutable arrays (array/tuple)
 * Mutable and immutable hashtables (table/struct)
 * Mutable and immutable strings (buffer/string)
-* Macros
-* Multithreading
-* Per-thread event loop for efficient evented IO
-* Bytecode interpreter with an assembly interface, as well as bytecode verification
-* Tail-call optimization
-* Direct interop with C via abstract types and C functions
-* Dynamically load C libraries
-* Functional and imperative standard library
-* Lexical scoping
-* Imperative programming as well as functional
-* REPL
-* Parsing Expression Grammars built into the core library
-* 400+ functions and macros in the core library
-* Embedding Janet in other programs
-* Interactive environment with detailed stack traces
+* Tail recursion
+* Interface with C functions and dynamically load plugins ("natives").
+* Built-in C FFI for when the native bindings are too much work
+* REPL development with debugger and inspectable runtime
 
 ## Documentation
 
@@ -240,16 +313,26 @@ there is no need for dynamic modules, add the define
 
 See the [Embedding Section](https://janet-lang.org/capi/embedding.html) on the website for more information.
 
-## Examples
-
-See the examples directory for some example Janet code.
-
 ## Discussion
 
 Feel free to ask questions and join the discussion on the [Janet Gitter channel](https://gitter.im/janet-language/community).
 Gitter provides Matrix and IRC bridges as well.
 
 ## FAQ
+
+### How fast is it?
+
+It is about the same speed as most interpreted languages without a JIT compiler. Tight, critical
+loops should probably be written in C or C++ . Programs tend to be a bit faster than
+they would be in a language like Python due to the discouragement of slow Object-Oriented abstraction
+with lots of hash-table lookups, and making late-binding explicit. All values are boxed in an 8-byte
+representation by default and allocated on the heap, with the exception of numbers, nils and booleans. The
+PEG engine is a specialized interpreter that can efficiently process string and buffer data.
+
+The GC is simple and stop-the-world, but GC knobs are exposed in the core library and separate threads
+have isolated heaps and garbage collectors. Data that is shared between threads is reference counted.
+
+YMMV.
 
 ### Where is (favorite feature from other language)?
 
@@ -268,7 +351,7 @@ Nope. There are no cons cells here.
 ### Is this a Clojure port?
 
 No. It's similar to Clojure superficially because I like Lisps and I like the aesthetics.
-Internally, Janet is not at all like Clojure.
+Internally, Janet is not at all like Clojure, Scheme, or Common Lisp.
 
 ### Are the immutable data structures (tuples and structs) implemented as hash tries?
 
@@ -296,6 +379,14 @@ Usually, one of a few reasons:
 - We want to keep the Janet core small. With Lisps, a feature can usually be added as a library
   without feeling "bolted on", especially when compared to ALGOL-like languages. Adding features
   to the core also makes it a bit more difficult to keep Janet maximally portable.
+
+### Can I bind to Rust/Zig/Go/Java/Nim/C++/D/Pascal/Fortran/Odin/Jai/(Some new "Systems" Programming Language)?
+
+Probably, if that language has a good interface with C. But the programmer may need to do
+some extra work to map Janet's internal memory model may need some to that of the bound language. Janet
+also uses `setjmp`/`longjmp` for non-local returns internally. This
+approach is out of favor with many programmers now and doesn't always play well with other languages
+that have exceptions or stack-unwinding.
 
 ### Why is my terminal spitting out junk when I run the REPL?
 

@@ -289,7 +289,6 @@ JANET_CORE_FN(os_cpu_count,
 #endif
 }
 
-
 #ifndef JANET_NO_PROCESSES
 
 /* Get env for os_execute */
@@ -624,12 +623,99 @@ JANET_CORE_FN(os_proc_wait,
 #endif
 }
 
+struct keyword_signal {
+    const char *keyword;
+    int signal;
+};
+
+#ifndef JANET_WINDOWS
+static const struct keyword_signal signal_keywords[] = {
+#ifdef SIGKILL
+    {"kill", SIGKILL},
+#endif
+    {"int", SIGINT},
+    {"abrt", SIGABRT},
+    {"fpe", SIGFPE},
+    {"ill", SIGILL},
+    {"segv", SIGSEGV},
+#ifdef SIGTERM
+    {"term", SIGTERM},
+#endif
+#ifdef SIGARLM
+    {"alrm", SIGALRM},
+#endif
+#ifdef SIGHUP
+    {"hup", SIGHUP},
+#endif
+#ifdef SIGPIPE
+    {"pipe", SIGPIPE},
+#endif
+#ifdef SIGQUIT
+    {"quit", SIGQUIT},
+#endif
+#ifdef SIGUSR1
+    {"usr1", SIGUSR1},
+#endif
+#ifdef SIGUSR2
+    {"usr2", SIGUSR2},
+#endif
+#ifdef SIGCHLD
+    {"chld", SIGCHLD},
+#endif
+#ifdef SIGCONT
+    {"cont", SIGCONT},
+#endif
+#ifdef SIGSTOP
+    {"stop", SIGSTOP},
+#endif
+#ifdef SIGTSTP
+    {"tstp", SIGTSTP},
+#endif
+#ifdef SIGTTIN
+    {"ttin", SIGTTIN},
+#endif
+#ifdef SIGTTOU
+    {"ttou", SIGTTOU},
+#endif
+#ifdef SIGBUS
+    {"bus", SIGBUS},
+#endif
+#ifdef SIGPOLL
+    {"poll", SIGPOLL},
+#endif
+#ifdef SIGPROF
+    {"prof", SIGPROF},
+#endif
+#ifdef SIGSYS
+    {"sys", SIGSYS},
+#endif
+#ifdef SIGTRAP
+    {"trap", SIGTRAP},
+#endif
+#ifdef SIGURG
+    {"urg", SIGURG},
+#endif
+#ifdef SIGVTALRM
+    {"vtlarm", SIGVTALRM},
+#endif
+#ifdef SIGXCPU
+    {"xcpu", SIGXCPU},
+#endif
+#ifdef SIGXFSZ
+    {"xfsz", SIGXFSZ},
+#endif
+    {NULL, 0},
+};
+#endif
+
 JANET_CORE_FN(os_proc_kill,
-              "(os/proc-kill proc &opt wait)",
+              "(os/proc-kill proc &opt wait signal)",
               "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
               "handle on windows. If `wait` is truthy, will wait for the process to finish and "
-              "returns the exit code. Otherwise, returns `proc`.") {
-    janet_arity(argc, 1, 2);
+              "returns the exit code. Otherwise, returns `proc`. If signal is specified send it instead."
+              "Signal keywords are named after their C counterparts but in lowercase with the leading "
+              "`SIG` stripped. Signals are ignored on windows.") {
+    janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
         janet_panicf("cannot kill process that has already finished");
@@ -643,7 +729,22 @@ JANET_CORE_FN(os_proc_kill,
     CloseHandle(proc->pHandle);
     CloseHandle(proc->tHandle);
 #else
-    int status = kill(proc->pid, SIGKILL);
+    int signal = -1;
+    if (argc == 3) {
+        JanetKeyword signal_kw = janet_getkeyword(argv, 2);
+        const struct keyword_signal *ptr = signal_keywords;
+        while (ptr->keyword) {
+            if (!janet_cstrcmp(signal_kw, ptr->keyword)) {
+                signal = ptr->signal;
+                break;
+            }
+            ptr++;
+        }
+        if (signal == -1) {
+            janet_panic("undefined signal");
+        }
+    }
+    int status = kill(proc->pid, signal == -1 ? SIGKILL : signal);
     if (status) {
         janet_panic(strerror(errno));
     }
@@ -974,7 +1075,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
     }
 
-
     if (pipe_out != JANET_HANDLE_NONE) {
         startupInfo.hStdOutput = pipe_out;
     } else if (new_out != JANET_HANDLE_NONE) {
@@ -1045,14 +1145,16 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
         posix_spawn_file_actions_addclose(&actions, pipe_in);
     } else if (new_in != JANET_HANDLE_NONE && new_in != 0) {
         posix_spawn_file_actions_adddup2(&actions, new_in, 0);
-        posix_spawn_file_actions_addclose(&actions, new_in);
+        if (new_in != new_out && new_in != new_err)
+            posix_spawn_file_actions_addclose(&actions, new_in);
     }
     if (pipe_out != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_out, 1);
         posix_spawn_file_actions_addclose(&actions, pipe_out);
     } else if (new_out != JANET_HANDLE_NONE && new_out != 1) {
         posix_spawn_file_actions_adddup2(&actions, new_out, 1);
-        posix_spawn_file_actions_addclose(&actions, new_out);
+        if (new_out != new_err)
+            posix_spawn_file_actions_addclose(&actions, new_out);
     }
     if (pipe_err != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_err, 2);
@@ -1278,14 +1380,32 @@ JANET_CORE_FN(os_time,
 }
 
 JANET_CORE_FN(os_clock,
-              "(os/clock)",
-              "Return the number of whole + fractional seconds since some fixed point in time. The clock "
-              "is guaranteed to be non-decreasing in real time.") {
+              "(os/clock &opt source)",
+              "Return the number of whole + fractional seconds of the requested clock source.\n\n"
+              "The `source` argument selects the clock source to use, when not specified the default "
+              "is `:realtime`:\n"
+              "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
+              "  jumps in the system time\n"
+              "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
+              "  time. The clock is guaranteed to be non-decreasing in real time.\n"
+              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n") {
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
-    janet_fixarity(argc, 0);
-    (void) argv;
+    janet_arity(argc, 0, 1);
+    enum JanetTimeSource source = JANET_TIME_REALTIME;
+    if (argc == 1) {
+        JanetKeyword sourcestr = janet_getkeyword(argv, 0);
+        if (janet_cstrcmp(sourcestr, "realtime") == 0) {
+            source = JANET_TIME_REALTIME;
+        } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
+            source = JANET_TIME_MONOTONIC;
+        } else if (janet_cstrcmp(sourcestr, "cputime") == 0) {
+            source = JANET_TIME_CPUTIME;
+        } else {
+            janet_panicf("expected :realtime, :monotonic, or :cputime, got %v", argv[0]);
+        }
+    }
     struct timespec tv;
-    if (janet_gettime(&tv)) janet_panic("could not get time");
+    if (janet_gettime(&tv, source)) janet_panic("could not get time");
     double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
     return janet_wrap_number(dtime);
 }
@@ -1309,6 +1429,23 @@ JANET_CORE_FN(os_sleep,
     RETRY_EINTR(rc, nanosleep(&ts, &ts));
 #endif
     return janet_wrap_nil();
+}
+
+JANET_CORE_FN(os_isatty,
+              "(os/isatty &opt file)",
+              "Returns true if `file` is a terminal. If `file` is not specified, "
+              "it will default to standard output.") {
+    janet_arity(argc, 0, 1);
+    FILE *f = (argc == 1) ? janet_getfile(argv, 0, NULL) : stdout;
+#ifdef JANET_WINDOWS
+    int fd = _fileno(f);
+    if (fd == -1) janet_panic("not a valid stream");
+    return janet_wrap_boolean(_isatty(fd));
+#else
+    int fd = fileno(f);
+    if (fd == -1) janet_panic(strerror(errno));
+    return janet_wrap_boolean(isatty(fd));
+#endif
 }
 
 JANET_CORE_FN(os_cwd,
@@ -2349,6 +2486,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/date", os_date), /* not high resolution */
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
+        JANET_CORE_REG("os/isatty", os_isatty),
 
         /* env functions */
         JANET_CORE_REG("os/environ", os_environ),

@@ -458,7 +458,7 @@ JANET_CORE_FN(janet_core_getproto,
                ? janet_wrap_struct(janet_struct_proto(st))
                : janet_wrap_nil();
     }
-    janet_panicf("expected struct|table, got %v", argv[0]);
+    janet_panicf("expected struct or table, got %v", argv[0]);
 }
 
 JANET_CORE_FN(janet_core_struct,
@@ -677,6 +677,9 @@ static const SandboxOption sandbox_options[] = {
     {"all", JANET_SANDBOX_ALL},
     {"env", JANET_SANDBOX_ENV},
     {"ffi", JANET_SANDBOX_FFI},
+    {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
+    {"ffi-jit", JANET_SANDBOX_FFI_JIT},
+    {"ffi-use", JANET_SANDBOX_FFI_USE},
     {"fs", JANET_SANDBOX_FS},
     {"fs-read", JANET_SANDBOX_FS_READ},
     {"fs-temp", JANET_SANDBOX_FS_TEMP},
@@ -698,6 +701,9 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
               "* :env - disallow reading and write env variables\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
+              "* :ffi-define - disallow loading new FFI modules and binding new functions\n"
+              "* :ffi-jit - disallow calling `ffi/jitfn`\n"
+              "* :ffi-use - disallow using any previously bound FFI functions and memory-unsafe functions.\n"
               "* :fs - disallow access to the file system\n"
               "* :fs-read - disallow read access to the file system\n"
               "* :fs-temp - disallow creating temporary files\n"
@@ -979,14 +985,6 @@ static const uint32_t next_asm[] = {
     JOP_NEXT | (1 << 24),
     JOP_RETURN
 };
-static const uint32_t modulo_asm[] = {
-    JOP_MODULO | (1 << 24),
-    JOP_RETURN
-};
-static const uint32_t remainder_asm[] = {
-    JOP_REMAINDER | (1 << 24),
-    JOP_RETURN
-};
 static const uint32_t cmp_asm[] = {
     JOP_COMPARE | (1 << 24),
     JOP_RETURN
@@ -1071,14 +1069,6 @@ static void janet_load_libs(JanetTable *env) {
 
 JanetTable *janet_core_env(JanetTable *replacements) {
     JanetTable *env = (NULL != replacements) ? replacements : janet_table(0);
-    janet_quick_asm(env, JANET_FUN_MODULO,
-                    "mod", 2, 2, 2, 2, modulo_asm, sizeof(modulo_asm),
-                    JDOC("(mod dividend divisor)\n\n"
-                         "Returns the modulo of dividend / divisor."));
-    janet_quick_asm(env, JANET_FUN_REMAINDER,
-                    "%", 2, 2, 2, 2, remainder_asm, sizeof(remainder_asm),
-                    JDOC("(% dividend divisor)\n\n"
-                         "Returns the remainder of dividend / divisor."));
     janet_quick_asm(env, JANET_FUN_CMP,
                     "cmp", 2, 2, 2, 2, cmp_asm, sizeof(cmp_asm),
                     JDOC("(cmp x y)\n\n"
@@ -1177,6 +1167,18 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
                           "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
                           "values."));
+    templatize_varop(env, JANET_FUN_DIVIDE_FLOOR, "div", 1, 1, JOP_DIVIDE_FLOOR,
+                     JDOC("(div & xs)\n\n"
+                          "Returns the floored division of xs. If xs is empty, returns 1. If xs has one value x, returns "
+                          "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
+                          "values."));
+    templatize_varop(env, JANET_FUN_MODULO, "mod", 0, 1, JOP_MODULO,
+                     JDOC("(mod & xs)\n\n"
+                          "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
+                          "`(mod x 0)` is defined to be `x`."));
+    templatize_varop(env, JANET_FUN_REMAINDER, "%", 0, 1, JOP_REMAINDER,
+                     JDOC("(% & xs)\n\n"
+                          "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
                           "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));

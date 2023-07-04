@@ -2,6 +2,38 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add new string escape sequences `\\a`, `\\b`, `\\?`, and `\\'`.
+- Fix bug with marshalling channels
+- Add `div` for floored division
+- Make `div` and `mod` variadic
+- Support `bnot` for integer types.
+- Define `(mod x 0)` as `x`
+- Add `ffi/pointer-cfunction` to convert pointers to cfunctions
+
+## 1.29.1 - 2023-06-19
+- Add support for passing booleans to PEGs for "always" and "never" matching.
+- Allow dictionary types for `take` and `drop`
+- Fix bug with closing channels while other fibers were waiting on them - `ev/take`, `ev/give`, and `ev/select`  will now return the correct (documented) value when another fiber closes the channel.
+- Add `ffi/calling-conventions` to show all available calling conventions for FFI.
+- Add `net/setsockopt`
+- Add `signal` argument to `os/proc-kill` to send signals besides `SIGKILL` on Posix.
+- Add `source` argument to `os/clock` to get different time sources.
+- Various combinator functions now are variadic like `map`
+- Add `file/lines` to iterate over lines in a file lazily.
+- Reorganize test suite to be sorted by module rather than pseudo-randomly.
+- Add `*task-id*`
+- Add `env` argument to `fiber/new`.
+- Add `JANET_NO_AMALG` flag to Makefile to properly incremental builds
+- Optimize bytecode compiler to generate fewer instructions and improve loops.
+- Fix bug with `ev/gather` and hung fibers.
+- Add `os/isatty`
+- Add `has-key?` and `has-value?`
+- Make imperative arithmetic macros variadic
+- `ev/connect` now yields to the event loop instead of blocking while waiting for an ACK.
+
+## 1.28.0 - 2023-05-13
+- Various bug fixes
+- Make nested short-fn's behave a bit more predictably (it is still not recommended to nest short-fns).
 - Add `os/strftime` for date formatting.
 - Fix `ev/select` on threaded channels sometimes live-locking.
 - Support the `NO_COLOR` environment variable to turn off VT100 color codes in repl (and in scripts).

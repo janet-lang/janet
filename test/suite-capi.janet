@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose & contributors
+# Copyright (c) 2023 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -19,25 +19,26 @@
 # IN THE SOFTWARE.
 
 (import ./helper :prefix "" :exit true)
-(start-suite 13)
+(start-suite)
 
-(assert (deep= (tabseq [i :in (range 3)] i (* 3 i))
-               @{0 0 1 3 2 6}))
+# Tuple types
+# c6edf03ae
+(assert (= (tuple/type '(1 2 3)) :parens) "normal tuple")
+(assert (= (tuple/type [1 2 3]) :parens) "normal tuple 1")
+(assert (= (tuple/type '[1 2 3]) :brackets) "bracketed tuple 2")
+(assert (= (tuple/type (-> '(1 2 3) marshal unmarshal)) :parens)
+        "normal tuple marshalled/unmarshalled")
+(assert (= (tuple/type (-> '[1 2 3] marshal unmarshal)) :brackets)
+        "normal tuple marshalled/unmarshalled")
 
-(assert (deep= (tabseq [i :in (range 3)] i)
-               @{}))
-
-(def- sym-prefix-peg
-  (peg/compile
-    ~{:symchar (+ (range "\x80\xff" "AZ" "az" "09") (set "!$%&*+-./:<?=>@^_"))
-      :anchor (drop (cmt ($) ,|(= $ 0)))
-      :cap (* (+ (> -1 (not :symchar)) :anchor) (* ($) '(some :symchar)))
-      :recur (+ :cap (> -1 :recur))
-      :main (> -1 :recur)}))
-
-(assert (deep= (peg/match sym-prefix-peg @"123" 3) @[0 "123"]) "peg lookback")
-(assert (deep= (peg/match sym-prefix-peg @"1234" 4) @[0 "1234"]) "peg lookback 2")
-
-(assert (deep= (peg/replace-all '(* (<- 1) 1 (backmatch)) "xxx" "aba cdc efa") @"xxx xxx efa") "peg replace-all 1")
+# Dynamic bindings
+# 7918add47, 513d551d
+(setdyn :a 10)
+(assert (= 40 (with-dyns [:a 25 :b 15] (+ (dyn :a) (dyn :b)))) "dyn usage 1")
+(assert (= 10 (dyn :a)) "dyn usage 2")
+(assert (= nil (dyn :b)) "dyn usage 3")
+(setdyn :a 100)
+(assert (= 100 (dyn :a)) "dyn usage 4")
 
 (end-suite)
+

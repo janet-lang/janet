@@ -216,12 +216,32 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
 }
 
 const char *janet_getcbytes(const Janet *argv, int32_t n) {
+    /* Ensure buffer 0-padded */
+    if (janet_checktype(argv[n], JANET_BUFFER)) {
+        JanetBuffer *b = janet_unwrap_buffer(argv[n]);
+        if ((b->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC) && b->count == b->capacity) {
+            /* Make a copy with janet_smalloc in the rare case we have a buffer that
+             * cannot be realloced and pushing a 0 byte would panic. */
+            char *new_string = janet_smalloc(b->count + 1);
+            memcpy(new_string, b->data, b->count);
+            new_string[b->count] = 0;
+            if (strlen(new_string) != (size_t) b->count) goto badzeros;
+            return new_string;
+        } else {
+            /* Ensure trailing 0 */
+            janet_buffer_push_u8(b, 0);
+            b->count--;
+            if (strlen((char *)b->data) != (size_t) b->count) goto badzeros;
+            return (const char *) b->data;
+        }
+    }
     JanetByteView view = janet_getbytes(argv, n);
     const char *cstr = (const char *)view.bytes;
-    if (strlen(cstr) != (size_t) view.len) {
-        janet_panic("bytes contain embedded 0s");
-    }
+    if (strlen(cstr) != (size_t) view.len) goto badzeros;
     return cstr;
+
+badzeros:
+    janet_panic("bytes contain embedded 0s");
 }
 
 const char *janet_optcbytes(const Janet *argv, int32_t argc, int32_t n, const char *dflt) {
@@ -273,6 +293,14 @@ int32_t janet_getinteger(const Janet *argv, int32_t n) {
     return janet_unwrap_integer(x);
 }
 
+uint32_t janet_getuinteger(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkuint(x)) {
+        janet_panicf("bad slot #%d, expected 32 bit signed integer, got %v", n, x);
+    }
+    return janet_unwrap_integer(x);
+}
+
 int64_t janet_getinteger64(const Janet *argv, int32_t n) {
 #ifdef JANET_INT_TYPES
     return janet_unwrap_s64(argv[n]);
@@ -290,7 +318,7 @@ uint64_t janet_getuinteger64(const Janet *argv, int32_t n) {
     return janet_unwrap_u64(argv[n]);
 #else
     Janet x = argv[n];
-    if (!janet_checkint64(x)) {
+    if (!janet_checkuint64(x)) {
         janet_panicf("bad slot #%d, expected 64 bit unsigned integer, got %v", n, x);
     }
     return (uint64_t) janet_unwrap_number(x);

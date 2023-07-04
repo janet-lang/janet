@@ -138,7 +138,7 @@
             vm_pcnext();\
         }\
     }
-#define _vm_bitop_immediate(op, type1)\
+#define _vm_bitop_immediate(op, type1, rangecheck, msg)\
     {\
         Janet op1 = stack[B];\
         if (!janet_checktype(op1, JANET_NUMBER)) {\
@@ -147,13 +147,15 @@
             stack[A] = janet_mcall(#op, 2, _argv);\
             vm_checkgc_pcnext();\
         } else {\
-            type1 x1 = (type1) janet_unwrap_integer(op1);\
-            stack[A] = janet_wrap_integer(x1 op CS);\
+            double y1 = janet_unwrap_number(op1);\
+            if (!rangecheck(y1)) { vm_commit(); janet_panicf("value %v out of range for " msg, op1); }\
+            type1 x1 = (type1) y1;\
+            stack[A] = janet_wrap_number((type1) (x1 op CS));\
             vm_pcnext();\
         }\
     }
-#define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t);
-#define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t);
+#define vm_bitop_immediate(op) _vm_bitop_immediate(op, int32_t, janet_checkintrange, "32-bit signed integers");
+#define vm_bitopu_immediate(op) _vm_bitop_immediate(op, uint32_t, janet_checkuintrange, "32-bit unsigned integers");
 #define _vm_binop(op, wrap)\
     {\
         Janet op1 = stack[B];\
@@ -170,14 +172,18 @@
         }\
     }
 #define vm_binop(op) _vm_binop(op, janet_wrap_number)
-#define _vm_bitop(op, type1)\
+#define _vm_bitop(op, type1, rangecheck, msg)\
     {\
         Janet op1 = stack[B];\
         Janet op2 = stack[C];\
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {\
-            type1 x1 = (type1) janet_unwrap_integer(op1);\
-            int32_t x2 = janet_unwrap_integer(op2);\
-            stack[A] = janet_wrap_integer(x1 op x2);\
+            double y1 = janet_unwrap_number(op1);\
+            double y2 = janet_unwrap_number(op2);\
+            if (!rangecheck(y1)) { vm_commit(); janet_panicf("value %v out of range for " msg, op1); }\
+            if (!janet_checkintrange(y2)) { vm_commit(); janet_panicf("rhs must be valid 32-bit signed integer, got %f", op2); }\
+            type1 x1 = (type1) y1;\
+            int32_t x2 = (int32_t) y2;\
+            stack[A] = janet_wrap_number((type1) (x1 op x2));\
             vm_pcnext();\
         } else {\
             vm_commit();\
@@ -185,8 +191,8 @@
             vm_checkgc_pcnext();\
         }\
     }
-#define vm_bitop(op) _vm_bitop(op, int32_t)
-#define vm_bitopu(op) _vm_bitop(op, uint32_t)
+#define vm_bitop(op) _vm_bitop(op, int32_t, janet_checkintrange, "32-bit signed integers")
+#define vm_bitopu(op) _vm_bitop(op, uint32_t, janet_checkuintrange, "32-bit unsigned integers")
 #define vm_compop(op) \
     {\
         Janet op1 = stack[B];\
@@ -295,6 +301,16 @@ static Janet janet_method_lookup(Janet x, const char *name) {
     return method_to_fun(janet_ckeywordv(name), x);
 }
 
+static Janet janet_unary_call(const char *method, Janet arg) {
+    Janet m = janet_method_lookup(arg, method);
+    if (janet_checktype(m, JANET_NIL)) {
+        janet_panicf("could not find method :%s for %v", method, arg);
+    } else {
+        Janet argv[1] = { arg };
+        return janet_method_invoke(m, 1, argv);
+    }
+}
+
 /* Call a method first on the righthand side, and then on the left hand side with a prefix */
 static Janet janet_binop_call(const char *lmethod, const char *rmethod, Janet lhs, Janet rhs) {
     Janet lm = janet_method_lookup(lhs, lmethod);
@@ -336,6 +352,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_MULTIPLY,
         &&label_JOP_DIVIDE_IMMEDIATE,
         &&label_JOP_DIVIDE,
+        &&label_JOP_DIVIDE_FLOOR,
         &&label_JOP_MODULO,
         &&label_JOP_REMAINDER,
         &&label_JOP_BAND,
@@ -399,7 +416,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_NOT_EQUALS,
         &&label_JOP_NOT_EQUALS_IMMEDIATE,
         &&label_JOP_CANCEL,
-        &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -682,14 +698,33 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     VM_OP(JOP_DIVIDE)
     vm_binop( /);
 
+    VM_OP(JOP_DIVIDE_FLOOR) {
+        Janet op1 = stack[B];
+        Janet op2 = stack[C];
+        if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {
+            double x1 = janet_unwrap_number(op1);
+            double x2 = janet_unwrap_number(op2);
+            stack[A] = janet_wrap_number(floor(x1 / x2));
+            vm_pcnext();
+        } else {
+            vm_commit();
+            stack[A] = janet_binop_call("div", "rdiv", op1, op2);
+            vm_checkgc_pcnext();
+        }
+    }
+
     VM_OP(JOP_MODULO) {
         Janet op1 = stack[B];
         Janet op2 = stack[C];
         if (janet_checktype(op1, JANET_NUMBER) && janet_checktype(op2, JANET_NUMBER)) {
             double x1 = janet_unwrap_number(op1);
             double x2 = janet_unwrap_number(op2);
-            double intres = x2 * floor(x1 / x2);
-            stack[A] = janet_wrap_number(x1 - intres);
+            if (x2 == 0) {
+                stack[A] = janet_wrap_number(x1);
+            } else {
+                double intres = x2 * floor(x1 / x2);
+                stack[A] = janet_wrap_number(x1 - intres);
+            }
             vm_pcnext();
         } else {
             vm_commit();
@@ -724,9 +759,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_BNOT) {
         Janet op = stack[E];
-        vm_assert_type(op, JANET_NUMBER);
-        stack[A] = janet_wrap_integer(~janet_unwrap_integer(op));
-        vm_pcnext();
+        if (janet_checktype(op, JANET_NUMBER)) {
+            stack[A] = janet_wrap_integer(~janet_unwrap_integer(op));
+            vm_pcnext();
+        } else {
+            vm_commit();
+            stack[A] = janet_unary_call("~", op);
+            vm_checkgc_pcnext();
+        }
     }
 
     VM_OP(JOP_SHIFT_RIGHT_UNSIGNED)
@@ -980,7 +1020,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
-            janet_stack_frame(stack)->pc = pc;
+            vm_commit();
             if (janet_fiber_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
@@ -1423,6 +1463,7 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         if (sig != JANET_SIGNAL_OK && !(child->flags & (1 << sig))) {
             *out = in;
             janet_fiber_set_status(fiber, sig);
+            fiber->last_value = child->last_value;
             return sig;
         }
         /* Check if we need any special handling for certain opcodes */
@@ -1516,7 +1557,7 @@ JanetSignal janet_pcall(
         fiber = janet_fiber(fun, 64, argc, argv);
     }
     if (f) *f = fiber;
-    if (!fiber) {
+    if (NULL == fiber) {
         *out = janet_cstringv("arity mismatch");
         return JANET_SIGNAL_ERROR;
     }

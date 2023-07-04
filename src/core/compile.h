@@ -69,6 +69,7 @@ typedef enum {
 #define JANET_FUN_REMAINDER 30
 #define JANET_FUN_CMP 31
 #define JANET_FUN_CANCEL 32
+#define JANET_FUN_DIVIDE_FLOOR 33
 
 /* Compiler typedefs */
 typedef struct JanetCompiler JanetCompiler;
@@ -269,5 +270,9 @@ JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
 /* Load the system dialect IR */
 void janet_lib_sysir(JanetTable *env);
+
+/* Bytecode optimization */
+void janet_bytecode_movopt(JanetFuncDef *def);
+void janet_bytecode_remove_noops(JanetFuncDef *def);
 
 #endif

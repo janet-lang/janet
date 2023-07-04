@@ -535,7 +535,30 @@ JANET_CORE_FN(cfun_string_join,
 JANET_CORE_FN(cfun_string_format,
               "(string/format format & values)",
               "Similar to C's `snprintf`, but specialized for operating with Janet values. Returns "
-              "a new string.") {
+              "a new string.\n\n"
+              "The following conversion specifiers are supported, where the upper case specifiers generate "
+              "upper case output:\n"
+              "- `c`: ASCII character.\n"
+              "- `d`, `i`: integer, formatted as a decimal number.\n"
+              "- `x`, `X`: integer, formatted as a hexadecimal number.\n"
+              "- `o`: integer, formatted as an octal number.\n"
+              "- `f`, `F`: floating point number, formatted as a decimal number.\n"
+              "- `e`, `E`: floating point number, formatted in scientific notation.\n"
+              "- `g`, `G`: floating point number, formatted in its shortest form.\n"
+              "- `a`, `A`: floating point number, formatted as a hexadecimal number.\n"
+              "- `s`: formatted as a string, precision indicates padding and maximum length.\n"
+              "- `t`: emit the type of the given value.\n"
+              "- `v`: format with (describe x)"
+              "- `V`: format with (string x)"
+              "- `j`: format to jdn (Janet data notation).\n"
+              "\n"
+              "The following conversion specifiers are used for \"pretty-printing\", where the upper-case "
+              "variants generate colored output. These speficiers can take a precision "
+              "argument to specify the maximum nesting depth to print.\n"
+              "- `p`, `P`: pretty format, truncating if necessary\n"
+              "- `m`, `M`: pretty format without truncating.\n"
+              "- `q`, `Q`: pretty format on one line, truncating if necessary.\n"
+              "- `n`, `N`: pretty format on one line without truncation.\n") {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);
     const char *strfrmt = (const char *) janet_getstring(argv, 0);

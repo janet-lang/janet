@@ -56,5 +56,6 @@ int32_t janetc_regalloc_temp(JanetcRegisterAllocator *ra, JanetcRegisterTemp nth
 void janetc_regalloc_freetemp(JanetcRegisterAllocator *ra, int32_t reg, JanetcRegisterTemp nth);
 void janetc_regalloc_clone(JanetcRegisterAllocator *dest, JanetcRegisterAllocator *src);
 void janetc_regalloc_touch(JanetcRegisterAllocator *ra, int32_t reg);
+int janetc_regalloc_check(JanetcRegisterAllocator *ra, int32_t reg);
 
 #endif

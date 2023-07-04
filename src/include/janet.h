@@ -182,7 +182,7 @@ extern "C" {
 /* Enable or disable the FFI library. Currently, FFI only enabled on
  * x86-64 operating systems. */
 #ifndef JANET_NO_FFI
-#if !defined(__EMSCRIPTEN__) && (defined(__x86_64__) || defined(_M_X64))
+#if !defined(__EMSCRIPTEN__)
 #define JANET_FFI
 #endif
 #endif
@@ -353,7 +353,6 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 #include <setjmp.h>
 #include <stddef.h>
 #include <stdio.h>
-
 
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
@@ -568,6 +567,7 @@ typedef void *JanetAbstract;
 #define JANET_STREAM_WRITABLE 0x400
 #define JANET_STREAM_ACCEPTABLE 0x800
 #define JANET_STREAM_UDPSERVER 0x1000
+#define JANET_STREAM_TOCLOSE 0x10000
 
 typedef enum {
     JANET_ASYNC_EVENT_INIT,
@@ -868,12 +868,15 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 #endif
 
 JANET_API int janet_checkint(Janet x);
+JANET_API int janet_checkuint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
+#define janet_checkuintrange(x) ((x) >= 0 && (x) <= UINT32_MAX && (x) == (uint32_t)(x))
 #define janet_checkint64range(x) ((x) >= JANET_INTMIN_DOUBLE && (x) <= JANET_INTMAX_DOUBLE && (x) == (int64_t)(x))
+#define janet_checkuint64range(x) ((x) >= 0 && (x) <= JANET_INTMAX_DOUBLE && (x) == (uint64_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 
@@ -1264,6 +1267,7 @@ enum JanetOpCode {
     JOP_MULTIPLY,
     JOP_DIVIDE_IMMEDIATE,
     JOP_DIVIDE,
+    JOP_DIVIDE_FLOOR,
     JOP_MODULO,
     JOP_REMAINDER,
     JOP_BAND,
@@ -1479,6 +1483,7 @@ JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t
 JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_API void janet_ev_connect(JanetStream *stream, int flags);
 #endif
 
 /* Write async to a stream */
@@ -1807,13 +1812,16 @@ JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *pr
 #define JANET_SANDBOX_SUBPROCESS 2
 #define JANET_SANDBOX_NET_CONNECT 4
 #define JANET_SANDBOX_NET_LISTEN 8
-#define JANET_SANDBOX_FFI 16
+#define JANET_SANDBOX_FFI_DEFINE 16
 #define JANET_SANDBOX_FS_WRITE 32
 #define JANET_SANDBOX_FS_READ 64
 #define JANET_SANDBOX_HRTIME 128
 #define JANET_SANDBOX_ENV 256
 #define JANET_SANDBOX_DYNAMIC_MODULES 512
 #define JANET_SANDBOX_FS_TEMP 1024
+#define JANET_SANDBOX_FFI_USE 2048
+#define JANET_SANDBOX_FFI_JIT 4096
+#define JANET_SANDBOX_FFI (JANET_SANDBOX_FFI_DEFINE | JANET_SANDBOX_FFI_USE | JANET_SANDBOX_FFI_JIT)
 #define JANET_SANDBOX_FS (JANET_SANDBOX_FS_WRITE | JANET_SANDBOX_FS_READ | JANET_SANDBOX_FS_TEMP)
 #define JANET_SANDBOX_NET (JANET_SANDBOX_NET_CONNECT | JANET_SANDBOX_NET_LISTEN)
 #define JANET_SANDBOX_ALL (UINT32_MAX)
@@ -1899,7 +1907,6 @@ JANET_API Janet janet_resolve_core(const char *name);
     Janet CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, DOC, __FILE__, __LINE__)
-
 
 /* Choose defaults for source mapping and docstring based on config defs */
 #if defined(JANET_NO_SOURCEMAPS) && defined(JANET_NO_DOCSTRINGS)
@@ -2047,6 +2054,7 @@ JANET_API int janet_cryptorand(uint8_t *out, size_t n);
 JANET_API void janet_marshal_size(JanetMarshalContext *ctx, size_t value);
 JANET_API void janet_marshal_int(JanetMarshalContext *ctx, int32_t value);
 JANET_API void janet_marshal_int64(JanetMarshalContext *ctx, int64_t value);
+JANET_API void janet_marshal_ptr(JanetMarshalContext *ctx, const void *value);
 JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
@@ -2056,6 +2064,7 @@ JANET_API void janet_unmarshal_ensure(JanetMarshalContext *ctx, size_t size);
 JANET_API size_t janet_unmarshal_size(JanetMarshalContext *ctx);
 JANET_API int32_t janet_unmarshal_int(JanetMarshalContext *ctx);
 JANET_API int64_t janet_unmarshal_int64(JanetMarshalContext *ctx);
+JANET_API void *janet_unmarshal_ptr(JanetMarshalContext *ctx);
 JANET_API uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
 JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);

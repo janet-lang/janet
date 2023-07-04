@@ -19,45 +19,58 @@
 # IN THE SOFTWARE.
 
 (import ./helper :prefix "" :exit true)
-(start-suite 9)
+(start-suite)
 
 # Subprocess
-
+# 5e1a8c86f
 (def janet (dyn :executable))
+
+# Subprocess should inherit the "RUN" parameter for fancy testing
+(def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
 
 (repeat 10
 
-  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" `(print "hello")`] :p {:out :pipe})]
     (os/proc-wait p)
     (def x (:read (p :out) :all))
-    (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn pre close."))
+    (assert (deep= "hello" (string/trim x))
+            "capture stdout from os/spawn pre close."))
 
-  (let [p (os/spawn [janet "-e" `(print "hello")`] :p {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" `(print "hello")`] :p {:out :pipe})]
     (def x (:read (p :out) 1024))
     (os/proc-wait p)
-    (assert (deep= "hello" (string/trim x)) "capture stdout from os/spawn post close."))
+    (assert (deep= "hello" (string/trim x))
+            "capture stdout from os/spawn post close."))
 
-  (let [p (os/spawn [janet "-e" `(file/read stdin :line)`] :px {:in :pipe})]
+  (let [p (os/spawn [;run janet "-e" `(file/read stdin :line)`] :px
+                    {:in :pipe})]
     (:write (p :in) "hello!\n")
     (assert-no-error "pipe stdin to process" (os/proc-wait p))))
 
-(let [p (os/spawn [janet "-e" `(print (file/read stdin :line))`] :px {:in :pipe :out :pipe})]
+(let [p (os/spawn [;run janet "-e" `(print (file/read stdin :line))`] :px
+                  {:in :pipe :out :pipe})]
   (:write (p :in) "hello!\n")
   (def x (:read (p :out) 1024))
   (assert-no-error "pipe stdin to process 2" (os/proc-wait p))
   (assert (= "hello!" (string/trim x)) "round trip pipeline in process"))
 
-(let [p (os/spawn [janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+(let [p (os/spawn [;run janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
   (os/proc-kill p)
   (def retval (os/proc-wait p))
   (assert (not= retval 24) "Process was *not* terminated by parent"))
 
-# Parallel subprocesses
+(let [p (os/spawn [;run janet "-e" `(do (ev/sleep 30) (os/exit 24)`] :p)]
+  (os/proc-kill p false :term)
+  (def retval (os/proc-wait p))
+  (assert (not= retval 24) "Process was *not* terminated by parent"))
 
+# Parallel subprocesses
+# 5e1a8c86f
 (defn calc-1
   "Run subprocess, read from stdout, then wait on subprocess."
   [code]
-  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" (string `(printf "%j" ` code `)`)] :px
+                    {:out :pipe})]
     (os/proc-wait p)
     (def output (:read (p :out) :all))
     (parse output)))
@@ -71,9 +84,13 @@
     @[10 26 42]) "parallel subprocesses 1")
 
 (defn calc-2
-  "Run subprocess, wait on subprocess, then read from stdout. Read only up to 10 bytes instead of :all"
+  ``
+  Run subprocess, wait on subprocess, then read from stdout. Read only up
+  to 10 bytes instead of :all
+  ``
   [code]
-  (let [p (os/spawn [janet "-e" (string `(printf "%j" ` code `)`)] :px {:out :pipe})]
+  (let [p (os/spawn [;run janet "-e" (string `(printf "%j" ` code `)`)] :px
+                    {:out :pipe})]
     (def output (:read (p :out) 10))
     (os/proc-wait p)
     (parse output)))
@@ -87,36 +104,54 @@
     @[10 26 42]) "parallel subprocesses 2")
 
 # File piping
-
+# a1cc5ca04
 (assert-no-error "file writing 1"
   (with [f (file/temp)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
+    (os/execute [;run janet "-e" `(repeat 20 (print :hello))`] :p {:out f})))
 
 (assert-no-error "file writing 2"
   (with [f (file/open "unique.txt" :w)]
-    (os/execute [janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
+    (os/execute [;run janet "-e" `(repeat 20 (print :hello))`] :p {:out f})
     (file/flush f)))
 
 # Issue #593
+# a1cc5ca04
 (assert-no-error "file writing 3"
   (def outfile (file/open "unique.txt" :w))
-  (os/execute [janet "-e" "(pp (seq [i :range (1 10)] i))"] :p {:out outfile})
+  (os/execute [;run janet "-e" "(pp (seq [i :range (1 10)] i))"] :p
+              {:out outfile})
   (file/flush outfile)
   (file/close outfile)
   (os/rm "unique.txt"))
 
-# Ensure that the stream created by os/open works
+# each-line iterator
+# 70f13f1
+(assert-no-error "file/lines iterator"
+   (def outstream (os/open "unique.txt" :wct))
+   (def buf1 "123\n456\n")
+   (defer (:close outstream)
+     (:write outstream buf1))
+   (var buf2 "")
+   (with [f (file/open "unique.txt" :r)]
+     (each line (file/lines f)
+        (set buf2 (string buf2 line))))
+   (assert (= buf1 buf2) "file/lines iterator")
+   (os/rm "unique.txt"))
 
+# Ensure that the stream created by os/open works
+# e8a86013d
 (assert-no-error "File writing 4.1"
    (def outstream (os/open "unique.txt" :wct))
    (defer (:close outstream)
      (:write outstream "123\n")
      (:write outstream "456\n"))
    # Cast to string to enable comparison
-   (assert (= "123\n456\n" (string (slurp "unique.txt"))) "File writing 4.2")
+   (assert (= "123\n456\n" (string (slurp "unique.txt")))
+           "File writing 4.2")
    (os/rm "unique.txt"))
 
 # Test that the stream created by os/open can be read from
+# 8d8a6534e
 (comment
   (assert-no-error "File reading 1.1"
     (def outstream (os/open "unique.txt" :wct))
@@ -126,17 +161,25 @@
 
     (def outstream (os/open "unique.txt" :r))
     (defer (:close outstream)
-      (assert (= "123\n456\n" (string (:read outstream :all))) "File reading 1.2"))
+      (assert (= "123\n456\n" (string (:read outstream :all)))
+              "File reading 1.2"))
     (os/rm "unique.txt")))
 
-  # ev/gather
-
+# ev/gather
+# 4f2d1cdc0
 (assert (deep= @[1 2 3] (ev/gather 1 2 3)) "ev/gather 1")
 (assert (deep= @[] (ev/gather)) "ev/gather 2")
 (assert-error "ev/gather 3" (ev/gather 1 2 (error 3)))
 
-# Net testing
+(var cancel-counter 0)
+(assert-error "ev/gather 4.1" (ev/gather
+                               (defer (++ cancel-counter) (ev/take (ev/chan)))
+                               (defer (++ cancel-counter) (ev/take (ev/chan)))
+                               (error :oops)))
+(assert (= cancel-counter 2) "ev/gather 4.2")
 
+# Net testing
+# 2904c19ed
 (repeat 10
 
   (defn handler
@@ -165,6 +208,7 @@
   (:close s))
 
 # Test on both server and client
+# 504411e
 (defn names-handler
   [stream]
   (defer (:close stream)
@@ -175,6 +219,7 @@
     (assert (= port 8000) "localname port server")))
 
 # Test localname and peername
+# 077bf5eba
 (repeat 10
   (with [s (net/server "127.0.0.1" "8000" names-handler)]
     (repeat 10
@@ -187,7 +232,7 @@
   (gccollect))
 
 # Create pipe
-
+# 12f09ad2d
 (var pipe-counter 0)
 (def chan (ev/chan 10))
 (let [[reader writer] (os/pipe)]
@@ -203,6 +248,7 @@
   (ev/close writer)
   (ev/take chan))
 
+# cff52ded5
 (var result nil)
 (var fiber nil)
 (set fiber
@@ -212,10 +258,11 @@
 (ev/sleep 0)
 (ev/cancel fiber "boop")
 
-(assert (os/execute [janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
+# f0dbc2e
+(assert (os/execute [;run janet "-e" `(+ 1 2 3)`] :xp) "os/execute self")
 
 # Test some channel
-
+# e76b8da26
 (def c1 (ev/chan))
 (def c2 (ev/chan))
 (def arr @[])
@@ -257,16 +304,17 @@
 (assert (= (slice arr) (slice (range 100))) "ev/chan-close 3")
 
 # threaded channels
-
+# 868cdb9
 (def ch (ev/thread-chan 2))
 (def att (ev/thread-chan 109))
 (assert att "`att` was nil after creation")
 (ev/give ch att)
 (ev/do-thread
-  (assert (ev/take ch) "channel packing bug for threaded abstracts on threaded channels."))
+  (assert (ev/take ch)
+          "channel packing bug for threaded abstracts on threaded channels."))
 
 # marshal channels
-
+# 76be8006a
 (def ch (ev/chan 10))
 (ev/give ch "hello")
 (ev/give ch "world")
@@ -276,4 +324,25 @@
 (assert (= item1 "hello"))
 (assert (= item2 "world"))
 
+# ev/take, suspended, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/take ch) nil))
+
+# ev/give, suspended, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/give ch 1) nil))
+
+# ev/select, suspended take operation, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/select ch) [:close ch]))
+
+# ev/select, suspended give operation, channel closed
+(def ch (ev/chan))
+(ev/go |(ev/chan-close ch))
+(assert (= (ev/select [ch 1]) [:close ch]))
+
 (end-suite)
+

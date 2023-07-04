@@ -152,6 +152,12 @@ static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, in
             case '\v':
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\v", 2);
                 break;
+            case '\a':
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\a", 2);
+                break;
+            case '\b':
+                janet_buffer_push_bytes(buffer, (const uint8_t *)"\\b", 2);
+                break;
             case 27:
                 janet_buffer_push_bytes(buffer, (const uint8_t *)"\\e", 2);
                 break;
@@ -244,6 +250,10 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
         case JANET_FUNCTION: {
             JanetFunction *fun = janet_unwrap_function(x);
             JanetFuncDef *def = fun->def;
+            if (def == NULL) {
+                janet_buffer_push_cstring(buffer, "<incomplete function>");
+                break;
+            }
             if (def->name) {
                 const uint8_t *n = def->name;
                 janet_buffer_push_cstring(buffer, "<function ");
@@ -736,7 +746,7 @@ static void pushtypes(JanetBuffer *buffer, int types) {
             if (first) {
                 first = 0;
             } else {
-                janet_buffer_push_u8(buffer, '|');
+                janet_buffer_push_cstring(buffer, (types == 1) ? " or " : ", ");
             }
             janet_buffer_push_cstring(buffer, janet_type_names[i]);
         }
@@ -775,7 +785,7 @@ static const char *get_fmt_mapping(char c) {
         if (format_mappings[i].c == c)
             return format_mappings[i].mapping;
     }
-    return NULL;
+    janet_assert(0, "bad format mapping");
 }
 
 static const char *scanformat(
@@ -846,7 +856,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 }
                 case 'd':
                 case 'i': {
-                    int64_t n = va_arg(args, long);
+                    int64_t n = va_arg(args, int);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
@@ -854,7 +864,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 'X':
                 case 'o':
                 case 'u': {
-                    uint64_t n = va_arg(args, unsigned long);
+                    uint64_t n = va_arg(args, unsigned int);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }

@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.27.0')
+  version : '1.29.1')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -228,21 +228,34 @@ docs = custom_target('docs',
 
 # Tests
 test_files = [
-  'test/suite0000.janet',
-  'test/suite0001.janet',
-  'test/suite0002.janet',
-  'test/suite0003.janet',
-  'test/suite0004.janet',
-  'test/suite0005.janet',
-  'test/suite0006.janet',
-  'test/suite0007.janet',
-  'test/suite0008.janet',
-  'test/suite0009.janet',
-  'test/suite0010.janet',
-  'test/suite0011.janet',
-  'test/suite0012.janet',
-  'test/suite0013.janet',
-  'test/suite0014.janet'
+  'test/suite-array.janet',
+  'test/suite-asm.janet',
+  'test/suite-boot.janet',
+  'test/suite-buffer.janet',
+  'test/suite-capi.janet',
+  'test/suite-cfuns.janet',
+  'test/suite-compile.janet',
+  'test/suite-corelib.janet',
+  'test/suite-debug.janet',
+  'test/suite-ev.janet',
+  'test/suite-ffi.janet',
+  'test/suite-inttypes.janet',
+  'test/suite-io.janet',
+  'test/suite-marsh.janet',
+  'test/suite-math.janet',
+  'test/suite-os.janet',
+  'test/suite-parse.janet',
+  'test/suite-peg.janet',
+  'test/suite-pp.janet',
+  'test/suite-specials.janet',
+  'test/suite-string.janet',
+  'test/suite-strtod.janet',
+  'test/suite-struct.janet',
+  'test/suite-symcache.janet',
+  'test/suite-table.janet',
+  'test/suite-unknown.janet',
+  'test/suite-value.janet',
+  'test/suite-vm.janet'
 ]
 foreach t : test_files
   test(t, janet_nativeclient, args : files([t]), workdir : meson.current_source_dir())
