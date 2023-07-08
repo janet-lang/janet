@@ -367,7 +367,7 @@
                  (set "!$%&*+-./:<?=>@^_|"))
     :token (some :symchars)
     :hex (range "09" "af" "AF")
-    :escape (* "\\" (+ (set "ntrvzf0e\"\\")
+    :escape (* "\\" (+ (set `"'0?\abefnrtvz`)
                        (* "x" :hex :hex)
                        (error (constant "bad hex escape"))))
     :comment (/ '(* "#" (any (if-not (+ "\n" -1) 1))) (constant :comment))
