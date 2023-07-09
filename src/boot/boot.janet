@@ -3520,6 +3520,24 @@
     (when-let [constants (dasm :constants)]
       (eprintf "  constants:  %.4q" constants))
     (eprintf "  slots:      %.4q\n" (frame :slots))
+    (when-let [src-path (in dasm :source)]
+      (when (and (fexists src-path)
+                 sourcemap)
+        (defn dump
+          [src cur]
+          (def offset 5)
+          (def beg (max 1 (- cur offset)))
+          (def lines (array/concat @[""] (string/split "\n" src)))
+          (def end (min (+ cur offset) (length lines)))
+          (def digits (inc (math/floor (math/log10 end))))
+          (def fmt-str (string "%" digits "d: %s"))
+          (for i beg end
+            (eprin " ") # breakpoint someday?
+            (eprin (if (= i cur) "> " "  "))
+            (eprintf fmt-str i (get lines i))))
+        (let [[sl _] (sourcemap pc)]
+          (dump (slurp src-path) sl)
+          (eprint))))
     (def padding (string/repeat " " 20))
     (loop [i :range [0 (length bytecode)]
            :let [instr (bytecode i)]]
