@@ -118,10 +118,9 @@ int64_t janet_unwrap_s64(Janet x) {
         default:
             break;
         case JANET_NUMBER : {
-            double dbl = janet_unwrap_number(x);
-            if (fabs(dbl) <=  MAX_INT_IN_DBL)
-                return (int64_t)dbl;
-            break;
+            double d = janet_unwrap_number(x);
+            if (!janet_checkint64range(d)) break;
+            return (int64_t) d;
         }
         case JANET_STRING: {
             int64_t value;
@@ -147,12 +146,9 @@ uint64_t janet_unwrap_u64(Janet x) {
         default:
             break;
         case JANET_NUMBER : {
-            double dbl = janet_unwrap_number(x);
-            /* Allow negative values to be cast to "wrap around".
-             * This let's addition and subtraction work as expected. */
-            if (fabs(dbl) <=  MAX_INT_IN_DBL)
-                return (uint64_t)dbl;
-            break;
+            double d = janet_unwrap_number(x);
+            if (!janet_checkuint64range(d)) break;
+            return (uint64_t) d;
         }
         case JANET_STRING: {
             uint64_t value;
