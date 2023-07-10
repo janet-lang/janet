@@ -260,7 +260,7 @@ static JanetSlot do_add(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_ADD, JOP_ADD_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
 }
 static JanetSlot do_sub(JanetFopts opts, JanetSlot *args) {
-    return opreduce(opts, args, JOP_SUBTRACT, -JOP_ADD_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
+    return opreduce(opts, args, JOP_SUBTRACT, JOP_SUBTRACT_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
 }
 static JanetSlot do_mul(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_MULTIPLY, JOP_MULTIPLY_IMMEDIATE, janet_wrap_integer(1), janet_wrap_integer(1));

@@ -347,6 +347,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_RETURN_NIL,
         &&label_JOP_ADD_IMMEDIATE,
         &&label_JOP_ADD,
+        &&label_JOP_SUBTRACT_IMMEDIATE,
         &&label_JOP_SUBTRACT,
         &&label_JOP_MULTIPLY_IMMEDIATE,
         &&label_JOP_MULTIPLY,
@@ -416,7 +417,6 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         &&label_JOP_NOT_EQUALS,
         &&label_JOP_NOT_EQUALS_IMMEDIATE,
         &&label_JOP_CANCEL,
-        &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
         &&label_unknown_op,
@@ -682,6 +682,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_ADD)
     vm_binop(+);
+
+    VM_OP(JOP_SUBTRACT_IMMEDIATE)
+    vm_binop_immediate(-);
 
     VM_OP(JOP_SUBTRACT)
     vm_binop(-);
