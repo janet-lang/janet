@@ -121,8 +121,6 @@ static JanetSlot opreduce(
     JanetCompiler *c = opts.compiler;
     int32_t i, len;
     int8_t imm = 0;
-    int neg = opim < 0;
-    if (opim < 0) opim = -opim;
     len = janet_v_count(args);
     JanetSlot t;
     if (len == 0) {
@@ -139,13 +137,13 @@ static JanetSlot opreduce(
     }
     t = janetc_gettarget(opts);
     if (opim && can_slot_be_imm(args[1], &imm)) {
-        janetc_emit_ssi(c, opim, t, args[0], neg ? -imm : imm, 1);
+        janetc_emit_ssi(c, opim, t, args[0], imm, 1);
     } else {
         janetc_emit_sss(c, op, t, args[0], args[1], 1);
     }
     for (i = 2; i < len; i++) {
         if (opim && can_slot_be_imm(args[i], &imm)) {
-            janetc_emit_ssi(c, opim, t, t, neg ? -imm : imm, 1);
+            janetc_emit_ssi(c, opim, t, t, imm, 1);
         } else {
             janetc_emit_sss(c, op, t, t, args[i], 1);
         }
