@@ -281,4 +281,7 @@
 (assert (= (int/s64 "0x7FFF_FFFF_FFFF_FFFF")
            (- (int/s64 "-0x8000_0000_0000_0000") 1)) "int types wrap around")
 
+# Issue #1217
+(assert (= (- (int/u64 "0xFFFFFFFF") 1) (int/u64 "0xFFFFFFFE")) "u64 subtract")
+
 (end-suite)
