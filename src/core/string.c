@@ -175,8 +175,9 @@ JANET_CORE_FN(cfun_string_slice,
               "Returns a substring from a byte sequence. The substring is from "
               "index `start` inclusive to index `end`, exclusive. All indexing "
               "is from 0. `start` and `end` can also be negative to indicate indexing "
-              "from the end of the string. Note that index -1 is synonymous with "
-              "index `(length bytes)` to allow a full negative slice range. ") {
+              "from the end of the string. Note that if `start` is negative it is "
+              "exclusive, and if `end` is negative it is inclusive, to allow a full "
+              "negative slice range.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
