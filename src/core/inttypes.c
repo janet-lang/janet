@@ -303,8 +303,8 @@ static int compare_double_double(double x, double y) {
 
 static int compare_int64_double(int64_t x, double y) {
     if (isnan(y)) {
-        return 0; // clojure and python do this
-    } else if ((y > (- ((double) MAX_INT_IN_DBL))) && (y < ((double) MAX_INT_IN_DBL))) {
+        return 0;
+    } else if ((y > JANET_INTMIN_DOUBLE) && (y < JANET_INTMAX_DOUBLE)) {
         double dx = (double) x;
         return compare_double_double(dx, y);
     } else if (y > ((double) INT64_MAX)) {
@@ -319,10 +319,10 @@ static int compare_int64_double(int64_t x, double y) {
 
 static int compare_uint64_double(uint64_t x, double y) {
     if (isnan(y)) {
-        return 0; // clojure and python do this
+        return 0;
     } else if (y < 0) {
         return 1;
-    } else if ((y >= 0) && (y < ((double) MAX_INT_IN_DBL))) {
+    } else if ((y >= 0) && (y < JANET_INTMAX_DOUBLE)) {
         double dx = (double) x;
         return compare_double_double(dx, y);
     } else if (y > ((double) UINT64_MAX)) {
@@ -335,8 +335,9 @@ static int compare_uint64_double(uint64_t x, double y) {
 
 static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    if (janet_is_int(argv[0]) != JANET_INT_S64)
+    if (janet_is_int(argv[0]) != JANET_INT_S64) {
         janet_panic("compare method requires int/s64 as first argument");
+    }
     int64_t x = janet_unwrap_s64(argv[0]);
     switch (janet_type(argv[1])) {
         default:
@@ -351,7 +352,6 @@ static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
                 int64_t y = *(int64_t *)abst;
                 return janet_wrap_number((x < y) ? -1 : (x > y ? 1 : 0));
             } else if (janet_abstract_type(abst) == &janet_u64_type) {
-                // comparing signed to unsigned -- be careful!
                 uint64_t y = *(uint64_t *)abst;
                 if (x < 0) {
                     return janet_wrap_number(-1);
@@ -370,8 +370,9 @@ static Janet cfun_it_s64_compare(int32_t argc, Janet *argv) {
 
 static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
     janet_fixarity(argc, 2);
-    if (janet_is_int(argv[0]) != JANET_INT_U64)  // is this needed?
+    if (janet_is_int(argv[0]) != JANET_INT_U64) {
         janet_panic("compare method requires int/u64 as first argument");
+    }
     uint64_t x = janet_unwrap_u64(argv[0]);
     switch (janet_type(argv[1])) {
         default:
@@ -386,7 +387,6 @@ static Janet cfun_it_u64_compare(int32_t argc, Janet *argv) {
                 uint64_t y = *(uint64_t *)abst;
                 return janet_wrap_number((x < y) ? -1 : (x > y ? 1 : 0));
             } else if (janet_abstract_type(abst) == &janet_s64_type) {
-                // comparing unsigned to signed -- be careful!
                 int64_t y = *(int64_t *)abst;
                 if (y < 0) {
                     return janet_wrap_number(1);
