@@ -211,7 +211,7 @@ JANET_CORE_FN(cfun_array_slice,
               "Takes a slice of array or tuple from `start` to `end`. The range is half open, "
               "[start, end). Indexes can also be negative, indicating indexing from the "
               "end of the array. By default, `start` is 0 and `end` is the length of the array. "
-              "Note that index -1 is synonymous with index `(length arrtup)` to allow a full "
+              "Note that if the range is negative, it is taken as (start, end] to allow a full "
               "negative slice range. Returns a new array.") {
     JanetView view = janet_getindexed(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
@@ -259,8 +259,8 @@ JANET_CORE_FN(cfun_array_insert,
               "(array/insert arr at & xs)",
               "Insert all `xs` into array `arr` at index `at`. `at` should be an integer between "
               "0 and the length of the array. A negative value for `at` will index backwards from "
-              "the end of the array, such that inserting at -1 appends to the array. "
-              "Returns the array.") {
+              "the end of the array, inserting after the index such that inserting at -1 appends to "
+              "the array. Returns the array.") {
     size_t chunksize, restsize;
     janet_arity(argc, 2, -1);
     JanetArray *array = janet_getarray(argv, 0);
@@ -297,7 +297,7 @@ JANET_CORE_FN(cfun_array_remove,
     int32_t at = janet_getinteger(argv, 1);
     int32_t n = 1;
     if (at < 0) {
-        at = array->count + at + 1;
+        at = array->count + at;
     }
     if (at < 0 || at > array->count)
         janet_panicf("removal index %d out of range [0,%d]", at, array->count);
