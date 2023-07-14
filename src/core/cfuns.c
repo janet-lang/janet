@@ -99,7 +99,7 @@ static JanetSlot opfunction(
 static int can_be_imm(Janet x, int8_t *out) {
     if (!janet_checkint(x)) return 0;
     int32_t integer = janet_unwrap_integer(x);
-    if (integer > 127 || integer < -127) return 0;
+    if (integer > INT8_MAX || integer < INT8_MIN) return 0;
     *out = (int8_t) integer;
     return 1;
 }
