@@ -700,7 +700,7 @@
     4 (let [[f g h i] functions] (fn [& x] (f (g (h (i ;x))))))
     (let [[f g h i] functions]
       (comp (fn [x] (f (g (h (i x)))))
-            ;(tuple/slice functions 4 -1)))))
+            ;(tuple/slice functions 4)))))
 
 (defn identity
   "A function that returns its argument."
@@ -1208,7 +1208,7 @@
   (assert (symbol? alias) "alias must be a symbol")
   (assert (and (> (length alias) 2) (= 42 (first alias) (last alias))) "name must have leading and trailing '*' characters")
   (def prefix (dyn :defdyn-prefix))
-  (def kw (keyword prefix (slice alias 1 -2)))
+  (def kw (keyword prefix (slice alias 1 -1)))
   ~(def ,alias :dyn ,;more ,kw))
 
 (defn has-key?
@@ -1821,7 +1821,7 @@
   # Partition body into sections.
   (def oddlen (odd? (length cases)))
   (def else (if oddlen (last cases)))
-  (def patterns (partition 2 (if oddlen (slice cases 0 -2) cases)))
+  (def patterns (partition 2 (if oddlen (slice cases 0 -1) cases)))
 
   # Keep an array for accumulating the compilation output
   (def x-sym (if (idempotent? x) x (gensym)))
@@ -2052,7 +2052,7 @@
     (tuple/slice
       (array/concat
         @[(in t 0) (expand-bindings bound)]
-        (tuple/slice t 2 -2)
+        (tuple/slice t 2 -1)
         @[(recur last)])))
 
   (defn expandall [t]
@@ -2227,7 +2227,7 @@
   [name & body]
   (def expansion (apply defn name body))
   (def fbody (last expansion))
-  (def modifiers (tuple/slice expansion 2 -2))
+  (def modifiers (tuple/slice expansion 2 -1))
   (def metadata @{})
   (each m modifiers
     (cond
@@ -2917,7 +2917,7 @@
     (def buf @"")
     (with-dyns [*err* buf *err-color* false]
       (bad-parse x y))
-    (set exit-error (string/slice buf 0 -2)))
+    (set exit-error (string/slice buf 0 -1)))
   (defn bc [&opt x y z a b]
     (when exit
       (bad-compile x y z a b)
@@ -2926,7 +2926,7 @@
     (def buf @"")
     (with-dyns [*err* buf *err-color* false]
       (bad-compile x nil z a b))
-    (set exit-error (string/slice buf 0 -2))
+    (set exit-error (string/slice buf 0 -1))
     (set exit-fiber y))
   (unless f
     (error (string "could not find file " path)))
@@ -3789,7 +3789,7 @@
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
     (def real-ret-type (eval ret-type))
-    (def meta (slice body 0 -2))
+    (def meta (slice body 0 -1))
     (def arg-pairs (partition 2 (last body)))
     (def formal-args (map 0 arg-pairs))
     (def type-args (map 1 arg-pairs))

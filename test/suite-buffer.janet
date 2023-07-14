@@ -96,13 +96,13 @@
 # Regression #301
 # a3d4ecddb
 (def b (buffer/new-filled 128 0x78))
-(assert (= 38 (length (buffer/blit @"" b -1 90))) "buffer/blit 1")
+(assert (= 38 (length (buffer/blit @"" b 0 90))) "buffer/blit 1")
 
 (def a @"abcdefghijklm")
-(assert (deep= @"abcde" (buffer/blit @"" a -1 0 5)) "buffer/blit 2")
-(assert (deep= @"bcde" (buffer/blit @"" a -1 1 5)) "buffer/blit 3")
-(assert (deep= @"cde" (buffer/blit @"" a -1 2 5)) "buffer/blit 4")
-(assert (deep= @"de" (buffer/blit @"" a -1 3 5)) "buffer/blit 5")
+(assert (deep= @"abcde" (buffer/blit @"" a 0 0 5)) "buffer/blit 2")
+(assert (deep= @"bcde" (buffer/blit @"" a 0 1 5)) "buffer/blit 3")
+(assert (deep= @"cde" (buffer/blit @"" a 0 2 5)) "buffer/blit 4")
+(assert (deep= @"de" (buffer/blit @"" a 0 3 5)) "buffer/blit 5")
 
 # buffer/push-at
 # c55d93512

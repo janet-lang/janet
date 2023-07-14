@@ -32,10 +32,10 @@
 # Buffer self blitting, check for use after free
 # bbcfaf128
 (def buf1 @"1234567890")
-(buffer/blit buf1 buf1 -1)
-(buffer/blit buf1 buf1 -1)
-(buffer/blit buf1 buf1 -1)
-(buffer/blit buf1 buf1 -1)
+(buffer/blit buf1 buf1 (length buf1))
+(buffer/blit buf1 buf1 (length buf1))
+(buffer/blit buf1 buf1 (length buf1))
+(buffer/blit buf1 buf1 (length buf1))
 (assert (= (string buf1) (string/repeat "1234567890" 16))
         "buffer blit against self")
 

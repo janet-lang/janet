@@ -37,14 +37,14 @@
 (assert (array= @[:one :two :three :four :five]
                 @[:one :two :three :four :five]) "array comparison 3")
 (assert (array= (array/slice @[1 2 3] 0 2) @[1 2]) "array/slice 1")
-(assert (array= (array/slice @[0 7 3 9 1 4] 2 -2) @[3 9 1]) "array/slice 2")
+(assert (array= (array/slice @[0 7 3 9 1 4] 2 -1) @[3 9 1]) "array/slice 2")
 
 # Array remove
 # 687a3c9
 (assert (deep= (array/remove @[1 2 3 4 5] 2) @[1 2 4 5]) "array/remove 1")
 (assert (deep= (array/remove @[1 2 3 4 5] 2 2) @[1 2 5]) "array/remove 2")
 (assert (deep= (array/remove @[1 2 3 4 5] 2 200) @[1 2]) "array/remove 3")
-(assert (deep= (array/remove @[1 2 3 4 5] -3 200) @[1 2 3]) "array/remove 4")
+(assert (deep= (array/remove @[1 2 3 4 5] -2 200) @[1 2 3]) "array/remove 4")
 
 
 # array/peek

@@ -297,7 +297,7 @@ JANET_CORE_FN(cfun_array_remove,
     int32_t at = janet_getinteger(argv, 1);
     int32_t n = 1;
     if (at < 0) {
-        at = array->count + at + 1;
+        at = array->count + at;
     }
     if (at < 0 || at > array->count)
         janet_panicf("removal index %d out of range [0,%d]", at, array->count);

@@ -69,7 +69,7 @@
 
   (def first-nl (= (chr "\n") (first str)))
   (def last-nl (= (chr "\n") (last str)))
-  (string/slice str (if first-nl 1 0) (if last-nl -2)))
+  (string/slice str (if first-nl 1 0) (if last-nl -1)))
 
 (defn reindent-reference
   "Same as reindent but use parser functionality. Useful for
