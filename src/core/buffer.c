@@ -462,13 +462,15 @@ JANET_CORE_FN(cfun_buffer_blit,
     int same_buf = src.bytes == dest->data;
     int32_t offset_dest = 0;
     int32_t offset_src = 0;
-    if (argc > 2)
+    if (argc > 2 && !janet_checktype(argv[2], JANET_NIL))
         offset_dest = janet_gethalfrange(argv, 2, dest->count, "dest-start");
-    if (argc > 3)
+    if (argc > 3 && !janet_checktype(argv[3], JANET_NIL))
         offset_src = janet_gethalfrange(argv, 3, src.len, "src-start");
     int32_t length_src;
     if (argc > 4) {
-        int32_t src_end = janet_gethalfrange(argv, 4, src.len, "src-end");
+        int32_t src_end = src.len;
+        if (!janet_checktype(argv[4], JANET_NIL))
+            src_end = janet_gethalfrange(argv, 4, src.len, "src-end");
         length_src = src_end - offset_src;
         if (length_src < 0) length_src = 0;
     } else {

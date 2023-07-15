@@ -342,6 +342,20 @@ int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const c
     return not_raw;
 }
 
+int32_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+    if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
+        return 0;
+    }
+    return janet_gethalfrange(argv, n, length, "start");
+}
+
+int32_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+    if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
+        return length;
+    }
+    return janet_gethalfrange(argv, n, length, "end");
+}
+
 int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which) {
     int32_t raw = janet_getinteger(argv, n);
     int32_t not_raw = raw;
@@ -394,24 +408,10 @@ JanetRange janet_getslice(int32_t argc, const Janet *argv) {
     janet_arity(argc, 1, 3);
     JanetRange range;
     int32_t length = janet_length(argv[0]);
-    if (argc == 1) {
-        range.start = 0;
-        range.end = length;
-    } else if (argc == 2) {
-        range.start = janet_checktype(argv[1], JANET_NIL)
-                      ? 0
-                      : janet_gethalfrange(argv, 1, length, "start");
-        range.end = length;
-    } else {
-        range.start = janet_checktype(argv[1], JANET_NIL)
-                      ? 0
-                      : janet_gethalfrange(argv, 1, length, "start");
-        range.end = janet_checktype(argv[2], JANET_NIL)
-                    ? length
-                    : janet_gethalfrange(argv, 2, length, "end");
-        if (range.end < range.start)
-            range.end = range.start;
-    }
+    range.start = janet_getstartrange(argv, argc, 1, length);
+    range.end = janet_getendrange(argv, argc, 2, length);
+    if (range.end < range.start)
+        range.end = range.start;
     return range;
 }
 
