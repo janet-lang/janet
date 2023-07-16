@@ -21,13 +21,15 @@
 */
 
 /* TODO
- * - pointer math, pointer types
- * - callk - allow linking to other named functions
- * - composite types - support for load, store, move, and function args.
- *   Have some mechanism for field access (dest = src.offset)
- * - support for stack allocation of arrays
- * - more math intrinsics
- * - better C interface for building up IR
+ * [ ] pointer math, pointer types
+ * [ ] callk - allow linking to other named functions
+ * [ ] composite types - support for load, store, move, and function args.
+ * [ ] Have some mechanism for field access (dest = src.offset)
+ * [ ] Related, move type creation as opcodes like in SPIRV - have separate virtual "type slots" and value slots for this.
+ * [ ] support for stack allocation of arrays
+ * [ ] more math intrinsics
+ * [ ] source mapping (using built in Janet source mapping metadata on tuples)
+ * [ ] better C interface for building up IR
  */
 
 #ifndef JANET_AMALG
@@ -226,6 +228,8 @@ typedef struct {
             uint32_t constant;
         } constant;
     };
+    int32_t line;
+    int32_t column;
 } JanetSysInstruction;
 
 typedef struct {
@@ -415,6 +419,8 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
         if (janet_tuple_length(tuple) < 1) {
             janet_panic("invalid instruction, no opcode");
         }
+        int32_t line = janet_tuple_sm_line(tuple);
+        int32_t column = janet_tuple_sm_column(tuple);
         Janet opvalue = tuple[0];
         if (!janet_checktype(opvalue, JANET_SYMBOL)) {
             janet_panicf("expected opcode symbol, found %V", opvalue);
@@ -482,6 +488,8 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
             }
         }
         check_instruction_well_formed(instruction, x, out);
+        instruction.line = line;
+        instruction.column = column;
         ir[cursor++] = instruction;
     }
     /* Check last instruction is jump or return */
@@ -583,6 +591,9 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
     for (uint32_t i = 0; i < ir->instruction_count; i++) {
         janet_formatb(buffer, "_i%u:\n  ", i);
         JanetSysInstruction instruction = ir->instructions[i];
+        if (instruction.line > 0) {
+            janet_formatb(buffer, "#line %d\n  ", instruction.line);
+        }
         switch (instruction.opcode) {
             case JANET_SYSOP_CONSTANT: {
                 const char *cast = c_prim_names[ir->types[instruction.two.dest]];
