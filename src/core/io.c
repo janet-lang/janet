@@ -143,7 +143,8 @@ JANET_CORE_FN(cfun_io_fopen,
               "Following one of the initial flags, 0 or more of the following flags can be appended:\n\n"
               "* b - open the file in binary mode (rather than text mode)\n\n"
               "* + - append to the file instead of overwriting it\n\n"
-              "* n - error if the file cannot be opened instead of returning nil") {
+              "* n - error if the file cannot be opened instead of returning nil\n\n"
+              "See fopen (<stdio.h>, C99) for further details.") {
     janet_arity(argc, 1, 2);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
