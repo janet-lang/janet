@@ -48,7 +48,7 @@ SONAME_SETTER=-Wl,-soname,
 # For cross compilation
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
-CFLAGS?=-O2 -g
+CFLAGS?=-O2
 LDFLAGS?=-rdynamic
 RUN:=$(RUN)
 
@@ -364,7 +364,7 @@ build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 	$(RUN) $(JANET_TARGET) $< > $@
 
 compile-commands:
-	# Requires pip install copmiledb
+	# Requires pip install compiledb
 	compiledb make
 
 clean:

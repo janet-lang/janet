@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Change indexing of `array/remove` to start from -1 at the end instead of -2.
 - Add new string escape sequences `\\a`, `\\b`, `\\?`, and `\\'`.
 - Fix bug with marshalling channels
 - Add `div` for floored division
