@@ -48,7 +48,8 @@ SONAME_SETTER=-Wl,-soname,
 # For cross compilation
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
-CFLAGS?=-O2
+# Symbols are (optionally) removed later, keep -g as default!
+CFLAGS?=-O2 -g
 LDFLAGS?=-rdynamic
 RUN:=$(RUN)
 
@@ -266,6 +267,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
+	strip -x -S 'build/$(JANET_DIST_DIR)/bin/$(JANET_TARGET)'
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
