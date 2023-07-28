@@ -267,7 +267,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
-	strip -x -S 'build/$(JANET_DIST_DIR)/bin/$(JANET_TARGET)'
+	strip -x -S 'build/$(JANET_DIST_DIR)/bin/janet'
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
