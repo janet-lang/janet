@@ -426,6 +426,39 @@ JANET_CORE_FN(janet_core_slice,
     }
 }
 
+JANET_CORE_FN(janet_core_range,
+              "(range & args)",
+              "Create an array of values [start, end) with a given step. "
+              "With one argument, returns a range [0, end). With two arguments, returns "
+              "a range [start, end). With three, returns a range with optional step size.") {
+    janet_arity(argc, 1, 3);
+    int32_t start = 0, stop = 0, step = 1, count = 0;
+    switch (argc) {
+        case 1:
+            stop = janet_getinteger(argv, 0);
+            count = stop;
+            break;
+        case 2:
+            start = janet_getinteger(argv, 0);
+            stop = janet_getinteger(argv, 1);
+            count = stop - start;
+            break;
+        case 3:
+            start = janet_getinteger(argv, 0);
+            stop = janet_getinteger(argv, 1);
+            step = janet_getinteger(argv, 2);
+            count = (step > 0) ? (stop - start - 1) / step + 1 :
+                    ((step < 0) ? (stop - start + 1) / step + 1 : 0);
+            break;
+    }
+    JanetArray *array = janet_array(count);
+    for (int32_t i = 0; i < count; i++) {
+        array->data[i] = janet_wrap_number(start + i * step);
+    }
+    array->count = count;
+    return janet_wrap_array(array);
+}
+
 JANET_CORE_FN(janet_core_table,
               "(table & kvs)",
               "Creates a new table from a variadic number of keys and values. "
@@ -1024,6 +1057,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("int?", janet_core_check_int),
         JANET_CORE_REG("nat?", janet_core_check_nat),
         JANET_CORE_REG("slice", janet_core_slice),
+        JANET_CORE_REG("range", janet_core_range),
         JANET_CORE_REG("signal", janet_core_signal),
         JANET_CORE_REG("memcmp", janet_core_memcmp),
         JANET_CORE_REG("getproto", janet_core_getproto),
