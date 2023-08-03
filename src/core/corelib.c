@@ -433,24 +433,21 @@ JANET_CORE_FN(janet_core_range,
               "a range [start, end). With three, returns a range with optional step size.") {
     janet_arity(argc, 1, 3);
     int32_t start = 0, stop = 0, step = 1, count = 0;
-    switch (argc) {
-        case 1:
-            stop = janet_getinteger(argv, 0);
-            count = stop;
-            break;
-        case 2:
-            start = janet_getinteger(argv, 0);
-            stop = janet_getinteger(argv, 1);
-            count = stop - start;
-            break;
-        case 3:
-            start = janet_getinteger(argv, 0);
-            stop = janet_getinteger(argv, 1);
-            step = janet_getinteger(argv, 2);
-            count = (step > 0) ? (stop - start - 1) / step + 1 :
-                    ((step < 0) ? (stop - start + 1) / step + 1 : 0);
-            break;
+    if (argc == 3) {
+        start = janet_getinteger(argv, 0);
+        stop = janet_getinteger(argv, 1);
+        step = janet_getinteger(argv, 2);
+        count = (step > 0) ? (stop - start - 1) / step + 1 :
+                ((step < 0) ? (stop - start + 1) / step + 1 : 0);
+    } else if (argc == 2) {
+        start = janet_getinteger(argv, 0);
+        stop = janet_getinteger(argv, 1);
+        count = stop - start;
+    } else {
+        stop = janet_getinteger(argv, 0);
+        count = stop;
     }
+    count = (count > 0) ? count : 0;
     JanetArray *array = janet_array(count);
     for (int32_t i = 0; i < count; i++) {
         array->data[i] = janet_wrap_number(start + i * step);

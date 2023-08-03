@@ -169,6 +169,7 @@
 (assert (deep= (range 17 0 -4) @[17 13 9 5 1]) "(range 17 0 -4)")
 
 (assert (= (length (range 10)) 10) "(range 10)")
+(assert (= (length (range -10)) 0) "(range -10)")
 (assert (= (length (range 1 10)) 9) "(range 1 10)")
 
 (end-suite)
