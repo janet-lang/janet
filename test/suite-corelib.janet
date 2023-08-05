@@ -159,5 +159,18 @@
 (assert-error "invalid offset-a: 1" (memcmp "a" "b" 1 1 0))
 (assert-error "invalid offset-b: 1" (memcmp "a" "b" 1 0 1))
 
+# Range
+# a982f351d
+(assert (deep= (range 10) @[0 1 2 3 4 5 6 7 8 9]) "(range 10)")
+(assert (deep= (range 5 10) @[5 6 7 8 9]) "(range 5 10)")
+(assert (deep= (range 0 16 4) @[0 4 8 12]) "(range 0 16 4)")
+(assert (deep= (range 0 17 4) @[0 4 8 12 16]) "(range 0 17 4)")
+(assert (deep= (range 16 0 -4) @[16 12 8 4]) "(range 16 0 -4)")
+(assert (deep= (range 17 0 -4) @[17 13 9 5 1]) "(range 17 0 -4)")
+
+(assert (= (length (range 10)) 10) "(range 10)")
+(assert (= (length (range -10)) 0) "(range -10)")
+(assert (= (length (range 1 10)) 9) "(range 1 10)")
+
 (end-suite)
 
