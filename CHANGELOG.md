@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.30.0 - 2023-08-05
 - Change indexing of `array/remove` to start from -1 at the end instead of -2.
 - Add new string escape sequences `\\a`, `\\b`, `\\?`, and `\\'`.
 - Fix bug with marshalling channels
