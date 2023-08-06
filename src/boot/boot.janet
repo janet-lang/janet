@@ -1450,12 +1450,10 @@
   a new array. If a string or buffer is provided, returns an array of its
   byte values, reversed.`
   [t]
-  (def len (length t))
-  (var n (- len 1))
-  (def ret (array/new len))
-  (while (>= n 0)
-    (array/push ret (in t n))
-    (-- n))
+  (var n (length t))
+  (def ret (array/new-filled n))
+  (forv i 0 n
+    (put ret i (in t (-- n))))
   ret)
 
 (defn invert
