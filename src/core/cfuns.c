@@ -99,7 +99,7 @@ static JanetSlot opfunction(
 static int can_be_imm(Janet x, int8_t *out) {
     if (!janet_checkint(x)) return 0;
     int32_t integer = janet_unwrap_integer(x);
-    if (integer > 127 || integer < -127) return 0;
+    if (integer > INT8_MAX || integer < INT8_MIN) return 0;
     *out = (int8_t) integer;
     return 1;
 }
@@ -121,8 +121,6 @@ static JanetSlot opreduce(
     JanetCompiler *c = opts.compiler;
     int32_t i, len;
     int8_t imm = 0;
-    int neg = opim < 0;
-    if (opim < 0) opim = -opim;
     len = janet_v_count(args);
     JanetSlot t;
     if (len == 0) {
@@ -139,13 +137,13 @@ static JanetSlot opreduce(
     }
     t = janetc_gettarget(opts);
     if (opim && can_slot_be_imm(args[1], &imm)) {
-        janetc_emit_ssi(c, opim, t, args[0], neg ? -imm : imm, 1);
+        janetc_emit_ssi(c, opim, t, args[0], imm, 1);
     } else {
         janetc_emit_sss(c, op, t, args[0], args[1], 1);
     }
     for (i = 2; i < len; i++) {
         if (opim && can_slot_be_imm(args[i], &imm)) {
-            janetc_emit_ssi(c, opim, t, t, neg ? -imm : imm, 1);
+            janetc_emit_ssi(c, opim, t, t, imm, 1);
         } else {
             janetc_emit_sss(c, op, t, t, args[i], 1);
         }
@@ -260,7 +258,7 @@ static JanetSlot do_add(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_ADD, JOP_ADD_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
 }
 static JanetSlot do_sub(JanetFopts opts, JanetSlot *args) {
-    return opreduce(opts, args, JOP_SUBTRACT, -JOP_ADD_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
+    return opreduce(opts, args, JOP_SUBTRACT, JOP_SUBTRACT_IMMEDIATE, janet_wrap_integer(0), janet_wrap_integer(0));
 }
 static JanetSlot do_mul(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_MULTIPLY, JOP_MULTIPLY_IMMEDIATE, janet_wrap_integer(1), janet_wrap_integer(1));

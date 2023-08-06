@@ -37,6 +37,7 @@ enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_0, /* JOP_RETURN_NIL, */
     JINT_SSI, /* JOP_ADD_IMMEDIATE, */
     JINT_SSS, /* JOP_ADD, */
+    JINT_SSI, /* JOP_SUBTRACT_IMMEDIATE, */
     JINT_SSS, /* JOP_SUBTRACT, */
     JINT_SSI, /* JOP_MULTIPLY_IMMEDIATE, */
     JINT_SSS, /* JOP_MULTIPLY, */
@@ -251,6 +252,7 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                 case JOP_SIGNAL:
                 /* Write A, Read B */
                 case JOP_ADD_IMMEDIATE:
+                case JOP_SUBTRACT_IMMEDIATE:
                 case JOP_MULTIPLY_IMMEDIATE:
                 case JOP_DIVIDE_IMMEDIATE:
                 case JOP_SHIFT_LEFT_IMMEDIATE:

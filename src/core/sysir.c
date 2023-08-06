@@ -51,7 +51,8 @@ typedef enum {
     JANET_PRIM_F32,
     JANET_PRIM_F64,
     JANET_PRIM_POINTER,
-    JANET_PRIM_BOOLEAN
+    JANET_PRIM_BOOLEAN,
+    JANET_PRIM_STRUCT,
 } JanetPrim;
 
 typedef struct {
@@ -72,21 +73,6 @@ static const JanetPrimName prim_names[] = {
     {"u32", JANET_PRIM_U32},
     {"u64", JANET_PRIM_U64},
     {"u8", JANET_PRIM_U8},
-};
-
-static const char *prim_names_by_id[] = {
-    "u8",
-    "s8",
-    "u16",
-    "s16",
-    "u32",
-    "s32",
-    "u64",
-    "s64",
-    "f32",
-    "f64",
-    "pointer",
-    "boolean",
 };
 
 typedef enum {
@@ -120,7 +106,9 @@ typedef enum {
     JANET_SYSOP_TYPE_PRIMITIVE,
     JANET_SYSOP_TYPE_STRUCT,
     JANET_SYSOP_TYPE_BIND,
-    JANET_SYSOP_ARG
+    JANET_SYSOP_ARG,
+    JANET_SYSOP_FIELD_GET,
+    JANET_SYSOP_FIELD_SET,
 } JanetSysOp;
 
 typedef struct {
@@ -142,6 +130,8 @@ static const JanetSysInstrName sys_op_names[] = {
     {"constant", JANET_SYSOP_CONSTANT},
     {"divide", JANET_SYSOP_DIVIDE},
     {"eq", JANET_SYSOP_EQ},
+    {"fget", JANET_SYSOP_FIELD_GET},
+    {"fset", JANET_SYSOP_FIELD_SET},
     {"gt", JANET_SYSOP_GT},
     {"gte", JANET_SYSOP_GTE},
     {"jump", JANET_SYSOP_JUMP},
@@ -161,8 +151,8 @@ static const JanetSysInstrName sys_op_names[] = {
 };
 
 typedef struct {
-    size_t field_count;
     JanetPrim prim;
+    uint32_t field_count;
 } JanetSysTypeInfo;
 
 typedef struct {
@@ -371,7 +361,7 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                 } else {
                     instruction.call.callee = instr_read_operand(tuple[2], out);
                 }
-                instruction.call.arg_count = janet_tuple_length(tuple) - 2;
+                instruction.call.arg_count = janet_tuple_length(tuple) - 3;
                 ir[cursor++] = instruction;
                 for (int32_t j = 3; j < janet_tuple_length(tuple); j += 3) {
                     JanetSysInstruction arginstr;
@@ -439,9 +429,9 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                 break;
             }
             case JANET_SYSOP_TYPE_STRUCT: {
-                instr_assert_length(tuple, 1, opvalue);
+                instr_assert_min_length(tuple, 1, opvalue);
                 instruction.type_types.dest_type = instr_read_type_operand(tuple[1], out);
-                instruction.type_types.arg_count = janet_tuple_length(tuple) - 1;
+                instruction.type_types.arg_count = janet_tuple_length(tuple) - 2;
                 ir[cursor++] = instruction;
                 for (int32_t j = 2; j < janet_tuple_length(tuple); j += 3) {
                     JanetSysInstruction arginstr;
@@ -458,7 +448,6 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                     }
                     ir[cursor++] = arginstr;
                 }
-                ir[cursor++] = instruction;
                 break;
             }
             case JANET_SYSOP_TYPE_BIND: {
@@ -505,7 +494,7 @@ static void janet_sysir_init_types(JanetSysIR *sysir) {
     sysir->types = types;
     sysir->type_defs[0].field_count = 0;
     sysir->type_defs[0].prim = JANET_PRIM_S32;
-    for (uint32_t i = 0; i < sysir->instruction_count; i++) {
+    for (uint32_t i = 0; i < sysir->register_count; i++) {
         sysir->types[i] = 0;
     }
 
@@ -523,7 +512,7 @@ static void janet_sysir_init_types(JanetSysIR *sysir) {
             case JANET_SYSOP_TYPE_STRUCT: {
                 uint32_t type_def = instruction.type_types.dest_type;
                 type_defs[type_def].field_count = 0; /* TODO */
-                type_defs[type_def].prim = JANET_PRIM_POINTER; /* TODO */
+                type_defs[type_def].prim = JANET_PRIM_STRUCT;
                 break;
             }
             case JANET_SYSOP_TYPE_BIND: {
@@ -849,7 +838,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 janet_formatb(buffer, ");\n");
                 break;
             case JANET_SYSOP_CALLK:
-                janet_formatb(buffer, "_r%u = %j(", instruction.callk.dest, instruction.callk.constant);
+                janet_formatb(buffer, "_r%u = %j(", instruction.callk.dest, ir->constants[instruction.callk.constant]);
                 for (uint32_t j = 0; j < instruction.callk.arg_count; j++) {
                     uint32_t offset = j / 3 + 1;
                     uint32_t index = j % 3;

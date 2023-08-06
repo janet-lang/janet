@@ -138,6 +138,7 @@ static const JanetInstructionDef janet_ops[] = {
     {"sru", JOP_SHIFT_RIGHT_UNSIGNED},
     {"sruim", JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE},
     {"sub", JOP_SUBTRACT},
+    {"subim", JOP_SUBTRACT_IMMEDIATE},
     {"tcall", JOP_TAILCALL},
     {"tchck", JOP_TYPECHECK}
 };

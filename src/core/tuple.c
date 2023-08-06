@@ -69,9 +69,9 @@ JANET_CORE_FN(cfun_tuple_slice,
               "inclusive to index `end` exclusive. If `start` or `end` are not provided, "
               "they default to 0 and the length of `arrtup`, respectively. "
               "`start` and `end` can also be negative to indicate indexing "
-              "from the end of the input. Note that index -1 is synonymous with "
-              "index `(length arrtup)` to allow a full negative slice range. "
-              "Returns the new tuple.") {
+              "from the end of the input. Note that if `start` is negative it is "
+              "exclusive, and if `end` is negative it is inclusive, to allow a full "
+              "negative slice range. Returns the new tuple.") {
     JanetView view = janet_getindexed(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));

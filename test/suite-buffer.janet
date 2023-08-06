@@ -103,6 +103,7 @@
 (assert (deep= @"bcde" (buffer/blit @"" a -1 1 5)) "buffer/blit 3")
 (assert (deep= @"cde" (buffer/blit @"" a -1 2 5)) "buffer/blit 4")
 (assert (deep= @"de" (buffer/blit @"" a -1 3 5)) "buffer/blit 5")
+(assert (deep= @"de" (buffer/blit @"" a nil 3 5)) "buffer/blit 6")
 
 # buffer/push-at
 # c55d93512

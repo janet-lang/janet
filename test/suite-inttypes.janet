@@ -196,7 +196,8 @@
     (assert-error "division by zero" (op (int 7) (int 0)))))
 
 (each int [int/s64 int/u64]
-  (loop [x :in [-5 -3 0 3 5]]
+  (loop [x :in [-5 -3 0 3 5] :when (or (pos? x) (= int int/s64))]
+    # skip check when comparing negative values with unsigned integers.
     (assert (= (int x) (mod (int x) 0)) (string int " mod 0"))
     (assert (= (int x) (mod x (int 0))) (string int " mod 0"))
     (assert (= (int x) (mod (int x) (int 0))) (string int " mod 0"))))
@@ -267,12 +268,12 @@
 # compare u64/i64
 (assert (= (compare (u64 1) (i64 2)) -1) "compare 7")
 (assert (= (compare (u64 1) (i64 -1)) +1) "compare 8")
-(assert (= (compare (u64 -1) (i64 -1)) +1) "compare 9")
+(assert (= (compare (u64 0) (i64 -1)) +1) "compare 9")
 
 # compare i64/u64
 (assert (= (compare (i64 1) (u64 2)) -1) "compare 10")
 (assert (= (compare (i64 -1) (u64 1)) -1) "compare 11")
-(assert (= (compare (i64 -1) (u64 -1)) -1) "compare 12")
+(assert (= (compare (i64 -1) (u64 0)) -1) "compare 12")
 
 # off by 1 error in inttypes
 # a3e812b86
@@ -280,5 +281,8 @@
            (+ (int/s64 "0x7FFF_FFFF_FFFF_FFFF") 1)) "int types wrap around")
 (assert (= (int/s64 "0x7FFF_FFFF_FFFF_FFFF")
            (- (int/s64 "-0x8000_0000_0000_0000") 1)) "int types wrap around")
+
+# Issue #1217
+(assert (= (- (int/u64 "0xFFFFFFFF") 1) (int/u64 "0xFFFFFFFE")) "u64 subtract")
 
 (end-suite)

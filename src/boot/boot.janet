@@ -1007,30 +1007,6 @@
   (map-template :keep res pred ind inds)
   res)
 
-(defn range
-  `Create an array of values [start, end) with a given step.
-  With one argument, returns a range [0, end). With two arguments, returns
-  a range [start, end). With three, returns a range with optional step size.`
-  [& args]
-  (case (length args)
-    1 (do
-        (def [n] args)
-        (def arr (array/new n))
-        (forv i 0 n (put arr i i))
-        arr)
-    2 (do
-        (def [n m] args)
-        (def arr (array/new (- m n)))
-        (forv i n m (put arr (- i n) i))
-        arr)
-    3 (do
-        (def [n m s] args)
-        (cond
-          (zero? s) @[]
-          (neg? s) (seq [i :down [n m (- s)]] i)
-          (seq [i :range [n m s]] i)))
-    (error "expected 1 to 3 arguments to range")))
-
 (defn find-index
   ``Find the index of indexed type for which `pred` is true. Returns `dflt` if not found.``
   [pred ind &opt dflt]
@@ -3520,6 +3496,24 @@
     (when-let [constants (dasm :constants)]
       (eprintf "  constants:  %.4q" constants))
     (eprintf "  slots:      %.4q\n" (frame :slots))
+    (when-let [src-path (in dasm :source)]
+      (when (and (fexists src-path)
+                 sourcemap)
+        (defn dump
+          [src cur]
+          (def offset 5)
+          (def beg (max 1 (- cur offset)))
+          (def lines (array/concat @[""] (string/split "\n" src)))
+          (def end (min (+ cur offset) (length lines)))
+          (def digits (inc (math/floor (math/log10 end))))
+          (def fmt-str (string "%" digits "d: %s"))
+          (for i beg end
+            (eprin " ") # breakpoint someday?
+            (eprin (if (= i cur) "> " "  "))
+            (eprintf fmt-str i (get lines i))))
+        (let [[sl _] (sourcemap pc)]
+          (dump (slurp src-path) sl)
+          (eprint))))
     (def padding (string/repeat " " 20))
     (loop [i :range [0 (length bytecode)]
            :let [instr (bytecode i)]]

@@ -48,6 +48,7 @@ SONAME_SETTER=-Wl,-soname,
 # For cross compilation
 HOSTCC?=$(CC)
 HOSTAR?=$(AR)
+# Symbols are (optionally) removed later, keep -g as default!
 CFLAGS?=-O2 -g
 LDFLAGS?=-rdynamic
 RUN:=$(RUN)
@@ -196,9 +197,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.29.dylib
+SONAME=libjanet.1.30.dylib
 else
-SONAME=libjanet.so.1.29
+SONAME=libjanet.so.1.30
 endif
 
 build/c/shell.c: src/mainclient/shell.c
@@ -267,6 +268,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
+	strip -x -S 'build/$(JANET_DIST_DIR)/bin/janet'
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
@@ -365,7 +367,7 @@ build/janet.tmLanguage: tools/tm_lang_gen.janet $(JANET_TARGET)
 	$(RUN) $(JANET_TARGET) $< > $@
 
 compile-commands:
-	# Requires pip install copmiledb
+	# Requires pip install compiledb
 	compiledb make
 
 clean:
