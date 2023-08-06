@@ -1,10 +1,17 @@
 (def ir-asm
   @{:instructions
-   '((add 2 1 0)
-    (return 2))
-   :types
-   '(s32 s32 s32)
-   :parameter-count 2
-   :link-name "add_2_ints"})
+   '((prim 0 s32)
+     (bind 0 0)
+     (bind 1 0)
+     (bind 2 0)
+     #(constant 0 10)
+     (constant 1 20)
+     (add 2 1 0)
+     (return 2))
+   :parameter-count 0
+   :link-name "main"})
 
-(-> ir-asm sysir/asm sysir/to-c print)
+(def as (sysir/asm ir-asm))
+(print :did-assemble)
+(os/sleep 0.5)
+(print (sysir/to-c as))
