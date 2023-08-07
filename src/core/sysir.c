@@ -21,7 +21,18 @@
 */
 
 /* TODO
- * [ ] pointer math, pointer types
+ * [ ] named fields (for debugging mostly)
+ * [ ] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
+ * [ ] x86/x64 machine code target
+ * [ ] target specific extensions - custom instructions and custom primitives
+ * [ ] better casting semantics
+ * [ ] fixed-size array types
+ * [ ] recursive pointer types
+ * [ ] union types?
+ * [ ] incremental compilation - save type definitions for later
+ * [ ] Extension to C target for interfacing with Janet
+ * [ ] malloc/alloca exposure (only some targets)
+ * [x] pointer math, pointer types
  * [x] callk - allow linking to other named functions
  * [x] composite types - support for load, store, move, and function args.
  * [x] Have some mechanism for field access (dest = src.offset)
@@ -325,11 +336,6 @@ static uint32_t instr_read_label(JanetSysIR *sysir, Janet x, JanetTable *labels)
     }
     return ret;
 }
-
-typedef struct {
-    uint32_t instr;
-    Janet label;
-} LabelTarget;
 
 static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instructions) {
 
