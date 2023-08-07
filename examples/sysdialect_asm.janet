@@ -3,7 +3,7 @@
    '((prim 0 s32)
      (prim 1 f64)
      (struct 2 0 1)
-     (struct 3)
+     (pointer 3 0)
      (bind 0 0)
      (bind 1 0)
      (bind 2 0)
@@ -13,6 +13,7 @@
      (bind 6 2)
      (constant 0 10)
      (constant 0 21)
+     :location
      (add 2 1 0)
      (constant 3 1.77)
      (call 3 sin 3)
@@ -20,9 +21,10 @@
      (fset 2 6 0)
      (fset 3 6 1)
      (add 5 4 3)
+     (jump :location)
      (return 5))
    :parameter-count 0
-   :link-name "main"})
+   :link-name "test_function"})
 
 (def as (sysir/asm ir-asm))
 (print (sysir/to-c as))
