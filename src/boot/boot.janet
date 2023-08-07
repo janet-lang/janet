@@ -1450,12 +1450,10 @@
   a new array. If a string or buffer is provided, returns an array of its
   byte values, reversed.`
   [t]
-  (def len (length t))
-  (var n (- len 1))
-  (def ret (array/new len))
-  (while (>= n 0)
-    (array/push ret (in t n))
-    (-- n))
+  (var n (length t))
+  (def ret (array/new-filled n))
+  (forv i 0 n
+    (put ret i (in t (-- n))))
   ret)
 
 (defn invert
@@ -1566,31 +1564,31 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr @[])
-  (var k (next x nil))
-  (while (not= nil k)
-    (array/push arr k)
-    (set k (next x k)))
+  (def arr (array/new-filled (length x)))
+  (var i 0)
+  (eachk k x
+    (put arr i k)
+    (++ i))
   arr)
 
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr @[])
-  (var k (next x nil))
-  (while (not= nil k)
-    (array/push arr (in x k))
-    (set k (next x k)))
+  (def arr (array/new-filled (length x)))
+  (var i 0)
+  (each v x
+    (put arr i v)
+    (++ i))
   arr)
 
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr @[])
-  (var k (next x nil))
-  (while (not= nil k)
-    (array/push arr (tuple k (in x k)))
-    (set k (next x k)))
+  (def arr (array/new-filled (length x)))
+  (var i 0)
+  (eachp p x
+    (put arr i p)
+    (++ i))
   arr)
 
 (defn frequencies
