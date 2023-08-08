@@ -103,23 +103,13 @@
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
 (defn keyword? "Check if x is a keyword." [x] (= (type x) :keyword))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
-(defn function? "Check if x is a function (not a cfunction)." [x]
-  (= (type x) :function))
+(defn function? "Check if x is a function (not a cfunction)." [x] (= (type x) :function))
 (defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
 (defn table? "Check if x a table." [x] (= (type x) :table))
 (defn struct? "Check if x a struct." [x] (= (type x) :struct))
 (defn array? "Check if x is an array." [x] (= (type x) :array))
 (defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
 (defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
-(defn bytes? "Check if x is a string, symbol, keyword, or buffer." [x]
-  (def t (type x))
-  (if (= t :string) true (if (= t :symbol) true (if (= t :keyword) true (= t :buffer)))))
-(defn dictionary? "Check if x is a table or struct." [x]
-  (def t (type x))
-  (if (= t :table) true (= t :struct)))
-(defn indexed? "Check if x is an array or tuple." [x]
-  (def t (type x))
-  (if (= t :array) true (= t :tuple)))
 (defn truthy? "Check if x is truthy." [x] (if x true false))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))

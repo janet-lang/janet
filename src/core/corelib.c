@@ -659,6 +659,27 @@ ret_false:
     return janet_wrap_false();
 }
 
+JANET_CORE_FN(janet_core_is_bytes,
+              "(bytes? x)",
+              "Check if x is a string, symbol, keyword, or buffer.") {
+    janet_fixarity(argc, 1);
+    return janet_wrap_boolean(janet_checktypes(argv[0], JANET_TFLAG_BYTES));
+}
+
+JANET_CORE_FN(janet_core_is_indexed,
+              "(indexed? x)",
+              "Check if x is an array or tuple.") {
+    janet_fixarity(argc, 1);
+    return janet_wrap_boolean(janet_checktypes(argv[0], JANET_TFLAG_INDEXED));
+}
+
+JANET_CORE_FN(janet_core_is_dictionary,
+              "(dictionary? x)",
+              "Check if x is a table or struct.") {
+    janet_fixarity(argc, 1);
+    return janet_wrap_boolean(janet_checktypes(argv[0], JANET_TFLAG_DICTIONARY));
+}
+
 JANET_CORE_FN(janet_core_signal,
               "(signal what x)",
               "Raise a signal with payload x. ") {
@@ -1053,6 +1074,9 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("module/expand-path", janet_core_expand_path),
         JANET_CORE_REG("int?", janet_core_check_int),
         JANET_CORE_REG("nat?", janet_core_check_nat),
+        JANET_CORE_REG("bytes?", janet_core_is_bytes),
+        JANET_CORE_REG("indexed?", janet_core_is_indexed),
+        JANET_CORE_REG("dictionary?", janet_core_is_dictionary),
         JANET_CORE_REG("slice", janet_core_slice),
         JANET_CORE_REG("range", janet_core_range),
         JANET_CORE_REG("signal", janet_core_signal),
