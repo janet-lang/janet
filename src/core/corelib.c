@@ -680,6 +680,13 @@ JANET_CORE_FN(janet_core_is_dictionary,
     return janet_wrap_boolean(janet_checktypes(argv[0], JANET_TFLAG_DICTIONARY));
 }
 
+JANET_CORE_FN(janet_core_is_lengthable,
+              "(lengthable? x)",
+              "Check if x is a bytes, indexed, or dictionary.") {
+    janet_fixarity(argc, 1);
+    return janet_wrap_boolean(janet_checktypes(argv[0], JANET_TFLAG_LENGTHABLE));
+}
+
 JANET_CORE_FN(janet_core_signal,
               "(signal what x)",
               "Raise a signal with payload x. ") {
@@ -1077,6 +1084,7 @@ static void janet_load_libs(JanetTable *env) {
         JANET_CORE_REG("bytes?", janet_core_is_bytes),
         JANET_CORE_REG("indexed?", janet_core_is_indexed),
         JANET_CORE_REG("dictionary?", janet_core_is_dictionary),
+        JANET_CORE_REG("lengthable?", janet_core_is_lengthable),
         JANET_CORE_REG("slice", janet_core_slice),
         JANET_CORE_REG("range", janet_core_range),
         JANET_CORE_REG("signal", janet_core_signal),
