@@ -739,6 +739,14 @@
 
 ## Polymorphic comparisons
 
+(defmacro- do-compare
+  [x y]
+  ~(if (def f (get ,x :compare))
+     (f ,x ,y)
+     (if (def f (get ,y :compare))
+       (- (f ,y ,x))
+       (cmp ,x ,y))))
+
 (defn compare
   ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
   Differs from the primitive comparators in that it first checks to
@@ -746,20 +754,18 @@
   compare x and y. If so, it uses that method. If not, it
   delegates to the primitive comparators.``
   [x y]
-  (or
-    (when-let [f (get x :compare)] (f x y))
-    (when-let [f (get y :compare)] (- (f y x)))
-    (cmp x y)))
+  (do-compare x y))
 
-(defn- compare-reduce [op xs]
-  (var r true)
-  (loop [i :range [0 (- (length xs) 1)]
-         :let [c (compare (xs i) (xs (+ i 1)))
-               ok (op c 0)]
-         :when (not ok)]
-    (set r false)
-    (break))
-  r)
+(defmacro- compare-reduce [op xs]
+  ~(do
+     (var res true)
+     (var x (get ,xs 0))
+     (forv i 1 (length ,xs)
+       (let [y (in ,xs i)]
+         (if (,op (do-compare x y) 0)
+           (set x y)
+           (do (set res false) (break)))))
+     res))
 
 (defn compare=
   ``Equivalent of `=` but using polymorphic `compare` instead of primitive comparator.``
