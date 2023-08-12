@@ -1447,9 +1447,11 @@
   byte values, reversed.`
   [t]
   (var n (length t))
-  (def ret (array/new-filled n))
-  (forv i 0 n
-    (put ret i (in t (-- n))))
+  (def ret (if (bytes? t)
+             (buffer/new-filled n)
+             (array/new-filled n)))
+  (each v t
+    (put ret (-- n) v))
   ret)
 
 (defn invert
