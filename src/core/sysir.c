@@ -1067,7 +1067,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
 #define EMITBINOP(OP) \
     janet_formatb(buffer, "_r%u = _r%u " OP " _r%u;\n", instruction.three.dest, instruction.three.lhs, instruction.three.rhs)
 
-    janet_formatb(buffer, "#include <stdint.h>\n#include <tgmath.h>\n\n");
+    janet_formatb(buffer, "#include <stdint.h>\n\n");
 
     /* Emit type defs */
     for (uint32_t i = 0; i < ir->instruction_count; i++) {
@@ -1276,14 +1276,24 @@ static int sysir_gc(void *p, size_t s) {
     janet_free(ir->instructions);
     janet_free(ir->type_defs);
     janet_free(ir->field_defs);
+    janet_free(ir->register_names);
+    janet_free(ir->type_names);
     return 0;
 }
 
 static int sysir_gcmark(void *p, size_t s) {
     JanetSysIR *ir = (JanetSysIR *)p;
     (void) s;
-    janet_mark(janet_wrap_table(ir->register_names));
-    janet_mark(janet_wrap_table(ir->type_names));
+    for (uint32_t i = 0; i < ir->register_count; i++) {
+        if (ir->register_names[i] != NULL) {
+            janet_mark(janet_wrap_string(ir->register_names[i]));
+        }
+    }
+    for (uint32_t i = 0; i < ir->type_def_count; i++) {
+        if (ir->type_names[i] != NULL) {
+            janet_mark(janet_wrap_string(ir->type_names[i]));
+        }
+    }
     for (uint32_t i = 0; i < ir->constant_count; i++) {
         janet_mark(ir->constants[i]);
     }
