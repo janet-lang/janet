@@ -103,23 +103,13 @@
 (defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
 (defn keyword? "Check if x is a keyword." [x] (= (type x) :keyword))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
-(defn function? "Check if x is a function (not a cfunction)." [x]
-  (= (type x) :function))
+(defn function? "Check if x is a function (not a cfunction)." [x] (= (type x) :function))
 (defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
 (defn table? "Check if x a table." [x] (= (type x) :table))
 (defn struct? "Check if x a struct." [x] (= (type x) :struct))
 (defn array? "Check if x is an array." [x] (= (type x) :array))
 (defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
 (defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
-(defn bytes? "Check if x is a string, symbol, keyword, or buffer." [x]
-  (def t (type x))
-  (if (= t :string) true (if (= t :symbol) true (if (= t :keyword) true (= t :buffer)))))
-(defn dictionary? "Check if x is a table or struct." [x]
-  (def t (type x))
-  (if (= t :table) true (= t :struct)))
-(defn indexed? "Check if x is an array or tuple." [x]
-  (def t (type x))
-  (if (= t :array) true (= t :tuple)))
 (defn truthy? "Check if x is truthy." [x] (if x true false))
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
@@ -749,6 +739,14 @@
 
 ## Polymorphic comparisons
 
+(defmacro- do-compare
+  [x y]
+  ~(if (def f (get ,x :compare))
+     (f ,x ,y)
+     (if (def f (get ,y :compare))
+       (- (f ,y ,x))
+       (cmp ,x ,y))))
+
 (defn compare
   ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
   Differs from the primitive comparators in that it first checks to
@@ -756,20 +754,18 @@
   compare x and y. If so, it uses that method. If not, it
   delegates to the primitive comparators.``
   [x y]
-  (or
-    (when-let [f (get x :compare)] (f x y))
-    (when-let [f (get y :compare)] (- (f y x)))
-    (cmp x y)))
+  (do-compare x y))
 
-(defn- compare-reduce [op xs]
-  (var r true)
-  (loop [i :range [0 (- (length xs) 1)]
-         :let [c (compare (xs i) (xs (+ i 1)))
-               ok (op c 0)]
-         :when (not ok)]
-    (set r false)
-    (break))
-  r)
+(defmacro- compare-reduce [op xs]
+  ~(do
+     (var res true)
+     (var x (get ,xs 0))
+     (forv i 1 (length ,xs)
+       (let [y (in ,xs i)]
+         (if (,op (do-compare x y) 0)
+           (set x y)
+           (do (set res false) (break)))))
+     res))
 
 (defn compare=
   ``Equivalent of `=` but using polymorphic `compare` instead of primitive comparator.``
