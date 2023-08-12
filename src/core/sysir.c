@@ -20,14 +20,21 @@
 * IN THE SOFTWARE.
 */
 
+/****
+ *
+ * The System Dialect Intermediate Representation (sysir) is a compiler intermediate representation
+ * that is a target of a language frontend. Sysir can then be retargeted to C or direct to machine
+ * code for JIT or AOT compilation.
+ */
+
 /* TODO
  * [ ] named fields (for debugging mostly)
  * [x] named registers and types
- * [ ] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
+ * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
  * [ ] x86/x64 machine code target
  * [ ] target specific extensions - custom instructions and custom primitives
  * [ ] better casting semantics
- * [ ] separate pointer arithmetic from generalized arithmetic (easier to instrument code for safety)?
+ * [x] separate pointer arithmetic from generalized arithmetic (easier to instrument code for safety)?
  * [x] fixed-size array types
  * [ ] recursive pointer types
  * [x] union types?
@@ -42,7 +49,15 @@
  * [x] support for stack allocation of arrays
  * [ ] more math intrinsics
  * [x] source mapping (using built in Janet source mapping metadata on tuples)
- * [ ] better C interface for building up IR
+ * [ ] unit type or void type
+ * [ ] (typed) function pointer types and remove calling untyped pointers
+ * [ ] APL array semantics for binary operands (maybe?)
+ * [ ] a few built-in array combinators (maybe?)
+ * [ ] partial evaluator (maybe?)
+ * [ ] sysir interpreter (maybe?)
+ * [ ] multiple error messages in one pass
+ * [ ] better verification of constants
+ * [ ] forward type inference
  */
 
 #ifndef JANET_AMALG
@@ -131,6 +146,8 @@ typedef enum {
     JANET_SYSOP_TYPE_POINTER,
     JANET_SYSOP_TYPE_ARRAY,
     JANET_SYSOP_TYPE_UNION,
+    JANET_SYSOP_POINTER_ADD,
+    JANET_SYSOP_POINTER_SUBTRACT,
 } JanetSysOp;
 
 typedef struct {
@@ -164,6 +181,8 @@ static const JanetSysInstrName sys_op_names[] = {
     {"move", JANET_SYSOP_MOVE},
     {"multiply", JANET_SYSOP_MULTIPLY},
     {"neq", JANET_SYSOP_NEQ},
+    {"pointer-add", JANET_SYSOP_POINTER_ADD},
+    {"pointer-subtract", JANET_SYSOP_POINTER_SUBTRACT},
     {"return", JANET_SYSOP_RETURN},
     {"shl", JANET_SYSOP_SHL},
     {"shr", JANET_SYSOP_SHR},
@@ -473,6 +492,8 @@ static void janet_sysir_init_instructions(JanetSysIRBuilder *out, JanetView inst
             case JANET_SYSOP_NEQ:
             case JANET_SYSOP_ARRAY_GETP:
             case JANET_SYSOP_ARRAY_PGETP:
+            case JANET_SYSOP_POINTER_ADD:
+            case JANET_SYSOP_POINTER_SUBTRACT:
                 instr_assert_length(tuple, 4, opvalue);
                 instruction.three.dest = instr_read_operand(tuple[1], out);
                 instruction.three.lhs = instr_read_operand(tuple[2], out);
@@ -861,21 +882,29 @@ static void tcheck_array_pgetp(JanetSysIR *sysir, uint32_t dest, uint32_t lhs, u
     }
 }
 
+static void tcheck_fgetp(JanetSysIR *sysir, uint32_t dest, uint32_t st, uint32_t field) {
+    tcheck_pointer(sysir, dest);
+    tcheck_struct_or_union(sysir, st);
+    uint32_t struct_type = sysir->types[st];
+    if (field >= sysir->type_defs[struct_type].st.field_count) {
+        janet_panicf("invalid field index %u", field);
+    }
+    uint32_t field_type = sysir->type_defs[struct_type].st.field_start + field;
+    uint32_t tfield = sysir->field_defs[field_type].type;
+    uint32_t tdest = sysir->types[dest];
+    uint32_t tpdest = sysir->type_defs[tdest].pointer.type;
+    if (tfield != tpdest) {
+        janet_panicf("field of type %V does not match %V",
+                     tname(sysir, tfield),
+                     tname(sysir, tpdest));
+    }
+}
+
 /* Add and subtract can be used for pointer math as well as normal arithmetic. Unlike C, only
  * allow pointer on lhs for addition. */
 static void tcheck_pointer_math(JanetSysIR *sysir, uint32_t dest, uint32_t lhs, uint32_t rhs) {
-    uint32_t tdest = sysir->types[dest];
-    uint32_t tlhs = sysir->types[lhs];
-    if (tdest != tlhs) {
-        janet_panicf("type failure, %V does not match %V", tname(sysir, tdest),
-                     tname(sysir, tlhs));
-    }
-    uint32_t pdest = sysir->type_defs[tdest].prim;
-    if (pdest == JANET_PRIM_POINTER) {
-        tcheck_integer(sysir, rhs);
-    } else {
-        tcheck_equal(sysir, lhs, rhs);
-    }
+    tcheck_pointer_equals(sysir, dest, lhs);
+    tcheck_integer(sysir, rhs);
 }
 
 static void janet_sysir_type_check(JanetSysIR *sysir) {
@@ -917,10 +946,12 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_CAST:
                 tcheck_cast(sysir, instruction.two.dest, instruction.two.src);
                 break;
-            case JANET_SYSOP_ADD:
-            case JANET_SYSOP_SUBTRACT:
+            case JANET_SYSOP_POINTER_ADD:
+            case JANET_SYSOP_POINTER_SUBTRACT:
                 tcheck_pointer_math(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.rhs);
                 break;
+            case JANET_SYSOP_ADD:
+            case JANET_SYSOP_SUBTRACT:
             case JANET_SYSOP_MULTIPLY:
             case JANET_SYSOP_DIVIDE:
                 tcheck_number(sysir, instruction.three.dest);
@@ -930,7 +961,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_BAND:
             case JANET_SYSOP_BOR:
             case JANET_SYSOP_BXOR:
-                tcheck_integer(sysir, instruction.three.lhs);
+                tcheck_integer(sysir, instruction.three.dest);
                 tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
                 tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
                 break;
@@ -982,21 +1013,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 tcheck_array_pgetp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.lhs);
                 break;
             case JANET_SYSOP_FIELD_GETP:
-                tcheck_pointer(sysir, instruction.field.r);
-                tcheck_struct_or_union(sysir, instruction.field.st);
-                uint32_t struct_type = sysir->types[instruction.field.st];
-                if (instruction.field.field >= sysir->type_defs[struct_type].st.field_count) {
-                    janet_panicf("invalid field index %u", instruction.field.field);
-                }
-                uint32_t field_type = sysir->type_defs[struct_type].st.field_start + instruction.field.field;
-                uint32_t tfield = sysir->field_defs[field_type].type;
-                uint32_t tdest = sysir->types[instruction.field.r];
-                uint32_t tpdest = sysir->type_defs[tdest].pointer.type;
-                if (tfield != tpdest) {
-                    janet_panicf("field of type %V does not match %V",
-                                 tname(sysir, tfield),
-                                 tname(sysir, tpdest));
-                }
+                tcheck_fgetp(sysir, instruction.field.r, instruction.field.st, instruction.field.field);
                 break;
             case JANET_SYSOP_CALLK:
                 /* TODO - check function return type */
@@ -1007,6 +1024,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
 
 void janet_sys_ir_init_from_table(JanetSysIR *out, JanetTable *table) {
     JanetSysIRBuilder b;
+    memset(out, 0, sizeof(*out));
 
     b.ir.instructions = NULL;
     b.ir.types = NULL;
@@ -1171,9 +1189,11 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 janet_formatb(buffer, "return _r%u;\n", instruction.one.src);
                 break;
             case JANET_SYSOP_ADD:
+            case JANET_SYSOP_POINTER_ADD:
                 EMITBINOP("+");
                 break;
             case JANET_SYSOP_SUBTRACT:
+            case JANET_SYSOP_POINTER_SUBTRACT:
                 EMITBINOP("-");
                 break;
             case JANET_SYSOP_MULTIPLY:
@@ -1236,7 +1256,6 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 janet_formatb(buffer, ");\n");
                 break;
             case JANET_SYSOP_CAST:
-                /* TODO - make casting rules explicit instead of just whatever C does */
                 janet_formatb(buffer, "_r%u = (_t%u) _r%u;\n", instruction.two.dest, ir->types[instruction.two.dest], instruction.two.src);
                 break;
             case JANET_SYSOP_MOVE:
