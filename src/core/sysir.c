@@ -693,8 +693,8 @@ static void janet_sysir_init_types(JanetSysIR *ir) {
             case JANET_SYSOP_TYPE_UNION: {
                 uint32_t type_def = instruction.type_types.dest_type;
                 type_defs[type_def].prim = (instruction.opcode == JANET_SYSOP_TYPE_STRUCT)
-                    ? JANET_PRIM_STRUCT
-                    : JANET_PRIM_UNION;
+                                           ? JANET_PRIM_STRUCT
+                                           : JANET_PRIM_UNION;
                 type_defs[type_def].st.field_count = instruction.type_types.arg_count;
                 type_defs[type_def].st.field_start = (uint32_t) janet_v_count(fields);
                 for (uint32_t j = 0; j < instruction.type_types.arg_count; j++) {
@@ -798,8 +798,8 @@ static void tcheck_pointer_equals(JanetSysIR *sysir, uint32_t preg, uint32_t elr
     uint32_t t2 = sysir->types[elreg];
     if (t2 != tp) {
         janet_panicf("type failure, %V is not compatible with a pointer to %V",
-                tname(sysir, t2),
-                tname(sysir, tp));
+                     tname(sysir, t2),
+                     tname(sysir, tp));
     }
 }
 
@@ -816,8 +816,8 @@ static void tcheck_equal(JanetSysIR *sysir, uint32_t reg1, uint32_t reg2) {
     uint32_t t2 = sysir->types[reg2];
     if (t1 != t2) {
         janet_panicf("type failure, %V does not match %V",
-                tname(sysir, t1),
-                tname(sysir, t2));
+                     tname(sysir, t1),
+                     tname(sysir, t2));
     }
 }
 
@@ -868,7 +868,7 @@ static void tcheck_pointer_math(JanetSysIR *sysir, uint32_t dest, uint32_t lhs, 
     uint32_t tlhs = sysir->types[lhs];
     if (tdest != tlhs) {
         janet_panicf("type failure, %V does not match %V", tname(sysir, tdest),
-                tname(sysir, tlhs));
+                     tname(sysir, tlhs));
     }
     uint32_t pdest = sysir->type_defs[tdest].prim;
     if (pdest == JANET_PRIM_POINTER) {
@@ -902,8 +902,8 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 if (found_return) {
                     if (sysir->return_type != ret_type) {
                         janet_panicf("multiple return types are not allowed: %V and %V",
-                                tname(sysir, ret_type),
-                                tname(sysir, sysir->return_type));
+                                     tname(sysir, ret_type),
+                                     tname(sysir, sysir->return_type));
                     }
                 } else {
                     sysir->return_type = ret_type;
@@ -994,8 +994,8 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 uint32_t tpdest = sysir->type_defs[tdest].pointer.type;
                 if (tfield != tpdest) {
                     janet_panicf("field of type %V does not match %V",
-                            tname(sysir, tfield),
-                            tname(sysir, tpdest));
+                                 tname(sysir, tfield),
+                                 tname(sysir, tpdest));
                 }
                 break;
             case JANET_SYSOP_CALLK:
