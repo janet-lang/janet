@@ -22,7 +22,7 @@
 
 /* TODO
  * [ ] named fields (for debugging mostly)
- * [ ] named registers and types
+ * [x] named registers and types
  * [ ] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
  * [ ] x86/x64 machine code target
  * [ ] target specific extensions - custom instructions and custom primitives
@@ -30,7 +30,7 @@
  * [ ] separate pointer arithmetic from generalized arithmetic (easier to instrument code for safety)?
  * [x] fixed-size array types
  * [ ] recursive pointer types
- * [ ] union types?
+ * [x] union types?
  * [ ] incremental compilation - save type definitions for later
  * [ ] Extension to C target for interfacing with Janet
  * [ ] malloc/alloca exposure (only some targets)
@@ -128,7 +128,8 @@ typedef enum {
     JANET_SYSOP_ARRAY_GETP,
     JANET_SYSOP_ARRAY_PGETP,
     JANET_SYSOP_TYPE_POINTER,
-    JANET_SYSOP_TYPE_ARRAY
+    JANET_SYSOP_TYPE_ARRAY,
+    JANET_SYSOP_TYPE_UNION,
 } JanetSysOp;
 
 typedef struct {
@@ -141,7 +142,6 @@ static const JanetSysInstrName sys_op_names[] = {
     {"address", JANET_SYSOP_ADDRESS},
     {"agetp", JANET_SYSOP_ARRAY_GETP},
     {"apgetp", JANET_SYSOP_ARRAY_PGETP},
-    {"array", JANET_SYSOP_TYPE_ARRAY},
     {"band", JANET_SYSOP_BAND},
     {"bind", JANET_SYSOP_TYPE_BIND},
     {"bnot", JANET_SYSOP_BNOT},
@@ -163,14 +163,16 @@ static const JanetSysInstrName sys_op_names[] = {
     {"move", JANET_SYSOP_MOVE},
     {"multiply", JANET_SYSOP_MULTIPLY},
     {"neq", JANET_SYSOP_NEQ},
-    {"pointer", JANET_SYSOP_TYPE_POINTER},
-    {"prim", JANET_SYSOP_TYPE_PRIMITIVE},
     {"return", JANET_SYSOP_RETURN},
     {"shl", JANET_SYSOP_SHL},
     {"shr", JANET_SYSOP_SHR},
     {"store", JANET_SYSOP_STORE},
-    {"struct", JANET_SYSOP_TYPE_STRUCT},
     {"subtract", JANET_SYSOP_SUBTRACT},
+    {"type-array", JANET_SYSOP_TYPE_ARRAY},
+    {"type-pointer", JANET_SYSOP_TYPE_POINTER},
+    {"type-prim", JANET_SYSOP_TYPE_PRIMITIVE},
+    {"type-struct", JANET_SYSOP_TYPE_STRUCT},
+    {"type-union", JANET_SYSOP_TYPE_UNION},
 };
 
 typedef struct {
@@ -284,6 +286,7 @@ typedef struct {
     JanetSysInstruction *instructions;
     Janet *constants;
     JanetTable *register_names;
+    JanetTable *type_names;
     uint32_t parameter_count;
 } JanetSysIR;
 
@@ -334,6 +337,16 @@ static uint64_t instr_read_u64(Janet x, JanetSysIR *ir) {
 }
 
 static uint32_t instr_read_type_operand(Janet x, JanetSysIR *ir) {
+    if (janet_checktype(x, JANET_SYMBOL)) {
+        Janet check = janet_table_get(ir->type_names, x);
+        if (janet_checktype(check, JANET_NUMBER)) {
+            return (uint32_t) janet_unwrap_number(check);
+        } else {
+            uint32_t operand = ir->type_def_count++;
+            janet_table_put(ir->type_names, x, janet_wrap_number(operand));
+            return operand;
+        }
+    }
     if (!janet_checkuint(x)) janet_panicf("expected non-negative integer operand, got %v", x);
     uint32_t operand = (uint32_t) janet_unwrap_number(x);
     if (operand >= ir->type_def_count) {
@@ -544,7 +557,8 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                 janet_v_push(ir, instruction);
                 break;
             }
-            case JANET_SYSOP_TYPE_STRUCT: {
+            case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION: {
                 instr_assert_min_length(tuple, 1, opvalue);
                 instruction.type_types.dest_type = instr_read_type_operand(tuple[1], out);
                 instruction.type_types.arg_count = janet_tuple_length(tuple) - 2;
@@ -645,7 +659,8 @@ static void janet_sysir_init_types(JanetSysIR *sysir) {
                 type_defs[type_def].prim = instruction.type_prim.prim;
                 break;
             }
-            case JANET_SYSOP_TYPE_STRUCT: {
+            case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION: {
                 uint32_t type_def = instruction.type_types.dest_type;
                 type_defs[type_def].prim = JANET_PRIM_STRUCT;
                 type_defs[type_def].st.field_count = instruction.type_types.arg_count;
@@ -822,6 +837,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
         switch (instruction.opcode) {
             case JANET_SYSOP_TYPE_PRIMITIVE:
             case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION:
             case JANET_SYSOP_TYPE_POINTER:
             case JANET_SYSOP_TYPE_ARRAY:
             case JANET_SYSOP_TYPE_BIND:
@@ -951,6 +967,7 @@ void janet_sys_ir_init_from_table(JanetSysIR *ir, JanetTable *table) {
     ir->return_type = 0;
     ir->parameter_count = 0;
     ir->register_names = janet_table(0);
+    ir->type_names = janet_table(0);
     Janet assembly = janet_table_get(table, janet_ckeywordv("instructions"));
     Janet param_count = janet_table_get(table, janet_ckeywordv("parameter-count"));
     Janet link_namev = janet_table_get(table, janet_ckeywordv("link-name"));
@@ -996,6 +1013,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 continue;
             case JANET_SYSOP_TYPE_PRIMITIVE:
             case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION:
             case JANET_SYSOP_TYPE_POINTER:
             case JANET_SYSOP_TYPE_ARRAY:
                 break;
@@ -1010,7 +1028,8 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
                 janet_formatb(buffer, "typedef %s _t%u;\n", c_prim_names[instruction.type_prim.prim], instruction.type_prim.dest_type);
                 break;
             case JANET_SYSOP_TYPE_STRUCT:
-                janet_formatb(buffer, "typedef struct {\n");
+            case JANET_SYSOP_TYPE_UNION:
+                janet_formatb(buffer, (instruction.opcode == JANET_SYSOP_TYPE_STRUCT) ? "typedef struct {\n" : "typedef union {\n");
                 for (uint32_t j = 0; j < instruction.type_types.arg_count; j++) {
                     uint32_t offset = j / 3 + 1;
                     uint32_t index = j % 3;
@@ -1048,6 +1067,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
             case JANET_SYSOP_TYPE_PRIMITIVE:
             case JANET_SYSOP_TYPE_BIND:
             case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION:
             case JANET_SYSOP_TYPE_POINTER:
             case JANET_SYSOP_TYPE_ARRAY:
             case JANET_SYSOP_ARG:
@@ -1064,6 +1084,7 @@ void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
             case JANET_SYSOP_TYPE_PRIMITIVE:
             case JANET_SYSOP_TYPE_BIND:
             case JANET_SYSOP_TYPE_STRUCT:
+            case JANET_SYSOP_TYPE_UNION:
             case JANET_SYSOP_TYPE_POINTER:
             case JANET_SYSOP_TYPE_ARRAY:
             case JANET_SYSOP_ARG:
@@ -1198,6 +1219,7 @@ static int sysir_gcmark(void *p, size_t s) {
     JanetSysIR *ir = (JanetSysIR *)p;
     (void) s;
     janet_mark(janet_wrap_table(ir->register_names));
+    janet_mark(janet_wrap_table(ir->type_names));
     for (uint32_t i = 0; i < ir->constant_count; i++) {
         janet_mark(ir->constants[i]);
     }

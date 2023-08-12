@@ -1,17 +1,23 @@
 (def ir-asm
   @{:instructions
-   '((prim 0 s32)
-     (prim 1 f64)
-     (struct 2 0 1)
-     (pointer 3 0)
-     (array 4 1 1024)
-     (bind 0 0)
-     (bind 1 0)
-     (bind 2 0)
-     (bind 3 1)
-     (bind bob 1)
-     (bind 5 1)
-     (bind 6 2)
+   '(
+     # Types
+     (type-prim Int s32)
+     (type-prim Double f64)
+     (type-struct MyPair 0 1)
+     (type-pointer PInt 0)
+     (type-array DoubleArray 1 1024)
+
+     # Declarations
+     (bind 0 Int)
+     (bind 1 Int)
+     (bind 2 Int)
+     (bind 3 Double)
+     (bind bob Double)
+     (bind 5 Double)
+     (bind 6 MyPair)
+
+     # Code
      (constant 0 10)
      (constant 0 21)
      :location
@@ -19,6 +25,7 @@
      (constant 3 1.77)
      (call 3 sin 3)
      (cast bob 2)
+     (call bob test_function)
      (add 5 bob 3)
      (jump :location)
      (return 5))
