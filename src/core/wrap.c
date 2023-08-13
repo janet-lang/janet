@@ -43,10 +43,10 @@ int (janet_truthy)(Janet x) {
     return janet_truthy(x);
 }
 
-JanetStruct (janet_unwrap_struct)(Janet x) {
+JanetStruct(janet_unwrap_struct)(Janet x) {
     return janet_unwrap_struct(x);
 }
-JanetTuple (janet_unwrap_tuple)(Janet x) {
+JanetTuple(janet_unwrap_tuple)(Janet x) {
     return janet_unwrap_tuple(x);
 }
 JanetFiber *(janet_unwrap_fiber)(Janet x) {
@@ -61,16 +61,16 @@ JanetTable *(janet_unwrap_table)(Janet x) {
 JanetBuffer *(janet_unwrap_buffer)(Janet x) {
     return janet_unwrap_buffer(x);
 }
-JanetString (janet_unwrap_string)(Janet x) {
+JanetString(janet_unwrap_string)(Janet x) {
     return janet_unwrap_string(x);
 }
-JanetSymbol (janet_unwrap_symbol)(Janet x) {
+JanetSymbol(janet_unwrap_symbol)(Janet x) {
     return janet_unwrap_symbol(x);
 }
-JanetKeyword (janet_unwrap_keyword)(Janet x) {
+JanetKeyword(janet_unwrap_keyword)(Janet x) {
     return janet_unwrap_keyword(x);
 }
-JanetAbstract (janet_unwrap_abstract)(Janet x) {
+JanetAbstract(janet_unwrap_abstract)(Janet x) {
     return janet_unwrap_abstract(x);
 }
 void *(janet_unwrap_pointer)(Janet x) {
@@ -317,4 +317,3 @@ JANET_WRAP_DEFINE(pointer, void *, JANET_POINTER, pointer)
 #undef JANET_WRAP_DEFINE
 
 #endif
-

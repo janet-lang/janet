@@ -2525,14 +2525,17 @@ JanetAsyncStatus ev_machine_write(JanetListenerState *s, JanetAsyncEvent event) 
     switch (event) {
         default:
             break;
-        case JANET_ASYNC_EVENT_MARK:
-            janet_mark(state->is_buffer
-                       ? janet_wrap_buffer(state->src.buf)
-                       : janet_wrap_string(state->src.str));
+        case JANET_ASYNC_EVENT_MARK: {
+            if (state->mode != JANET_ASYNC_WRITEMODE_CONNECT) {
+                janet_mark(state->is_buffer
+                           ? janet_wrap_buffer(state->src.buf)
+                           : janet_wrap_string(state->src.str));
+            }
             if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
                 janet_mark(janet_wrap_abstract(state->dest_abst));
             }
             break;
+        }
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(s->fiber, janet_cstringv("stream closed"));
             return JANET_ASYNC_STATUS_DONE;
