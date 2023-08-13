@@ -58,6 +58,7 @@
  * [ ] multiple error messages in one pass
  * [ ] better verification of constants
  * [ ] forward type inference
+ * [x] don't allow redefining types
  */
 
 #ifndef JANET_AMALG
@@ -84,6 +85,7 @@ typedef enum {
     JANET_PRIM_STRUCT,
     JANET_PRIM_UNION,
     JANET_PRIM_ARRAY,
+    JANET_PRIM_UNKNOWN
 } JanetPrim;
 
 typedef struct {
@@ -106,6 +108,7 @@ static const JanetPrimName prim_names[] = {
     {"u32", JANET_PRIM_U32},
     {"u64", JANET_PRIM_U64},
     {"u8", JANET_PRIM_U8},
+    {"union", JANET_PRIM_UNION},
 };
 
 typedef enum {
@@ -412,7 +415,7 @@ static JanetPrim instr_read_prim(Janet x) {
     const JanetPrimName *namedata = janet_strbinsearch(prim_names,
                                     sizeof(prim_names) / sizeof(prim_names[0]), sizeof(prim_names[0]), sym_type);
     if (NULL == namedata) {
-        janet_panicf("unknown type %v", x);
+        janet_panicf("unknown primitive type %v", x);
     }
     return namedata->prim;
 }
@@ -685,19 +688,33 @@ static void janet_sysir_init_instructions(JanetSysIRBuilder *out, JanetView inst
     }
 }
 
+/* Get a printable representation of a type on type failure */
+static Janet tname(JanetSysIR *ir, uint32_t typeid) {
+    JanetString name = ir->type_names[typeid];
+    if (NULL != name) {
+        return janet_wrap_string(name);
+    }
+    return janet_wrap_string(janet_formatc("type-id:%d", typeid));
+}
+
+static void tcheck_redef(JanetSysIR *ir, uint32_t typeid) {
+    if (ir->type_defs[typeid].prim != JANET_PRIM_UNKNOWN) {
+        janet_panicf("cannot redefine type %V", tname(ir, typeid));
+    }
+}
+
 /* Build up type tables */
 static void janet_sysir_init_types(JanetSysIR *ir) {
     JanetSysTypeField *fields = NULL;
-    if (ir->type_def_count == 0) {
-        ir->type_def_count++;
-    }
     JanetSysTypeInfo *type_defs = janet_malloc(sizeof(JanetSysTypeInfo) * (ir->type_def_count));
     uint32_t *types = janet_malloc(sizeof(uint32_t) * ir->register_count);
     ir->type_defs = type_defs;
     ir->types = types;
-    ir->type_defs[0].prim = JANET_PRIM_S32;
     for (uint32_t i = 0; i < ir->register_count; i++) {
         ir->types[i] = 0;
+    }
+    for (uint32_t i = 0; i < ir->type_def_count; i++) {
+        type_defs[i].prim = JANET_PRIM_UNKNOWN;
     }
 
     for (uint32_t i = 0; i < ir->instruction_count; i++) {
@@ -707,12 +724,14 @@ static void janet_sysir_init_types(JanetSysIR *ir) {
                 break;
             case JANET_SYSOP_TYPE_PRIMITIVE: {
                 uint32_t type_def = instruction.type_prim.dest_type;
+                tcheck_redef(ir, type_def);
                 type_defs[type_def].prim = instruction.type_prim.prim;
                 break;
             }
             case JANET_SYSOP_TYPE_STRUCT:
             case JANET_SYSOP_TYPE_UNION: {
                 uint32_t type_def = instruction.type_types.dest_type;
+                tcheck_redef(ir, type_def);
                 type_defs[type_def].prim = (instruction.opcode == JANET_SYSOP_TYPE_STRUCT)
                                            ? JANET_PRIM_STRUCT
                                            : JANET_PRIM_UNION;
@@ -731,12 +750,14 @@ static void janet_sysir_init_types(JanetSysIR *ir) {
             }
             case JANET_SYSOP_TYPE_POINTER: {
                 uint32_t type_def = instruction.pointer.dest_type;
+                tcheck_redef(ir, type_def);
                 type_defs[type_def].prim = JANET_PRIM_POINTER;
                 type_defs[type_def].pointer.type = instruction.pointer.type;
                 break;
             }
             case JANET_SYSOP_TYPE_ARRAY: {
                 uint32_t type_def = instruction.array.dest_type;
+                tcheck_redef(ir, type_def);
                 type_defs[type_def].prim = JANET_PRIM_ARRAY;
                 type_defs[type_def].array.type = instruction.array.type;
                 type_defs[type_def].array.fixed_count = instruction.array.fixed_count;
@@ -755,15 +776,6 @@ static void janet_sysir_init_types(JanetSysIR *ir) {
 }
 
 /* Type checking */
-
-/* Get a printable representation of a type on type failure */
-static Janet tname(JanetSysIR *ir, uint32_t typeid) {
-    JanetString name = ir->type_names[typeid];
-    if (NULL != name) {
-        return janet_wrap_string(name);
-    }
-    return janet_wrap_string(janet_formatc("type-id:%d", typeid));
-}
 
 static void tcheck_boolean(JanetSysIR *sysir, uint32_t reg1) {
     uint32_t t1 = sysir->types[reg1];
@@ -900,14 +912,33 @@ static void tcheck_fgetp(JanetSysIR *sysir, uint32_t dest, uint32_t st, uint32_t
     }
 }
 
-/* Add and subtract can be used for pointer math as well as normal arithmetic. Unlike C, only
- * allow pointer on lhs for addition. */
+/* Unlike C, only allow pointer on lhs for addition and subtraction */
 static void tcheck_pointer_math(JanetSysIR *sysir, uint32_t dest, uint32_t lhs, uint32_t rhs) {
     tcheck_pointer_equals(sysir, dest, lhs);
     tcheck_integer(sysir, rhs);
 }
 
+static JanetString rname(JanetSysIR *sysir, uint32_t regid) {
+    JanetString name = sysir->register_names[regid];
+    if (NULL == name) {
+        return janet_formatc("value%u", regid);
+    }
+    return name;
+}
+
 static void janet_sysir_type_check(JanetSysIR *sysir) {
+
+    /* TODO - type inference */
+
+    /* Assert no unknown types */
+    for (uint32_t i = 0; i < sysir->register_count; i++) {
+        uint32_t type = sysir->types[i];
+        JanetSysTypeInfo tinfo = sysir->type_defs[type];
+        if (tinfo.prim == JANET_PRIM_UNKNOWN) {
+            janet_panicf("unable to infer type for %V", rname(sysir, i));
+        }
+    }
+
     int found_return = 0;
     for (uint32_t i = 0; i < sysir->instruction_count; i++) {
         JanetSysInstruction instruction = sysir->instructions[i];
@@ -1033,7 +1064,7 @@ void janet_sys_ir_init_from_table(JanetSysIR *out, JanetTable *table) {
     b.ir.constants = NULL;
     b.ir.link_name = NULL;
     b.ir.register_count = 0;
-    b.ir.type_def_count = 0;
+    b.ir.type_def_count = 1; /* first type is always unknown by default */
     b.ir.field_def_count = 0;
     b.ir.constant_count = 0;
     b.ir.return_type = 0;
@@ -1048,8 +1079,11 @@ void janet_sys_ir_init_from_table(JanetSysIR *out, JanetTable *table) {
     Janet link_namev = janet_table_get(table, janet_ckeywordv("link-name"));
     JanetView asm_view = janet_getindexed(&assembly, 0);
     JanetString link_name = janet_getstring(&link_namev, 0);
-    int32_t parameter_count = janet_getnat(&param_count, 0);
+    uint32_t parameter_count = (uint32_t) janet_getnat(&param_count, 0);
     b.ir.parameter_count = parameter_count;
+    if (parameter_count > b.ir.register_count) {
+        janet_panic("too many parameters");
+    }
     b.ir.link_name = link_name;
 
     janet_sysir_init_instructions(&b, asm_view);
