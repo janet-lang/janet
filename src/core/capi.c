@@ -493,7 +493,7 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
 
 /* Some definitions for function-like macros */
 
-JANET_API JanetStructHead *(janet_struct_head)(const JanetKV *st) {
+JANET_API JanetStructHead *(janet_struct_head)(JanetStruct st) {
     return janet_struct_head(st);
 }
 
@@ -501,10 +501,10 @@ JANET_API JanetAbstractHead *(janet_abstract_head)(const void *abstract) {
     return janet_abstract_head(abstract);
 }
 
-JANET_API JanetStringHead *(janet_string_head)(const uint8_t *s) {
+JANET_API JanetStringHead *(janet_string_head)(JanetString s) {
     return janet_string_head(s);
 }
 
-JANET_API JanetTupleHead *(janet_tuple_head)(const Janet *tuple) {
+JANET_API JanetTupleHead *(janet_tuple_head)(JanetTuple tuple) {
     return janet_tuple_head(tuple);
 }
