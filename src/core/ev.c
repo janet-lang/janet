@@ -1224,6 +1224,7 @@ static Janet janet_chanat_next(void *p, Janet key) {
 
 static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
     JanetChannel *channel = (JanetChannel *)p;
+    janet_marshal_byte(ctx, channel->is_threaded);
     janet_marshal_abstract(ctx, channel);
     janet_marshal_byte(ctx, channel->closed);
     janet_marshal_int(ctx, channel->limit);
@@ -1243,7 +1244,13 @@ static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
 }
 
 static void *janet_chanat_unmarshal(JanetMarshalContext *ctx) {
-    JanetChannel *abst = janet_unmarshal_abstract(ctx, sizeof(JanetChannel));
+    uint8_t is_threaded = janet_unmarshal_byte(ctx);
+    JanetChannel *abst;
+    if (is_threaded) {
+        abst = janet_unmarshal_abstract_threaded(ctx, sizeof(JanetChannel));
+    } else {
+        abst = janet_unmarshal_abstract(ctx, sizeof(JanetChannel));
+    }
     uint8_t is_closed = janet_unmarshal_byte(ctx);
     int32_t limit = janet_unmarshal_int(ctx);
     int32_t count = janet_unmarshal_int(ctx);

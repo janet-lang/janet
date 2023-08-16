@@ -2072,6 +2072,7 @@ JANET_API uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
 JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);
 JANET_API JanetAbstract janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size);
+JANET_API JanetAbstract janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size);
 JANET_API void janet_unmarshal_abstract_reuse(JanetMarshalContext *ctx, void *p);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
