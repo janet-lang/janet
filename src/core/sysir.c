@@ -31,6 +31,7 @@
  * [ ] named fields (for debugging mostly)
  * [x] named registers and types
  * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
+ * [ ] support for switch-case
  * [ ] x86/x64 machine code target
  * [ ] target specific extensions - custom instructions and custom primitives
  * [ ] better casting semantics
@@ -928,7 +929,21 @@ static JanetString rname(JanetSysIR *sysir, uint32_t regid) {
 
 static void janet_sysir_type_check(JanetSysIR *sysir) {
 
-    /* TODO - type inference */
+    /* Simple forward type inference */
+    int forward_progress;
+    do {
+        forward_progress = 0;
+        for (uint32_t i = 0; i < sysir->instruction_count; i++) {
+            JanetSysInstruction instruction = sysir->instructions[i];
+            switch (instruction.opcode) {
+                default:
+                    break;
+                case JANET_SYSOP_MOVE:
+                    tcheck_equal(sysir, instruction.two.dest, instruction.two.src);
+                    break;
+            }
+        }
+    } while (forward_progress);
 
     /* Assert no unknown types */
     for (uint32_t i = 0; i < sysir->register_count; i++) {
