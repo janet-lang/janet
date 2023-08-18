@@ -1424,20 +1424,21 @@
     (fn [& r] (f ;more ;r))))
 
 (defn every?
-  ``Returns true if each value in `ind` is truthy, otherwise returns the first
-  falsey value.``
+  ``Evaluates to the last element of `ind` if all preceding elements are truthy,
+  otherwise evaluates to the first falsey argument.``
   [ind]
   (var res true)
   (loop [x :in ind :while res]
-    (if x nil (set res x)))
+    (set res x))
   res)
 
 (defn any?
-  ``Returns the first truthy value in `ind`, otherwise nil.``
+  ``Evaluates to the last element of `ind` if all preceding elements are falsey,
+  otherwise evaluates to the first truthy element.``
   [ind]
   (var res nil)
   (loop [x :in ind :until res]
-    (if x (set res x)))
+    (set res x))
   res)
 
 (defn reverse!

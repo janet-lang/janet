@@ -113,12 +113,21 @@
 # 7478ad11
 (assert (= nil (any? [])) "any? 1")
 (assert (= nil (any? [false nil])) "any? 2")
-(assert (= nil (any? [nil false])) "any? 3")
+(assert (= false (any? [nil false])) "any? 3")
 (assert (= 1 (any? [1])) "any? 4")
 (assert (nan? (any? [nil math/nan nil])) "any? 5")
 (assert (= true
            (any? [nil nil false nil nil true nil nil nil nil false :a nil]))
         "any? 6")
+
+(assert (= true (every? [])) "every? 1")
+(assert (= true (every? [1 true])) "every? 2")
+(assert (= 1 (every? [true 1])) "every? 3")
+(assert (= nil (every? [nil])) "every? 4")
+(assert (= 2 (every? [1 math/nan 2])) "every? 5")
+(assert (= false
+           (every? [1 1 true 1 1 false 1 1 1 1 true :a nil]))
+        "every? 6")
 
 # Some higher order functions and macros
 # 5e2de33
