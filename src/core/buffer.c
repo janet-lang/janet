@@ -221,6 +221,20 @@ JANET_CORE_FN(cfun_buffer_new_filled,
     return janet_wrap_buffer(buffer);
 }
 
+JANET_CORE_FN(cfun_buffer_frombytes,
+              "(buffer/from-bytes & byte-vals)",
+              "Creates a buffer from integer parameters with byte values. All integers "
+              "will be coerced to the range of 1 byte 0-255.") {
+    int32_t i;
+    JanetBuffer *buffer = janet_buffer(argc);
+    for (i = 0; i < argc; i++) {
+        int32_t c = janet_getinteger(argv, i);
+        buffer->data[i] = c & 0xFF;
+    }
+    buffer->count = argc;
+    return janet_wrap_buffer(buffer);
+}
+
 JANET_CORE_FN(cfun_buffer_fill,
               "(buffer/fill buffer &opt byte)",
               "Fill up a buffer with bytes, defaulting to 0s. Does not change the buffer's length. "
@@ -509,6 +523,7 @@ void janet_lib_buffer(JanetTable *env) {
     JanetRegExt buffer_cfuns[] = {
         JANET_CORE_REG("buffer/new", cfun_buffer_new),
         JANET_CORE_REG("buffer/new-filled", cfun_buffer_new_filled),
+        JANET_CORE_REG("buffer/from-bytes", cfun_buffer_frombytes),
         JANET_CORE_REG("buffer/fill", cfun_buffer_fill),
         JANET_CORE_REG("buffer/trim", cfun_buffer_trim),
         JANET_CORE_REG("buffer/push-byte", cfun_buffer_u8),
