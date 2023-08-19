@@ -815,7 +815,11 @@ static void janet_signal_callback(JanetEVGenericMessage msg) {
         sigset_t set;
         sigemptyset(&set);
         sigaddset(&set, sig);
+#ifdef JANET_THREADS
+        pthread_sigmask(SIG_BLOCK, &set, NULL);
+#else
         sigprocmask(SIG_BLOCK, &set, NULL);
+#endif
         raise(sig);
         return;
     }
@@ -881,6 +885,14 @@ JANET_CORE_FN(os_sigaction,
     }
     action.sa_mask = mask;
     RETRY_EINTR(rc, sigaction(sig, &action, NULL));
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, sig);
+#ifdef JANET_THREADS
+    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
+#else
+    sigprocmask(SIG_UNBLOCK, &set, NULL);
+#endif
     return janet_wrap_nil();
 #endif
 }
