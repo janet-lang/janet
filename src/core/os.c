@@ -854,6 +854,7 @@ static void janet_signal_trampoline(int sig) {
 JANET_CORE_FN(os_sigaction,
               "(os/sigaction which &opt handler interrupt-interpreter)",
               "Add a signal handler for a given action. Use nil for the `handler` argument to remove a signal handler.") {
+    janet_sandbox_assert(JANET_SANDBOX_SIGNAL);
     janet_arity(argc, 1, 3);
 #ifdef JANET_WINDOWS
     janet_panic("unsupported on this platform");

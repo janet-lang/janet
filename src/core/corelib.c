@@ -741,6 +741,7 @@ static const SandboxOption sandbox_options[] = {
     {"net-connect", JANET_SANDBOX_NET_CONNECT},
     {"net-listen", JANET_SANDBOX_NET_LISTEN},
     {"sandbox", JANET_SANDBOX_SANDBOX},
+    {"signal", JANET_SANDBOX_SIGNAL},
     {"subprocess", JANET_SANDBOX_SUBPROCESS},
     {NULL, 0}
 };
@@ -765,6 +766,7 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :net-connect - disallow making outbound network connections\n"
               "* :net-listen - disallow accepting inbound network connections\n"
               "* :sandbox - disallow calling this function\n"
+              "* :signal - disallow adding or removing signal handlers\n"
               "* :subprocess - disallow running subprocesses") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
