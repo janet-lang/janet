@@ -562,6 +562,7 @@ void janet_ev_init_common(void) {
     janet_vm.tq_capacity = 0;
     janet_table_init_raw(&janet_vm.threaded_abstracts, 0);
     janet_table_init_raw(&janet_vm.active_tasks, 0);
+    janet_table_init_raw(&janet_vm.signal_handlers, 0);
     janet_rng_seed(&janet_vm.ev_rng, 0);
 #ifndef JANET_WINDOWS
     pthread_attr_init(&janet_vm.new_thread_attr);
@@ -577,6 +578,7 @@ void janet_ev_deinit_common(void) {
     janet_vm.listeners = NULL;
     janet_table_deinit(&janet_vm.threaded_abstracts);
     janet_table_deinit(&janet_vm.active_tasks);
+    janet_table_deinit(&janet_vm.signal_handlers);
 #ifndef JANET_WINDOWS
     pthread_attr_destroy(&janet_vm.new_thread_attr);
 #endif
@@ -1290,6 +1292,33 @@ int janet_loop_done(void) {
              janet_vm.extra_listeners);
 }
 
+static void janet_loop1_poll(void) {
+    /* Poll for events */
+    if (janet_vm.listener_count || janet_vm.tq_count || janet_vm.extra_listeners) {
+        JanetTimeout to;
+        memset(&to, 0, sizeof(to));
+        int has_timeout;
+        /* Drop timeouts that are no longer needed */
+        while ((has_timeout = peek_timeout(&to))) {
+            if (to.curr_fiber != NULL) {
+                if (!janet_fiber_can_resume(to.curr_fiber)) {
+                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
+                    pop_timeout(0);
+                    continue;
+                }
+            } else if (to.fiber->sched_id != to.sched_id) {
+                pop_timeout(0);
+                continue;
+            }
+            break;
+        }
+        /* Run polling implementation only if pending timeouts or pending events */
+        if (janet_vm.tq_count || janet_vm.listener_count || janet_vm.extra_listeners) {
+            janet_loop1_impl(has_timeout, to.when);
+        }
+    }
+}
+
 JanetFiber *janet_loop1(void) {
     /* Schedule expired timers */
     JanetTimeout to;
@@ -1347,30 +1376,7 @@ JanetFiber *janet_loop1(void) {
         }
     }
 
-    /* Poll for events */
-    if (janet_vm.listener_count || janet_vm.tq_count || janet_vm.extra_listeners) {
-        JanetTimeout to;
-        memset(&to, 0, sizeof(to));
-        int has_timeout;
-        /* Drop timeouts that are no longer needed */
-        while ((has_timeout = peek_timeout(&to))) {
-            if (to.curr_fiber != NULL) {
-                if (!janet_fiber_can_resume(to.curr_fiber)) {
-                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
-                    pop_timeout(0);
-                    continue;
-                }
-            } else if (to.fiber->sched_id != to.sched_id) {
-                pop_timeout(0);
-                continue;
-            }
-            break;
-        }
-        /* Run polling implementation only if pending timeouts or pending events */
-        if (janet_vm.tq_count || janet_vm.listener_count || janet_vm.extra_listeners) {
-            janet_loop1_impl(has_timeout, to.when);
-        }
-    }
+    janet_loop1_poll();
 
     /* No fiber was interrupted */
     return NULL;
@@ -1391,6 +1397,12 @@ void janet_loop(void) {
     while (!janet_loop_done()) {
         JanetFiber *interrupted_fiber = janet_loop1();
         if (NULL != interrupted_fiber) {
+            /* Allow an extra poll before rescheduling to allow posted events to be handled
+             * before entering a possibly infinite, blocking loop. */
+            Janet x = janet_wrap_fiber(interrupted_fiber);
+            janet_gcroot(x);
+            janet_loop1_poll();
+            janet_gcunroot(x);
             janet_schedule(interrupted_fiber, janet_wrap_nil());
         }
     }

@@ -706,6 +706,18 @@ static const struct keyword_signal signal_keywords[] = {
 #endif
     {NULL, 0},
 };
+
+static int get_signal_kw(const Janet *argv, int32_t n) {
+    JanetKeyword signal_kw = janet_getkeyword(argv, n);
+    const struct keyword_signal *ptr = signal_keywords;
+    while (ptr->keyword) {
+        if (!janet_cstrcmp(signal_kw, ptr->keyword)) {
+            return ptr->signal;
+        }
+        ptr++;
+    }
+    janet_panicf("undefined signal %v", argv[n]);
+}
 #endif
 
 JANET_CORE_FN(os_proc_kill,
@@ -731,18 +743,7 @@ JANET_CORE_FN(os_proc_kill,
 #else
     int signal = -1;
     if (argc == 3) {
-        JanetKeyword signal_kw = janet_getkeyword(argv, 2);
-        const struct keyword_signal *ptr = signal_keywords;
-        while (ptr->keyword) {
-            if (!janet_cstrcmp(signal_kw, ptr->keyword)) {
-                signal = ptr->signal;
-                break;
-            }
-            ptr++;
-        }
-        if (signal == -1) {
-            janet_panic("undefined signal");
-        }
+        signal = get_signal_kw(argv, 2);
     }
     int status = kill(proc->pid, signal == -1 ? SIGKILL : signal);
     if (status) {
@@ -802,6 +803,89 @@ static void close_handle(JanetHandle handle) {
     close(handle);
 #endif
 }
+
+#ifdef JANET_EV
+
+#ifndef JANET_WINDOWS
+static void janet_signal_callback(JanetEVGenericMessage msg) {
+    int sig = msg.tag;
+    Janet handlerv = janet_table_get(&janet_vm.signal_handlers, janet_wrap_integer(sig));
+    if (!janet_checktype(handlerv, JANET_FUNCTION)) {
+        /* Let another thread/process try to handle this */
+        sigset_t set;
+        sigemptyset(&set);
+        sigaddset(&set, sig);
+        sigprocmask(SIG_BLOCK, &set, NULL);
+        raise(sig);
+        return;
+    }
+    JanetFunction *handler = janet_unwrap_function(handlerv);
+    JanetFiber *fiber = janet_fiber(handler, 64, 0, NULL);
+    janet_schedule(fiber, janet_wrap_nil());
+    if (msg.argi) {
+        janet_ev_dec_refcount();
+    }
+}
+
+static void janet_signal_trampoline_no_interrupt(int sig) {
+    /* Do not interact with global janet state here except for janet_ev_post_event, unsafe! */
+    JanetEVGenericMessage msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.tag = sig;
+    janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
+}
+
+static void janet_signal_trampoline(int sig) {
+    /* Do not interact with global janet state here except for janet_ev_post_event, unsafe! */
+    JanetEVGenericMessage msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.tag = sig;
+    msg.argi = 1;
+    janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
+    janet_ev_inc_refcount();
+    janet_interpreter_interrupt(NULL);
+}
+#endif
+
+JANET_CORE_FN(os_sigaction,
+              "(os/sigaction which &opt handler interrupt-interpreter)",
+              "Add a signal handler for a given action. Use nil for the `handler` argument to remove a signal handler.") {
+    janet_arity(argc, 1, 3);
+#ifdef JANET_WINDOWS
+    janet_panic("unsupported on this platform");
+#else
+    /* TODO - per thread signal masks */
+    int rc;
+    int sig = get_signal_kw(argv, 0);
+    JanetFunction *handler = janet_optfunction(argv, argc, 1, NULL);
+    int can_interrupt = janet_optboolean(argv, argc, 2, 0);
+    Janet oldhandler = janet_table_get(&janet_vm.signal_handlers, janet_wrap_integer(sig));
+    if (!janet_checktype(oldhandler, JANET_NIL)) {
+        janet_gcunroot(oldhandler);
+    }
+    if (NULL != handler) {
+        Janet handlerv = janet_wrap_function(handler);
+        janet_gcroot(handlerv);
+        janet_table_put(&janet_vm.signal_handlers, janet_wrap_integer(sig), handlerv);
+    } else {
+        janet_table_put(&janet_vm.signal_handlers, janet_wrap_integer(sig), janet_wrap_nil());
+    }
+    struct sigaction action;
+    sigset_t mask;
+    sigfillset(&mask);
+    memset(&action, 0, sizeof(action));
+    if (can_interrupt) {
+        action.sa_handler = janet_signal_trampoline;
+    } else {
+        action.sa_handler = janet_signal_trampoline_no_interrupt;
+    }
+    action.sa_mask = mask;
+    RETRY_EINTR(rc, sigaction(sig, &action, NULL));
+    return janet_wrap_nil();
+#endif
+}
+
+#endif
 
 /* Create piped file for os/execute and os/spawn. Need to be careful that we mark
    the error flag if we can't create pipe and don't leak handles. *handle will be cleaned
@@ -2536,6 +2620,7 @@ void janet_lib_os(JanetTable *env) {
 #ifdef JANET_EV
         JANET_CORE_REG("os/open", os_open), /* fs read and write */
         JANET_CORE_REG("os/pipe", os_pipe),
+        JANET_CORE_REG("os/sigaction", os_sigaction),
 #endif
 #endif
         JANET_REG_END

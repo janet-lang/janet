@@ -89,7 +89,7 @@ struct JanetVM {
 
     /* If this flag is true, suspend on function calls and backwards jumps.
      * When this occurs, this flag will be reset to 0. */
-    int auto_suspend;
+    volatile int auto_suspend;
 
     /* The current running fiber on the current thread.
      * Set and unset by functions in vm.c */
@@ -160,6 +160,7 @@ struct JanetVM {
     size_t extra_listeners;
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
     JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
+    JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;
 #elif defined(JANET_EV_EPOLL)
