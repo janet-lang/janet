@@ -182,7 +182,7 @@ void janet_os_mutex_lock(JanetOSMutex *mutex) {
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
     int ret = pthread_mutex_unlock((pthread_mutex_t *) mutex);
-    if (ret) janet_panic("cannot release lock");
+    if (ret) janet_panicf("cannot release lock: %s", strerror(ret));
 }
 
 void janet_os_rwlock_init(JanetOSRWLock *rwlock) {

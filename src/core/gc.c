@@ -364,20 +364,22 @@ void janet_sweep() {
             /* If not visited... */
             if (!janet_truthy(items[i].value)) {
                 void *abst = janet_unwrap_abstract(items[i].key);
+
                 if (0 == janet_abstract_decref(abst)) {
                     /* Run finalizer */
                     JanetAbstractHead *head = janet_abstract_head(abst);
                     if (head->type->gc) {
                         janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                     }
-                    /* Mark as tombstone in place */
-                    items[i].key = janet_wrap_nil();
-                    items[i].value = janet_wrap_false();
-                    janet_vm.threaded_abstracts.deleted++;
-                    janet_vm.threaded_abstracts.count--;
                     /* Free memory */
                     janet_free(janet_abstract_head(abst));
                 }
+
+                /* Mark as tombstone in place */
+                items[i].key = janet_wrap_nil();
+                items[i].value = janet_wrap_false();
+                janet_vm.threaded_abstracts.deleted++;
+                janet_vm.threaded_abstracts.count--;
             }
 
             /* Reset for next sweep */
