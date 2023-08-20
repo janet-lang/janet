@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Add `os/sigaction`
+- Change `every?` and `any?` to behave like the functional versions of the `and` and `or` macros.
+- Fix bug with garbage collecting threaded abstract types.
+- Add `:signal` to the `sandbox` function to allow intercepting signals.
+
 ## 1.30.0 - 2023-08-05
 - Change indexing of `array/remove` to start from -1 at the end instead of -2.
 - Add new string escape sequences `\\a`, `\\b`, `\\?`, and `\\'`.
