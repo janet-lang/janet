@@ -603,11 +603,19 @@ void janet_addtimeout(double sec) {
 }
 
 void janet_ev_inc_refcount(void) {
-    janet_vm.extra_listeners++;
+#ifdef JANET_WINDOWS
+    InterlockedIncrement(&janet_vm.extra_listeners);
+#else
+    __atomic_add_fetch(&janet_vm.extra_listeners, 1, __ATOMIC_RELAXED);
+#endif
 }
 
 void janet_ev_dec_refcount(void) {
-    janet_vm.extra_listeners--;
+#ifdef JANET_WINDOWS
+    InterlockedDecrement(&janet_vm.extra_listeners);
+#else
+    __atomic_add_fetch(&janet_vm.extra_listeners, -1, __ATOMIC_RELAXED);
+#endif
 }
 
 /* Channels */
