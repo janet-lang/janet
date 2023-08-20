@@ -370,14 +370,15 @@ void janet_sweep() {
                     if (head->type->gc) {
                         janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                     }
-                    /* Mark as tombstone in place */
-                    items[i].key = janet_wrap_nil();
-                    items[i].value = janet_wrap_false();
-                    janet_vm.threaded_abstracts.deleted++;
-                    janet_vm.threaded_abstracts.count--;
                     /* Free memory */
                     janet_free(janet_abstract_head(abst));
                 }
+
+                /* Mark as tombstone in place */
+                items[i].key = janet_wrap_nil();
+                items[i].value = janet_wrap_false();
+                janet_vm.threaded_abstracts.deleted++;
+                janet_vm.threaded_abstracts.count--;
             }
 
             /* Reset for next sweep */
