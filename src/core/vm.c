@@ -800,13 +800,13 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_JUMP)
     pc += DS;
-    vm_maybe_auto_suspend(DS < 0);
+    vm_maybe_auto_suspend(DS <= 0);
     vm_next();
 
     VM_OP(JOP_JUMP_IF)
     if (janet_truthy(stack[A])) {
         pc += ES;
-        vm_maybe_auto_suspend(ES < 0);
+        vm_maybe_auto_suspend(ES <= 0);
     } else {
         pc++;
     }
@@ -817,14 +817,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         pc++;
     } else {
         pc += ES;
-        vm_maybe_auto_suspend(ES < 0);
+        vm_maybe_auto_suspend(ES <= 0);
     }
     vm_next();
 
     VM_OP(JOP_JUMP_IF_NIL)
     if (janet_checktype(stack[A], JANET_NIL)) {
         pc += ES;
-        vm_maybe_auto_suspend(ES < 0);
+        vm_maybe_auto_suspend(ES <= 0);
     } else {
         pc++;
     }
@@ -835,7 +835,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         pc++;
     } else {
         pc += ES;
-        vm_maybe_auto_suspend(ES < 0);
+        vm_maybe_auto_suspend(ES <= 0);
     }
     vm_next();
 

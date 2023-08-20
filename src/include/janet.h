@@ -1822,6 +1822,7 @@ JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *pr
 #define JANET_SANDBOX_FS_TEMP 1024
 #define JANET_SANDBOX_FFI_USE 2048
 #define JANET_SANDBOX_FFI_JIT 4096
+#define JANET_SANDBOX_SIGNAL 8192
 #define JANET_SANDBOX_FFI (JANET_SANDBOX_FFI_DEFINE | JANET_SANDBOX_FFI_USE | JANET_SANDBOX_FFI_JIT)
 #define JANET_SANDBOX_FS (JANET_SANDBOX_FS_WRITE | JANET_SANDBOX_FS_READ | JANET_SANDBOX_FS_TEMP)
 #define JANET_SANDBOX_NET (JANET_SANDBOX_NET_CONNECT | JANET_SANDBOX_NET_LISTEN)
@@ -2072,6 +2073,7 @@ JANET_API uint8_t janet_unmarshal_byte(JanetMarshalContext *ctx);
 JANET_API void janet_unmarshal_bytes(JanetMarshalContext *ctx, uint8_t *dest, size_t len);
 JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);
 JANET_API JanetAbstract janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size);
+JANET_API JanetAbstract janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size);
 JANET_API void janet_unmarshal_abstract_reuse(JanetMarshalContext *ctx, void *p);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);

@@ -1245,6 +1245,18 @@ void *janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size) {
     return p;
 }
 
+void *janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size) {
+#ifdef JANET_THREADS
+    void *p = janet_abstract_threaded(ctx->at, size);
+    janet_unmarshal_abstract_reuse(ctx, p);
+    return p;
+#else
+    (void) ctx;
+    (void) size;
+    janet_panic("threaded abstracts not supported");
+#endif
+}
+
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);

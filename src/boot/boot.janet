@@ -436,8 +436,8 @@
               :each ~(,in ,ds ,k)
               :keys k
               :pairs ~[,k (,in ,ds ,k)]))
-         ,;body
-         (set ,k (,next ,ds ,k))))))
+         (set ,k (,next ,ds ,k))
+         ,;body))))
 
 (defn- iterate-template
   [binding expr body]
@@ -805,21 +805,31 @@
 ###
 ###
 
-(defn- median-of-three [a b c]
-  (if (not= (> a b) (> a c))
-    a
-    (if (not= (> b a) (> b c)) b c)))
+(defmacro- median-of-three
+  [x y z]
+  ~(if (<= ,x ,y)
+     (if (<= ,y ,z) ,y (if (<= ,z ,x) ,x ,z))
+     (if (<= ,z ,y) ,y (if (<= ,x ,z) ,x ,z))))
+
+(defmacro- sort-partition-template
+  [ind before? left right pivot]
+  ~(do
+     (while (,before? (in ,ind ,left) ,pivot) (++ ,left))
+     (while (,before? ,pivot (in ,ind ,right)) (-- ,right))))
 
 (defn- sort-help [a lo hi before?]
   (when (< lo hi)
-    (def pivot
-      (median-of-three (in a hi) (in a lo)
-                       (in a (math/floor (/ (+ lo hi) 2)))))
+    (def [x y z] [(in a lo)
+                  (in a (div (+ lo hi) 2))
+                  (in a hi)])
+    (def pivot (median-of-three x y z))
     (var left lo)
     (var right hi)
     (while true
-      (while (before? (in a left) pivot) (++ left))
-      (while (before? pivot (in a right)) (-- right))
+      (case before?
+        < (sort-partition-template a < left right pivot)
+        > (sort-partition-template a > left right pivot)
+        (sort-partition-template a before? left right pivot))
       (when (<= left right)
         (def tmp (in a left))
         (set (a left) (in a right))
@@ -827,8 +837,10 @@
         (++ left)
         (-- right))
       (if (>= left right) (break)))
-    (sort-help a lo right before?)
-    (sort-help a left hi before?))
+    (if (< lo right)
+      (sort-help a lo right before?))
+    (if (< left hi)
+      (sort-help a left hi before?)))
   a)
 
 (defn sort
@@ -836,7 +848,8 @@
   If a `before?` comparator function is provided, sorts elements using that,
   otherwise uses `<`.``
   [ind &opt before?]
-  (sort-help ind 0 (- (length ind) 1) (or before? <)))
+  (default before? <)
+  (sort-help ind 0 (- (length ind) 1) before?))
 
 (defn sort-by
   ``Sorts `ind` in-place by calling a function `f` on each element and
@@ -1411,20 +1424,21 @@
     (fn [& r] (f ;more ;r))))
 
 (defn every?
-  ``Returns true if each value in `ind` is truthy, otherwise returns the first
-  falsey value.``
+  ``Evaluates to the last element of `ind` if all preceding elements are truthy,
+  otherwise evaluates to the first falsey argument.``
   [ind]
   (var res true)
   (loop [x :in ind :while res]
-    (if x nil (set res x)))
+    (set res x))
   res)
 
 (defn any?
-  ``Returns the first truthy value in `ind`, otherwise nil.``
+  ``Evaluates to the last element of `ind` if all preceding elements are falsey,
+  otherwise evaluates to the first truthy element.``
   [ind]
   (var res nil)
   (loop [x :in ind :until res]
-    (if x (set res x)))
+    (set res x))
   res)
 
 (defn reverse!

@@ -77,6 +77,14 @@
 (buffer/push-string b5 "456" @"789")
 (assert (= "123456789" (string b5)) "buffer/push-buffer 2")
 
+# Buffer from bytes
+(assert (deep= @"" (buffer/from-bytes)) "buffer/from-bytes 1")
+(assert (deep= @"ABC" (buffer/from-bytes 65 66 67)) "buffer/from-bytes 2")
+(assert (deep= @"0123456789" (buffer/from-bytes ;(range 48 58))) "buffer/from-bytes 3")
+(assert (= 0 (length (buffer/from-bytes))) "buffer/from-bytes 4")
+(assert (= 5 (length (buffer/from-bytes ;(range 5)))) "buffer/from-bytes 5")
+(assert-error "bad slot #1, expected 32 bit signed integer" (buffer/from-bytes :abc))
+
 # some tests for buffer/format
 # 029394d
 (assert (= (string (buffer/format @"" "pi = %6.3f" math/pi)) "pi =  3.142")
@@ -113,9 +121,6 @@
         "buffer/push-at 2")
 (assert (deep= @"abc423" (buffer/push-at @"abc123" 3 "4"))
         "buffer/push-at 3")
-
-# 4782a76
-(assert (= 10 (do (var x 10) (def y x) (++ x) y)) "no invalid aliasing")
 
 (end-suite)
 

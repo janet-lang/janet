@@ -292,5 +292,8 @@
                  [2 6 4 'z]])
         "arg & inner symbolmap")
 
+# 4782a76
+(assert (= 10 (do (var x 10) (def y x) (++ x) y)) "no invalid aliasing")
+
 (end-suite)
 
