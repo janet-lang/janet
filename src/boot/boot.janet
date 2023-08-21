@@ -702,30 +702,38 @@
   [f]
   (fn [x] (not (f x))))
 
+(defmacro- do-extreme
+  [order args]
+  ~(do
+     (def ds ,args)
+     (var k (next ds nil))
+     (var ret (get ds k))
+     (while (,not= nil (set k (next ds k)))
+       (def x (in ds k))
+       (if (,order x ret) (set ret x)))
+     ret))
+
 (defn extreme
   ``Returns the most extreme value in `args` based on the function `order`.
   `order` should take two values and return true or false (a comparison).
   Returns nil if `args` is empty.``
-  [order args]
-  (var [ret] args)
-  (each x args (if (order x ret) (set ret x)))
-  ret)
+  [order args] (do-extreme order args))
 
 (defn max
   "Returns the numeric maximum of the arguments."
-  [& args] (extreme > args))
+  [& args] (do-extreme > args))
 
 (defn min
   "Returns the numeric minimum of the arguments."
-  [& args] (extreme < args))
+  [& args] (do-extreme < args))
 
 (defn max-of
   "Returns the numeric maximum of the argument sequence."
-  [args] (extreme > args))
+  [args] (do-extreme > args))
 
 (defn min-of
   "Returns the numeric minimum of the argument sequence."
-  [args] (extreme < args))
+  [args] (do-extreme < args))
 
 (defn first
   "Get the first element from an indexed data structure."
