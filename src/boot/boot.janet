@@ -1584,7 +1584,7 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
+  (def arr @[])
   (var i 0)
   (eachk k x
     (put arr i k)
@@ -1594,7 +1594,7 @@
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
+  (def arr @[])
   (var i 0)
   (each v x
     (put arr i v)
@@ -1604,7 +1604,7 @@
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
+  (def arr @[])
   (var i 0)
   (eachp p x
     (put arr i p)
