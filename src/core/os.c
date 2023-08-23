@@ -827,6 +827,7 @@ static void janet_signal_callback(JanetEVGenericMessage msg) {
     JanetFiber *fiber = janet_fiber(handler, 64, 0, NULL);
     janet_schedule(fiber, janet_wrap_nil());
     if (msg.argi) {
+        janet_vm.auto_suspend = 0; /* Undo interrupt if it wasn't needed. */
         janet_ev_dec_refcount();
     }
 }
