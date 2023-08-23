@@ -530,6 +530,32 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     return ret;
 }
 
+/* Check if a form matches the pattern (= nil _) or (not= nil _) */
+static int janetc_check_nil_form(JanetFopts opts, Janet x, Janet *capture, uint32_t fun_tag) {
+    if (!janet_checktype(x, JANET_TUPLE)) return 0;
+    JanetTuple tup = janet_unwrap_tuple(x);
+    if (3 != janet_tuple_length(tup)) return 0;
+    Janet op1 = tup[0];
+    if (janet_checktype(op1, JANET_SYMBOL)) {
+        Janet entry = janet_table_get(opts.compiler->env, op1);
+        if (janet_checktype(entry, JANET_TABLE)) {
+            op1 = janet_table_get(janet_unwrap_table(entry), janet_ckeywordv("value"));
+        }
+    }
+    if (!janet_checktype(op1, JANET_FUNCTION)) return 0;
+    JanetFunction *fun = janet_unwrap_function(op1);
+    uint32_t tag = fun->def->flags & JANET_FUNCDEF_FLAG_TAG;
+    if (tag != fun_tag) return 0;
+    if (janet_checktype(tup[1], JANET_NIL)) {
+        *capture = tup[2];
+        return 1;
+    } else if (janet_checktype(tup[2], JANET_NIL)) {
+        *capture = tup[1];
+        return 1;
+    }
+    return 0;
+}
+
 /*
  * :condition
  * ...
@@ -550,6 +576,7 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetScope condscope, tempscope;
     const int tail = opts.flags & JANET_FOPTS_TAIL;
     const int drop = opts.flags & JANET_FOPTS_DROP;
+    uint8_t ifnjmp = JOP_JUMP_IF_NOT;
 
     if (argn < 2 || argn > 3) {
         janetc_cerror(c, "expected 2 or 3 arguments to if");
@@ -572,7 +599,16 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Compile condition */
     janetc_scope(&condscope, c, 0, "if");
-    cond = janetc_value(condopts, argv[0]);
+
+    Janet condform = argv[0];
+    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_EQ)) {
+        ifnjmp = JOP_JUMP_IF_NOT_NIL;
+    }
+    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_NEQ)) {
+        ifnjmp = JOP_JUMP_IF_NIL;
+    }
+
+    cond = janetc_value(condopts, condform);
 
     /* Check constant condition. */
     /* TODO: Use type info for more short circuits */
@@ -595,7 +631,7 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     }
 
     /* Compile jump to right */
-    labeljr = janetc_emit_si(c, JOP_JUMP_IF_NOT, cond, 0, 0);
+    labeljr = janetc_emit_si(c, ifnjmp, cond, 0, 0);
 
     /* Condition left body */
     janetc_scope(&tempscope, c, 0, "if-true");
@@ -605,7 +641,7 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Compile jump to done */
     labeljd = janet_v_count(c->buffer);
-    if (!tail) janetc_emit(c, JOP_JUMP);
+    if (!tail && !(drop && janet_checktype(falsebody, JANET_NIL))) janetc_emit(c, JOP_JUMP);
 
     /* Compile right body */
     labelr = janet_v_count(c->buffer);
@@ -741,20 +777,6 @@ static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) 
     }
 }
 
-/* Check if a form matches the pattern (not= nil _) */
-static int janetc_check_notnil_form(Janet x, Janet *capture) {
-    if (!janet_checktype(x, JANET_TUPLE)) return 0;
-    JanetTuple tup = janet_unwrap_tuple(x);
-    if (!janet_checktype(tup[0], JANET_FUNCTION)) return 0;
-    if (3 != janet_tuple_length(tup)) return 0;
-    JanetFunction *fun = janet_unwrap_function(tup[0]);
-    uint32_t tag = fun->def->flags & JANET_FUNCDEF_FLAG_TAG;
-    if (tag != JANET_FUN_NEQ) return 0;
-    if (!janet_checktype(tup[1], JANET_NIL)) return 0;
-    *capture = tup[2];
-    return 1;
-}
-
 /*
  * :whiletop
  * ...
@@ -771,6 +793,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     JanetScope tempscope;
     int32_t labelwt, labeld, labeljt, labelc, i;
     int infinite = 0;
+    int is_nil_form = 0;
     int is_notnil_form = 0;
     uint8_t ifjmp = JOP_JUMP_IF;
     uint8_t ifnjmp = JOP_JUMP_IF_NOT;
@@ -784,11 +807,16 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
 
     janetc_scope(&tempscope, c, JANET_SCOPE_WHILE, "while");
 
-    /* Check for `(not= nil _)` in condition, and if so, use the
+    /* Check for `(= nil _)` or `(not= nil _)` in condition, and if so, use the
      * jmpnl or jmpnn instructions. This let's us implement `(each ...)`
      * more efficiently. */
     Janet condform = argv[0];
-    if (janetc_check_notnil_form(condform, &condform)) {
+    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_EQ)) {
+        is_nil_form = 1;
+        ifjmp = JOP_JUMP_IF_NIL;
+        ifnjmp = JOP_JUMP_IF_NOT_NIL;
+    }
+    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_NEQ)) {
         is_notnil_form = 1;
         ifjmp = JOP_JUMP_IF_NOT_NIL;
         ifnjmp = JOP_JUMP_IF_NIL;
@@ -800,9 +828,11 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     /* Check for constant condition */
     if (cond.flags & JANET_SLOT_CONSTANT) {
         /* Loop never executes */
-        int never_executes = is_notnil_form
-                             ? janet_checktype(cond.constant, JANET_NIL)
-                             : !janet_truthy(cond.constant);
+        int never_executes = is_nil_form
+                             ? !janet_checktype(cond.constant, JANET_NIL)
+                             : is_notnil_form
+                               ? janet_checktype(cond.constant, JANET_NIL)
+                               : !janet_truthy(cond.constant);
         if (never_executes) {
             janetc_popscope(c);
             return janetc_cslot(janet_wrap_nil());
