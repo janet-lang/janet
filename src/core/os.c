@@ -857,6 +857,7 @@ JANET_CORE_FN(os_sigaction,
     janet_sandbox_assert(JANET_SANDBOX_SIGNAL);
     janet_arity(argc, 1, 3);
 #ifdef JANET_WINDOWS
+    (void) argv;
     janet_panic("unsupported on this platform");
 #else
     /* TODO - per thread signal masks */

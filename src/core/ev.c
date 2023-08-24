@@ -632,7 +632,11 @@ void janet_addtimeout(double sec) {
 
 void janet_ev_inc_refcount(void) {
 #ifdef JANET_WINDOWS
+#ifdef JANET_64
+    InterlockedIncrement64(&janet_vm.extra_listeners);
+#else
     InterlockedIncrement(&janet_vm.extra_listeners);
+#endif
 #else
     __atomic_add_fetch(&janet_vm.extra_listeners, 1, __ATOMIC_RELAXED);
 #endif
@@ -640,7 +644,11 @@ void janet_ev_inc_refcount(void) {
 
 void janet_ev_dec_refcount(void) {
 #ifdef JANET_WINDOWS
+#ifdef JANET_64
+    InterlockedDecrement64(&janet_vm.extra_listeners);
+#else
     InterlockedDecrement(&janet_vm.extra_listeners);
+#endif
 #else
     __atomic_add_fetch(&janet_vm.extra_listeners, -1, __ATOMIC_RELAXED);
 #endif
@@ -1377,7 +1385,7 @@ JanetFiber *janet_loop1(void) {
         } else if (sig == JANET_SIGNAL_OK || (task.fiber->flags & (1 << sig))) {
             JanetChannel *chan = janet_channel_unwrap(sv);
             janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig],
-                        task.fiber, chan->is_threaded), 2);
+                               task.fiber, chan->is_threaded), 2);
         } else if (!is_suspended) {
             janet_stacktrace_ext(task.fiber, res, "");
         }
