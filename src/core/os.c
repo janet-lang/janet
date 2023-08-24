@@ -809,6 +809,7 @@ static void close_handle(JanetHandle handle) {
 #ifndef JANET_WINDOWS
 static void janet_signal_callback(JanetEVGenericMessage msg) {
     int sig = msg.tag;
+    if (msg.argi) janet_interpreter_interrupt_handled(NULL);
     Janet handlerv = janet_table_get(&janet_vm.signal_handlers, janet_wrap_integer(sig));
     if (!janet_checktype(handlerv, JANET_FUNCTION)) {
         /* Let another thread/process try to handle this */
@@ -825,11 +826,8 @@ static void janet_signal_callback(JanetEVGenericMessage msg) {
     }
     JanetFunction *handler = janet_unwrap_function(handlerv);
     JanetFiber *fiber = janet_fiber(handler, 64, 0, NULL);
-    janet_schedule(fiber, janet_wrap_nil());
-    if (msg.argi) {
-        janet_vm.auto_suspend = 0; /* Undo interrupt if it wasn't needed. */
-        janet_ev_dec_refcount();
-    }
+    janet_schedule_soon(fiber, janet_wrap_nil(), JANET_SIGNAL_OK);
+    janet_ev_dec_refcount();
 }
 
 static void janet_signal_trampoline_no_interrupt(int sig) {
@@ -838,6 +836,7 @@ static void janet_signal_trampoline_no_interrupt(int sig) {
     memset(&msg, 0, sizeof(msg));
     msg.tag = sig;
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
+    janet_ev_inc_refcount();
 }
 
 static void janet_signal_trampoline(int sig) {
@@ -846,9 +845,9 @@ static void janet_signal_trampoline(int sig) {
     memset(&msg, 0, sizeof(msg));
     msg.tag = sig;
     msg.argi = 1;
+    janet_interpreter_interrupt(NULL);
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
     janet_ev_inc_refcount();
-    janet_interpreter_interrupt(NULL);
 }
 #endif
 
@@ -881,7 +880,11 @@ JANET_CORE_FN(os_sigaction,
     sigfillset(&mask);
     memset(&action, 0, sizeof(action));
     if (can_interrupt) {
+#ifdef JANET_NO_INTERPRETER_INTERRUPT
+        janet_panic("interpreter interrupt not enabled");
+#else
         action.sa_handler = janet_signal_trampoline;
+#endif
     } else {
         action.sa_handler = janet_signal_trampoline_no_interrupt;
     }

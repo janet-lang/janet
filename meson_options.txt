@@ -18,7 +18,7 @@ option('realpath', type : 'boolean', value : true)
 option('simple_getline', type : 'boolean', value : false)
 option('epoll', type : 'boolean', value : false)
 option('kqueue', type : 'boolean', value : false)
-option('interpreter_interrupt', type : 'boolean', value : false)
+option('interpreter_interrupt', type : 'boolean', value : true)
 option('ffi', type : 'boolean', value : true)
 option('ffi_jit', type : 'boolean', value : true)
 

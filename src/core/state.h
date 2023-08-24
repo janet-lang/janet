@@ -89,7 +89,7 @@ struct JanetVM {
 
     /* If this flag is true, suspend on function calls and backwards jumps.
      * When this occurs, this flag will be reset to 0. */
-    volatile int auto_suspend;
+    volatile int32_t auto_suspend;
 
     /* The current running fiber on the current thread.
      * Set and unset by functions in vm.c */

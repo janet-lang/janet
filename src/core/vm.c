@@ -116,7 +116,6 @@
 #else
 #define vm_maybe_auto_suspend(COND) do { \
     if ((COND) && janet_vm.auto_suspend) { \
-        janet_vm.auto_suspend = 0; \
         fiber->flags |= (JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP); \
         vm_return(JANET_SIGNAL_INTERRUPT, janet_wrap_nil()); \
     } \

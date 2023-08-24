@@ -1388,6 +1388,7 @@ JANET_API void janet_stream_flags(JanetStream *stream, uint32_t flags);
 JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
 JANET_API void janet_cancel(JanetFiber *fiber, Janet value);
 JANET_API void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig);
+JANET_API void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig);
 
 /* Start a state machine listening for events from a stream */
 JANET_API JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user);
@@ -1799,6 +1800,7 @@ JANET_API void janet_vm_free(JanetVM *vm);
 JANET_API void janet_vm_save(JanetVM *into);
 JANET_API void janet_vm_load(JanetVM *from);
 JANET_API void janet_interpreter_interrupt(JanetVM *vm);
+JANET_API void janet_interpreter_interrupt_handled(JanetVM *vm);
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
