@@ -831,8 +831,8 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         int never_executes = is_nil_form
                              ? !janet_checktype(cond.constant, JANET_NIL)
                              : is_notnil_form
-                               ? janet_checktype(cond.constant, JANET_NIL)
-                               : !janet_truthy(cond.constant);
+                             ? janet_checktype(cond.constant, JANET_NIL)
+                             : !janet_truthy(cond.constant);
         if (never_executes) {
             janetc_popscope(c);
             return janetc_cslot(janet_wrap_nil());
