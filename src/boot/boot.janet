@@ -2877,7 +2877,12 @@
     (if (= :dead fs)
       (when is-repl
         (put env '_ @{:value x})
-        (printf (get env *pretty-format* "%q") x)
+        (def pf (get env *pretty-format* "%q"))
+        (try
+          (printf pf x)
+          ([e]
+           (eprintf "bad pretty format %v: %v" pf e)
+           (eflush)))
         (flush))
       (do
         (debug/stacktrace f x "")
