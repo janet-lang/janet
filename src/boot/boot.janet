@@ -419,9 +419,11 @@
     (error (string "expected tuple for range, got " x))))
 
 (defn- range-template
-  [binding object rest op comparison]
+  [binding object kind rest op comparison]
   (let [[start stop step] (check-indexed object)]
-    (for-template binding start stop (or step 1) comparison op [rest])))
+    (case kind
+      :range (for-template binding (if stop start 0) (or stop start) (or step 1) comparison op [rest])
+      :down (for-template binding start (or stop 0) (or step 1) comparison op [rest]))))
 
 (defn- each-template
   [binding inx kind body]
@@ -477,10 +479,10 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (range-template binding object rest + <)
-      :range-to (range-template binding object rest + <=)
-      :down (range-template binding object rest - >)
-      :down-to (range-template binding object rest - >=)
+      :range (range-template binding object :range rest + <)
+      :range-to (range-template binding object :range rest + <=)
+      :down (range-template binding object :down rest - >)
+      :down-to (range-template binding object :down rest - >=)
       :keys (each-template binding object :keys [rest])
       :pairs (each-template binding object :pairs [rest])
       :in (each-template binding object :each [rest])
