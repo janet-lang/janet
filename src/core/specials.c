@@ -1128,9 +1128,18 @@ error2:
     return janetc_cslot(janet_wrap_nil());
 }
 
+static JanetSlot janetc_comment(JanetFopts opts, int32_t argn, const Janet *argv) {
+    (void) argn; (void) argv;
+    JanetSlot ret;
+    ret = janetc_value(opts, janet_wrap_array(janet_array(0)));
+    ret.flags |= JANET_SLOT_SPLICED;
+    return ret;
+}
+
 /* Keep in lexicographic order */
 static const JanetSpecial janetc_specials[] = {
     {"break", janetc_break},
+    {"comment", janetc_comment},
     {"def", janetc_def},
     {"do", janetc_do},
     {"fn", janetc_fn},
@@ -1142,7 +1151,7 @@ static const JanetSpecial janetc_specials[] = {
     {"unquote", janetc_unquote},
     {"upscope", janetc_upscope},
     {"var", janetc_var},
-    {"while", janetc_while}
+    {"while", janetc_while},
 };
 
 /* Find a special */

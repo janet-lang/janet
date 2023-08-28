@@ -164,10 +164,6 @@
   [sym val]
   ~(def ,sym (if (= nil ,sym) ,val ,sym)))
 
-(defmacro comment
-  "Ignores the body of the comment."
-  [&])
-
 (defmacro if-not
   "Shorthand for `(if (not condition) else then)`."
   [condition then &opt else]
