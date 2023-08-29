@@ -204,6 +204,12 @@
 (assert (deep= (seq [x :down-to [10 0]] x) (seq [x :down [10 -1]] x))
         "loop :down-to")
 
+# one-term :range forms
+(assert (deep= (seq [x :range [10]] x) (seq [x :range [0 10]] x))
+        "one-term :range")
+(assert (deep= (seq [x :down [10]] x) (seq [x :down [10 0]] x))
+        "one-term :down")
+
 # 7880d7320
 (def res @{})
 (loop [[k v] :pairs @{1 2 3 4 5 6}]
