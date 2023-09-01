@@ -1586,32 +1586,41 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (eachk k x
-    (put arr i k)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachk k x
+        (put arr i k)
+        (++ i))
+      arr)
+    (seq [k :keys x] k)))
 
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (each v x
-    (put arr i v)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (each v x
+        (put arr i v)
+        (++ i))
+      arr)
+    (seq [v :in x] v)))
 
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (eachp p x
-    (put arr i p)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachp p x
+        (put arr i p)
+        (++ i))
+      arr)
+    (seq [p :pairs x] p)))
 
 (defn frequencies
   "Get the number of occurrences of each value in an indexed data structure."
