@@ -1435,7 +1435,7 @@
 
 (defn every?
   ``Evaluates to the last element of `ind` if all preceding elements are truthy,
-  otherwise evaluates to the first falsey argument.``
+  otherwise evaluates to the first falsey element.``
   [ind]
   (var res true)
   (loop [x :in ind :while res]
@@ -1455,28 +1455,29 @@
   `Reverses the order of the elements in a given array or buffer and returns it
   mutated.`
   [t]
-  (def len-1 (- (length t) 1))
-  (def half (/ len-1 2))
-  (forv i 0 half
-    (def j (- len-1 i))
-    (def l (in t i))
-    (def r (in t j))
-    (put t i r)
-    (put t j l))
+  (var i 0)
+  (var j (length t))
+  (while (< i (-- j))
+    (def ti (in t i))
+    (put t i (in t j))
+    (put t j ti)
+    (++ i))
   t)
 
 (defn reverse
   `Reverses the order of the elements in a given array or tuple and returns
-  a new array. If a string or buffer is provided, returns an array of its
-  byte values, reversed.`
+  a new array. If a string or buffer is provided, returns a buffer instead.`
   [t]
-  (var n (length t))
-  (def ret (if (bytes? t)
-             (buffer/new-filled n)
-             (array/new-filled n)))
-  (each v t
-    (put ret (-- n) v))
-  ret)
+  (if (lengthable? t)
+    (do
+      (var n (length t))
+      (def ret (if (bytes? t)
+                (buffer/new-filled n)
+                (array/new-filled n)))
+      (each v t
+        (put ret (-- n) v))
+      ret)
+    (reverse! (seq [v :in t] v))))
 
 (defn invert
   ``Given an associative data structure `ds`, returns a new table where the
@@ -1586,32 +1587,41 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (eachk k x
-    (put arr i k)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachk k x
+        (put arr i k)
+        (++ i))
+      arr)
+    (seq [k :keys x] k)))
 
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (each v x
-    (put arr i v)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (each v x
+        (put arr i v)
+        (++ i))
+      arr)
+    (seq [v :in x] v)))
 
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr @[])
-  (var i 0)
-  (eachp p x
-    (put arr i p)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachp p x
+        (put arr i p)
+        (++ i))
+      arr)
+    (seq [p :pairs x] p)))
 
 (defn frequencies
   "Get the number of occurrences of each value in an indexed data structure."
