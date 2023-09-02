@@ -966,7 +966,6 @@
        1 (map-n 1 ,maptype ,res ,f ,ind ,inds)
        2 (map-n 2 ,maptype ,res ,f ,ind ,inds)
        3 (map-n 3 ,maptype ,res ,f ,ind ,inds)
-       4 (map-n 4 ,maptype ,res ,f ,ind ,inds)
        (do
          (def iter-keys (array/new-filled ninds))
          (def call-buffer (array/new-filled ninds))
@@ -1472,8 +1471,8 @@
     (do
       (var n (length t))
       (def ret (if (bytes? t)
-                (buffer/new-filled n)
-                (array/new-filled n)))
+                 (buffer/new-filled n)
+                 (array/new-filled n)))
       (each v t
         (put ret (-- n) v))
       ret)
@@ -1666,14 +1665,7 @@
 (defn interleave
   "Returns an array of the first elements of each col, then the second elements, etc."
   [& cols]
-  (def res @[])
-  (def ncol (length cols))
-  (when (> ncol 0)
-    (def len (min ;(map length cols)))
-    (loop [i :range [0 len]
-           ci :range [0 ncol]]
-      (array/push res (in (in cols ci) i))))
-  res)
+  (mapcat tuple ;cols))
 
 (defn distinct
   "Returns an array of the deduplicated values in `xs`."
@@ -1720,14 +1712,23 @@
   ``Returns a sequence of the elements of `ind` separated by
   `sep`. Returns a new array.``
   [sep ind]
-  (def len (length ind))
-  (def ret (array/new (- (* 2 len) 1)))
-  (if (> len 0) (put ret 0 (in ind 0)))
-  (var i 1)
-  (while (< i len)
-    (array/push ret sep (in ind i))
-    (++ i))
-  ret)
+  (var k (next ind nil))
+  (if (not= nil k)
+    (if (lengthable? ind)
+      (do
+        (def ret (array/new-filled (- (* 2 (length ind)) 1) sep))
+        (var i 0)
+        (while (not= nil k)
+          (put ret i (in ind k))
+          (set k (next ind k))
+          (+= i 2))
+        ret)
+      (do
+        (def ret @[(in ind k)])
+        (while (not= nil (set k (next ind k)))
+          (array/push ret sep (in ind k)))
+        ret))
+    @[]))
 
 (defn partition
   ``Partition an indexed data structure `ind` into tuples
@@ -2893,8 +2894,8 @@
         (try
           (printf pf x)
           ([e]
-           (eprintf "bad pretty format %v: %v" pf e)
-           (eflush)))
+            (eprintf "bad pretty format %v: %v" pf e)
+            (eflush)))
         (flush))
       (do
         (debug/stacktrace f x "")
