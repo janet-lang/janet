@@ -419,9 +419,11 @@
     (error (string "expected tuple for range, got " x))))
 
 (defn- range-template
-  [binding object rest op comparison]
+  [binding object kind rest op comparison]
   (let [[start stop step] (check-indexed object)]
-    (for-template binding start stop (or step 1) comparison op [rest])))
+    (case kind
+      :range (for-template binding (if stop start 0) (or stop start) (or step 1) comparison op [rest])
+      :down (for-template binding start (or stop 0) (or step 1) comparison op [rest]))))
 
 (defn- each-template
   [binding inx kind body]
@@ -477,10 +479,10 @@
   (def {(+ i 2) object} head)
   (let [rest (loop1 body head (+ i 3))]
     (case verb
-      :range (range-template binding object rest + <)
-      :range-to (range-template binding object rest + <=)
-      :down (range-template binding object rest - >)
-      :down-to (range-template binding object rest - >=)
+      :range (range-template binding object :range rest + <)
+      :range-to (range-template binding object :range rest + <=)
+      :down (range-template binding object :down rest - >)
+      :down-to (range-template binding object :down rest - >=)
       :keys (each-template binding object :keys [rest])
       :pairs (each-template binding object :pairs [rest])
       :in (each-template binding object :each [rest])
@@ -702,30 +704,38 @@
   [f]
   (fn [x] (not (f x))))
 
+(defmacro- do-extreme
+  [order args]
+  ~(do
+     (def ds ,args)
+     (var k (next ds nil))
+     (var ret (get ds k))
+     (while (,not= nil (set k (next ds k)))
+       (def x (in ds k))
+       (if (,order x ret) (set ret x)))
+     ret))
+
 (defn extreme
   ``Returns the most extreme value in `args` based on the function `order`.
   `order` should take two values and return true or false (a comparison).
   Returns nil if `args` is empty.``
-  [order args]
-  (var [ret] args)
-  (each x args (if (order x ret) (set ret x)))
-  ret)
+  [order args] (do-extreme order args))
 
 (defn max
   "Returns the numeric maximum of the arguments."
-  [& args] (extreme > args))
+  [& args] (do-extreme > args))
 
 (defn min
   "Returns the numeric minimum of the arguments."
-  [& args] (extreme < args))
+  [& args] (do-extreme < args))
 
 (defn max-of
   "Returns the numeric maximum of the argument sequence."
-  [args] (extreme > args))
+  [args] (do-extreme > args))
 
 (defn min-of
   "Returns the numeric minimum of the argument sequence."
-  [args] (extreme < args))
+  [args] (do-extreme < args))
 
 (defn first
   "Get the first element from an indexed data structure."
@@ -1425,7 +1435,7 @@
 
 (defn every?
   ``Evaluates to the last element of `ind` if all preceding elements are truthy,
-  otherwise evaluates to the first falsey argument.``
+  otherwise evaluates to the first falsey element.``
   [ind]
   (var res true)
   (loop [x :in ind :while res]
@@ -1445,28 +1455,29 @@
   `Reverses the order of the elements in a given array or buffer and returns it
   mutated.`
   [t]
-  (def len-1 (- (length t) 1))
-  (def half (/ len-1 2))
-  (forv i 0 half
-    (def j (- len-1 i))
-    (def l (in t i))
-    (def r (in t j))
-    (put t i r)
-    (put t j l))
+  (var i 0)
+  (var j (length t))
+  (while (< i (-- j))
+    (def ti (in t i))
+    (put t i (in t j))
+    (put t j ti)
+    (++ i))
   t)
 
 (defn reverse
   `Reverses the order of the elements in a given array or tuple and returns
-  a new array. If a string or buffer is provided, returns an array of its
-  byte values, reversed.`
+  a new array. If a string or buffer is provided, returns a buffer instead.`
   [t]
-  (var n (length t))
-  (def ret (if (bytes? t)
-             (buffer/new-filled n)
-             (array/new-filled n)))
-  (each v t
-    (put ret (-- n) v))
-  ret)
+  (if (lengthable? t)
+    (do
+      (var n (length t))
+      (def ret (if (bytes? t)
+                (buffer/new-filled n)
+                (array/new-filled n)))
+      (each v t
+        (put ret (-- n) v))
+      ret)
+    (reverse! (seq [v :in t] v))))
 
 (defn invert
   ``Given an associative data structure `ds`, returns a new table where the
@@ -1576,32 +1587,41 @@
 (defn keys
   "Get the keys of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
-  (var i 0)
-  (eachk k x
-    (put arr i k)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachk k x
+        (put arr i k)
+        (++ i))
+      arr)
+    (seq [k :keys x] k)))
 
 (defn values
   "Get the values of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
-  (var i 0)
-  (each v x
-    (put arr i v)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (each v x
+        (put arr i v)
+        (++ i))
+      arr)
+    (seq [v :in x] v)))
 
 (defn pairs
   "Get the key-value pairs of an associative data structure."
   [x]
-  (def arr (array/new-filled (length x)))
-  (var i 0)
-  (eachp p x
-    (put arr i p)
-    (++ i))
-  arr)
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachp p x
+        (put arr i p)
+        (++ i))
+      arr)
+    (seq [p :pairs x] p)))
 
 (defn frequencies
   "Get the number of occurrences of each value in an indexed data structure."
@@ -2869,7 +2889,12 @@
     (if (= :dead fs)
       (when is-repl
         (put env '_ @{:value x})
-        (printf (get env *pretty-format* "%q") x)
+        (def pf (get env *pretty-format* "%q"))
+        (try
+          (printf pf x)
+          ([e]
+           (eprintf "bad pretty format %v: %v" pf e)
+           (eflush)))
         (flush))
       (do
         (debug/stacktrace f x "")

@@ -127,7 +127,7 @@ static int32_t janet_q_count(JanetQueue *q) {
            : (q->tail - q->head);
 }
 
-static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
+static int janet_q_maybe_resize(JanetQueue *q, size_t itemsize) {
     int32_t count = janet_q_count(q);
     /* Resize if needed */
     if (count + 1 >= q->capacity) {
@@ -151,8 +151,24 @@ static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
         }
         q->capacity = newcap;
     }
+    return 0;
+}
+
+static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
+    if (janet_q_maybe_resize(q, itemsize)) return 1;
     memcpy((char *) q->data + itemsize * q->tail, item, itemsize);
     q->tail = q->tail + 1 < q->capacity ? q->tail + 1 : 0;
+    return 0;
+}
+
+static int janet_q_push_head(JanetQueue *q, void *item, size_t itemsize) {
+    if (janet_q_maybe_resize(q, itemsize)) return 1;
+    int32_t newhead = q->head - 1;
+    if (newhead < 0) {
+        newhead += q->capacity;
+    }
+    memcpy((char *) q->data + itemsize * newhead, item, itemsize);
+    q->head = newhead;
     return 0;
 }
 
@@ -468,7 +484,7 @@ const JanetAbstractType janet_stream_type = {
 };
 
 /* Register a fiber to resume with value */
-void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
+static void janet_schedule_general(JanetFiber *fiber, Janet value, JanetSignal sig, int soon) {
     if (fiber->gc.flags & JANET_FIBER_EV_FLAG_CANCELED) return;
     if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
         Janet task_element = janet_wrap_fiber(fiber);
@@ -477,7 +493,19 @@ void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
     JanetTask t = { fiber, value, sig, ++fiber->sched_id };
     fiber->gc.flags |= JANET_FIBER_FLAG_ROOT;
     if (sig == JANET_SIGNAL_ERROR) fiber->gc.flags |= JANET_FIBER_EV_FLAG_CANCELED;
-    janet_q_push(&janet_vm.spawn, &t, sizeof(t));
+    if (soon) {
+        janet_q_push_head(&janet_vm.spawn, &t, sizeof(t));
+    } else {
+        janet_q_push(&janet_vm.spawn, &t, sizeof(t));
+    }
+}
+
+void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig) {
+    janet_schedule_general(fiber, value, sig, 0);
+}
+
+void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig) {
+    janet_schedule_general(fiber, value, sig, 1);
 }
 
 void janet_cancel(JanetFiber *fiber, Janet value) {
@@ -604,7 +632,11 @@ void janet_addtimeout(double sec) {
 
 void janet_ev_inc_refcount(void) {
 #ifdef JANET_WINDOWS
+#ifdef JANET_64
+    InterlockedIncrement64(&janet_vm.extra_listeners);
+#else
     InterlockedIncrement(&janet_vm.extra_listeners);
+#endif
 #else
     __atomic_add_fetch(&janet_vm.extra_listeners, 1, __ATOMIC_RELAXED);
 #endif
@@ -612,7 +644,11 @@ void janet_ev_inc_refcount(void) {
 
 void janet_ev_dec_refcount(void) {
 #ifdef JANET_WINDOWS
+#ifdef JANET_64
+    InterlockedDecrement64(&janet_vm.extra_listeners);
+#else
     InterlockedDecrement(&janet_vm.extra_listeners);
+#endif
 #else
     __atomic_add_fetch(&janet_vm.extra_listeners, -1, __ATOMIC_RELAXED);
 #endif
@@ -1300,33 +1336,6 @@ int janet_loop_done(void) {
              janet_vm.extra_listeners);
 }
 
-static void janet_loop1_poll(void) {
-    /* Poll for events */
-    if (janet_vm.listener_count || janet_vm.tq_count || janet_vm.extra_listeners) {
-        JanetTimeout to;
-        memset(&to, 0, sizeof(to));
-        int has_timeout;
-        /* Drop timeouts that are no longer needed */
-        while ((has_timeout = peek_timeout(&to))) {
-            if (to.curr_fiber != NULL) {
-                if (!janet_fiber_can_resume(to.curr_fiber)) {
-                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
-                    pop_timeout(0);
-                    continue;
-                }
-            } else if (to.fiber->sched_id != to.sched_id) {
-                pop_timeout(0);
-                continue;
-            }
-            break;
-        }
-        /* Run polling implementation only if pending timeouts or pending events */
-        if (janet_vm.tq_count || janet_vm.listener_count || janet_vm.extra_listeners) {
-            janet_loop1_impl(has_timeout, to.when);
-        }
-    }
-}
-
 JanetFiber *janet_loop1(void) {
     /* Schedule expired timers */
     JanetTimeout to;
@@ -1349,8 +1358,10 @@ JanetFiber *janet_loop1(void) {
         }
     }
 
-    /* Run scheduled fibers */
+    /* Run scheduled fibers unless interrupts need to be handled. */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
+        /* Don't run until all interrupts have been marked as handled by calling janet_interpreter_interrupt_handled */
+        if (janet_vm.auto_suspend) break;
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
         if (task.fiber->gc.flags & JANET_FIBER_EV_FLAG_SUSPENDED) janet_ev_dec_refcount();
@@ -1379,12 +1390,34 @@ JanetFiber *janet_loop1(void) {
             janet_stacktrace_ext(task.fiber, res, "");
         }
         if (sig == JANET_SIGNAL_INTERRUPT) {
-            /* On interrupts, return the interrupted fiber immediately */
             return task.fiber;
         }
     }
 
-    janet_loop1_poll();
+    /* Poll for events */
+    if (janet_vm.listener_count || janet_vm.tq_count || janet_vm.extra_listeners) {
+        JanetTimeout to;
+        memset(&to, 0, sizeof(to));
+        int has_timeout;
+        /* Drop timeouts that are no longer needed */
+        while ((has_timeout = peek_timeout(&to))) {
+            if (to.curr_fiber != NULL) {
+                if (!janet_fiber_can_resume(to.curr_fiber)) {
+                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
+                    pop_timeout(0);
+                    continue;
+                }
+            } else if (to.fiber->sched_id != to.sched_id) {
+                pop_timeout(0);
+                continue;
+            }
+            break;
+        }
+        /* Run polling implementation only if pending timeouts or pending events */
+        if (janet_vm.tq_count || janet_vm.listener_count || janet_vm.extra_listeners) {
+            janet_loop1_impl(has_timeout, to.when);
+        }
+    }
 
     /* No fiber was interrupted */
     return NULL;
@@ -1405,12 +1438,6 @@ void janet_loop(void) {
     while (!janet_loop_done()) {
         JanetFiber *interrupted_fiber = janet_loop1();
         if (NULL != interrupted_fiber) {
-            /* Allow an extra poll before rescheduling to allow posted events to be handled
-             * before entering a possibly infinite, blocking loop. */
-            Janet x = janet_wrap_fiber(interrupted_fiber);
-            janet_gcroot(x);
-            janet_loop1_poll();
-            janet_gcunroot(x);
             janet_schedule(interrupted_fiber, janet_wrap_nil());
         }
     }

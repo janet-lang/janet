@@ -172,5 +172,10 @@
 (assert (= (length (range -10)) 0) "(range -10)")
 (assert (= (length (range 1 10)) 9) "(range 1 10)")
 
+# iterating over generator
+(assert-no-error "iterate over coro 1" (values (generate [x :range [0 10]] x)))
+(assert-no-error "iterate over coro 2" (keys (generate [x :range [0 10]] x)))
+(assert-no-error "iterate over coro 3" (pairs (generate [x :range [0 10]] x)))
+
 (end-suite)
 

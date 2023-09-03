@@ -809,6 +809,7 @@ static void close_handle(JanetHandle handle) {
 #ifndef JANET_WINDOWS
 static void janet_signal_callback(JanetEVGenericMessage msg) {
     int sig = msg.tag;
+    if (msg.argi) janet_interpreter_interrupt_handled(NULL);
     Janet handlerv = janet_table_get(&janet_vm.signal_handlers, janet_wrap_integer(sig));
     if (!janet_checktype(handlerv, JANET_FUNCTION)) {
         /* Let another thread/process try to handle this */
@@ -825,10 +826,8 @@ static void janet_signal_callback(JanetEVGenericMessage msg) {
     }
     JanetFunction *handler = janet_unwrap_function(handlerv);
     JanetFiber *fiber = janet_fiber(handler, 64, 0, NULL);
-    janet_schedule(fiber, janet_wrap_nil());
-    if (msg.argi) {
-        janet_ev_dec_refcount();
-    }
+    janet_schedule_soon(fiber, janet_wrap_nil(), JANET_SIGNAL_OK);
+    janet_ev_dec_refcount();
 }
 
 static void janet_signal_trampoline_no_interrupt(int sig) {
@@ -837,6 +836,7 @@ static void janet_signal_trampoline_no_interrupt(int sig) {
     memset(&msg, 0, sizeof(msg));
     msg.tag = sig;
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
+    janet_ev_inc_refcount();
 }
 
 static void janet_signal_trampoline(int sig) {
@@ -845,18 +845,20 @@ static void janet_signal_trampoline(int sig) {
     memset(&msg, 0, sizeof(msg));
     msg.tag = sig;
     msg.argi = 1;
+    janet_interpreter_interrupt(NULL);
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
     janet_ev_inc_refcount();
-    janet_interpreter_interrupt(NULL);
 }
 #endif
 
 JANET_CORE_FN(os_sigaction,
               "(os/sigaction which &opt handler interrupt-interpreter)",
-              "Add a signal handler for a given action. Use nil for the `handler` argument to remove a signal handler.") {
+              "Add a signal handler for a given action. Use nil for the `handler` argument to remove a signal handler. "
+              "All signal handlers are the same as supported by `os/proc-kill`.") {
     janet_sandbox_assert(JANET_SANDBOX_SIGNAL);
     janet_arity(argc, 1, 3);
 #ifdef JANET_WINDOWS
+    (void) argv;
     janet_panic("unsupported on this platform");
 #else
     /* TODO - per thread signal masks */
@@ -880,7 +882,11 @@ JANET_CORE_FN(os_sigaction,
     sigfillset(&mask);
     memset(&action, 0, sizeof(action));
     if (can_interrupt) {
+#ifdef JANET_NO_INTERPRETER_INTERRUPT
+        janet_panic("interpreter interrupt not enabled");
+#else
         action.sa_handler = janet_signal_trampoline;
+#endif
     } else {
         action.sa_handler = janet_signal_trampoline_no_interrupt;
     }

@@ -24,6 +24,7 @@
 #include "features.h"
 #include <janet.h>
 #include "state.h"
+#include "util.h"
 #endif
 
 JANET_THREAD_LOCAL JanetVM janet_vm;
@@ -57,5 +58,18 @@ void janet_vm_load(JanetVM *from) {
  * use NULL to interrupt the current VM when convenient */
 void janet_interpreter_interrupt(JanetVM *vm) {
     vm = vm ? vm : &janet_vm;
-    vm->auto_suspend = 1;
+#ifdef JANET_WINDOWS
+    InterlockedIncrement(&vm->auto_suspend);
+#else
+    __atomic_add_fetch(&vm->auto_suspend, 1, __ATOMIC_RELAXED);
+#endif
+}
+
+void janet_interpreter_interrupt_handled(JanetVM *vm) {
+    vm = vm ? vm : &janet_vm;
+#ifdef JANET_WINDOWS
+    InterlockedDecrement(&vm->auto_suspend);
+#else
+    __atomic_add_fetch(&vm->auto_suspend, -1, __ATOMIC_RELAXED);
+#endif
 }
