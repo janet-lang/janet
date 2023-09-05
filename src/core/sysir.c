@@ -1149,7 +1149,7 @@ static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf
 
     /* Add nested for loops for any dimensionality of array */
     while (ir->type_defs[operand_type].prim == JANET_PRIM_ARRAY) {
-        /* TODO - turn to do while to handle max uint32_t size */
+        /* TODO - handle fixed_count == SIZE_MAX */
         janet_formatb(buffer, "for (size_t _j%u = 0; _j%u < %u; _j%u++) ",
                       index_index, index_index,
                       ir->type_defs[operand_type].array.fixed_count,
@@ -1164,12 +1164,20 @@ static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf
         index_index++;
     }
 
-    Janet index_part = janet_wrap_buffer(tempbuf);
-    janet_formatb(buffer, "_r%u%V = _r%u%V %s _r%u%V;\n",
-                  instruction.three.dest, index_part,
-                  instruction.three.lhs, index_part,
-                  op,
-                  instruction.three.rhs, index_part);
+    if (is_pointer) {
+        janet_formatb(buffer, "*_r%u = *_r%u %s *_r%u;\n",
+                      instruction.three.dest,
+                      instruction.three.lhs,
+                      op,
+                      instruction.three.rhs);
+    } else {
+        Janet index_part = janet_wrap_buffer(tempbuf);
+        janet_formatb(buffer, "_r%u%V = _r%u%V %s _r%u%V;\n",
+                      instruction.three.dest, index_part,
+                      instruction.three.lhs, index_part,
+                      op,
+                      instruction.three.rhs, index_part);
+    }
 }
 
 void janet_sys_ir_lower_to_c(JanetSysIR *ir, JanetBuffer *buffer) {
