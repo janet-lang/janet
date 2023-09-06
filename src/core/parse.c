@@ -612,7 +612,6 @@ static int atsign(JanetParser *p, JanetParseState *state, uint8_t c) {
             break;
     }
     pushstate(p, tokenchar, PFLAG_TOKEN);
-    push_buf(p, '@'); /* Push the leading at-sign that was dropped */
     return 0;
 }
 
