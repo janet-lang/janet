@@ -1735,20 +1735,28 @@
         ret))
     @[]))
 
+(defn- partition-slice
+  [f n ind]
+  (var [start end] [0 n])
+  (def len (length ind))
+  (def parts (div len n))
+  (def ret (array/new-filled parts))
+  (forv k 0 parts
+    (put ret k (f ind start end))
+    (set start end)
+    (+= end n))
+  (if (< start len)
+    (array/push ret (f ind start)))
+  ret)
+
 (defn partition
   ``Partition an indexed data structure `ind` into tuples
   of size `n`. Returns a new array.``
   [n ind]
-  (var i 0) (var nextn n)
-  (def len (length ind))
-  (def ret (array/new (math/ceil (/ len n))))
-  (def slicer (if (bytes? ind) string/slice tuple/slice))
-  (while (<= nextn len)
-    (array/push ret (slicer ind i nextn))
-    (set i nextn)
-    (+= nextn n))
-  (if (not= i len) (array/push ret (slicer ind i)))
-  ret)
+  (cond
+    (indexed? ind) (partition-slice tuple/slice n ind)
+    (bytes? ind) (partition-slice string/slice n ind)
+    (partition-slice tuple/slice n (values ind))))
 
 ###
 ###
