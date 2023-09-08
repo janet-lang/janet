@@ -643,7 +643,12 @@
 (defn mean
   "Returns the mean of xs. If empty, returns NaN."
   [xs]
-  (/ (sum xs) (length xs)))
+  (if (lengthable? xs)
+    (/ (sum xs) (length xs))
+    (do
+      (var [accum total] [0 0])
+      (each x xs (+= accum x) (++ total))
+      (/ accum total))))
 
 (defn product
   "Returns the product of xs. If xs is empty, returns 1."
