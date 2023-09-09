@@ -349,6 +349,13 @@
         "sort 5")
 (assert (<= ;(sort (map (fn [x] (math/random)) (range 1000)))) "sort 6")
 
+# #1283  
+(assert (deep=
+          (partition 2 (generate [ i :in [:a :b :c :d :e]] i))
+          '@[(:a :b) (:c :d) (:e)]))
+(assert (= (mean (generate [i :in [2 3 5 7 11]] i))
+           5.6))
+
 # And and or
 # c16a9d846
 (assert (= (and true true) true) "and true true")
