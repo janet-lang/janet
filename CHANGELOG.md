@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Allow calling `reverse` on generators.
+- Improve performance of a number of core functions including `partition`, `mean`, `keys`, `values`, `pairs`, `interleave`.
+- Add `lengthable?`
 - Add `os/sigaction`
 - Change `every?` and `any?` to behave like the functional versions of the `and` and `or` macros.
 - Fix bug with garbage collecting threaded abstract types.
