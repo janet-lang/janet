@@ -177,8 +177,8 @@ JANET_CORE_FN(cfun_array_peek,
 }
 
 JANET_CORE_FN(cfun_array_push,
-              "(array/push arr x)",
-              "Insert an element in the end of an array. Modifies the input array and returns it.") {
+              "(array/push arr & xs)",
+              "Push all the elements of xs to the end of an array. Modifies the input array and returns it.") {
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
     if (INT32_MAX - argc + 1 <= array->count) {
