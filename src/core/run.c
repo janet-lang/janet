@@ -57,12 +57,20 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 }
             } else {
                 ret = janet_wrap_string(cres.error);
+                int32_t line = (int32_t) parser.line;
+                int32_t col = (int32_t) parser.column;
+                if ((cres.error_mapping.line > 0) &&
+                        (cres.error_mapping.column > 0)) {
+                    line = cres.error_mapping.line;
+                    col = cres.error_mapping.column;
+                }
                 if (cres.macrofiber) {
-                    janet_eprintf("compile error in %s: ", sourcePath);
+                    janet_eprintf("%s:%d:%d: compile error", sourcePath,
+                                  line, col);
                     janet_stacktrace_ext(cres.macrofiber, ret, "");
                 } else {
-                    janet_eprintf("compile error in %s: %s\n", sourcePath,
-                                  (const char *)cres.error);
+                    janet_eprintf("%s:%d:%d: compile error: %s\n", sourcePath,
+                                  line, col, (const char *)cres.error);
                 }
                 errflags |= 0x02;
                 done = 1;
