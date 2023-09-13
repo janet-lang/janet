@@ -186,6 +186,11 @@
 (assert (= txs [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
         "nested seq")
 
+# :unless modifier
+(assert (deep= (seq [i :range [0 10] :unless (odd? i)] i)
+               @[0 2 4 6 8])
+        ":unless modifier")
+
 # 515891b03
 (assert (deep= (tabseq [i :in (range 3)] i (* 3 i))
                @{0 0 1 3 2 6}))
