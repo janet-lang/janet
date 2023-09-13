@@ -473,6 +473,7 @@
           :repeat (with-syms [iter]
                     ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
           :when ~(when ,verb ,rest)
+          :unless ~(unless ,verb ,rest)
           (error (string "unexpected loop modifier " binding))))))
 
   # 3 term expression
