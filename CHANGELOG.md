@@ -1,7 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.31.0 - 2023-09-17
+- Report line and column when using `janet_dobytes`
+- Add `:unless` loop modifier
 - Allow calling `reverse` on generators.
 - Improve performance of a number of core functions including `partition`, `mean`, `keys`, `values`, `pairs`, `interleave`.
 - Add `lengthable?`
