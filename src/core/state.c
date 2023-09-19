@@ -27,6 +27,10 @@
 #include "util.h"
 #endif
 
+#ifdef JANET_WINDOWS
+#include <windows.h>
+#endif
+
 JANET_THREAD_LOCAL JanetVM janet_vm;
 
 JanetVM *janet_local_vm(void) {
