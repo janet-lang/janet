@@ -592,6 +592,9 @@
   * `:when condition` -- only evaluates the current loop body when `condition`
     is true.
 
+  * `:unless condition` -- only evaluates the current loop body when `condition`
+    is false.
+
   The `loop` macro always evaluates to nil.
   ```
   [head & body]
