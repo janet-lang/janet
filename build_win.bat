@@ -64,6 +64,10 @@ rc /nologo /fobuild\janet_win.res janet_win.rc
 %JANET_LINK% /out:janet.exe build\janet.obj build\shell.obj build\janet_win.res
 @if errorlevel 1 goto :BUILDFAIL
 
+@rem Build dynamic library (dlljanet.dll)
+%JANET_LINK% /DLL /out:build\dlljanet.dll build\janet.obj
+@if errorlevel 1 goto :BUILDFAIL
+
 @rem Build static library (libjanet.lib)
 %JANET_LINK_STATIC% /out:build\libjanet.lib build\janet.obj
 @if errorlevel 1 goto :BUILDFAIL
@@ -122,6 +126,8 @@ copy janet.def dist\janet.def
 janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h build\janet.h
 copy build\janet.h dist\janet.h
 copy build\libjanet.lib dist\libjanet.lib
+copy build\dlljanet.dll dist\dlljanet.dll
+copy build\dlljanet.lib dist\dlljanet.lib
 
 @rem Create installer
 janet.exe -e "(->> janet/version (peg/match ''(* :d+ `.` :d+ `.` :d+)) first print)" > build\version.txt

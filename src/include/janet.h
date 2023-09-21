@@ -235,6 +235,15 @@ extern "C" {
 #endif
 
 /* How to export symbols */
+#ifndef JANET_EXPORT
+#ifdef JANET_WINDOWS
+#define JANET_EXPORT __declspec(dllexport)
+#else
+#define JANET_EXPORT __attribute__((visibility ("default")))
+#endif
+#endif
+
+/* How declare API functions */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
 #ifdef JANET_DLL_IMPORT
@@ -734,6 +743,7 @@ JANET_API Janet janet_wrap_integer(int32_t x);
         ? janet_nanbox_isnumber(x) \
         : janet_nanbox_checkauxtype((x), (t)))
 
+/* Use JANET_API so that modules will use a local version of these functions if possible */
 JANET_API void *janet_nanbox_to_pointer(Janet x);
 JANET_API Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask);
 JANET_API Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask);
@@ -1952,10 +1962,10 @@ JANET_API void janet_register(const char *name, JanetCFunction cfun);
 #endif
 #ifndef JANET_ENTRY_NAME
 #define JANET_MODULE_ENTRY \
-    JANET_MODULE_PREFIX JANET_API JanetBuildConfig _janet_mod_config(void) { \
+    JANET_MODULE_PREFIX JANET_EXPORT JanetBuildConfig _janet_mod_config(void) { \
         return janet_config_current(); \
     } \
-    JANET_MODULE_PREFIX JANET_API void _janet_init
+    JANET_MODULE_PREFIX JANET_EXPORT void _janet_init
 #else
 #define JANET_MODULE_ENTRY JANET_MODULE_PREFIX JANET_API void JANET_ENTRY_NAME
 #endif
