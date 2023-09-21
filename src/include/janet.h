@@ -237,7 +237,11 @@ extern "C" {
 /* How to export symbols */
 #ifndef JANET_API
 #ifdef JANET_WINDOWS
+#ifdef JANET_DLL_IMPORT
+#define JANET_API __declspec(dllimport)
+#else
 #define JANET_API __declspec(dllexport)
+#endif
 #else
 #define JANET_API __attribute__((visibility ("default")))
 #endif

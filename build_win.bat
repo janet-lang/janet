@@ -64,7 +64,7 @@ rc /nologo /fobuild\janet_win.res janet_win.rc
 %JANET_LINK% /out:janet.exe build\janet.obj build\shell.obj build\janet_win.res
 @if errorlevel 1 goto :BUILDFAIL
 
-@rem Build static library (libjanet.a)
+@rem Build static library (libjanet.lib)
 %JANET_LINK_STATIC% /out:build\libjanet.lib build\janet.obj
 @if errorlevel 1 goto :BUILDFAIL
 
@@ -117,6 +117,7 @@ copy README.md dist\README.md
 
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
+copy janet.def dist\janet.def
 
 janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h build\janet.h
 copy build\janet.h dist\janet.h
