@@ -590,10 +590,10 @@
   * `:repeat n` -- repeats the next inner loop `n` times.
 
   * `:when condition` -- only evaluates the current loop body when `condition`
-    is true.
+    is truthy.
 
   * `:unless condition` -- only evaluates the current loop body when `condition`
-    is false.
+    is falsey.
 
   The `loop` macro always evaluates to nil.
   ```
