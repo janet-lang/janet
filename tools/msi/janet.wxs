@@ -132,12 +132,6 @@
             <Component Directory="CDir">
                 <File Source="dist\libjanet.lib"/>
             </Component>
-            <Component Directory="CDir">
-                <File Source="dist\dlljanet.dll"/>
-            </Component>
-            <Component Directory="CDir">
-                <File Source="dist\dlljanet.lib"/>
-            </Component>
 
             <Component Id="LibraryComponent" Directory="LibraryDir" Guid="3860e981-5f94-4002-b5d5-2d9ec0d2792d" KeyPath="yes">
                 <RemoveFolder Id="RemoveLibraryDir" On="uninstall" />

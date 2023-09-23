@@ -182,23 +182,30 @@ if not get_option('single_threaded')
   janet_dependencies += thread_dep
 endif
 
+if cc.has_argument('-fvisibility=hidden')
+  lib_cflags = ['-fvisibility=hidden']
+else
+  lib_cflags = []
+endif
 libjanet = library('janet', janetc,
   include_directories : incdir,
   dependencies : janet_dependencies,
   version: meson.project_version(),
   soversion: version_parts[0] + '.' + version_parts[1],
+  c_args : lib_cflags,
   install : true)
 
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and
 # shaves off about 10k on linux x64, likely similar on other platforms.
 if cc.has_argument('-fvisibility=hidden')
-  extra_cflags = ['-fvisibility=hidden']
+  extra_cflags = ['-fvisibility=hidden', '-DJANET_DLL_IMPORT']
 else
-  extra_cflags = []
+  extra_cflags = ['-DJANET_DLL_IMPORT']
 endif
-janet_mainclient = executable('janet', janetc, mainclient_src,
+janet_mainclient = executable('janet', mainclient_src,
   include_directories : incdir,
   dependencies : janet_dependencies,
+  link_with: [libjanet],
   c_args : extra_cflags,
   install : true)
 
