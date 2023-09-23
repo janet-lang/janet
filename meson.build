@@ -169,7 +169,7 @@ janet_boot = executable('janet-boot', core_src, boot_src,
 
 # Build janet.c
 janetc = custom_target('janetc',
-  input : [janet_boot],
+  input : [janet_boot, 'src/boot/boot.janet'],
   output : 'janet.c',
   capture : true,
   command : [
@@ -288,11 +288,12 @@ patched_janet = custom_target('patched-janeth',
   install : true,
   install_dir : join_paths(get_option('includedir'), 'janet'),
   build_by_default : true,
-  output : ['janet.h'],
+  output : ['janet_' + meson.project_version() + '.h'],
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
 
 # Create a version of the janet.h header that matches what jpm often expects
 if meson.version().version_compare('>=0.61')
   install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+  install_symlink('janet.h', pointing_to: 'janet' + meson.project_version() + '.h', install_dir: join_paths(get_option('includedir'), 'janet'))
 endif
 
