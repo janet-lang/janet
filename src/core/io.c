@@ -131,7 +131,7 @@ JANET_CORE_FN(cfun_io_temp,
 }
 
 JANET_CORE_FN(cfun_io_fopen,
-              "(file/open path &opt mode)",
+              "(file/open path &opt mode buffer-size)",
               "Open a file. `path` is an absolute or relative path, and "
               "`mode` is a set of flags indicating the mode to open the file in. "
               "`mode` is a keyword where each character represents a flag. If the file "
@@ -145,7 +145,7 @@ JANET_CORE_FN(cfun_io_fopen,
               "* + - append to the file instead of overwriting it\n\n"
               "* n - error if the file cannot be opened instead of returning nil\n\n"
               "See fopen (<stdio.h>, C99) for further details.") {
-    janet_arity(argc, 1, 2);
+    janet_arity(argc, 1, 3);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
     int32_t flags;
@@ -158,6 +158,15 @@ JANET_CORE_FN(cfun_io_fopen,
         flags = JANET_FILE_READ;
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
+    if (f != NULL) {
+        size_t bufsize = janet_optsize(argv, argc, 2, BUFSIZ);
+        if (bufsize != BUFSIZ) {
+            int result = setvbuf(f, NULL, bufsize ? _IOFBF : _IONBF, bufsize);
+            if (result) {
+                janet_panic("failed to set buffer size for file");
+            }
+        }
+    }
     return f ? janet_makefile(f, flags)
            : (flags & JANET_FILE_NONIL) ? (janet_panicf("failed to open file %s: %s", fname, strerror(errno)), janet_wrap_nil())
            : janet_wrap_nil();
