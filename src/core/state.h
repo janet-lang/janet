@@ -125,6 +125,7 @@ struct JanetVM {
     size_t next_collection;
     size_t block_count;
     int gc_suspend;
+    int gc_mark_phase;
 
     /* GC roots */
     Janet *roots;

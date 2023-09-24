@@ -111,6 +111,69 @@ static void janet_net_socknoblock(JSock s) {
 #endif
 }
 
+/* State machine for async connect */
+
+typedef struct {
+    JanetListenerState head;
+    int did_connect;
+} NetStateConnect;
+
+JanetAsyncStatus net_machine_connect(JanetListenerState *s, JanetAsyncEvent event) {
+    NetStateConnect *state = (NetStateConnect *)s;
+    switch (event) {
+        default:
+            return JANET_ASYNC_STATUS_NOT_DONE;
+        case JANET_ASYNC_EVENT_DEINIT:
+            {
+                if (!state->did_connect) {
+                    janet_stream_close(s->stream);
+                    return JANET_ASYNC_STATUS_DONE;
+                }
+            }
+            return JANET_ASYNC_STATUS_DONE;
+        case JANET_ASYNC_EVENT_CLOSE:
+        case JANET_ASYNC_EVENT_HUP:
+        case JANET_ASYNC_EVENT_ERR:
+            janet_cancel(s->fiber, janet_cstringv("failed to connect socket"));
+            return JANET_ASYNC_STATUS_DONE;
+        case JANET_ASYNC_EVENT_COMPLETE:
+        case JANET_ASYNC_EVENT_WRITE:
+        case JANET_ASYNC_EVENT_USER:
+            break;
+    }
+#ifdef JANET_WINDOWS
+    int res = 0;
+    int size = sizeof(res);
+    int r = getsockopt((SOCKET)s->stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
+#else
+    int res = 0;
+    socklen_t size = sizeof res;
+    int r = getsockopt(s->stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+#endif
+    if (r == 0) {
+        if (res == 0) {
+            state->did_connect = 1;
+            janet_schedule(s->fiber, janet_wrap_abstract(s->stream));
+        } else {
+            janet_cancel(s->fiber, janet_cstringv(strerror(res)));
+        }
+    } else {
+        janet_cancel(s->fiber, janet_ev_lasterr());
+    }
+    return JANET_ASYNC_STATUS_DONE;
+}
+
+static void net_sched_connect(JanetStream *stream) {
+    Janet err;
+    JanetListenerState *s = janet_listen(stream, net_machine_connect, JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateConnect), NULL);
+    NetStateConnect *state = (NetStateConnect *)s;
+    state->did_connect = 0;
+#ifdef JANET_WINDOWS
+    net_machine_connect(s, JANET_ASYNC_EVENT_USER);
+#endif
+}
+
+
 /* State machine for accepting connections. */
 
 #ifdef JANET_WINDOWS
@@ -496,7 +559,7 @@ JANET_CORE_FN(cfun_net_connect,
     }
 #endif
 
-    if (status != 0) {
+    if (status) {
 #ifdef JANET_WINDOWS
         if (err != WSAEWOULDBLOCK) {
 #else
@@ -506,11 +569,11 @@ JANET_CORE_FN(cfun_net_connect,
             Janet lasterr = janet_ev_lasterr();
             janet_panicf("could not connect socket: %V", lasterr);
         }
+    } else {
+        return janet_wrap_abstract(stream);
     }
 
-    /* Handle the connect() result in the event loop*/
-    janet_ev_connect(stream, MSG_NOSIGNAL);
-
+    net_sched_connect(stream);
     janet_await();
 }
 

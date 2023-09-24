@@ -111,12 +111,11 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
             JANET_OUT_OF_MEMORY;
         }
     }
-    int32_t i, oldcapacity;
-    oldcapacity = t->capacity;
+    int32_t oldcapacity = t->capacity;
     t->data = newdata;
     t->capacity = size;
     t->deleted = 0;
-    for (i = 0; i < oldcapacity; i++) {
+    for (int32_t i = 0; i < oldcapacity; i++) {
         JanetKV *kv = olddata + i;
         if (!janet_checktype(kv->key, JANET_NIL)) {
             JanetKV *newkv = janet_table_find(t, kv->key);

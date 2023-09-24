@@ -53,6 +53,11 @@ void janet_gcpressure(size_t s) {
     janet_vm.next_collection += s;
 }
 
+/* Instrment freed memory for simple use after free detection. */
+static void gc_free_gcobj(JanetGCObject *mem) {
+    janet_free(mem);
+}
+
 /* Mark a value */
 void janet_mark(Janet x) {
     if (depth) {
@@ -339,13 +344,12 @@ void janet_sweep() {
             current->flags &= ~JANET_MEM_REACHABLE;
         } else {
             janet_vm.block_count--;
-            janet_deinit_block(current);
             if (NULL != previous) {
                 previous->data.next = next;
             } else {
                 janet_vm.blocks = next;
             }
-            janet_free(current);
+            gc_free_gcobj(current);
         }
         current = next;
     }
@@ -371,7 +375,7 @@ void janet_sweep() {
                         janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                     }
                     /* Free memory */
-                    janet_free(janet_abstract_head(abst));
+                    gc_free_gcobj(janet_abstract_head(abst));
                 }
 
                 /* Mark as tombstone in place */
@@ -438,6 +442,8 @@ void janet_collect(void) {
     uint32_t i;
     if (janet_vm.gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
+    fprintf(stderr, "gccollect\n");
+    janet_vm.gc_mark_phase = 1;
     /* Try and prevent many major collections back to back.
      * A full collection will take O(janet_vm.block_count) time.
      * If we have a large heap, make sure our interval is not too
@@ -457,6 +463,7 @@ void janet_collect(void) {
         Janet x = janet_vm.roots[--janet_vm.root_count];
         janet_mark(x);
     }
+    janet_vm.gc_mark_phase = 0;
     janet_sweep();
     janet_vm.next_collection = 0;
     janet_free_all_scratch();
@@ -542,9 +549,10 @@ void janet_clear_memory(void) {
 #endif
     JanetGCObject *current = janet_vm.blocks;
     while (NULL != current) {
+        current->flags |= JANET_MEM_USEAFTERFREE;
         janet_deinit_block(current);
         JanetGCObject *next = current->data.next;
-        janet_free(current);
+        gc_free_gcobj(current);
         current = next;
     }
     janet_vm.blocks = NULL;
@@ -560,7 +568,9 @@ void janet_gcunlock(int handle) {
     janet_vm.gc_suspend = handle;
 }
 
-/* Scratch memory API */
+/* Scratch memory API
+ * Scratch memory allocations do not need to be free (but optionally can be), and will be automatically cleaned
+ * up in the next call to janet_collect. */
 
 void *janet_smalloc(size_t size) {
     JanetScratch *s = janet_malloc(sizeof(JanetScratch) + size);
