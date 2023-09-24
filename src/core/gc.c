@@ -442,7 +442,6 @@ void janet_collect(void) {
     uint32_t i;
     if (janet_vm.gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
-    fprintf(stderr, "gccollect\n");
     janet_vm.gc_mark_phase = 1;
     /* Try and prevent many major collections back to back.
      * A full collection will take O(janet_vm.block_count) time.

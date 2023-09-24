@@ -164,7 +164,6 @@ JanetAsyncStatus net_machine_connect(JanetListenerState *s, JanetAsyncEvent even
 }
 
 static void net_sched_connect(JanetStream *stream) {
-    Janet err;
     JanetListenerState *s = janet_listen(stream, net_machine_connect, JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateConnect), NULL);
     NetStateConnect *state = (NetStateConnect *)s;
     state->did_connect = 0;
@@ -172,7 +171,6 @@ static void net_sched_connect(JanetStream *stream) {
     net_machine_connect(s, JANET_ASYNC_EVENT_USER);
 #endif
 }
-
 
 /* State machine for accepting connections. */
 
@@ -569,8 +567,6 @@ JANET_CORE_FN(cfun_net_connect,
             Janet lasterr = janet_ev_lasterr();
             janet_panicf("could not connect socket: %V", lasterr);
         }
-    } else {
-        return janet_wrap_abstract(stream);
     }
 
     net_sched_connect(stream);
