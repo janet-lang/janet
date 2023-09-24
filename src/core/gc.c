@@ -549,7 +549,6 @@ void janet_clear_memory(void) {
 #endif
     JanetGCObject *current = janet_vm.blocks;
     while (NULL != current) {
-        current->flags |= JANET_MEM_USEAFTERFREE;
         janet_deinit_block(current);
         JanetGCObject *next = current->data.next;
         gc_free_gcobj(current);

@@ -38,7 +38,7 @@
 #define janet_gc_settype(m, t) ((janet_gc_header(m)->flags |= (0xFF & (t))))
 #define janet_gc_type(m) (janet_gc_header(m)->flags & 0xFF)
 
-#define janet_gc_mark(m) do (janet_gc_header(m)->flags |= JANET_MEM_REACHABLE)
+#define janet_gc_mark(m) (janet_gc_header(m)->flags |= JANET_MEM_REACHABLE)
 #define janet_gc_reachable(m) (janet_gc_header(m)->flags & JANET_MEM_REACHABLE)
 
 /* Memory types for the GC. Different from JanetType to include funcenv and funcdef. */
