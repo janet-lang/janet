@@ -123,32 +123,22 @@ JanetAsyncStatus net_machine_connect(JanetListenerState *s, JanetAsyncEvent even
     switch (event) {
         default:
             return JANET_ASYNC_STATUS_NOT_DONE;
-        case JANET_ASYNC_EVENT_DEINIT:
-            {
-                if (!state->did_connect) {
-                    janet_stream_close(s->stream);
-                    return JANET_ASYNC_STATUS_DONE;
-                }
-            }
-            return JANET_ASYNC_STATUS_DONE;
-        case JANET_ASYNC_EVENT_CLOSE:
         case JANET_ASYNC_EVENT_HUP:
         case JANET_ASYNC_EVENT_ERR:
-            janet_cancel(s->fiber, janet_cstringv("failed to connect socket"));
-            return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_COMPLETE:
         case JANET_ASYNC_EVENT_WRITE:
         case JANET_ASYNC_EVENT_USER:
             break;
     }
+    JanetStream *stream = s->stream;
 #ifdef JANET_WINDOWS
     int res = 0;
     int size = sizeof(res);
-    int r = getsockopt((SOCKET)s->stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
+    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
 #else
     int res = 0;
     socklen_t size = sizeof res;
-    int r = getsockopt(s->stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+    int r = getsockopt(stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
 #endif
     if (r == 0) {
         if (res == 0) {
@@ -156,9 +146,11 @@ JanetAsyncStatus net_machine_connect(JanetListenerState *s, JanetAsyncEvent even
             janet_schedule(s->fiber, janet_wrap_abstract(s->stream));
         } else {
             janet_cancel(s->fiber, janet_cstringv(strerror(res)));
+            stream->flags |= JANET_STREAM_TOCLOSE;
         }
     } else {
         janet_cancel(s->fiber, janet_ev_lasterr());
+        stream->flags |= JANET_STREAM_TOCLOSE;
     }
     return JANET_ASYNC_STATUS_DONE;
 }

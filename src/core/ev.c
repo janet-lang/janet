@@ -326,6 +326,12 @@ static void janet_unlisten_impl(JanetListenerState *state, int is_gc) {
     janet_free(state);
 }
 
+static void janet_stream_checktoclose(JanetStream *stream) {
+    if ((stream->flags & JANET_STREAM_TOCLOSE) && !stream->state) {
+        janet_stream_close(stream);
+    }
+}
+
 static const JanetMethod ev_default_stream_methods[] = {
     {"close", janet_cfun_stream_close},
     {"read", janet_cfun_stream_read},
@@ -1554,6 +1560,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
                     state = state->_next;
                 }
             }
+            janet_stream_checktoclose(stream);
         }
     }
 }
@@ -1708,6 +1715,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                     janet_unlisten(state, 0);
                 state = next_state;
             }
+            janet_stream_checktoclose(stream);
         }
     }
 }
@@ -1906,6 +1914,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
                 state = next_state;
             }
+            janet_stream_checktoclose(stream);
         }
     }
 }
@@ -2021,8 +2030,10 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         if (status1 == JANET_ASYNC_STATUS_DONE ||
                 status2 == JANET_ASYNC_STATUS_DONE ||
                 status3 == JANET_ASYNC_STATUS_DONE ||
-                status4 == JANET_ASYNC_STATUS_DONE)
+                status4 == JANET_ASYNC_STATUS_DONE) {
             janet_unlisten(state, 0);
+        }
+        janet_stream_checktoclose(stream);
     }
 }
 
