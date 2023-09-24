@@ -41,32 +41,32 @@ if not exist build\boot mkdir build\boot
 @rem Build the bootstrap interpreter
 for %%f in (src\core\*.c) do (
     %JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
-    @if errorlevel 1 goto :BUILDFAIL
+    @if not errorlevel 0 goto :BUILDFAIL
 )
 for %%f in (src\boot\*.c) do (
     %JANET_COMPILE% /DJANET_BOOTSTRAP /Fobuild\boot\%%~nf.obj %%f
-    @if errorlevel 1 goto :BUILDFAIL
+    @if not errorlevel 0 goto :BUILDFAIL
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
-@if errorlevel 1 goto :BUILDFAIL
+@if not errorlevel 0 goto :BUILDFAIL
 build\janet_boot . > build\c\janet.c
 
 @rem Build the sources
 %JANET_COMPILE% /Fobuild\janet.obj build\c\janet.c
-@if errorlevel 1 goto :BUILDFAIL
+@if not errorlevel 0 goto :BUILDFAIL
 %JANET_COMPILE% /Fobuild\shell.obj src\mainclient\shell.c
-@if errorlevel 1 goto :BUILDFAIL
+@if not errorlevel 0 goto :BUILDFAIL
 
 @rem Build the resources
 rc /nologo /fobuild\janet_win.res janet_win.rc
 
 @rem Link everything to main client
 %JANET_LINK% /out:janet.exe build\janet.obj build\shell.obj build\janet_win.res
-@if errorlevel 1 goto :BUILDFAIL
+@if not errorlevel 0 goto :BUILDFAIL
 
 @rem Build static library (libjanet.lib)
 %JANET_LINK_STATIC% /out:build\libjanet.lib build\janet.obj
-@if errorlevel 1 goto :BUILDFAIL
+@if not errorlevel 0 goto :BUILDFAIL
 
 echo === Successfully built janet.exe for Windows ===
 echo === Run 'build_win test' to run tests. ==
@@ -98,7 +98,7 @@ exit /b 0
 :TEST
 for %%f in (test/suite*.janet) do (
     janet.exe test\%%f
-    @if errorlevel 1 goto TESTFAIL
+    @if not errorlevel 0 goto TESTFAIL
 )
 exit /b 0
 
