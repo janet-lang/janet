@@ -123,6 +123,9 @@ JanetAsyncStatus net_machine_connect(JanetListenerState *s, JanetAsyncEvent even
     switch (event) {
         default:
             return JANET_ASYNC_STATUS_NOT_DONE;
+        case JANET_ASYNC_EVENT_CLOSE:
+            janet_cancel(s->fiber, janet_cstringv("stream closed"));
+            return JANET_ASYNC_STATUS_DONE;
         case JANET_ASYNC_EVENT_HUP:
         case JANET_ASYNC_EVENT_ERR:
         case JANET_ASYNC_EVENT_COMPLETE:

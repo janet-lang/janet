@@ -39,7 +39,6 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->env = NULL;
     fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
-    fiber->waiting = NULL;
     fiber->sched_id = 0;
     fiber->supervisor_channel = NULL;
 #endif
@@ -85,7 +84,6 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
     if (janet_fiber_funcframe(fiber, callee)) return NULL;
     janet_fiber_frame(fiber)->flags |= JANET_STACKFRAME_ENTRANCE;
 #ifdef JANET_EV
-    fiber->waiting = NULL;
     fiber->supervisor_channel = NULL;
 #endif
     return fiber;

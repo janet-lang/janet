@@ -636,6 +636,7 @@ struct JanetListenerState {
     /* internal */
     size_t _index;
     int _mask;
+    uint32_t _sched_id;
     JanetListenerState *_next;
 };
 #endif
@@ -926,7 +927,6 @@ struct JanetFiber {
      * that is, fibers that are scheduled on the event loop and behave much like threads
      * in a multi-tasking system. It would be possible to move these fields to a new
      * type, say "JanetTask", that as separate from fibers to save a bit of space. */
-    JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
     void *supervisor_channel; /* Channel to push self to when complete */
 #endif
