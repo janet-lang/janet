@@ -53,11 +53,6 @@ void janet_gcpressure(size_t s) {
     janet_vm.next_collection += s;
 }
 
-/* Instrment freed memory for simple use after free detection. */
-static void gc_free_gcobj(JanetGCObject *mem) {
-    janet_free(mem);
-}
-
 /* Mark a value */
 void janet_mark(Janet x) {
     if (depth) {
@@ -344,12 +339,13 @@ void janet_sweep() {
             current->flags &= ~JANET_MEM_REACHABLE;
         } else {
             janet_vm.block_count--;
+            janet_deinit_block(current);
             if (NULL != previous) {
                 previous->data.next = next;
             } else {
                 janet_vm.blocks = next;
             }
-            gc_free_gcobj(current);
+            janet_free(current);
         }
         current = next;
     }
@@ -375,7 +371,7 @@ void janet_sweep() {
                         janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                     }
                     /* Free memory */
-                    gc_free_gcobj(janet_abstract_head(abst));
+                    janet_free(janet_abstract_head(abst));
                 }
 
                 /* Mark as tombstone in place */
@@ -550,7 +546,7 @@ void janet_clear_memory(void) {
     while (NULL != current) {
         janet_deinit_block(current);
         JanetGCObject *next = current->data.next;
-        gc_free_gcobj(current);
+        janet_free(current);
         current = next;
     }
     janet_vm.blocks = NULL;
