@@ -288,11 +288,12 @@ patched_janet = custom_target('patched-janeth',
   install : true,
   install_dir : join_paths(get_option('includedir'), 'janet'),
   build_by_default : true,
-  output : ['janet.h'],
+  output : ['_janet.h'],
   command : [janet_nativeclient, '@INPUT@', '@OUTPUT@'])
 
 # Create a version of the janet.h header that matches what jpm often expects
 if meson.version().version_compare('>=0.61')
-  install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
+  install_symlink('janet.h', pointing_to: 'janet/_janet.h', install_dir: get_option('includedir'))
+  install_symlink('janet.h', pointing_to: '_janet.h', install_dir: join_paths(get_option('includedir'), 'janet'))
 endif
 

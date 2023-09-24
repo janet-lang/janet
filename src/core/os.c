@@ -1437,8 +1437,8 @@ JANET_CORE_FN(os_getenv,
     janet_sandbox_assert(JANET_SANDBOX_ENV);
     janet_arity(argc, 1, 2);
     const char *cstr = janet_getcstring(argv, 0);
-    const char *res = getenv(cstr);
     janet_lock_environ();
+    const char *res = getenv(cstr);
     Janet ret = res
                 ? janet_cstringv(res)
                 : argc == 2
