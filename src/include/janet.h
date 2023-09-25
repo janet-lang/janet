@@ -591,7 +591,6 @@ typedef enum {
     JANET_ASYNC_EVENT_HUP,
     JANET_ASYNC_EVENT_READ,
     JANET_ASYNC_EVENT_WRITE,
-    JANET_ASYNC_EVENT_CANCEL,
     JANET_ASYNC_EVENT_COMPLETE, /* Used on windows for IOCP */
     JANET_ASYNC_EVENT_USER
 } JanetAsyncEvent;
@@ -613,13 +612,9 @@ typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEv
 struct JanetStream {
     JanetHandle handle;
     uint32_t flags;
-    /* Linked list of all in-flight IO routines for this stream */
-    JanetListenerState *state;
+    JanetListenerState *read_state;
+    JanetListenerState *write_state;
     const void *methods; /* Methods for this stream */
-    /* internal - used to disallow multiple concurrent reads / writes on the same stream.
-     * this constraint may be lifted later but allowing such would require more internal book keeping
-     * for some implementations. You can read and write at the same time on the same stream, though. */
-    int _mask;
 };
 
 /* Interface for state machine based event loop */
@@ -633,11 +628,6 @@ struct JanetListenerState {
     void *tag; /* Used to associate listeners with an overlapped structure */
     int bytes; /* Used to track how many bytes were transfered. */
 #endif
-    /* internal */
-    size_t _index;
-    int _mask;
-    uint32_t _sched_id;
-    JanetListenerState *_next;
 };
 #endif
 
@@ -928,6 +918,7 @@ struct JanetFiber {
      * in a multi-tasking system. It would be possible to move these fields to a new
      * type, say "JanetTask", that as separate from fibers to save a bit of space. */
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
+    JanetListenerState *waiting;
     void *supervisor_channel; /* Channel to push self to when complete */
 #endif
 };

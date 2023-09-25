@@ -1446,6 +1446,10 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
 
     JanetFiberStatus old_status = janet_fiber_status(fiber);
 
+#ifdef JANET_EV
+    janet_fiber_did_resume(fiber);
+#endif
+
     /* Clear last value */
     fiber->last_value = janet_wrap_nil();
 

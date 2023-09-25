@@ -268,6 +268,9 @@ recur:
     if (fiber->supervisor_channel) {
         janet_mark_abstract(fiber->supervisor_channel);
     }
+    if (fiber->waiting) {
+        janet_mark_abstract(fiber->waiting);
+    }
 #endif
 
     /* Explicit tail recursion */
