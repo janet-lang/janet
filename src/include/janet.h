@@ -627,6 +627,8 @@ struct JanetListenerState {
 #ifdef JANET_WINDOWS
     void *tag; /* Used to associate listeners with an overlapped structure */
     int bytes; /* Used to track how many bytes were transfered. */
+#else
+    uint32_t index; /* Used for poll implentation */
 #endif
 };
 #endif

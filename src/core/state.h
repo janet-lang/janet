@@ -158,6 +158,7 @@ struct JanetVM {
     volatile size_t extra_listeners; /* used in signal handler, must be volatile */
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
     JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
+    JanetTable listeners; /* For GC */
     JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;
