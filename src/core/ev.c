@@ -1596,6 +1596,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     int is_first = !stream->read_state && !stream->write_state;
     int op = is_first ? EPOLL_CTL_ADD : EPOLL_CTL_MOD;
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
+    state->index = 0;
     struct epoll_event ev;
     ev.events = 0;
     if (stream->read_state) ev.events |= EPOLLIN;
@@ -1623,7 +1624,6 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
             janet_panicv(janet_ev_lasterr());
         }
     }
-    state->index = 0;
     return state;
 }
 
@@ -1951,18 +1951,9 @@ static JanetTimestamp ts_now(void) {
     return res;
 }
 
-static int make_poll_events(int mask) {
-    int events = 0;
-    if (mask & JANET_ASYNC_LISTEN_READ)
-        events |= POLLIN;
-    if (mask & JANET_ASYNC_LISTEN_WRITE)
-        events |= POLLOUT;
-    return events;
-}
-
 /* Wait for the next event */
 JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
-    size_t oldsize = janet_vm.listener_cap;
+    size_t oldsize = janet_vm.listeners.count_cap;
     JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
     size_t newsize = janet_vm.listener_cap;
     if (newsize > oldsize) {
@@ -1973,7 +1964,9 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
     }
     struct pollfd ev;
     ev.fd = stream->handle;
-    ev.events = make_poll_events(state->stream->_mask);
+    ev.events = 0;
+    if (stream->read_state) events |= POLLIN;
+    if (stream->write_state) events |= POLLOUT;
     ev.revents = 0;
     janet_vm.fds[state->_index + 1] = ev;
     return state;
