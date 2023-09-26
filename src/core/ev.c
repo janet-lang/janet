@@ -1574,15 +1574,6 @@ static JanetTimestamp ts_now(void) {
     return res;
 }
 
-static int make_epoll_events(int mask) {
-    int events = 0;
-    if (mask & JANET_ASYNC_LISTEN_READ)
-        events |= EPOLLIN;
-    if (mask & JANET_ASYNC_LISTEN_WRITE)
-        events |= EPOLLOUT;
-    return events;
-}
-
 static void janet_epoll_sync_callback(JanetEVGenericMessage msg) {
     JanetListenerState *state = msg.argp;
     JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
@@ -1919,7 +1910,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                         statuses[1] == JANET_ASYNC_STATUS_DONE ||
                         statuses[2] == JANET_ASYNC_STATUS_DONE ||
                         statuses[3] == JANET_ASYNC_STATUS_DONE) {
-                    janet_unlisten(state, 0);
+                    janet_unlisten(state);
                 }
             }
             janet_stream_checktoclose(stream);
