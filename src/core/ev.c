@@ -1642,8 +1642,8 @@ static void janet_unlisten(JanetListenerState *state) {
     if (!(stream->handle != -1)) {
         /* Use flag to indicate state is not registered in epoll */
         if (!state->index) {
-            int is_read = stream->read_state != state && stream->read_state;
-            int is_write = stream->write_state != state && stream->write_state;
+            int is_read = (stream->read_state != state) && stream->read_state;
+            int is_write = (stream->write_state != state) && stream->write_state;
             int is_last = !is_read && !is_write;
             int op = is_last ? EPOLL_CTL_DEL : EPOLL_CTL_MOD;
             struct epoll_event ev;
@@ -1698,7 +1698,6 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         } else {
             JanetStream *stream = p;
             int mask = events[i].events;
-            JanetListenerState *state = stream->read_state;
             JanetListenerState *states[2] = {stream->read_state, stream->write_state};
             for (int j = 0; j < 2; j++) {
                 JanetListenerState *state = states[j];
@@ -1837,8 +1836,10 @@ static void janet_unlisten(JanetListenerState *state) {
     JanetStream *stream = state->stream;
     if (stream->handle != -1) {
         /* Use flag to indicate state is not registered in kqueue */
-        if (!(state->_mask & (1 << JANET_ASYNC_EVENT_COMPLETE))) {
-            int is_last = (state->_next == NULL && stream->state == state);
+        if (!state->index) {
+            int is_read = (stream->read_state != state) && stream->read_state;
+            int is_write = (stream->write_state != state) && stream->write_state;
+            int is_last = !is_read && !is_write;
             int op = is_last ? EV_DELETE : EV_DISABLE | EV_ADD;
             struct kevent kev[2];
             EV_SETx(&kev[1], stream->handle, EVFILT_WRITE, op, 0, 0, stream);
@@ -1896,14 +1897,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             janet_ev_handle_selfpipe();
         } else {
             JanetStream *stream = p;
-            JanetListenerState *state = stream->state;
-            while (NULL != state) {
-                JanetListenerState *next_state = state->_next;
+            JanetListenerState *states[2] = {stream->read_state, stream->write_state};
+            for (int j = 0; j < 2; j++) {
+                JanetListenerState *state = states[j];
+                if (!state) continue;
                 state->event = events + i;
                 JanetAsyncStatus statuses[4];
                 for (int i = 0; i < 4; i++)
                     statuses[i] = JANET_ASYNC_STATUS_NOT_DONE;
-
                 if (!(events[i].flags & EV_ERROR)) {
                     if (events[i].filter == EVFILT_WRITE)
                         statuses[0] = state->machine(state, JANET_ASYNC_EVENT_WRITE);
@@ -1920,7 +1921,6 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                         statuses[3] == JANET_ASYNC_STATUS_DONE) {
                     janet_unlisten(state, 0);
                 }
-                state = next_state;
             }
             janet_stream_checktoclose(stream);
         }
