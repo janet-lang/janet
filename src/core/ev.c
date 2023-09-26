@@ -1579,9 +1579,9 @@ static void janet_epoll_sync_callback(JanetEVGenericMessage msg) {
     JanetAsyncStatus status1 = JANET_ASYNC_STATUS_NOT_DONE;
     JanetAsyncStatus status2 = JANET_ASYNC_STATUS_NOT_DONE;
     if (state == state->stream->read_state)
-        status1 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
+        status1 = state->machine(state, JANET_ASYNC_EVENT_READ);
     if (state == state->stream->write_state)
-        status2 = state->machine(state, JANET_ASYNC_EVENT_READ);
+        status2 = state->machine(state, JANET_ASYNC_EVENT_WRITE);
     if (status1 == JANET_ASYNC_STATUS_DONE ||
             status2 == JANET_ASYNC_STATUS_DONE) {
         janet_unlisten(state);
@@ -1630,7 +1630,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
 /* Tell system we are done listening for a certain event */
 static void janet_unlisten(JanetListenerState *state) {
     JanetStream *stream = state->stream;
-    if (!(stream->handle != -1)) {
+    if (stream && (stream->handle != -1)) {
         /* Use flag to indicate state is not registered in epoll */
         if (!state->index) {
             int is_read = (stream->read_state != state) && stream->read_state;
