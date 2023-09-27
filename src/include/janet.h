@@ -624,11 +624,11 @@ struct JanetListenerState {
     JanetStream *stream;
     void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
                     implementation of the event loop and the particular event. */
+    uint32_t index; /* Used for GC and poll implentation */
+    uint32_t flags;
 #ifdef JANET_WINDOWS
     void *tag; /* Used to associate listeners with an overlapped structure */
     int bytes; /* Used to track how many bytes were transfered. */
-#else
-    uint32_t index; /* Used for poll/epoll implentation */
 #endif
 };
 #endif
