@@ -294,6 +294,6 @@ patched_janet = custom_target('patched-janeth',
 # Create a version of the janet.h header that matches what jpm often expects
 if meson.version().version_compare('>=0.61')
   install_symlink('janet.h', pointing_to: 'janet/janet.h', install_dir: get_option('includedir'))
-  install_symlink('janet.h', pointing_to: 'janet' + meson.project_version() + '.h', install_dir: join_paths(get_option('includedir'), 'janet'))
+  install_symlink('janet.h', pointing_to: 'janet_' + meson.project_version() + '.h', install_dir: join_paths(get_option('includedir'), 'janet'))
 endif
 
