@@ -121,6 +121,7 @@ struct JanetVM {
 
     /* Garbage collection */
     void *blocks;
+    void *weak_blocks;
     size_t gc_interval;
     size_t next_collection;
     size_t block_count;

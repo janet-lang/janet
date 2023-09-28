@@ -57,6 +57,9 @@ enum JanetMemoryType {
     JANET_MEMORY_FUNCENV,
     JANET_MEMORY_FUNCDEF,
     JANET_MEMORY_THREADED_ABSTRACT,
+    JANET_MEMORY_TABLE_WEAKK,
+    JANET_MEMORY_TABLE_WEAKV,
+    JANET_MEMORY_TABLE_WEAKKV
 };
 
 /* To allocate collectable memory, one must call janet_alloc, initialize the memory,

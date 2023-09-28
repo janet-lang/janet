@@ -133,6 +133,24 @@ static void janet_mark_many(const Janet *values, int32_t n) {
 }
 
 /* Mark a bunch of key values items in memory */
+static void janet_mark_keys(const JanetKV *kvs, int32_t n) {
+    const JanetKV *end = kvs + n;
+    while (kvs < end) {
+        janet_mark(kvs->key);
+        kvs++;
+    }
+}
+
+/* Mark a bunch of key values items in memory */
+static void janet_mark_values(const JanetKV *kvs, int32_t n) {
+    const JanetKV *end = kvs + n;
+    while (kvs < end) {
+        janet_mark(kvs->value);
+        kvs++;
+    }
+}
+
+/* Mark a bunch of key values items in memory */
 static void janet_mark_kvs(const JanetKV *kvs, int32_t n) {
     const JanetKV *end = kvs + n;
     while (kvs < end) {
@@ -154,7 +172,15 @@ recur: /* Manual tail recursion */
     if (janet_gc_reachable(table))
         return;
     janet_gc_mark(table);
-    janet_mark_kvs(table->data, table->capacity);
+    enum JanetMemoryType memtype = janet_gc_type(table);
+    if (memtype == JANET_MEMORY_TABLE_WEAKK) {
+        janet_mark_values(table->data, table->capacity);
+    } else if (memtype == JANET_MEMORY_TABLE_WEAKV) {
+        janet_mark_keys(table->data, table->capacity);
+    } else if (memtype == JANET_MEMORY_TABLE) {
+        janet_mark_kvs(table->data, table->capacity);
+    }
+    /* do nothing for JANET_MEMORY_TABLE_WEAKKV */
     if (table->proto) {
         table = table->proto;
         goto recur;
@@ -329,12 +355,89 @@ static void janet_deinit_block(JanetGCObject *mem) {
     }
 }
 
+/* Check that a value x has been visited in the mark phase */
+static int janet_check_liveref(Janet x) {
+    switch (janet_type(x)) {
+        default:
+            return 1;
+        case JANET_ARRAY:
+        case JANET_TABLE:
+        case JANET_FUNCTION:
+        case JANET_BUFFER:
+        case JANET_FIBER:
+            return janet_gc_reachable(janet_unwrap_pointer(x));
+        case JANET_STRING:
+        case JANET_SYMBOL:
+        case JANET_KEYWORD:
+            return janet_gc_reachable(janet_string_head(janet_unwrap_string(x)));
+        case JANET_ABSTRACT:
+            return janet_gc_reachable(janet_abstract_head(janet_unwrap_abstract(x)));
+        case JANET_TUPLE:
+            return janet_gc_reachable(janet_tuple_head(janet_unwrap_tuple(x)));
+        case JANET_STRUCT:
+            return janet_gc_reachable(janet_struct_head(janet_unwrap_struct(x)));
+    }
+}
+
 /* Iterate over all allocated memory, and free memory that is not
  * marked as reachable. Flip the gc color flag for next sweep. */
 void janet_sweep() {
     JanetGCObject *previous = NULL;
-    JanetGCObject *current = janet_vm.blocks;
+    JanetGCObject *current = janet_vm.weak_blocks;
     JanetGCObject *next;
+
+    /* Sweep weak heap to drop weak refs */
+    while (NULL != current) {
+        next = current->data.next;
+        if (current->flags & JANET_MEM_REACHABLE) {
+            /* Check for dead references */
+            enum JanetMemoryType type = janet_gc_type(current);
+            JanetTable *table = (JanetTable *) current;
+            int check_values = (type == JANET_MEMORY_TABLE_WEAKV) || (type == JANET_MEMORY_TABLE_WEAKKV);
+            int check_keys = (type == JANET_MEMORY_TABLE_WEAKK) || (type == JANET_MEMORY_TABLE_WEAKKV);
+            JanetKV *end = table->data + table->capacity;
+            JanetKV *kvs = table->data;
+            while (kvs < end) {
+                int drop = 0;
+                if (check_keys && !janet_check_liveref(kvs->key)) drop = 1;
+                if (check_values && !janet_check_liveref(kvs->value)) drop = 1;
+                if (drop) {
+                    /* Inlined from janet_table_remove without search */
+                    table->count--;
+                    table->deleted++;
+                    kvs->key = janet_wrap_nil();
+                    kvs->value = janet_wrap_false();
+                }
+                kvs++;
+            }
+        }
+        current = next;
+    }
+
+    /* Sweep weak heap to free blocks */
+    previous = NULL;
+    current = janet_vm.weak_blocks;
+    while (NULL != current) {
+        next = current->data.next;
+        if (current->flags & (JANET_MEM_REACHABLE | JANET_MEM_DISABLED)) {
+            previous = current;
+            current->flags &= ~JANET_MEM_REACHABLE;
+        } else {
+            janet_vm.block_count--;
+            janet_deinit_block(current);
+            if (NULL != previous) {
+                previous->data.next = next;
+            } else {
+                janet_vm.weak_blocks = next;
+            }
+            janet_free(current);
+        }
+        current = next;
+    }
+
+    /* Sweep main heap to free blocks */
+    previous = NULL;
+    current = janet_vm.blocks;
     while (NULL != current) {
         next = current->data.next;
         if (current->flags & (JANET_MEM_REACHABLE | JANET_MEM_DISABLED)) {
@@ -352,6 +455,7 @@ void janet_sweep() {
         }
         current = next;
     }
+
 #ifdef JANET_EV
     /* Sweep threaded abstract types for references to decrement */
     JanetKV *items = janet_vm.threaded_abstracts.data;
@@ -409,8 +513,15 @@ void *janet_gcalloc(enum JanetMemoryType type, size_t size) {
 
     /* Prepend block to heap list */
     janet_vm.next_collection += size;
-    mem->data.next = janet_vm.blocks;
-    janet_vm.blocks = mem;
+    if (type < JANET_MEMORY_TABLE_WEAKK) {
+        /* normal heap */
+        mem->data.next = janet_vm.blocks;
+        janet_vm.blocks = mem;
+    } else {
+        /* weak heap */
+        mem->data.next = janet_vm.weak_blocks;
+        janet_vm.weak_blocks = mem;
+    }
     janet_vm.block_count++;
 
     return (void *)mem;
@@ -442,7 +553,7 @@ void janet_collect(void) {
     if (janet_vm.gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
     janet_vm.gc_mark_phase = 1;
-    /* Try and prevent many major collections back to back.
+    /* Try to prevent many major collections back to back.
      * A full collection will take O(janet_vm.block_count) time.
      * If we have a large heap, make sure our interval is not too
      * small so we won't make many collections over it. This is just a
