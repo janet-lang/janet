@@ -1048,7 +1048,6 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->env = NULL;
     fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
-    fiber->waiting = NULL;
     fiber->sched_id = 0;
     fiber->supervisor_channel = NULL;
 #endif

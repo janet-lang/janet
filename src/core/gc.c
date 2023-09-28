@@ -268,6 +268,9 @@ recur:
     if (fiber->supervisor_channel) {
         janet_mark_abstract(fiber->supervisor_channel);
     }
+    if (fiber->waiting) {
+        janet_mark_abstract(fiber->waiting);
+    }
 #endif
 
     /* Explicit tail recursion */
@@ -438,6 +441,7 @@ void janet_collect(void) {
     uint32_t i;
     if (janet_vm.gc_suspend) return;
     depth = JANET_RECURSION_GUARD;
+    janet_vm.gc_mark_phase = 1;
     /* Try and prevent many major collections back to back.
      * A full collection will take O(janet_vm.block_count) time.
      * If we have a large heap, make sure our interval is not too
@@ -457,6 +461,7 @@ void janet_collect(void) {
         Janet x = janet_vm.roots[--janet_vm.root_count];
         janet_mark(x);
     }
+    janet_vm.gc_mark_phase = 0;
     janet_sweep();
     janet_vm.next_collection = 0;
     janet_free_all_scratch();
@@ -560,7 +565,9 @@ void janet_gcunlock(int handle) {
     janet_vm.gc_suspend = handle;
 }
 
-/* Scratch memory API */
+/* Scratch memory API
+ * Scratch memory allocations do not need to be free (but optionally can be), and will be automatically cleaned
+ * up in the next call to janet_collect. */
 
 void *janet_smalloc(size_t size) {
     JanetScratch *s = janet_malloc(sizeof(JanetScratch) + size);

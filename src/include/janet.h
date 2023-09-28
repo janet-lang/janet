@@ -591,7 +591,6 @@ typedef enum {
     JANET_ASYNC_EVENT_HUP,
     JANET_ASYNC_EVENT_READ,
     JANET_ASYNC_EVENT_WRITE,
-    JANET_ASYNC_EVENT_CANCEL,
     JANET_ASYNC_EVENT_COMPLETE, /* Used on windows for IOCP */
     JANET_ASYNC_EVENT_USER
 } JanetAsyncEvent;
@@ -613,13 +612,9 @@ typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEv
 struct JanetStream {
     JanetHandle handle;
     uint32_t flags;
-    /* Linked list of all in-flight IO routines for this stream */
-    JanetListenerState *state;
+    JanetListenerState *read_state;
+    JanetListenerState *write_state;
     const void *methods; /* Methods for this stream */
-    /* internal - used to disallow multiple concurrent reads / writes on the same stream.
-     * this constraint may be lifted later but allowing such would require more internal book keeping
-     * for some implementations. You can read and write at the same time on the same stream, though. */
-    int _mask;
 };
 
 /* Interface for state machine based event loop */
@@ -629,14 +624,12 @@ struct JanetListenerState {
     JanetStream *stream;
     void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
                     implementation of the event loop and the particular event. */
+    uint32_t index; /* Used for GC and poll implentation */
+    uint32_t flags;
 #ifdef JANET_WINDOWS
     void *tag; /* Used to associate listeners with an overlapped structure */
     int bytes; /* Used to track how many bytes were transfered. */
 #endif
-    /* internal */
-    size_t _index;
-    int _mask;
-    JanetListenerState *_next;
 };
 #endif
 
@@ -926,8 +919,8 @@ struct JanetFiber {
      * that is, fibers that are scheduled on the event loop and behave much like threads
      * in a multi-tasking system. It would be possible to move these fields to a new
      * type, say "JanetTask", that as separate from fibers to save a bit of space. */
-    JanetListenerState *waiting;
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
+    JanetListenerState *waiting;
     void *supervisor_channel; /* Channel to push self to when complete */
 #endif
 };
@@ -1499,7 +1492,6 @@ JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t
 JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
-JANET_API void janet_ev_connect(JanetStream *stream, int flags);
 #endif
 
 /* Write async to a stream */

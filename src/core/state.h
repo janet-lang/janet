@@ -125,6 +125,7 @@ struct JanetVM {
     size_t next_collection;
     size_t block_count;
     int gc_suspend;
+    int gc_mark_phase;
 
     /* GC roots */
     Janet *roots;
@@ -154,12 +155,10 @@ struct JanetVM {
     JanetQueue spawn;
     JanetTimeout *tq;
     JanetRNG ev_rng;
-    JanetListenerState **listeners;
-    size_t listener_count;
-    size_t listener_cap;
     volatile size_t extra_listeners; /* used in signal handler, must be volatile */
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
     JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
+    JanetArray *listeners; /* For GC */
     JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;

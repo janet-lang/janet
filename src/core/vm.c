@@ -1588,6 +1588,7 @@ int janet_init(void) {
     janet_vm.next_collection = 0;
     janet_vm.gc_interval = 0x400000;
     janet_vm.block_count = 0;
+    janet_vm.gc_mark_phase = 0;
 
     janet_symcache_init();
 

@@ -49,7 +49,7 @@
 #ifndef JANET_EXIT
 #include <stdio.h>
 #define JANET_EXIT(m) do { \
-    fprintf(stderr, "C runtime error at line %d in file %s: %s\n",\
+    fprintf(stderr, "janet interpreter runtime error at line %d in file %s: %s\n",\
         __LINE__,\
         __FILE__,\
         (m));\
