@@ -30,4 +30,3 @@ tasks:
     ninja
     ninja test
     doas ninja install
-
