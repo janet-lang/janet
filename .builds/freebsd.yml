@@ -9,3 +9,4 @@ tasks:
     gmake
     gmake test
     sudo gmake install
+    sudo gmake uninstall
