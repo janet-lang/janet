@@ -752,9 +752,8 @@ static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) 
         if (!(scope->flags & JANET_SCOPE_WHILE) && argn) {
             /* Closure body with return argument */
             subopts.flags |= JANET_FOPTS_TAIL;
-            JanetSlot ret = janetc_value(subopts, argv[0]);
-            ret.flags |= JANET_SLOT_RETURNED;
-            return ret;
+            janetc_value(subopts, argv[0]);
+            return janetc_cslot(janet_wrap_nil());
         } else {
             /* while loop IIFE or no argument */
             if (argn) {
@@ -762,9 +761,7 @@ static JanetSlot janetc_break(JanetFopts opts, int32_t argn, const Janet *argv) 
                 janetc_value(subopts, argv[0]);
             }
             janetc_emit(c, JOP_RETURN_NIL);
-            JanetSlot s = janetc_cslot(janet_wrap_nil());
-            s.flags |= JANET_SLOT_RETURNED;
-            return s;
+            return janetc_cslot(janet_wrap_nil());
         }
     } else {
         if (argn) {

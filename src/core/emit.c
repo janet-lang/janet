@@ -26,6 +26,7 @@
 #include "emit.h"
 #include "vector.h"
 #include "regalloc.h"
+#include "util.h"
 #endif
 
 /* Get a register */
@@ -128,7 +129,8 @@ static void janetc_movenear(JanetCompiler *c,
                     ((uint32_t)(src.envindex) << 16) |
                     ((uint32_t)(dest) << 8) |
                     JOP_LOAD_UPVALUE);
-    } else if (src.index > 0xFF || src.index != dest) {
+    } else if (src.index != dest) {
+        janet_assert(src.index >= 0, "bad slot");
         janetc_emit(c,
                     ((uint32_t)(src.index) << 16) |
                     ((uint32_t)(dest) << 8) |
@@ -155,6 +157,7 @@ static void janetc_moveback(JanetCompiler *c,
                     ((uint32_t)(src) << 8) |
                     JOP_SET_UPVALUE);
     } else if (dest.index != src) {
+        janet_assert(dest.index >= 0, "bad slot");
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 16) |
                     ((uint32_t)(src) << 8) |

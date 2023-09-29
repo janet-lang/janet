@@ -924,4 +924,25 @@
                        [:strict 3 4 "bar-oops"]])
         "maclintf 2")
 
+# Bad bytecode wrt. using result from break expression
+(defn bytecode-roundtrip
+  [f]
+  (assert-no-error "bytecode round-trip" (unmarshal (marshal f make-image-dict))))
+
+(defn case-1 [&] (def x (break 1)))
+(bytecode-roundtrip case-1)
+(defn foo [&])
+(defn case-2 [&]
+  (foo (break (foo)))
+  (foo))
+(bytecode-roundtrip case-2)
+(defn case-3 [&]
+  (def x (break (do (foo)))))
+(bytecode-roundtrip case-3)
+
+# Debug bytecode of these functions
+# (pp (disasm case-1))
+# (pp (disasm case-2))
+# (pp (disasm case-3))
+
 (end-suite)
