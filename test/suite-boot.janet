@@ -939,6 +939,12 @@
 (defn case-3 [&]
   (def x (break (do (foo)))))
 (bytecode-roundtrip case-3)
+(defn case-4 [&]
+  (def x (break (break (foo)))))
+(bytecode-roundtrip case-4)
+(defn case-4 [&]
+  (def x (break (break (break)))))
+(bytecode-roundtrip case-4)
 
 # Debug bytecode of these functions
 # (pp (disasm case-1))
