@@ -87,8 +87,24 @@ void janet_table_deinit(JanetTable *table) {
 }
 
 /* Create a new table */
+
 JanetTable *janet_table(int32_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE, sizeof(JanetTable));
+    return janet_table_init_impl(table, capacity, 0);
+}
+
+JanetTable *janet_table_weakk(int32_t capacity) {
+    JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKK, sizeof(JanetTable));
+    return janet_table_init_impl(table, capacity, 0);
+}
+
+JanetTable *janet_table_weakv(int32_t capacity) {
+    JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKV, sizeof(JanetTable));
+    return janet_table_init_impl(table, capacity, 0);
+}
+
+JanetTable *janet_table_weakkv(int32_t capacity) {
+    JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKKV, sizeof(JanetTable));
     return janet_table_init_impl(table, capacity, 0);
 }
 
@@ -293,14 +309,23 @@ JanetTable *janet_table_proto_flatten(JanetTable *t) {
 /* C Functions */
 
 JANET_CORE_FN(cfun_table_new,
-              "(table/new capacity)",
+              "(table/new capacity &opt weak)",
               "Creates a new empty table with pre-allocated memory "
               "for `capacity` entries. This means that if one knows the number of "
               "entries going into a table on creation, extra memory allocation "
-              "can be avoided. Returns the new table.") {
-    janet_fixarity(argc, 1);
+              "can be avoided. Optionally provide a keyword flags `:kv` to create a table with "
+              "weak referenecs to keys, values, or both. "
+              "Returns the new table.") {
+    janet_arity(argc, 1, 2);
     int32_t cap = janet_getnat(argv, 0);
-    return janet_wrap_table(janet_table(cap));
+    if (argc == 1) {
+        return janet_wrap_table(janet_table(cap));
+    }
+    uint32_t flags = janet_getflags(argv, 1, "kv");
+    if (flags == 0) return janet_wrap_table(janet_table(cap));
+    if (flags == 1) return janet_wrap_table(janet_table_weakk(cap));
+    if (flags == 2) return janet_wrap_table(janet_table_weakv(cap));
+    return janet_wrap_table(janet_table_weakkv(cap));
 }
 
 JANET_CORE_FN(cfun_table_getproto,

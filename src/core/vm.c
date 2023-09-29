@@ -1585,6 +1585,7 @@ int janet_init(void) {
 
     /* Garbage collection */
     janet_vm.blocks = NULL;
+    janet_vm.weak_blocks = NULL;
     janet_vm.next_collection = 0;
     janet_vm.gc_interval = 0x400000;
     janet_vm.block_count = 0;
