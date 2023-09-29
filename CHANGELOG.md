@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add support for weak tables via `(table/new capacity :kv)`.
+- Fix compiler bug with using the result of `(break x)` expression in some contexts.
+- Rework internal event loop code to be better behaved on Windows
+- Update meson build to work better on windows
+
 ## 1.31.0 - 2023-09-17
 - Report line and column when using `janet_dobytes`
 - Add `:unless` loop modifier
