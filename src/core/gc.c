@@ -164,7 +164,9 @@ static void janet_mark_array(JanetArray *array) {
     if (janet_gc_reachable(array))
         return;
     janet_gc_mark(array);
-    janet_mark_many(array->data, array->count);
+    if (janet_gc_type((JanetGCObject *) array) == JANET_MEMORY_ARRAY) {
+        janet_mark_many(array->data, array->count);
+    }
 }
 
 static void janet_mark_table(JanetTable *table) {
@@ -392,23 +394,32 @@ void janet_sweep() {
         if (current->flags & (JANET_MEM_REACHABLE | JANET_MEM_DISABLED)) {
             /* Check for dead references */
             enum JanetMemoryType type = janet_gc_type(current);
-            JanetTable *table = (JanetTable *) current;
-            int check_values = (type == JANET_MEMORY_TABLE_WEAKV) || (type == JANET_MEMORY_TABLE_WEAKKV);
-            int check_keys = (type == JANET_MEMORY_TABLE_WEAKK) || (type == JANET_MEMORY_TABLE_WEAKKV);
-            JanetKV *end = table->data + table->capacity;
-            JanetKV *kvs = table->data;
-            while (kvs < end) {
-                int drop = 0;
-                if (check_keys && !janet_check_liveref(kvs->key)) drop = 1;
-                if (check_values && !janet_check_liveref(kvs->value)) drop = 1;
-                if (drop) {
-                    /* Inlined from janet_table_remove without search */
-                    table->count--;
-                    table->deleted++;
-                    kvs->key = janet_wrap_nil();
-                    kvs->value = janet_wrap_false();
+            if (type == JANET_MEMORY_ARRAY_WEAK) {
+                JanetArray *array = (JanetArray *) current;
+                for (uint32_t i = 0; i < (uint32_t) array->count; i++) {
+                    if (!janet_check_liveref(array->data[i])) {
+                        array->data[i] = janet_wrap_nil();
+                    }
                 }
-                kvs++;
+            } else {
+                JanetTable *table = (JanetTable *) current;
+                int check_values = (type == JANET_MEMORY_TABLE_WEAKV) || (type == JANET_MEMORY_TABLE_WEAKKV);
+                int check_keys = (type == JANET_MEMORY_TABLE_WEAKK) || (type == JANET_MEMORY_TABLE_WEAKKV);
+                JanetKV *end = table->data + table->capacity;
+                JanetKV *kvs = table->data;
+                while (kvs < end) {
+                    int drop = 0;
+                    if (check_keys && !janet_check_liveref(kvs->key)) drop = 1;
+                    if (check_values && !janet_check_liveref(kvs->value)) drop = 1;
+                    if (drop) {
+                        /* Inlined from janet_table_remove without search */
+                        table->count--;
+                        table->deleted++;
+                        kvs->key = janet_wrap_nil();
+                        kvs->value = janet_wrap_false();
+                    }
+                    kvs++;
+                }
             }
         }
         current = next;

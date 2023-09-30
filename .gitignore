@@ -57,6 +57,7 @@ xxd.exe
 # VSCode
 .vs
 .clangd
+.cache
 
 # Swap files
 *.swp

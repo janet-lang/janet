@@ -30,9 +30,7 @@
 
 #include <string.h>
 
-/* Creates a new array */
-JanetArray *janet_array(int32_t capacity) {
-    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
+static void janet_array_impl(JanetArray *array, int32_t capacity) {
     Janet *data = NULL;
     if (capacity > 0) {
         janet_vm.next_collection += capacity * sizeof(Janet);
@@ -44,6 +42,19 @@ JanetArray *janet_array(int32_t capacity) {
     array->count = 0;
     array->capacity = capacity;
     array->data = data;
+}
+
+/* Creates a new array */
+JanetArray *janet_array(int32_t capacity) {
+    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
+    janet_array_impl(array, capacity);
+    return array;
+}
+
+/* Creates a new array with weak references */
+JanetArray *janet_array_weak(int32_t capacity) {
+    JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY_WEAK, sizeof(JanetArray));
+    janet_array_impl(array, capacity);
     return array;
 }
 
@@ -129,6 +140,15 @@ JANET_CORE_FN(cfun_array_new,
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     JanetArray *array = janet_array(cap);
+    return janet_wrap_array(array);
+}
+
+JANET_CORE_FN(cfun_array_weak,
+              "(array/weak capacity)",
+              "Creates a new empty array with a pre-allocated capacity and support for weak references. Similar to `array/new`.") {
+    janet_fixarity(argc, 1);
+    int32_t cap = janet_getinteger(argv, 0);
+    JanetArray *array = janet_array_weak(cap);
     return janet_wrap_array(array);
 }
 
@@ -352,6 +372,7 @@ JANET_CORE_FN(cfun_array_clear,
 void janet_lib_array(JanetTable *env) {
     JanetRegExt array_cfuns[] = {
         JANET_CORE_REG("array/new", cfun_array_new),
+        JANET_CORE_REG("array/weak", cfun_array_weak),
         JANET_CORE_REG("array/new-filled", cfun_array_new_filled),
         JANET_CORE_REG("array/fill", cfun_array_fill),
         JANET_CORE_REG("array/pop", cfun_array_pop),

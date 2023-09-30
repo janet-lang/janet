@@ -1,6 +1,6 @@
-(def weak-k (table/new 10 :k))
-(def weak-v (table/new 10 :v))
-(def weak-kv (table/new 10 :kv))
+(def weak-k (table/weak-keys 10))
+(def weak-v (table/weak-values 10))
+(def weak-kv (table/weak 10))
 
 (put weak-kv (gensym) 10)
 (put weak-kv :hello :world)

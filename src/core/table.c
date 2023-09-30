@@ -309,23 +309,49 @@ JanetTable *janet_table_proto_flatten(JanetTable *t) {
 /* C Functions */
 
 JANET_CORE_FN(cfun_table_new,
-              "(table/new capacity &opt weak)",
+              "(table/new capacity)",
               "Creates a new empty table with pre-allocated memory "
               "for `capacity` entries. This means that if one knows the number of "
               "entries going into a table on creation, extra memory allocation "
-              "can be avoided. Optionally provide a keyword flags `:kv` to create a table with "
-              "weak referenecs to keys, values, or both. "
+              "can be avoided. "
               "Returns the new table.") {
-    janet_arity(argc, 1, 2);
+    janet_fixarity(argc, 1);
     int32_t cap = janet_getnat(argv, 0);
-    if (argc == 1) {
-        return janet_wrap_table(janet_table(cap));
-    }
+    return janet_wrap_table(janet_table(cap));
+}
+/*
     uint32_t flags = janet_getflags(argv, 1, "kv");
     if (flags == 0) return janet_wrap_table(janet_table(cap));
     if (flags == 1) return janet_wrap_table(janet_table_weakk(cap));
     if (flags == 2) return janet_wrap_table(janet_table_weakv(cap));
     return janet_wrap_table(janet_table_weakkv(cap));
+    */
+
+JANET_CORE_FN(cfun_table_weak,
+              "(table/weak capacity)",
+              "Creates a new empty table with weak references to keys and values. Similar to `table/new`. "
+              "Returns the new table.") {
+    janet_fixarity(argc, 1);
+    int32_t cap = janet_getnat(argv, 0);
+    return janet_wrap_table(janet_table_weakkv(cap));
+}
+
+JANET_CORE_FN(cfun_table_weak_keys,
+              "(table/weak-keys capacity)",
+              "Creates a new empty table with weak references to keys and normal references to values. Similar to `table/new`. "
+              "Returns the new table.") {
+    janet_fixarity(argc, 1);
+    int32_t cap = janet_getnat(argv, 0);
+    return janet_wrap_table(janet_table_weakk(cap));
+}
+
+JANET_CORE_FN(cfun_table_weak_values,
+              "(table/weak-values capacity)",
+              "Creates a new empty table with normal references to keys and weak references to values. Similar to `table/new`. "
+              "Returns the new table.") {
+    janet_fixarity(argc, 1);
+    int32_t cap = janet_getnat(argv, 0);
+    return janet_wrap_table(janet_table_weakv(cap));
 }
 
 JANET_CORE_FN(cfun_table_getproto,
@@ -401,6 +427,9 @@ JANET_CORE_FN(cfun_table_proto_flatten,
 void janet_lib_table(JanetTable *env) {
     JanetRegExt table_cfuns[] = {
         JANET_CORE_REG("table/new", cfun_table_new),
+        JANET_CORE_REG("table/weak", cfun_table_weak),
+        JANET_CORE_REG("table/weak-keys", cfun_table_weak_keys),
+        JANET_CORE_REG("table/weak-values", cfun_table_weak_values),
         JANET_CORE_REG("table/to-struct", cfun_table_tostruct),
         JANET_CORE_REG("table/getproto", cfun_table_getproto),
         JANET_CORE_REG("table/setproto", cfun_table_setproto),

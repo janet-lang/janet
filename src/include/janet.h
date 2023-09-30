@@ -1590,6 +1590,7 @@ JANET_API double janet_rng_double(JanetRNG *rng);
 
 /* Array functions */
 JANET_API JanetArray *janet_array(int32_t capacity);
+JANET_API JanetArray *janet_array_weak(int32_t capacity);
 JANET_API JanetArray *janet_array_n(const Janet *elements, int32_t n);
 JANET_API void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth);
 JANET_API void janet_array_setcount(JanetArray *array, int32_t count);
