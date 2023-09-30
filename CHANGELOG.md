@@ -2,7 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
-- Add support for weak tables via `(table/new capacity :kv)`.
+- Add `array/weak` for weak references in arrays
+- Add support for weak tables via `table/weak`, `table/weak-keys`, and `table/weak-values`.
 - Fix compiler bug with using the result of `(break x)` expression in some contexts.
 - Rework internal event loop code to be better behaved on Windows
 - Update meson build to work better on windows
