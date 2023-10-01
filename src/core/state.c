@@ -62,18 +62,10 @@ void janet_vm_load(JanetVM *from) {
  * use NULL to interrupt the current VM when convenient */
 void janet_interpreter_interrupt(JanetVM *vm) {
     vm = vm ? vm : &janet_vm;
-#ifdef JANET_WINDOWS
-    InterlockedIncrement(&vm->auto_suspend);
-#else
-    __atomic_add_fetch(&vm->auto_suspend, 1, __ATOMIC_RELAXED);
-#endif
+    janet_atomic_inc(&vm->auto_suspend);
 }
 
 void janet_interpreter_interrupt_handled(JanetVM *vm) {
     vm = vm ? vm : &janet_vm;
-#ifdef JANET_WINDOWS
-    InterlockedDecrement(&vm->auto_suspend);
-#else
-    __atomic_add_fetch(&vm->auto_suspend, -1, __ATOMIC_RELAXED);
-#endif
+    janet_atomic_dec(&vm->auto_suspend);
 }
