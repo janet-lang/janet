@@ -509,22 +509,6 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 #endif
 }
 
-JanetAtomicInt64 janet_atomic64_inc(JanetAtomicInt64 volatile *x) {
-#ifdef JANET_WINDOWS
-    return InterlockedDecrement(x);
-#else
-    return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
-#endif
-}
-
-JanetAtomicInt64 janet_atomic64_dec(JanetAtomicInt64 volatile *x) {
-#ifdef JANET_WINDOWS
-    return InterlockedDecrement64(x);
-#else
-    return __atomic_add_fetch(x, -1, __ATOMIC_RELAXED);
-#endif
-}
-
 /* Some definitions for function-like macros */
 
 JANET_API JanetStructHead *(janet_struct_head)(JanetStruct st) {

@@ -637,15 +637,11 @@ struct JanetListenerState {
  * signals. Define them here */
 #ifdef JANET_WINDOWS
 typedef long JanetAtomicInt;
-typedef long long JanetAtomicInt64;
 #else
 typedef int32_t JanetAtomicInt;
-typedef int64_t JanetAtomicInt64;
 #endif
 JANET_API JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x);
 JANET_API JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x);
-JANET_API JanetAtomicInt64 janet_atomic64_inc(JanetAtomicInt64 volatile *x);
-JANET_API JanetAtomicInt64 janet_atomic64_dec(JanetAtomicInt64 volatile *x);
 
 /* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the

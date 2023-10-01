@@ -156,7 +156,7 @@ struct JanetVM {
     JanetQueue spawn;
     JanetTimeout *tq;
     JanetRNG ev_rng;
-    volatile JanetAtomicInt64 listener_count; /* used in signal handler, must be volatile */
+    volatile JanetAtomicInt listener_count; /* used in signal handler, must be volatile */
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
     JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
     JanetArray *listeners; /* For GC */

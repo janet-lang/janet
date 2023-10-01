@@ -633,11 +633,11 @@ void janet_addtimeout(double sec) {
 }
 
 void janet_ev_inc_refcount(void) {
-    janet_atomic64_inc(&janet_vm.listener_count);
+    janet_atomic_inc(&janet_vm.listener_count);
 }
 
 void janet_ev_dec_refcount(void) {
-    janet_atomic64_dec(&janet_vm.listener_count);
+    janet_atomic_dec(&janet_vm.listener_count);
 }
 
 /* Channels */
