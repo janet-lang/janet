@@ -97,14 +97,6 @@ size_t janet_os_rwlock_size(void) {
     return sizeof(void *);
 }
 
-static int32_t janet_incref(JanetAbstractHead *ab) {
-    return InterlockedIncrement((LONG volatile *) &ab->gc.data.refcount);
-}
-
-static int32_t janet_decref(JanetAbstractHead *ab) {
-    return InterlockedDecrement((LONG volatile *) &ab->gc.data.refcount);
-}
-
 void janet_os_mutex_init(JanetOSMutex *mutex) {
     InitializeCriticalSection((CRITICAL_SECTION *) mutex);
 }
@@ -157,14 +149,6 @@ size_t janet_os_rwlock_size(void) {
     return sizeof(pthread_rwlock_t);
 }
 
-static int32_t janet_incref(JanetAbstractHead *ab) {
-    return __atomic_add_fetch(&ab->gc.data.refcount, 1, __ATOMIC_RELAXED);
-}
-
-static int32_t janet_decref(JanetAbstractHead *ab) {
-    return __atomic_add_fetch(&ab->gc.data.refcount, -1, __ATOMIC_RELAXED);
-}
-
 void janet_os_mutex_init(JanetOSMutex *mutex) {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -212,11 +196,11 @@ void janet_os_rwlock_wunlock(JanetOSRWLock *rwlock) {
 #endif
 
 int32_t janet_abstract_incref(void *abst) {
-    return janet_incref(janet_abstract_head(abst));
+    return janet_atomic_inc(&janet_abstract_head(abst)->gc.data.refcount);
 }
 
 int32_t janet_abstract_decref(void *abst) {
-    return janet_decref(janet_abstract_head(abst));
+    return janet_atomic_dec(&janet_abstract_head(abst)->gc.data.refcount);
 }
 
 #endif

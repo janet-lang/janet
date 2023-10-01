@@ -633,27 +633,11 @@ void janet_addtimeout(double sec) {
 }
 
 void janet_ev_inc_refcount(void) {
-#ifdef JANET_WINDOWS
-#ifdef JANET_64
-    InterlockedIncrement64((int64_t volatile *) &janet_vm.extra_listeners);
-#else
-    InterlockedIncrement((int32_t volatile *) &janet_vm.extra_listeners);
-#endif
-#else
-    __atomic_add_fetch(&janet_vm.extra_listeners, 1, __ATOMIC_RELAXED);
-#endif
+    janet_atomic64_inc(&janet_vm.listener_count);
 }
 
 void janet_ev_dec_refcount(void) {
-#ifdef JANET_WINDOWS
-#ifdef JANET_64
-    InterlockedDecrement64((int64_t volatile *) &janet_vm.extra_listeners);
-#else
-    InterlockedDecrement((int32_t volatile *) &janet_vm.extra_listeners);
-#endif
-#else
-    __atomic_add_fetch(&janet_vm.extra_listeners, -1, __ATOMIC_RELAXED);
-#endif
+    janet_atomic64_dec(&janet_vm.listener_count);
 }
 
 /* Channels */
@@ -1334,7 +1318,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout);
 int janet_loop_done(void) {
     return !((janet_vm.spawn.head != janet_vm.spawn.tail) ||
              janet_vm.tq_count ||
-             janet_vm.extra_listeners);
+             janet_vm.listener_count);
 }
 
 JanetFiber *janet_loop1(void) {
@@ -1396,7 +1380,7 @@ JanetFiber *janet_loop1(void) {
     }
 
     /* Poll for events */
-    if (janet_vm.tq_count || janet_vm.extra_listeners) {
+    if (janet_vm.tq_count || janet_vm.listener_count) {
         JanetTimeout to;
         memset(&to, 0, sizeof(to));
         int has_timeout;
@@ -1415,7 +1399,7 @@ JanetFiber *janet_loop1(void) {
             break;
         }
         /* Run polling implementation only if pending timeouts or pending events */
-        if (janet_vm.tq_count || janet_vm.extra_listeners) {
+        if (janet_vm.tq_count || janet_vm.listener_count) {
             janet_loop1_impl(has_timeout, to.when);
         }
     }

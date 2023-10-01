@@ -491,6 +491,40 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
     return janet_getabstract(argv, n, at);
 }
 
+/* Atomic refcounts */
+
+JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
+#ifdef JANET_WINDOWS
+    return InterlockedIncrement(x);
+#else
+    return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
+#endif
+}
+
+JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
+#ifdef JANET_WINDOWS
+    return InterlockedDecrement(x);
+#else
+    return __atomic_add_fetch(x, -1, __ATOMIC_RELAXED);
+#endif
+}
+
+JanetAtomicInt64 janet_atomic64_inc(JanetAtomicInt64 volatile *x) {
+#ifdef JANET_WINDOWS
+    return InterlockedDecrement(x);
+#else
+    return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
+#endif
+}
+
+JanetAtomicInt64 janet_atomic64_dec(JanetAtomicInt64 volatile *x) {
+#ifdef JANET_WINDOWS
+    return InterlockedDecrement64(x);
+#else
+    return __atomic_add_fetch(x, -1, __ATOMIC_RELAXED);
+#endif
+}
+
 /* Some definitions for function-like macros */
 
 JANET_API JanetStructHead *(janet_struct_head)(JanetStruct st) {

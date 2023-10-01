@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Expose atomic refcount abstraction in janet.h
 - Add `array/weak` for weak references in arrays
 - Add support for weak tables via `table/weak`, `table/weak-keys`, and `table/weak-values`.
 - Fix compiler bug with using the result of `(break x)` expression in some contexts.
