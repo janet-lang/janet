@@ -1514,11 +1514,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     }
     BOOL result = GetQueuedCompletionStatus(janet_vm.iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
 
-    if (!result) {
-        return;
-    }
-
-    if (overlapped) {
+    if (result || overlapped) {
         if (0 == completionKey) {
             /* Custom event */
             JanetSelfPipeEvent *response = (JanetSelfPipeEvent *)(overlapped);

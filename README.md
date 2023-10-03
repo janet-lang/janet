@@ -383,7 +383,7 @@ Usually, one of a few reasons:
 ### Can I bind to Rust/Zig/Go/Java/Nim/C++/D/Pascal/Fortran/Odin/Jai/(Some new "Systems" Programming Language)?
 
 Probably, if that language has a good interface with C. But the programmer may need to do
-some extra work to map Janet's internal memory model may need some to that of the bound language. Janet
+some extra work to map Janet's internal memory model to that of the bound language. Janet
 also uses `setjmp`/`longjmp` for non-local returns internally. This
 approach is out of favor with many programmers now and doesn't always play well with other languages
 that have exceptions or stack-unwinding.
