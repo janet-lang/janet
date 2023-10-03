@@ -363,7 +363,7 @@
   (assert (= "hi"
              (ev/with-deadline
                10
-               (exec-slurp janet "-e" "(print :hi)")))
+               (exec-slurp ;run janet "-e" "(print :hi)")))
           "exec-slurp 1"))
 
 (end-suite)
