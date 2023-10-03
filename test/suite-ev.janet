@@ -23,7 +23,7 @@
 
 # Subprocess
 # 5e1a8c86f
-(def janet (dyn :executable))
+(def janet (dyn *executable*))
 
 # Subprocess should inherit the "RUN" parameter for fancy testing
 (def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
@@ -205,7 +205,8 @@
   (test-echo "world")
   (test-echo (string/repeat "abcd" 200))
 
-  (:close s))
+  (:close s)
+  (gccollect))
 
 # Test on both server and client
 # 504411e
@@ -344,5 +345,25 @@
 (ev/go |(ev/chan-close ch))
 (assert (= (ev/select [ch 1]) [:close ch]))
 
-(end-suite)
+# ev/gather check
+(defn exec-slurp
+  "Read stdout of subprocess and return it trimmed in a string."
+  [& args]
+  (def env (os/environ))
+  (put env :out :pipe)
+  (def proc (os/spawn args :epx env))
+  (def out (get proc :out))
+  (def buf @"")
+  (ev/gather
+    (:read out :all buf)
+    (:wait proc))
+  (string/trimr buf))
+(assert-no-error
+  "ev/with-deadline 1"
+  (assert (= "hi"
+             (ev/with-deadline
+               10
+               (exec-slurp janet "-e" "(print :hi)")))
+          "exec-slurp 1"))
 
+(end-suite)

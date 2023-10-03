@@ -1525,7 +1525,6 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
         } else {
             /* Normal event */
             JanetStream *stream = (JanetStream *) completionKey;
-            janet_assert(stream->handle != INVALID_HANDLE_VALUE, "got closed stream event");
             JanetListenerState *state = NULL;
             if (stream->read_state && stream->read_state->tag == overlapped) {
                 state = stream->read_state;
