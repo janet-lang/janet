@@ -554,7 +554,7 @@ JANET_CORE_FN(cfun_string_format,
               "- `j`: format to jdn (Janet data notation).\n"
               "\n"
               "The following conversion specifiers are used for \"pretty-printing\", where the upper-case "
-              "variants generate colored output. These speficiers can take a precision "
+              "variants generate colored output. These specifiers can take a precision "
               "argument to specify the maximum nesting depth to print.\n"
               "- `p`, `P`: pretty format, truncating if necessary\n"
               "- `m`, `M`: pretty format without truncating.\n"

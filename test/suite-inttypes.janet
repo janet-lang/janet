@@ -126,7 +126,7 @@
   (assert (deep= (int/to-bytes (u64 300) :be buf2)
                  @"abcd\x00\x00\x00\x00\x00\x00\x01\x2C")))
 
-# int/s64 and int/u64 paramater type checking
+# int/s64 and int/u64 parameter type checking
 # 6aea7c7f7
 (assert-error
   "bad value passed to int/to-bytes"

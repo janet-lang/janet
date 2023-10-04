@@ -239,7 +239,7 @@ JANET_CORE_FN(cfun_to_bytes,
               "Write the bytes of an `int/s64` or `int/u64` into a buffer.\n"
               "The `buffer` parameter specifies an existing buffer to write to, if unset a new buffer will be created.\n"
               "Returns the modified buffer.\n"
-              "The `endianness` paramater indicates the byte order:\n"
+              "The `endianness` parameter indicates the byte order:\n"
               "- `nil` (unset): system byte order\n"
               "- `:le`: little-endian, least significant byte first\n"
               "- `:be`: big-endian, most significant byte first\n") {

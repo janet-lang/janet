@@ -1381,7 +1381,7 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
               "(ffi/write ffi-type data &opt buffer index)",
               "Append a native type to a buffer such as it would appear in memory. This can be used "
               "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
-              "or to files. Returns a modifed buffer or a new buffer if one is not supplied.") {
+              "or to files. Returns a modified buffer or a new buffer if one is not supplied.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     JanetFFIType type = decode_ffi_type(argv[0]);
@@ -1548,7 +1548,7 @@ JANET_CORE_FN(cfun_ffi_pointer_cfunction,
 
 JANET_CORE_FN(cfun_ffi_supported_calling_conventions,
               "(ffi/calling-conventions)",
-              "Get an array of all supported calling conventions on the current arhcitecture. Some architectures may have some FFI "
+              "Get an array of all supported calling conventions on the current architecture. Some architectures may have some FFI "
               "functionality (ffi/malloc, ffi/free, ffi/read, ffi/write, etc.) but not support "
               "any calling conventions. This function can be used to get all supported calling conventions "
               "that can be used on this architecture. All architectures support the :none calling "
