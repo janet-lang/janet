@@ -1232,7 +1232,7 @@
 (defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
-(defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrecny control.")
+(defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
@@ -1267,7 +1267,7 @@
 
 (defn keep-syntax
   ``Creates a tuple with the tuple type and sourcemap of `before` but the
-  elements of `after`. If either one of its argements is not a tuple, returns
+  elements of `after`. If either one of its arguments is not a tuple, returns
   `after` unmodified. Useful to preserve syntactic information when transforming
   an ast in macros.``
   [before after]

@@ -119,7 +119,7 @@ double janet_rng_double(JanetRNG *rng) {
 
 JANET_CORE_FN(cfun_rng_make,
               "(math/rng &opt seed)",
-              "Creates a Psuedo-Random number generator, with an optional seed. "
+              "Creates a Pseudo-Random number generator, with an optional seed. "
               "The seed should be an unsigned 32 bit integer or a buffer. "
               "Do not use this for cryptography. Returns a core/rng abstract type."
              ) {
@@ -411,11 +411,11 @@ void janet_lib_math(JanetTable *env) {
     JANET_CORE_DEF(env, "math/int32-min", janet_wrap_number(INT32_MIN),
                    "The minimum contiguous integer representable by a 32 bit signed integer");
     JANET_CORE_DEF(env, "math/int32-max", janet_wrap_number(INT32_MAX),
-                   "The maximum contiguous integer represtenable by a 32 bit signed integer");
+                   "The maximum contiguous integer representable by a 32 bit signed integer");
     JANET_CORE_DEF(env, "math/int-min", janet_wrap_number(JANET_INTMIN_DOUBLE),
                    "The minimum contiguous integer representable by a double (2^53)");
     JANET_CORE_DEF(env, "math/int-max", janet_wrap_number(JANET_INTMAX_DOUBLE),
-                   "The maximum contiguous integer represtenable by a double (-(2^53))");
+                   "The maximum contiguous integer representable by a double (-(2^53))");
 #ifdef NAN
     JANET_CORE_DEF(env, "math/nan", janet_wrap_number(NAN), "Not a number (IEEE-754 NaN)");
 #else
