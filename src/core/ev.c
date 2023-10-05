@@ -1747,7 +1747,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
         EV_SETx(&kev, stream->handle, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
         int status;
         do {
-            status = kevent(janet_vm.kq, events, length, NULL, 0, NULL);
+            status = kevent(janet_vm.kq, &kev, 1, NULL, 0, NULL);
         } while (status == -1 errno != EINTR);
         if (status == -1) {
             janet_panicv(janet_ev_lasterr());
@@ -1837,6 +1837,10 @@ void janet_ev_init(void) {
     struct kevent event;
     EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     add_kqueue_events(&event, 1);
+    do {
+        status = kevent(janet_vm.kq, &event, 1, NULL, 0, NULL);
+    } while (status == -1 errno != EINTR);
+    if (status == -1) goto error;
     return;
 error:
     JANET_EXIT("failed to initialize event loop");
