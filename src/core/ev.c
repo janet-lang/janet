@@ -1839,7 +1839,7 @@ void janet_ev_init(void) {
     int status;
     do {
         status = kevent(janet_vm.kq, &event, 1, NULL, 0, NULL);
-    } while (status == -1 errno != EINTR);
+    } while (status == -1 && errno != EINTR);
     if (status == -1) goto error;
     return;
 error:
