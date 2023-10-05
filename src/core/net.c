@@ -162,9 +162,7 @@ static void net_sched_connect(JanetStream *stream) {
     JanetListenerState *s = janet_listen(stream, net_machine_connect, JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateConnect), NULL);
     NetStateConnect *state = (NetStateConnect *)s;
     state->did_connect = 0;
-#ifdef JANET_WINDOWS
     net_machine_connect(s, JANET_ASYNC_EVENT_USER);
-#endif
 }
 
 /* State machine for accepting connections. */
@@ -280,6 +278,7 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(s->fiber, janet_wrap_nil());
             return JANET_ASYNC_STATUS_DONE;
+        case JANET_ASYNC_EVENT_USER:
         case JANET_ASYNC_EVENT_READ: {
 #if defined(JANET_LINUX)
             JSock connfd = accept4(s->stream->handle, NULL, NULL, SOCK_CLOEXEC);
@@ -307,8 +306,10 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
 }
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
-    NetStateAccept *state = (NetStateAccept *) janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
+    JanetListenerState *s = janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
+    NetStateAccept *state = (NetStateAccept *) s;
     state->function = fun;
+    net_machine_accept(s, JANET_ASYNC_EVENT_USER);
     janet_await();
 }
 
