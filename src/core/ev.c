@@ -1748,7 +1748,7 @@ JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, in
         int status;
         do {
             status = kevent(janet_vm.kq, &kev, 1, NULL, 0, NULL);
-        } while (status == -1 errno != EINTR);
+        } while (status == -1 && errno != EINTR);
         if (status == -1) {
             janet_panicv(janet_ev_lasterr());
         }
@@ -1836,7 +1836,7 @@ void janet_ev_init(void) {
     if (janet_vm.kq == -1) goto error;
     struct kevent event;
     EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
-    add_kqueue_events(&event, 1);
+    int status;
     do {
         status = kevent(janet_vm.kq, &event, 1, NULL, 0, NULL);
     } while (status == -1 errno != EINTR);
