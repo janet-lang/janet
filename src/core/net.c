@@ -162,7 +162,9 @@ static void net_sched_connect(JanetStream *stream) {
     JanetListenerState *s = janet_listen(stream, net_machine_connect, JANET_ASYNC_LISTEN_WRITE, sizeof(NetStateConnect), NULL);
     NetStateConnect *state = (NetStateConnect *)s;
     state->did_connect = 0;
+#ifdef JANET_WINDOWS
     net_machine_connect(s, JANET_ASYNC_EVENT_USER);
+#endif
 }
 
 /* State machine for accepting connections. */
