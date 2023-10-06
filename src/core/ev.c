@@ -1720,19 +1720,25 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             if (rf) {
                 if (rf->ev_callback && has_err) {
                     rf->ev_callback(rf, JANET_ASYNC_EVENT_ERR);
-                } else if (rf->ev_callback && (filt == EVFILT_READ)) {
-                    rf->ev_callback(rf, JANET_ASYNC_EVENT_READ);
-                } else if (rf->ev_callback && has_hup) {
-                    rf->ev_callback(rf, JANET_ASYNC_EVENT_HUP);
+                } else {
+                    if (rf->ev_callback && (filt == EVFILT_READ)) {
+                        rf->ev_callback(rf, JANET_ASYNC_EVENT_READ);
+                    }
+                    if (rf->ev_callback && has_hup) {
+                        rf->ev_callback(rf, JANET_ASYNC_EVENT_HUP);
+                    }
                 }
             }
             if (wf) {
                 if (wf->ev_callback && has_err) {
                     wf->ev_callback(wf, JANET_ASYNC_EVENT_ERR);
-                } else if (wf->ev_callback && (filt == EVFILT_WRITE)) {
-                    wf->ev_callback(wf, JANET_ASYNC_EVENT_WRITE);
-                } else if (wf->ev_callback && has_hup) {
-                    wf->ev_callback(wf, JANET_ASYNC_EVENT_HUP);
+                } else {
+                    if (wf->ev_callback && (filt == EVFILT_WRITE)) {
+                        wf->ev_callback(wf, JANET_ASYNC_EVENT_WRITE);
+                    }
+                    if (wf->ev_callback && has_hup) {
+                        wf->ev_callback(wf, JANET_ASYNC_EVENT_HUP);
+                    }
                 }
             }
             janet_stream_checktoclose(stream);
