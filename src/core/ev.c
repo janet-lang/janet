@@ -1663,25 +1663,16 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
     t->tv_nsec = ts == 0 ? 0 : (ts % 1000) * 1000000;
 }
 
-JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user) {
-    JanetListenerState *state = janet_listen_impl(stream, behavior, mask, size, user);
-    if (!(stream->flags & JANET_STREAM_REGISTERED)) {
-        struct kevent kev;
-        EV_SETx(&kev, stream->handle, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
-        int status;
-        do {
-            status = kevent(janet_vm.kq, &kev, 1, NULL, 0, NULL);
-        } while (status == -1 && errno != EINTR);
-        if (status == -1) {
-            janet_panicv(janet_ev_lasterr());
-        }
-        stream->flags |= JANET_STREAM_REGISTERED;
+void janet_register_stream(JanetStream *stream) {
+    struct kevent kev;
+    EV_SETx(&kev, stream->handle, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    int status;
+    do {
+        status = kevent(janet_vm.kq, &kev, 1, NULL, 0, NULL);
+    } while (status == -1 && errno != EINTR);
+    if (status == -1) {
+        janet_panicv(janet_ev_lasterr());
     }
-    return state;
-}
-
-static void janet_unlisten(JanetListenerState *state) {
-    janet_unlisten_impl(state);
 }
 
 #define JANET_KQUEUE_MAX_EVENTS 64
@@ -1721,29 +1712,27 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             janet_ev_handle_selfpipe();
         } else {
             JanetStream *stream = p;
-            JanetListenerState *states[2] = {stream->read_state, stream->write_state};
-            for (int j = 0; j < 2; j++) {
-                JanetListenerState *state = states[j];
-                if (!state) continue;
-                state->event = events + i;
-                JanetAsyncStatus statuses[4];
-                for (int i = 0; i < 4; i++)
-                    statuses[i] = JANET_ASYNC_STATUS_NOT_DONE;
-                if (!(events[i].flags & EV_ERROR)) {
-                    if (events[i].filter == EVFILT_WRITE)
-                        statuses[0] = state->machine(state, JANET_ASYNC_EVENT_WRITE);
-                    if (events[i].filter == EVFILT_READ)
-                        statuses[1] = state->machine(state, JANET_ASYNC_EVENT_READ);
-                    if ((events[i].flags & EV_EOF) && !(events[i].data > 0))
-                        statuses[3] = state->machine(state, JANET_ASYNC_EVENT_HUP);
-                } else {
-                    statuses[2] = state->machine(state, JANET_ASYNC_EVENT_ERR);
+            int filt = events[i].filter;
+            int has_err = events[i].flags & EV_ERROR;
+            int has_hup = events[i].flags & EV_EOF;
+            JanetFiber *rf = stream->read_fiber;
+            JanetFiber *wf = stream->write_fiber;
+            if (rf) {
+                if (rf->ev_callback && has_err) {
+                    rf->ev_callback(rf, JANET_ASYNC_EVENT_ERR);
+                } else if (rf->ev_callback && (filt == EVFILT_READ)) {
+                    rf->ev_callback(rf, JANET_ASYNC_EVENT_READ);
+                } else if (rf->ev_callback && has_hup) {
+                    rf->ev_callback(rf, JANET_ASYNC_EVENT_HUP);
                 }
-                if (statuses[0] == JANET_ASYNC_STATUS_DONE ||
-                        statuses[1] == JANET_ASYNC_STATUS_DONE ||
-                        statuses[2] == JANET_ASYNC_STATUS_DONE ||
-                        statuses[3] == JANET_ASYNC_STATUS_DONE) {
-                    janet_unlisten(state);
+            }
+            if (wf) {
+                if (wf->ev_callback && has_err) {
+                    wf->ev_callback(wf, JANET_ASYNC_EVENT_ERR);
+                } else if (wf->ev_callback && (filt == EVFILT_WRITE)) {
+                    wf->ev_callback(wf, JANET_ASYNC_EVENT_WRITE);
+                } else if (wf->ev_callback && has_hup) {
+                    wf->ev_callback(wf, JANET_ASYNC_EVENT_HUP);
                 }
             }
             janet_stream_checktoclose(stream);
@@ -1777,6 +1766,10 @@ void janet_ev_deinit(void) {
 }
 
 #elif defined(JANET_EV_POLL)
+
+/* Simple poll implementation. Efficiency is not the goal here, although the poll implementation should be farily efficient
+ * for low numbers of concurrent file descriptors. Rather, the code should be simple, portable, correct, and mirror the
+ * epoll and kqueue code. */
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
