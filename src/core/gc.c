@@ -296,8 +296,11 @@ recur:
     if (fiber->supervisor_channel) {
         janet_mark_abstract(fiber->supervisor_channel);
     }
-    if (fiber->waiting) {
-        janet_mark_abstract(fiber->waiting);
+    if (fiber->ev_stream) {
+        janet_mark_abstract(fiber->ev_stream);
+    }
+    if (fiber->ev_callback) {
+        fiber->ev_callback(fiber, JANET_ASYNC_EVENT_MARK);
     }
 #endif
 
@@ -324,6 +327,11 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_free(((JanetTable *) mem)->data);
             break;
         case JANET_MEMORY_FIBER:
+#ifdef JANET_EV
+            if (((JanetFiber *)mem)->ev_state) {
+                janet_free(((JanetFiber *)mem)->ev_state);
+            }
+#endif
             janet_free(((JanetFiber *)mem)->data);
             break;
         case JANET_MEMORY_BUFFER:

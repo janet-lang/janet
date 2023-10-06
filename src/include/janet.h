@@ -234,6 +234,11 @@ extern "C" {
 #define JANET_EV_KQUEUE
 #endif
 
+/* Use poll as last resort */
+#if !defined(JANET_WINDOWS) && !defined(JANET_EV_EPOLL) && !defined(JANET_EV_KQUEUE)
+#define JANET_EV_POLL
+#endif
+
 /* How to export symbols */
 #ifndef JANET_EXPORT
 #ifdef JANET_WINDOWS
@@ -406,11 +411,10 @@ typedef enum {
     JANET_SIGNAL_USER6,
     JANET_SIGNAL_USER7,
     JANET_SIGNAL_USER8,
-    JANET_SIGNAL_USER9
+    JANET_SIGNAL_USER9,
+    JANET_SIGNAL_INTERRUPT = JANET_SIGNAL_USER8,
+    JANET_SIGNAL_EVENT = JANET_SIGNAL_USER9,
 } JanetSignal;
-
-#define JANET_SIGNAL_EVENT JANET_SIGNAL_USER9
-#define JANET_SIGNAL_INTERRUPT JANET_SIGNAL_USER8
 
 /* Fiber statuses - mostly corresponds to signals. */
 typedef enum {
@@ -575,7 +579,7 @@ typedef void *JanetAbstract;
 
 #define JANET_STREAM_CLOSED 0x1
 #define JANET_STREAM_SOCKET 0x2
-#define JANET_STREAM_REGISTERED 0x4
+#define JANET_STREAM_UNREGISTERED 0x4
 #define JANET_STREAM_READABLE 0x200
 #define JANET_STREAM_WRITABLE 0x400
 #define JANET_STREAM_ACCEPTABLE 0x800
@@ -583,54 +587,42 @@ typedef void *JanetAbstract;
 #define JANET_STREAM_TOCLOSE 0x10000
 
 typedef enum {
-    JANET_ASYNC_EVENT_INIT,
-    JANET_ASYNC_EVENT_MARK,
-    JANET_ASYNC_EVENT_DEINIT,
-    JANET_ASYNC_EVENT_CLOSE,
-    JANET_ASYNC_EVENT_ERR,
-    JANET_ASYNC_EVENT_HUP,
-    JANET_ASYNC_EVENT_READ,
-    JANET_ASYNC_EVENT_WRITE,
-    JANET_ASYNC_EVENT_COMPLETE, /* Used on windows for IOCP */
-    JANET_ASYNC_EVENT_USER
+    JANET_ASYNC_EVENT_INIT = 0,
+    JANET_ASYNC_EVENT_MARK = 1,
+    JANET_ASYNC_EVENT_DEINIT = 2,
+    JANET_ASYNC_EVENT_CLOSE = 3,
+    JANET_ASYNC_EVENT_ERR = 4,
+    JANET_ASYNC_EVENT_HUP = 5,
+    JANET_ASYNC_EVENT_READ = 6,
+    JANET_ASYNC_EVENT_WRITE = 7,
+    JANET_ASYNC_EVENT_COMPLETE = 8, /* Used on windows for IOCP */
+    JANET_ASYNC_EVENT_USER = 9
 } JanetAsyncEvent;
 
-#define JANET_ASYNC_LISTEN_READ (1 << JANET_ASYNC_EVENT_READ)
-#define JANET_ASYNC_LISTEN_WRITE (1 << JANET_ASYNC_EVENT_WRITE)
-
 typedef enum {
-    JANET_ASYNC_STATUS_NOT_DONE,
-    JANET_ASYNC_STATUS_DONE
-} JanetAsyncStatus;
+    JANET_ASYNC_LISTEN_READ = 1,
+    JANET_ASYNC_LISTEN_WRITE,
+    JANET_ASYNC_LISTEN_BOTH
+} JanetAsyncMode;
 
 /* Typedefs */
-typedef struct JanetListenerState JanetListenerState;
 typedef struct JanetStream JanetStream;
-typedef JanetAsyncStatus(*JanetListener)(JanetListenerState *state, JanetAsyncEvent event);
+typedef void (*JanetEVCallback)(JanetFiber *fiber, JanetAsyncEvent event);
 
 /* Wrapper around file descriptors and HANDLEs that can be polled. */
 struct JanetStream {
     JanetHandle handle;
     uint32_t flags;
-    JanetListenerState *read_state;
-    JanetListenerState *write_state;
+    uint32_t index;
+    JanetFiber *read_fiber;
+    JanetFiber *write_fiber;
     const void *methods; /* Methods for this stream */
 };
 
-/* Interface for state machine based event loop */
-struct JanetListenerState {
-    JanetListener machine;
-    JanetFiber *fiber;
-    JanetStream *stream;
-    void *event; /* Used to pass data from asynchronous IO event. Contents depend on both
-                    implementation of the event loop and the particular event. */
-    uint32_t index; /* Used for GC and poll implentation */
-    uint32_t flags;
-#ifdef JANET_WINDOWS
-    void *tag; /* Used to associate listeners with an overlapped structure */
-    int bytes; /* Used to track how many bytes were transfered. */
-#endif
-};
+JANET_API void janet_async_end(JanetFiber *fiber);
+JANET_API void *janet_async_start(JanetFiber *fiber, JanetStream *stream,
+                                  JanetAsyncMode mode, JanetEVCallback callback, size_t data_size);
+
 #endif
 
 /* Janet uses atomic integers in several places for synchronization between threads and
@@ -930,7 +922,9 @@ struct JanetFiber {
      * in a multi-tasking system. It would be possible to move these fields to a new
      * type, say "JanetTask", that as separate from fibers to save a bit of space. */
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
-    JanetListenerState *waiting;
+    JanetEVCallback ev_callback; /* Call this before starting scheduled fibers */
+    JanetStream *ev_stream; /* which stream we are waiting on */
+    void *ev_state; /* Extra data for ev callback state */
     void *supervisor_channel; /* Channel to push self to when complete */
 #endif
 };
@@ -1406,9 +1400,6 @@ JANET_API void janet_schedule(JanetFiber *fiber, Janet value);
 JANET_API void janet_cancel(JanetFiber *fiber, Janet value);
 JANET_API void janet_schedule_signal(JanetFiber *fiber, Janet value, JanetSignal sig);
 JANET_API void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig);
-
-/* Start a state machine listening for events from a stream */
-JANET_API JanetListenerState *janet_listen(JanetStream *stream, JanetListener behavior, int mask, size_t size, void *user);
 
 /* Shorthand for yielding to event loop in C */
 JANET_NO_RETURN JANET_API void janet_await(void);

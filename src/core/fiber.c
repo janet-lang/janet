@@ -40,7 +40,9 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->last_value = janet_wrap_nil();
 #ifdef JANET_EV
     fiber->sched_id = 0;
-    fiber->waiting = NULL;
+    fiber->ev_callback = NULL;
+    fiber->ev_state = NULL;
+    fiber->ev_stream = NULL;
     fiber->supervisor_channel = NULL;
 #endif
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);

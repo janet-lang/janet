@@ -19,7 +19,7 @@
                               (frame :source) (frame :source-line)))
   (if x
     (when is-verbose (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x))
-    (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x))
+    (do (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
   x)
 
 (defmacro assert-error

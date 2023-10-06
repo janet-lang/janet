@@ -159,7 +159,6 @@ struct JanetVM {
     volatile JanetAtomicInt listener_count; /* used in signal handler, must be volatile */
     JanetTable threaded_abstracts; /* All abstract types that can be shared between threads (used in this thread) */
     JanetTable active_tasks; /* All possibly live task fibers - used just for tracking */
-    JanetArray *listeners; /* For GC */
     JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;
@@ -176,6 +175,9 @@ struct JanetVM {
     int timer;
     int timer_enabled;
 #else
+    JanetStream **streams;
+    size_t stream_count;
+    size_t stream_capacity;
     pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];
     struct pollfd *fds;
