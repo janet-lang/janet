@@ -1665,7 +1665,7 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
 
 void janet_register_stream(JanetStream *stream) {
     struct kevent kev;
-    EV_SETx(&kev, stream->handle, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    EV_SETx(&kev, stream->handle, EVFILT_READ | EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
     int status;
     do {
         status = kevent(janet_vm.kq, &kev, 1, NULL, 0, NULL);
@@ -1698,8 +1698,9 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                             JANET_KQUEUE_MAX_EVENTS, NULL);
         }
     } while (status == -1 && errno == EINTR);
-    if (status == -1)
+    if (status == -1) {
         JANET_EXIT("failed to poll events");
+    }
 
     /* Make sure timer is set accordingly. */
     janet_vm.timer_enabled = has_timeout;
