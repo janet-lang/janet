@@ -127,12 +127,6 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
             janet_cancel(fiber, janet_cstringv("stream closed"));
             janet_async_end(fiber);
             return;
-        case JANET_ASYNC_EVENT_HUP:
-        case JANET_ASYNC_EVENT_ERR:
-        case JANET_ASYNC_EVENT_COMPLETE:
-        case JANET_ASYNC_EVENT_WRITE:
-        case JANET_ASYNC_EVENT_USER:
-            break;
     }
 #ifdef JANET_WINDOWS
     int res = 0;
@@ -163,7 +157,7 @@ static void net_sched_connect(JanetStream *stream) {
     NetStateConnect *state = (NetStateConnect *) janet_async_start(f, stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, sizeof(NetStateConnect));
     state->did_connect = 0;
 #ifdef JANET_WINDOWS
-    net_callback_connect(s, JANET_ASYNC_EVENT_USER);
+    net_callback_connect(f, JANET_ASYNC_EVENT_USER);
 #endif
 }
 
@@ -172,7 +166,6 @@ static void net_sched_connect(JanetStream *stream) {
 #ifdef JANET_WINDOWS
 
 typedef struct {
-    JanetListenerState head;
     WSAOVERLAPPED overlapped;
     JanetFunction *function;
     JanetStream *lstream;
@@ -180,10 +173,10 @@ typedef struct {
     char buf[1024];
 } NetStateAccept;
 
-static int net_sched_accept_impl(NetStateAccept *state, Janet *err);
+static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err);
 
-JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event) {
-    NetStateAccept *state = (NetStateAccept *)s;
+void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
+    NetStateAccept *state = (NetStateAccept *)fiber->ev_state;
     switch (event) {
         default:
             break;
@@ -194,55 +187,58 @@ JanetAsyncStatus net_machine_accept(JanetListenerState *s, JanetAsyncEvent event
             break;
         }
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_schedule(s->fiber, janet_wrap_nil());
-            return JANET_ASYNC_STATUS_DONE;
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            return;
         case JANET_ASYNC_EVENT_COMPLETE: {
             if (state->astream->flags & JANET_STREAM_CLOSED) {
-                janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
-                return JANET_ASYNC_STATUS_DONE;
+                janet_cancel(fiber, janet_cstringv("failed to accept connection"));
+                janet_async_end(fiber);
+                return;
             }
             SOCKET lsock = (SOCKET) state->lstream->handle;
             if (NO_ERROR != setsockopt((SOCKET) state->astream->handle, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
                                        (char *) &lsock, sizeof(lsock))) {
-                janet_cancel(s->fiber, janet_cstringv("failed to accept connection"));
-                return JANET_ASYNC_STATUS_DONE;
+                janet_cancel(fiber, janet_cstringv("failed to accept connection"));
+                janet_async_end(fiber);
+                return;
             }
 
             Janet streamv = janet_wrap_abstract(state->astream);
             if (state->function) {
                 /* Schedule worker */
-                JanetFiber *fiber = janet_fiber(state->function, 64, 1, &streamv);
-                fiber->supervisor_channel = s->fiber->supervisor_channel;
-                janet_schedule(fiber, janet_wrap_nil());
+                JanetFiber *sub_fiber = janet_fiber(state->function, 64, 1, &streamv);
+                sub_fiber->supervisor_channel = fiber->supervisor_channel;
+                janet_schedule(sub_fiber, janet_wrap_nil());
                 /* Now listen again for next connection */
                 Janet err;
-                if (net_sched_accept_impl(state, &err)) {
-                    janet_cancel(s->fiber, err);
-                    return JANET_ASYNC_STATUS_DONE;
+                if (net_sched_accept_impl(state, fiber, &err)) {
+                    janet_cancel(fiber, err);
+                    janet_async_end(fiber);
+                    return;
                 }
             } else {
-                janet_schedule(s->fiber, streamv);
-                return JANET_ASYNC_STATUS_DONE;
+                janet_schedule(fiber, streamv);
+                janet_async_end(fiber);
+                return;
             }
         }
     }
-    return JANET_ASYNC_STATUS_NOT_DONE;
 }
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
     Janet err;
-    JanetListenerState *s = janet_listen(stream, net_machine_accept, JANET_ASYNC_LISTEN_READ, sizeof(NetStateAccept), NULL);
-    NetStateAccept *state = (NetStateAccept *)s;
+    JanetFiber *f = janet_vm.root_fiber;
+    NetStateAccept *state = (NetStateAccept *) janet_async_start(f, stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, sizeof(NetStateAccept));
     memset(&state->overlapped, 0, sizeof(WSAOVERLAPPED));
     memset(&state->buf, 0, 1024);
     state->function = fun;
     state->lstream = stream;
-    s->tag = &state->overlapped;
-    if (net_sched_accept_impl(state, &err)) janet_panicv(err);
+    if (net_sched_accept_impl(state, f, &err)) janet_panicv(err);
     janet_await();
 }
 
-static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
+static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err) {
     SOCKET lsock = (SOCKET) state->lstream->handle;
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
     if (asock == INVALID_SOCKET) {
@@ -254,7 +250,11 @@ static int net_sched_accept_impl(NetStateAccept *state, Janet *err) {
     int socksize = sizeof(SOCKADDR_STORAGE) + 16;
     if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped)) {
         int code = WSAGetLastError();
-        if (code == WSA_IO_PENDING) return 0; /* indicates io is happening async */
+        if (code == WSA_IO_PENDING) {
+            /* indicates io is happening async */
+            fiber->ev_in_flight = 1;
+            return 0;
+        }
         *err = janet_ev_lasterr();
         return 1;
     }

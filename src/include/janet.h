@@ -596,7 +596,8 @@ typedef enum {
     JANET_ASYNC_EVENT_READ = 6,
     JANET_ASYNC_EVENT_WRITE = 7,
     JANET_ASYNC_EVENT_COMPLETE = 8, /* Used on windows for IOCP */
-    JANET_ASYNC_EVENT_USER = 9
+    JANET_ASYNC_EVENT_FAILED = 9, /* Used on windows for IOCP */
+    JANET_ASYNC_EVENT_USER = 10
 } JanetAsyncEvent;
 
 typedef enum {
@@ -924,8 +925,10 @@ struct JanetFiber {
     uint32_t sched_id; /* Increment everytime fiber is scheduled by event loop */
     JanetEVCallback ev_callback; /* Call this before starting scheduled fibers */
     JanetStream *ev_stream; /* which stream we are waiting on */
-    void *ev_state; /* Extra data for ev callback state */
+    void *ev_state; /* Extra data for ev callback state. On windows, first element must be OVERLAPPED. */
     void *supervisor_channel; /* Channel to push self to when complete */
+    uint32_t ev_bytes; /* Number of bytes for completion event */
+    int ev_in_flight; /* If overlapped operation is in flight */
 #endif
 };
 

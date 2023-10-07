@@ -42,9 +42,6 @@
   (set suite-name
        (cond
          (number? x) (string x)
-         (string? x) (string/slice x
-                                   (length "test/suite-")
-                                   (- (inc (length ".janet"))))
          (string x)))
   (set start-time (os/clock))
   (eprint "Starting suite " suite-name "..."))

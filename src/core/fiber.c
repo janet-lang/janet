@@ -43,7 +43,9 @@ static void fiber_reset(JanetFiber *fiber) {
     fiber->ev_callback = NULL;
     fiber->ev_state = NULL;
     fiber->ev_stream = NULL;
+    fiber->ev_bytes = 0;
     fiber->supervisor_channel = NULL;
+    fiber->ev_in_flight = 0;
 #endif
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
 }
