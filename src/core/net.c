@@ -24,6 +24,7 @@
 #include "features.h"
 #include <janet.h>
 #include "util.h"
+#include "fiber.h"
 #endif
 
 #ifdef JANET_NET
@@ -252,7 +253,7 @@ static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) {
             /* indicates io is happening async */
-            fiber->ev_in_flight = 1;
+            fiber->flags |= JANET_FIBER_EV_FLAG_IN_FLIGHT;
             return 0;
         }
         *err = janet_ev_lasterr();

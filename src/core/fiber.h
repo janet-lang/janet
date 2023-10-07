@@ -59,6 +59,9 @@
 #define JANET_FIBER_EV_FLAG_CANCELED 0x10000
 #define JANET_FIBER_EV_FLAG_SUSPENDED 0x20000
 #define JANET_FIBER_FLAG_ROOT 0x40000
+#define JANET_FIBER_EV_FLAG_IN_FLIGHT 0x1
+
+/* used only on windows, should otherwise be unset */
 
 #define janet_fiber_set_status(f, s) do {\
     (f)->flags &= ~JANET_FIBER_STATUS_MASK;\

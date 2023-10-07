@@ -258,7 +258,7 @@ void janet_async_end(JanetFiber *fiber) {
         janet_gcunroot(janet_wrap_abstract(fiber->ev_stream));
         fiber->ev_callback = NULL;
         if (fiber->ev_state) {
-            if (!fiber->ev_in_flight) {
+            if (!(fiber->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
                 janet_free(fiber->ev_state);
                 janet_ev_dec_refcount();
             }
@@ -1483,7 +1483,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
                 fiber = stream->write_fiber;
             }
             if (fiber != NULL) {
-                fiber->ev_in_flight = 0;
+                fiber->flags &= ~JANET_FIBER_EV_FLAG_IN_FLIGHT;
                 /* System is done with this, we can reused this data */
                 overlapped->InternalHigh = (ULONG_PTR) num_bytes_transfered;
                 fiber->ev_callback(fiber, result ? JANET_ASYNC_EVENT_COMPLETE : JANET_ASYNC_EVENT_FAILED);
@@ -2232,7 +2232,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     return;
                 }
             }
-            fiber->ev_in_flight = 1;
+            fiber->flags |= JANET_FIBER_EV_FLAG_IN_FLIGHT;
         }
         break;
 #else
@@ -2456,7 +2456,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
                 if (status) {
                     if (WSA_IO_PENDING == WSAGetLastError()) {
-                        fiber->ev_in_flight = 1;
+                        fiber->flags |= JANET_FIBER_EV_FLAG_IN_FLIGHT;
                     } else {
                         janet_cancel(fiber, janet_ev_lasterr());
                         janet_async_end(fiber);
@@ -2481,7 +2481,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 status = WriteFile(stream->handle, bytes, len, NULL, &state->overlapped);
                 if (!status) {
                     if (ERROR_IO_PENDING == GetLastError()) {
-                        fiber->ev_in_flight = 1;
+                        fiber->flags |= JANET_FIBER_EV_FLAG_IN_FLIGHT;
                     } else {
                         janet_cancel(fiber, janet_ev_lasterr());
                         janet_async_end(fiber);

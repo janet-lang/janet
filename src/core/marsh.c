@@ -1053,7 +1053,6 @@ static const uint8_t *unmarshal_one_fiber(
     fiber->ev_state = NULL;
     fiber->ev_callback = NULL;
     fiber->ev_stream = NULL;
-    fiber->ev_in_flight = 0;
 #endif
 
     /* Push fiber to seen stack */
