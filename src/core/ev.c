@@ -1710,29 +1710,20 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
             int filt = events[i].filter;
             int has_err = events[i].flags & EV_ERROR;
             int has_hup = events[i].flags & EV_EOF;
-            JanetFiber *rf = stream->read_fiber;
-            JanetFiber *wf = stream->write_fiber;
-            if (rf) {
-                if (rf->ev_callback && has_err) {
-                    rf->ev_callback(rf, JANET_ASYNC_EVENT_ERR);
+            for (int j = 0; j < 2; j++) {
+                JanetFiber *f = j ? stream->read_fiber : stream->write_fiber;
+                if (!f) continue;
+                if (f->ev_callback && has_err) {
+                    f->ev_callback(f, JANET_ASYNC_EVENT_ERR);
                 } else {
-                    if (rf->ev_callback && (filt == EVFILT_READ)) {
-                        rf->ev_callback(rf, JANET_ASYNC_EVENT_READ);
+                    if (f->ev_callback && (filt == EVFILT_READ) && f == stream->read_fiber) {
+                        f->ev_callback(f, JANET_ASYNC_EVENT_READ);
                     }
-                    if (rf->ev_callback && has_hup) {
-                        rf->ev_callback(rf, JANET_ASYNC_EVENT_HUP);
+                    if (f->ev_callback && (filt == EVFILT_WRITE) && f == stream->write_fiber) {
+                        f->ev_callback(f, JANET_ASYNC_EVENT_WRITE);
                     }
-                }
-            }
-            if (wf) {
-                if (wf->ev_callback && has_err) {
-                    wf->ev_callback(wf, JANET_ASYNC_EVENT_ERR);
-                } else {
-                    if (wf->ev_callback && (filt == EVFILT_WRITE)) {
-                        wf->ev_callback(wf, JANET_ASYNC_EVENT_WRITE);
-                    }
-                    if (wf->ev_callback && has_hup) {
-                        wf->ev_callback(wf, JANET_ASYNC_EVENT_HUP);
+                    if (f->ev_callback && has_hup) {
+                        f->ev_callback(f, JANET_ASYNC_EVENT_HUP);
                     }
                 }
             }
