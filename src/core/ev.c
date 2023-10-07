@@ -1484,7 +1484,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
             }
             if (fiber != NULL) {
                 fiber->ev_in_flight = 0;
-                fiber->ev_bytes = num_bytes_transfered;
+                /* System is done with this, we can reused this data */
+                overlapped->InternalHigh = (ULONG_PTR) num_bytes_transfered;
                 fiber->ev_callback(fiber, result ? JANET_ASYNC_EVENT_COMPLETE : JANET_ASYNC_EVENT_FAILED);
             } else {
                 janet_free((void *) overlapped);
@@ -2163,17 +2164,18 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_FAILED:
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when read finished */
-            state->bytes_read += fiber->ev_bytes;
+            uint32_t ev_bytes = state->overlapped.InternalHigh;
+            state->bytes_read += ev_bytes;
             if (state->bytes_read == 0 && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
                 janet_schedule(fiber, janet_wrap_nil());
                 janet_async_end(fiber);
                 return;
             }
 
-            janet_buffer_push_bytes(state->buf, state->chunk_buf, fiber->ev_bytes);
-            state->bytes_left -= fiber->ev_bytes;
+            janet_buffer_push_bytes(state->buf, state->chunk_buf, ev_bytes);
+            state->bytes_left -= ev_bytes;
 
-            if (state->bytes_left == 0 || !state->is_chunk || fiber->ev_bytes == 0) {
+            if (state->bytes_left == 0 || !state->is_chunk || ev_bytes == 0) {
                 Janet resume_val;
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
@@ -2412,7 +2414,8 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_FAILED:
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when write finished */
-            if (fiber->ev_bytes == 0 && (state->mode != JANET_ASYNC_WRITEMODE_SENDTO)) {
+            uint32_t ev_bytes = state->overlapped.InternalHigh;
+            if (ev_bytes == 0 && (state->mode != JANET_ASYNC_WRITEMODE_SENDTO)) {
                 janet_cancel(fiber, janet_cstringv("disconnect"));
                 janet_async_end(fiber);
                 return;

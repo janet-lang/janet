@@ -927,7 +927,6 @@ struct JanetFiber {
     JanetStream *ev_stream; /* which stream we are waiting on */
     void *ev_state; /* Extra data for ev callback state. On windows, first element must be OVERLAPPED. */
     void *supervisor_channel; /* Channel to push self to when complete */
-    uint32_t ev_bytes; /* Number of bytes for completion event */
     int ev_in_flight; /* If overlapped operation is in flight */
 #endif
 };
