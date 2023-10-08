@@ -1408,9 +1408,9 @@ static void janet_ev_setup_selfpipe(void) {
 
 /* Handle events from the self pipe inside the event loop */
 static void janet_ev_handle_selfpipe(void) {
-recur:
     JanetSelfPipeEvent response;
     int status;
+recur:
     do {
         status = read(janet_vm.selfpipe[0], &response, sizeof(response));
     } while (status == -1 && errno == EINTR);
