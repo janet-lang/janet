@@ -34,8 +34,11 @@
 
 (defmacro assert-no-error
   [msg & forms]
-  (def errsym (keyword (gensym)))
-  ~(assert (not= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
+  (def e (gensym))
+  (def f (gensym))
+  (if is-verbose
+  ~(try (do ,;forms (,assert true ,msg)) ([,e ,f] (,assert false ,msg) (,debug/stacktrace ,f ,e "\e[31m✘\e[0m ")))
+  ~(try (do ,;forms (,assert true ,msg)) ([_] (,assert false ,msg)))))
 
 (defn start-suite [&opt x]
   (default x (dyn :current-file))
