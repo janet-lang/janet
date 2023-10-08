@@ -2010,7 +2010,6 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
 
 /* Default callback for janet_ev_threaded_await. */
 void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
-    janet_ev_dec_refcount();
     if (return_value.fiber == NULL) {
         return;
     }
