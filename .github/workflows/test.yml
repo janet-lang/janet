@@ -56,7 +56,7 @@ jobs:
             gcc
       - name: Build the project
         shell: cmd
-        run: make -j CC=gcc
+        run: JANET_NO_AMALG=1 make -j CC=gcc
 
   test-mingw-linux:
     name: Build and test with Mingw on Linux + Wine
