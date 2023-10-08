@@ -596,8 +596,7 @@ typedef enum {
     JANET_ASYNC_EVENT_READ = 6,
     JANET_ASYNC_EVENT_WRITE = 7,
     JANET_ASYNC_EVENT_COMPLETE = 8, /* Used on windows for IOCP */
-    JANET_ASYNC_EVENT_FAILED = 9, /* Used on windows for IOCP */
-    JANET_ASYNC_EVENT_USER = 10
+    JANET_ASYNC_EVENT_FAILED = 9 /* Used on windows for IOCP */
 } JanetAsyncEvent;
 
 typedef enum {
@@ -606,9 +605,7 @@ typedef enum {
     JANET_ASYNC_LISTEN_BOTH
 } JanetAsyncMode;
 
-/* Typedefs */
 typedef struct JanetStream JanetStream;
-typedef void (*JanetEVCallback)(JanetFiber *fiber, JanetAsyncEvent event);
 
 /* Wrapper around file descriptors and HANDLEs that can be polled. */
 struct JanetStream {
@@ -620,9 +617,24 @@ struct JanetStream {
     const void *methods; /* Methods for this stream */
 };
 
+typedef void (*JanetEVCallback)(JanetFiber *fiber, JanetAsyncEvent event);
+
+/* Start listening for events from a stream on the current root fiber. After
+ * calling this, users should call janet_await() before returning from the
+ * current C Function. This also will call janet_await.
+ * mode is which events to listen for, and callback is the function pointer to
+ * call when ever an event is sent from the event loop. state is an optional (can be NULL)
+ * pointer to data allocated with janet_malloc. This pointer will be passed to callback as
+ * fiber->ev_state. It will also be freed for you by the runtime when the event loop determines
+ * it can no longer be referenced. On windows, the contents of state MUST contained an OVERLAPPED struct. */
+JANET_API JANET_NO_RETURN void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
+
+/* Do not send any more events to the given callback. Call this after scheduling fiber to be resume
+ * or canceled. */
 JANET_API void janet_async_end(JanetFiber *fiber);
-JANET_API void *janet_async_start(JanetFiber *fiber, JanetStream *stream,
-                                  JanetAsyncMode mode, JanetEVCallback callback, size_t data_size);
+
+/* Needed for windows to mark a fiber as waiting for an IOCP completion event. Noop on other platforms. */
+JANET_API void janet_async_in_flight(JanetFiber *fiber);
 
 #endif
 
@@ -1488,22 +1500,22 @@ JANET_API void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGeneric
 JANET_API void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value);
 
 /* Read async from a stream */
-JANET_API void janet_ev_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
-JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
+JANET_NO_RETURN JANET_API void janet_ev_read(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
+JANET_NO_RETURN JANET_API void janet_ev_readchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes);
 #ifdef JANET_NET
-JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
-JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
-JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_recv(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_recvchunk(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_recvfrom(JanetStream *stream, JanetBuffer *buf, int32_t nbytes, int flags);
 #endif
 
 /* Write async to a stream */
-JANET_API void janet_ev_write_buffer(JanetStream *stream, JanetBuffer *buf);
-JANET_API void janet_ev_write_string(JanetStream *stream, JanetString str);
+JANET_NO_RETURN JANET_API void janet_ev_write_buffer(JanetStream *stream, JanetBuffer *buf);
+JANET_NO_RETURN JANET_API void janet_ev_write_string(JanetStream *stream, JanetString str);
 #ifdef JANET_NET
-JANET_API void janet_ev_send_buffer(JanetStream *stream, JanetBuffer *buf, int flags);
-JANET_API void janet_ev_send_string(JanetStream *stream, JanetString str, int flags);
-JANET_API void janet_ev_sendto_buffer(JanetStream *stream, JanetBuffer *buf, void *dest, int flags);
-JANET_API void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_send_buffer(JanetStream *stream, JanetBuffer *buf, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_send_string(JanetStream *stream, JanetString str, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_sendto_buffer(JanetStream *stream, JanetBuffer *buf, void *dest, int flags);
+JANET_NO_RETURN JANET_API void janet_ev_sendto_string(JanetStream *stream, JanetString str, void *dest, int flags);
 #endif
 
 #endif

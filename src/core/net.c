@@ -124,6 +124,13 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     switch (event) {
         default:
             break;
+#ifndef JANET_WINDOWS
+        /* Wait until we have an actually event before checking.
+         * Windows doesn't support async connect with this, just try immediately.*/
+        case JANET_ASYNC_EVENT_INIT:
+#endif
+        case JANET_ASYNC_EVENT_DEINIT:
+            return;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(fiber, janet_cstringv("stream closed"));
             janet_async_end(fiber);
@@ -154,12 +161,9 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
 }
 
 static void net_sched_connect(JanetStream *stream) {
-    JanetFiber *f = janet_vm.root_fiber;
-    NetStateConnect *state = (NetStateConnect *) janet_async_start(f, stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, sizeof(NetStateConnect));
+    NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
     state->did_connect = 0;
-#ifdef JANET_WINDOWS
-    net_callback_connect(f, JANET_ASYNC_EVENT_USER);
-#endif
+    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, state);
 }
 
 /* State machine for accepting connections. */
@@ -229,14 +233,16 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
     Janet err;
-    JanetFiber *f = janet_vm.root_fiber;
-    NetStateAccept *state = (NetStateAccept *) janet_async_start(f, stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, sizeof(NetStateAccept));
+    NetStateAccept *state = janet_malloc(sizeof(NetStateAccept));
     memset(&state->overlapped, 0, sizeof(WSAOVERLAPPED));
     memset(&state->buf, 0, 1024);
     state->function = fun;
     state->lstream = stream;
-    if (net_sched_accept_impl(state, f, &err)) janet_panicv(err);
-    janet_await();
+    if (net_sched_accept_impl(state, janet_root_fiber(), &err)) {
+        janet_free(state);
+        janet_panicv(err);
+    }
+    janet_async_start(stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, state);
 }
 
 static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err) {
@@ -253,7 +259,7 @@ static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) {
             /* indicates io is happening async */
-            fiber->flags |= JANET_FIBER_EV_FLAG_IN_FLIGHT;
+            janet_async_in_flight(fiber);
             return 0;
         }
         *err = janet_ev_lasterr();
@@ -282,7 +288,7 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
             janet_schedule(fiber, janet_wrap_nil());
             janet_async_end(fiber);
             return;
-        case JANET_ASYNC_EVENT_USER:
+        case JANET_ASYNC_EVENT_INIT:
         case JANET_ASYNC_EVENT_READ: {
 #if defined(JANET_LINUX)
             JSock connfd = accept4(stream->handle, NULL, NULL, SOCK_CLOEXEC);
@@ -310,11 +316,10 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
 }
 
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
-    JanetFiber *f = janet_vm.root_fiber;
-    NetStateAccept *state = (NetStateAccept *) janet_async_start(f, stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, sizeof(NetStateAccept));
+    NetStateAccept *state = janet_malloc(sizeof(NetStateAccept));
+    memset(state, 0, sizeof(NetStateAccept));
     state->function = fun;
-    net_callback_accept(f, JANET_ASYNC_EVENT_USER);
-    janet_await();
+    janet_async_start(stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, state);
 }
 
 #endif
@@ -851,7 +856,6 @@ JANET_CORE_FN(cfun_stream_read,
         if (to != INFINITY) janet_addtimeout(to);
         janet_ev_recv(stream, buffer, n, MSG_NOSIGNAL);
     }
-    janet_await();
 }
 
 JANET_CORE_FN(cfun_stream_chunk,
@@ -866,7 +870,6 @@ JANET_CORE_FN(cfun_stream_chunk,
     double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (to != INFINITY) janet_addtimeout(to);
     janet_ev_recvchunk(stream, buffer, n, MSG_NOSIGNAL);
-    janet_await();
 }
 
 JANET_CORE_FN(cfun_stream_recv_from,
@@ -881,7 +884,6 @@ JANET_CORE_FN(cfun_stream_recv_from,
     double to = janet_optnumber(argv, argc, 3, INFINITY);
     if (to != INFINITY) janet_addtimeout(to);
     janet_ev_recvfrom(stream, buffer, n, MSG_NOSIGNAL);
-    janet_await();
 }
 
 JANET_CORE_FN(cfun_stream_write,
@@ -901,7 +903,6 @@ JANET_CORE_FN(cfun_stream_write,
         if (to != INFINITY) janet_addtimeout(to);
         janet_ev_send_string(stream, bytes.bytes, MSG_NOSIGNAL);
     }
-    janet_await();
 }
 
 JANET_CORE_FN(cfun_stream_send_to,
@@ -922,7 +923,6 @@ JANET_CORE_FN(cfun_stream_send_to,
         if (to != INFINITY) janet_addtimeout(to);
         janet_ev_sendto_string(stream, bytes.bytes, dest, MSG_NOSIGNAL);
     }
-    janet_await();
 }
 
 JANET_CORE_FN(cfun_stream_flush,

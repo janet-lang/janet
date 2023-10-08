@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Change C API for event loop interaction - get rid of JanetListener and instead use `janet_async_start` and `janet_async_end`.
+- Rework event loop to make fewer system calls on kqueue and epoll.
 - Expose atomic refcount abstraction in janet.h
 - Add `array/weak` for weak references in arrays
 - Add support for weak tables via `table/weak`, `table/weak-keys`, and `table/weak-values`.
