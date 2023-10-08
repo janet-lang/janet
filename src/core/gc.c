@@ -326,18 +326,17 @@ static void janet_deinit_block(JanetGCObject *mem) {
         case JANET_MEMORY_TABLE:
             janet_free(((JanetTable *) mem)->data);
             break;
-        case JANET_MEMORY_FIBER:
-            {
-                JanetFiber *f = (JanetFiber *)mem;
+        case JANET_MEMORY_FIBER: {
+            JanetFiber *f = (JanetFiber *)mem;
 #ifdef JANET_EV
-                if (f->ev_state && !(f->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
-                    janet_ev_dec_refcount();
-                    janet_free(f->ev_state);
-                }
-#endif
-                janet_free(f->data);
+            if (f->ev_state && !(f->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
+                janet_ev_dec_refcount();
+                janet_free(f->ev_state);
             }
-            break;
+#endif
+            janet_free(f->data);
+        }
+        break;
         case JANET_MEMORY_BUFFER:
             janet_buffer_deinit((JanetBuffer *) mem);
             break;

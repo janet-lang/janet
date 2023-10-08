@@ -1659,7 +1659,7 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
 
 void janet_register_stream(JanetStream *stream) {
     struct kevent kevs[2];
-    EV_SETx(&kevs[1], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
+    EV_SETx(&kevs[0], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
     EV_SETx(&kevs[1], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
     int status;
     do {
