@@ -2336,6 +2336,34 @@ JANET_CORE_FN(os_permission_int,
     return janet_wrap_integer(os_get_unix_mode(argv, 0));
 }
 
+JANET_CORE_FN(os_posix_fork,
+        "(os/posix-fork)",
+        "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
+        "Not supported on all systems (POSIX only).") {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
+    janet_fixarity(argc, 0);
+    (void) argv;
+#ifdef JANET_WINDOWS
+    janet_panic("not supported");
+#else
+    pid_t result;
+    do {
+        result = fork();
+    } while (result == -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panic(strerror(errno));
+    }
+    if (result) {
+        JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
+        memset(proc, 0, sizeof(JanetProc));
+        proc->pid = result;
+        proc->flags = JANET_PROC_ALLOW_ZOMBIE;
+        return janet_wrap_abstract(proc);
+    }
+    return janet_wrap_nil();
+#endif
+}
+
 #ifdef JANET_EV
 
 /*
@@ -2622,6 +2650,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/execute", os_execute),
         JANET_CORE_REG("os/spawn", os_spawn),
         JANET_CORE_REG("os/shell", os_shell),
+        JANET_CORE_REG("os/posix-fork", os_posix_fork),
         /* no need to sandbox process management if you can't create processes
          * (allows for limited functionality if use exposes C-functions to create specific processes) */
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
