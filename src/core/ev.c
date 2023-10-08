@@ -1408,12 +1408,18 @@ static void janet_ev_setup_selfpipe(void) {
 
 /* Handle events from the self pipe inside the event loop */
 static void janet_ev_handle_selfpipe(void) {
+recur:
     JanetSelfPipeEvent response;
-    while (read(janet_vm.selfpipe[0], &response, sizeof(response)) > 0) {
+    int status;
+    do {
+        status = read(janet_vm.selfpipe[0], &response, sizeof(response));
+    } while (status == -1 && errno == EINTR);
+    if (status > 0) {
         if (NULL != response.cb) {
             response.cb(response.msg);
             janet_ev_dec_refcount();
         }
+        goto recur;
     }
 }
 
@@ -1660,14 +1666,26 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
 
 void janet_register_stream(JanetStream *stream) {
     struct kevent kevs[2];
-    EV_SETx(&kevs[0], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
-    EV_SETx(&kevs[1], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    int length = 0;
+    if (stream->flags & JANET_STREAM_READABLE) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    }
+    if (stream->flags & JANET_STREAM_WRITABLE) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    }
     int status;
     do {
-        status = kevent(janet_vm.kq, kevs, 2, NULL, 0, NULL);
-    } while (status == -1 && errno != EINTR);
+        status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
+    } while (status == -1 && errno == EINTR);
     if (status == -1) {
-        janet_panicv(janet_ev_lasterr());
+        if (errno == ENODEV) {
+            /* Couldn't add to event loop, so assume that it completes
+             * synchronously. */
+            stream->flags |= JANET_STREAM_UNREGISTERED;
+        } else {
+            /* Unexpected error */
+            janet_panicv(janet_ev_lasterr());
+        }
     }
 }
 
