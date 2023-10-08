@@ -8,7 +8,7 @@ tasks:
 - gmake: |
     cd janet
     gmake
-    VERBOSE=1 gmake test
+    gmake test
     doas gmake install
     gmake test-install
     doas gmake uninstall

@@ -7,6 +7,6 @@ tasks:
 - build: |
     cd janet
     gmake
-    VERBOSE=1 gmake test
+    gmake test
     sudo gmake install
     sudo gmake uninstall
