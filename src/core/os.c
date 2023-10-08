@@ -2342,8 +2342,8 @@ JANET_CORE_FN(os_permission_int,
 
 JANET_CORE_FN(os_posix_fork,
         "(os/posix-fork)",
-        "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/proc object (as returned by os/spawn). "
-        "Not supported on all system (POSIX only).") {
+        "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
+        "Not supported on all systems (POSIX only).") {
     janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_fixarity(argc, 0);
     (void) argv;
