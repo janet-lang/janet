@@ -1517,7 +1517,9 @@ static JanetTimestamp ts_now(void) {
 /* Wait for the next event */
 static void janet_register_stream(JanetStream *stream) {
     struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    ev.events = EPOLLET;
+    if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) ev.events |= EPOLLIN;
+    if (stream->flags & JANET_STREAM_WRITABLE) ev.events |= EPOLLOUT;
     ev.data.ptr = stream;
     int status;
     do {
@@ -1667,7 +1669,7 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
 void janet_register_stream(JanetStream *stream) {
     struct kevent kevs[2];
     int length = 0;
-    if (stream->flags & JANET_STREAM_READABLE) {
+    if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
         EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
     }
     if (stream->flags & JANET_STREAM_WRITABLE) {
@@ -2543,7 +2545,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
 
                 /* Handle write errors */
                 if (nwrote == -1) {
-                    if (errno == EAGAIN || errno  == EWOULDBLOCK) break;
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) break;
                     janet_cancel(fiber, janet_ev_lasterr());
                     janet_async_end(fiber);
                     break;
