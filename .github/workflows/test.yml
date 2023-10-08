@@ -12,14 +12,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ macos-latest ]
+        os: [ ubuntu-latest, macos-latest ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
       - name: Compile the project
         run: make clean && make
       - name: Test the project
-        run: VERBOSE=1 sudo ktrace trace -c build/janet test/suite-os.janet
+        run: make test
 
   test-windows:
     name: Build and test on Windows
