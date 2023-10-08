@@ -1660,8 +1660,8 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
 
 void janet_register_stream(JanetStream *stream) {
     struct kevent kevs[2];
-    EV_SETx(&kevs[0], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
-    EV_SETx(&kevs[1], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR | EV_EOF, 0, 0, stream);
+    EV_SETx(&kevs[0], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+    EV_SETx(&kevs[1], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
     int status;
     do {
         status = kevent(janet_vm.kq, kevs, 2, NULL, 0, NULL);
@@ -1740,7 +1740,7 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent event;
-    EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
+    EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, janet_vm.selfpipe);
     int status;
     do {
         status = kevent(janet_vm.kq, &event, 1, NULL, 0, NULL);
