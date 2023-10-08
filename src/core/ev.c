@@ -1401,7 +1401,7 @@ void janet_loop(void) {
 #else
 
 static void janet_ev_setup_selfpipe(void) {
-    if (janet_make_pipe(janet_vm.selfpipe, 0)) {
+    if (janet_make_pipe(janet_vm.selfpipe, 1)) {
         JANET_EXIT("failed to initialize self pipe in event loop");
     }
 }
@@ -1740,7 +1740,7 @@ void janet_ev_init(void) {
     janet_vm.timer_enabled = 0;
     if (janet_vm.kq == -1) goto error;
     struct kevent event;
-    EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, janet_vm.selfpipe);
+    EV_SETx(&event, janet_vm.selfpipe[0], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, janet_vm.selfpipe);
     int status;
     do {
         status = kevent(janet_vm.kq, &event, 1, NULL, 0, NULL);
