@@ -1412,6 +1412,7 @@ static void janet_ev_handle_selfpipe(void) {
     while (read(janet_vm.selfpipe[0], &response, sizeof(response)) > 0) {
         if (NULL != response.cb) {
             response.cb(response.msg);
+            janet_ev_dec_refcount();
         }
     }
 }
@@ -1472,6 +1473,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
             if (NULL != response->cb) {
                 response->cb(response->msg);
             }
+            janet_ev_dec_refcount();
             janet_free(response);
         } else {
             /* Normal event */
@@ -1892,6 +1894,7 @@ void janet_ev_deinit(void) {
  */
 void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage msg) {
     vm = vm ? vm : &janet_vm;
+    janet_atomic_inc(&vm->listener_count);
 #ifdef JANET_WINDOWS
     JanetHandle iocp = vm->iocp;
     JanetSelfPipeEvent *event = janet_malloc(sizeof(JanetSelfPipeEvent));

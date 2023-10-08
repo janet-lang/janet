@@ -517,7 +517,6 @@ static JanetEVGenericMessage janet_proc_wait_subr(JanetEVGenericMessage args) {
 
 /* Callback that is called in main thread when subroutine completes. */
 static void janet_proc_wait_cb(JanetEVGenericMessage args) {
-    janet_ev_dec_refcount();
     JanetProc *proc = (JanetProc *) args.argp;
     if (NULL != proc) {
         int status = args.tag;
@@ -827,7 +826,6 @@ static void janet_signal_callback(JanetEVGenericMessage msg) {
     JanetFunction *handler = janet_unwrap_function(handlerv);
     JanetFiber *fiber = janet_fiber(handler, 64, 0, NULL);
     janet_schedule_soon(fiber, janet_wrap_nil(), JANET_SIGNAL_OK);
-    janet_ev_dec_refcount();
 }
 
 static void janet_signal_trampoline_no_interrupt(int sig) {
@@ -836,7 +834,6 @@ static void janet_signal_trampoline_no_interrupt(int sig) {
     memset(&msg, 0, sizeof(msg));
     msg.tag = sig;
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
-    janet_ev_inc_refcount();
 }
 
 static void janet_signal_trampoline(int sig) {
@@ -847,7 +844,6 @@ static void janet_signal_trampoline(int sig) {
     msg.argi = 1;
     janet_interpreter_interrupt(NULL);
     janet_ev_post_event(&janet_vm, janet_signal_callback, msg);
-    janet_ev_inc_refcount();
 }
 #endif
 
