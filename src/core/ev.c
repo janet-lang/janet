@@ -1628,7 +1628,6 @@ void janet_ev_deinit(void) {
  *   https://github.com/wahern/cqueues/blob/master/src/lib/kpoll.c
  * NetBSD uses intptr_t while others use void * for .udata */
 #define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
-#define JANET_KQUEUE_TF (EV_ADD | EV_ENABLE | EV_CLEAR | EV_ONESHOT)
 #define JANET_KQUEUE_MIN_INTERVAL 0
 
 /* NOTE:
@@ -1716,16 +1715,15 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
                 if (!f) continue;
                 if (f->ev_callback && has_err) {
                     f->ev_callback(f, JANET_ASYNC_EVENT_ERR);
-                } else {
-                    if (f->ev_callback && (filt == EVFILT_READ) && f == stream->read_fiber) {
-                        f->ev_callback(f, JANET_ASYNC_EVENT_READ);
-                    }
-                    if (f->ev_callback && (filt == EVFILT_WRITE) && f == stream->write_fiber) {
-                        f->ev_callback(f, JANET_ASYNC_EVENT_WRITE);
-                    }
-                    if (f->ev_callback && has_hup) {
-                        f->ev_callback(f, JANET_ASYNC_EVENT_HUP);
-                    }
+                }
+                if (f->ev_callback && (filt == EVFILT_READ) && f == stream->read_fiber) {
+                    f->ev_callback(f, JANET_ASYNC_EVENT_READ);
+                }
+                if (f->ev_callback && (filt == EVFILT_WRITE) && f == stream->write_fiber) {
+                    f->ev_callback(f, JANET_ASYNC_EVENT_WRITE);
+                }
+                if (f->ev_callback && has_hup) {
+                    f->ev_callback(f, JANET_ASYNC_EVENT_HUP);
                 }
             }
             janet_stream_checktoclose(stream);
