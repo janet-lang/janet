@@ -1680,7 +1680,7 @@ void janet_register_stream(JanetStream *stream) {
         status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
-        if (errno == ENODEV) {
+        if ((errno == ENODEV) || (errno == EPERM)) {
             /* Couldn't add to event loop, so assume that it completes
              * synchronously. */
             stream->flags |= JANET_STREAM_UNREGISTERED;
