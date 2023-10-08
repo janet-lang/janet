@@ -19,7 +19,7 @@ jobs:
       - name: Compile the project
         run: make clean && make
       - name: Test the project
-        run: VERBOSE=1 sudo ktrace build/janet test/suite-os.janet
+        run: VERBOSE=1 sudo ktrace trace -c build/janet test/suite-os.janet
 
   test-windows:
     name: Build and test on Windows
