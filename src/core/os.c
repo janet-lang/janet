@@ -1247,11 +1247,14 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         janet_panic("not supported on windows");
 #else
         int status;
+        if (!use_environ) {
+            environ = envp;
+        }
         do {
             if (janet_flag_at(flags, 1)) {
-                status = execvpe(cargv[0], cargv, use_environ ? environ : envp);
+                status = execvp(cargv[0], cargv);
             } else {
-                status = execve(cargv[0], cargv, use_environ ? environ : envp);
+                status = execv(cargv[0], cargv);
             }
         } while (status == -1 && errno == EINTR);
         janet_panicf("%p: %s", cargv[0], strerror(errno ? errno : ENOENT));
