@@ -772,6 +772,8 @@ struct FmtMapping {
 /* Janet uses fixed width integer types for most things, so map
  * format specifiers to these fixed sizes */
 static const struct FmtMapping format_mappings[] = {
+    {'D', PRId64},
+    {'I', PRIi64},
     {'d', PRId64},
     {'i', PRIi64},
     {'o', PRIo64},
@@ -856,6 +858,12 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 }
                 case 'd':
                 case 'i': {
+                    int64_t n = (int64_t) va_arg(args, int32_t);
+                    nb = snprintf(item, MAX_ITEM, form, n);
+                    break;
+                }
+                case 'D':
+                case 'I': {
                     int64_t n = va_arg(args, int64_t);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
@@ -1017,6 +1025,8 @@ void janet_buffer_format(
                                   janet_getinteger(argv, arg));
                     break;
                 }
+                case 'D':
+                case 'I':
                 case 'd':
                 case 'i': {
                     int64_t n = janet_getinteger64(argv, arg);
