@@ -1081,11 +1081,18 @@ static JanetFile *get_stdio_for_handle(JanetHandle handle, void *orig, int iswri
 }
 #endif
 
-static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
+typedef enum {
+    JANET_EXECUTE_EXECUTE,
+    JANET_EXECUTE_SPAWN,
+    JANET_EXECUTE_EXEC
+} JanetExecuteMode;
+
+static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_arity(argc, 1, 3);
 
     /* Get flags */
+    int is_spawn = mode == JANET_EXECUTE_SPAWN;
     uint64_t flags = 0;
     if (argc > 1) {
         flags = janet_getflags(argv, 1, "epxd");
@@ -1109,7 +1116,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
     int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
 
     /* Get optional redirections */
-    if (argc > 2) {
+    if (argc > 2 && (mode != JANET_EXECUTE_EXEC)) {
         JanetDictView tab = janet_getdictionary(argv, 2);
         Janet maybe_stdin = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("in"));
         Janet maybe_stdout = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("out"));
@@ -1230,11 +1237,28 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, int is_spawn) {
      * of posix_spawn would modify the argv array passed in. */
     char *const *cargv = (char *const *)child_argv;
 
-    /* Use posix_spawn to spawn new process */
-
     if (use_environ) {
         janet_lock_environ();
     }
+
+    /* exec mode */
+    if (mode == JANET_EXECUTE_EXEC) {
+#ifdef JANET_WINDOWS
+        janet_panic("not supported on windows");
+#else
+        int status;
+        do {
+            if (janet_flag_at(flags, 1)) {
+                status = execvpe(cargv[0], cargv, use_environ ? environ : envp);
+            } else {
+                status = execve(cargv[0], cargv, use_environ ? environ : envp);
+            }
+        } while (status == -1 && errno == EINTR);
+        janet_panicf("%p: %s", cargv[0], strerror(errno ? errno : ENOENT));
+#endif
+    }
+
+    /* Use posix_spawn to spawn new process */
 
     /* Posix spawn setup */
     posix_spawn_file_actions_t actions;
@@ -1344,7 +1368,7 @@ JANET_CORE_FN(os_execute,
               "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
               "These arguments should be core/file values. "
               "Returns the exit status of the program.") {
-    return os_execute_impl(argc, argv, 0);
+    return os_execute_impl(argc, argv, JANET_EXECUTE_EXECUTE);
 }
 
 JANET_CORE_FN(os_spawn,
@@ -1357,7 +1381,15 @@ JANET_CORE_FN(os_spawn,
               "The returned value `proc` has the fields :in, :out, :err, :return-code, and "
               "the additional field :pid on unix-like platforms. Use `(os/proc-wait proc)` to rejoin the "
               "subprocess or `(os/proc-kill proc)`.") {
-    return os_execute_impl(argc, argv, 1);
+    return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
+}
+
+JANET_CORE_FN(os_posix_exec,
+              "(os/posix-exec args &opt flags env)",
+              "Use the execvpe or execve system calls to replace the current process with an interface similar to os/execute. "
+              "Hoever, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
+              "does not allow redirection of stdio.") {
+    return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
 }
 
 #ifdef JANET_EV
@@ -2651,6 +2683,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/spawn", os_spawn),
         JANET_CORE_REG("os/shell", os_shell),
         JANET_CORE_REG("os/posix-fork", os_posix_fork),
+        JANET_CORE_REG("os/posix-exec", os_posix_exec),
         /* no need to sandbox process management if you can't create processes
          * (allows for limited functionality if use exposes C-functions to create specific processes) */
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
