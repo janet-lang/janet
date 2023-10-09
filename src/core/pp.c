@@ -850,13 +850,13 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
             c = scanformat(c, form, width, precision);
             switch (*c++) {
                 case 'c': {
-                    int n = va_arg(args, long);
+                    int n = va_arg(args, int);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
                 case 'd':
                 case 'i': {
-                    int64_t n = va_arg(args, int);
+                    int64_t n = va_arg(args, int64_t);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
@@ -864,7 +864,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 'X':
                 case 'o':
                 case 'u': {
-                    uint64_t n = va_arg(args, unsigned int);
+                    uint64_t n = va_arg(args, uint64_t);
                     nb = snprintf(item, MAX_ITEM, form, n);
                     break;
                 }
@@ -908,7 +908,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     janet_buffer_push_cstring(b, typestr(va_arg(args, Janet)));
                     break;
                 case 'T': {
-                    int types = va_arg(args, long);
+                    int types = va_arg(args, int);
                     pushtypes(b, types);
                     break;
                 }

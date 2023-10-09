@@ -338,7 +338,7 @@ int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const c
     int32_t not_raw = raw;
     if (not_raw < 0) not_raw += length + 1;
     if (not_raw < 0 || not_raw > length)
-        janet_panicf("%s index %d out of range [%d,%d]", which, raw, -length - 1, length);
+        janet_panicf("%s index %d out of range [%d,%d]", which, (int64_t) raw, -(int64_t)length - 1, (int64_t) length);
     return not_raw;
 }
 
@@ -361,7 +361,7 @@ int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const ch
     int32_t not_raw = raw;
     if (not_raw < 0) not_raw += length;
     if (not_raw < 0 || not_raw > length)
-        janet_panicf("%s index %d out of range [%d,%d)", which, raw, -length, length);
+        janet_panicf("%s index %d out of range [%d,%d)", which, (int64_t)raw, -(int64_t)length, (int64_t)length);
     return not_raw;
 }
 
