@@ -40,16 +40,15 @@
 
 static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
-    const char *fmt = (x == floor(x) &&
-                       x <= JANET_INTMAX_DOUBLE &&
-                       x >= JANET_INTMIN_DOUBLE) ? "%.0f" : "%g";
     int count;
     if (x == 0.0) {
         /* Prevent printing of '-0' */
         count = 1;
         buffer->data[buffer->count] = '0';
     } else {
-        count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, fmt, x);
+        /* Use 17 significant digits in the %g format to avoid rounding off the fractional part (if
+         * it exists) and producing a value which looks like an integer. */
+        count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%.17g", x);
     }
     buffer->count += count;
 }
