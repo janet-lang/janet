@@ -4212,6 +4212,7 @@
      "src/core/strtod.c"
      "src/core/struct.c"
      "src/core/symcache.c"
+     "src/core/sysir.c"
      "src/core/table.c"
      "src/core/tuple.c"
      "src/core/util.c"

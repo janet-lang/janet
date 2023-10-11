@@ -493,6 +493,7 @@ void janet_sweep() {
             /* If not visited... */
             if (!janet_truthy(items[i].value)) {
                 void *abst = janet_unwrap_abstract(items[i].key);
+
                 if (0 == janet_abstract_decref(abst)) {
                     /* Run finalizer */
                     JanetAbstractHead *head = janet_abstract_head(abst);

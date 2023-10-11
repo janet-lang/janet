@@ -1127,4 +1127,5 @@ void janet_lib_compile(JanetTable *env) {
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);
+    janet_lib_sysir(env);
 }

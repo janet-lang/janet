@@ -268,6 +268,9 @@ JanetSlot janetc_cslot(Janet x);
 /* Search for a symbol */
 JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
+/* Load the system dialect IR */
+void janet_lib_sysir(JanetTable *env);
+
 /* Bytecode optimization */
 void janet_bytecode_movopt(JanetFuncDef *def);
 void janet_bytecode_remove_noops(JanetFuncDef *def);
