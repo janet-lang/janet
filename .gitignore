@@ -34,8 +34,11 @@ local
 
 # Common test files I use.
 temp.janet
-temp*.janet
+temp.c
+temp*janet
+temp*.c
 scratch.janet
+scratch.c
 
 # Emscripten
 *.bc
