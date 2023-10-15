@@ -502,10 +502,10 @@ static void kright(void) {
 }
 
 static void krightw(void) {
-    while (gbl_pos != gbl_len && !isspace(gbl_buf[gbl_pos])) {
+    while (gbl_pos != gbl_len && isspace(gbl_buf[gbl_pos])) {
         gbl_pos++;
     }
-    while (gbl_pos != gbl_len && isspace(gbl_buf[gbl_pos])) {
+    while (gbl_pos != gbl_len && !isspace(gbl_buf[gbl_pos])) {
         gbl_pos++;
     }
     refresh();
