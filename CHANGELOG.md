@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.32.0 - 2023-10-14
+- Fix return value from C function `janet_dobytes` when called on Janet functions that yield to event loop.
 - Change C API for event loop interaction - get rid of JanetListener and instead use `janet_async_start` and `janet_async_end`.
 - Rework event loop to make fewer system calls on kqueue and epoll.
 - Expose atomic refcount abstraction in janet.h

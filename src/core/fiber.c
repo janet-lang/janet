@@ -239,8 +239,8 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
                                          fiber->data + tuplehead,
                                          oldtop - tuplehead)
                                      : janet_wrap_tuple(janet_tuple_n(
-                                                 fiber->data + tuplehead,
-                                                 oldtop - tuplehead));
+                                             fiber->data + tuplehead,
+                                             oldtop - tuplehead));
         }
     }
 
@@ -370,8 +370,8 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
                                          fiber->data + tuplehead,
                                          fiber->stacktop - tuplehead)
                                      : janet_wrap_tuple(janet_tuple_n(
-                                                 fiber->data + tuplehead,
-                                                 fiber->stacktop - tuplehead));
+                                             fiber->data + tuplehead,
+                                             fiber->stacktop - tuplehead));
         }
         stacksize = tuplehead - fiber->stackstart + 1;
     } else {
