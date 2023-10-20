@@ -135,8 +135,7 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
 
 /* Push a cstring to buffer */
 void janet_buffer_push_cstring(JanetBuffer *buffer, const char *cstring) {
-    int32_t len = 0;
-    while (cstring[len]) ++len;
+    int32_t len = strlen(cstring);
     janet_buffer_push_bytes(buffer, (const uint8_t *) cstring, len);
 }
 
