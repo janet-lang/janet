@@ -509,6 +509,14 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 #endif
 }
 
+JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
+#ifdef JANET_WINDOWS
+    return InterlockedOr(x, 0);
+#else
+    return __atomic_load_n(x, __ATOMIC_ACQUIRE);
+#endif
+}
+
 /* Some definitions for function-like macros */
 
 JANET_API JanetStructHead *(janet_struct_head)(JanetStruct st) {

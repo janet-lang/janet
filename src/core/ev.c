@@ -1284,7 +1284,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout);
 int janet_loop_done(void) {
     return !((janet_vm.spawn.head != janet_vm.spawn.tail) ||
              janet_vm.tq_count ||
-             janet_vm.listener_count);
+             janet_atomic_load(&janet_vm.listener_count));
 }
 
 JanetFiber *janet_loop1(void) {
@@ -1346,7 +1346,7 @@ JanetFiber *janet_loop1(void) {
     }
 
     /* Poll for events */
-    if (janet_vm.tq_count || janet_vm.listener_count) {
+    if (janet_vm.tq_count || janet_atomic_load(&janet_vm.listener_count)) {
         JanetTimeout to;
         memset(&to, 0, sizeof(to));
         int has_timeout;
@@ -1365,7 +1365,7 @@ JanetFiber *janet_loop1(void) {
             break;
         }
         /* Run polling implementation only if pending timeouts or pending events */
-        if (janet_vm.tq_count || janet_vm.listener_count) {
+        if (janet_vm.tq_count || janet_atomic_load(&janet_vm.listener_count)) {
             janet_loop1_impl(has_timeout, to.when);
         }
     }
