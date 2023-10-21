@@ -505,7 +505,7 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 #ifdef JANET_WINDOWS
     return InterlockedDecrement(x);
 #else
-    return __atomic_add_fetch(x, -1, __ATOMIC_RELAXED);
+    return __atomic_add_fetch(x, -1, __ATOMIC_ACQ_REL);
 #endif
 }
 
