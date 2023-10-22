@@ -31,6 +31,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <float.h>
 
 /* Implements a pretty printer for Janet. The pretty printer
  * is simple and not that flexible, but fast. */
@@ -38,11 +39,15 @@
 /* Temporary buffer size */
 #define BUFSIZE 64
 
+/* Preprocessor hacks */
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 static void number_to_string_b(JanetBuffer *buffer, double x) {
     janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
     const char *fmt = (x == floor(x) &&
                        x <= JANET_INTMAX_DOUBLE &&
-                       x >= JANET_INTMIN_DOUBLE) ? "%.0f" : "%g";
+                       x >= JANET_INTMIN_DOUBLE) ? "%.0f" : ("%." STR(DBL_DIG) "g");
     int count;
     if (x == 0.0) {
         /* Prevent printing of '-0' */

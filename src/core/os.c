@@ -1395,6 +1395,34 @@ JANET_CORE_FN(os_posix_exec,
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
 }
 
+JANET_CORE_FN(os_posix_fork,
+              "(os/posix-fork)",
+              "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
+              "Not supported on all systems (POSIX only).") {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
+    janet_fixarity(argc, 0);
+    (void) argv;
+#ifdef JANET_WINDOWS
+    janet_panic("not supported");
+#else
+    pid_t result;
+    do {
+        result = fork();
+    } while (result == -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panic(strerror(errno));
+    }
+    if (result) {
+        JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
+        memset(proc, 0, sizeof(JanetProc));
+        proc->pid = result;
+        proc->flags = JANET_PROC_ALLOW_ZOMBIE;
+        return janet_wrap_abstract(proc);
+    }
+    return janet_wrap_nil();
+#endif
+}
+
 #ifdef JANET_EV
 /* Runs in a separate thread */
 static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
@@ -2369,34 +2397,6 @@ JANET_CORE_FN(os_permission_int,
               "Parse a 9-character permission string and return an integer that can be used by chmod.") {
     janet_fixarity(argc, 1);
     return janet_wrap_integer(os_get_unix_mode(argv, 0));
-}
-
-JANET_CORE_FN(os_posix_fork,
-              "(os/posix-fork)",
-              "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
-              "Not supported on all systems (POSIX only).") {
-    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
-    janet_fixarity(argc, 0);
-    (void) argv;
-#ifdef JANET_WINDOWS
-    janet_panic("not supported");
-#else
-    pid_t result;
-    do {
-        result = fork();
-    } while (result == -1 && errno == EINTR);
-    if (result == -1) {
-        janet_panic(strerror(errno));
-    }
-    if (result) {
-        JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
-        memset(proc, 0, sizeof(JanetProc));
-        proc->pid = result;
-        proc->flags = JANET_PROC_ALLOW_ZOMBIE;
-        return janet_wrap_abstract(proc);
-    }
-    return janet_wrap_nil();
-#endif
 }
 
 #ifdef JANET_EV
