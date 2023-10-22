@@ -11,52 +11,52 @@
 # Use fgetp for code gen
 
 (def ir-asm
-  @{:instructions
-   '(
-     # Types
-     (type-prim Real f32)
-     (type-struct Vec3 Real Real Real)
-     (type-pointer PReal Real)
+  '((link-name "addv")
+    (parameter-count 2)
 
-     # Declarations
-     (bind position Vec3)
-     (bind velocity Vec3)
-     (bind next-position Vec3)
-     (bind dest Real)
-     (bind lhs Real)
-     (bind rhs Real)
-     (bind pdest PReal)
-     (bind plhs PReal)
-     (bind prhs PReal)
+    # Types
+    (type-prim Real f32)
+    (type-struct Vec3 Real Real Real)
+    (type-pointer PReal Real)
 
-     # Code
-     (fgetp pdest next-position 0)
-     (fgetp plhs position 0)
-     (fgetp prhs velocity 0)
-     (load lhs plhs)
-     (load rhs prhs)
-     (add dest lhs rhs)
-     (store pdest dest)
+    # Declarations
+    (bind position Vec3)
+    (bind velocity Vec3)
+    (bind next-position Vec3)
+    (bind dest Real)
+    (bind lhs Real)
+    (bind rhs Real)
+    (bind pdest PReal)
+    (bind plhs PReal)
+    (bind prhs PReal)
 
-     (fgetp pdest next-position 1)
-     (fgetp plhs position 1)
-     (fgetp prhs velocity 1)
-     (load lhs plhs)
-     (load rhs prhs)
-     (add dest lhs rhs)
-     (store pdest dest)
+    # Code
+    (fgetp pdest next-position 0)
+    (fgetp plhs position 0)
+    (fgetp prhs velocity 0)
+    (load lhs plhs)
+    (load rhs prhs)
+    (add dest lhs rhs)
+    (store pdest dest)
 
-     (fgetp pdest next-position 2)
-     (fgetp plhs position 2)
-     (fgetp prhs velocity 2)
-     (load lhs plhs)
-     (load rhs prhs)
-     (add dest lhs rhs)
-     (store pdest dest)
+    (fgetp pdest next-position 1)
+    (fgetp plhs position 1)
+    (fgetp prhs velocity 1)
+    (load lhs plhs)
+    (load rhs prhs)
+    (add dest lhs rhs)
+    (store pdest dest)
 
-     (return next-position))
-   :parameter-count 2
-   :link-name "addv"})
+    (fgetp pdest next-position 2)
+    (fgetp plhs position 2)
+    (fgetp prhs velocity 2)
+    (load lhs plhs)
+    (load rhs prhs)
+    (add dest lhs rhs)
+    (store pdest dest)
 
-(def as (sysir/asm ir-asm))
-(print (sysir/to-c as))
+    (return next-position)))
+
+(def ctx (sysir/context))
+(sysir/asm ctx ir-asm)
+(print (sysir/to-c ctx))

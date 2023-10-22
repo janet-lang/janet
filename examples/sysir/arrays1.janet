@@ -1,18 +1,28 @@
-(def ir-asm
-  @{:instructions
-   '(
-     # Types
-     (type-prim Double f64)
-     (type-array BigVec Double 100)
+(def types-asm
+  '((type-prim Double f64)
+    (type-array BigVec Double 100)))
 
-     # Declarations
-     (bind 0 BigVec)
-     (bind 1 BigVec)
-     (bind 2 BigVec)
-     (add 2 0 1)
-     (return 2))
-   :parameter-count 2
-   :link-name "add_vector"})
+(def add-asm
+  '((link-name "add_vector")
+    (parameter-count 2)
+    # Declarations
+    (bind a BigVec)
+    (bind b BigVec)
+    (bind c BigVec)
+    (add c a b)
+    (return c)))
 
-(def as (sysir/asm ir-asm))
-(print (sysir/to-c as))
+(def sub-asm
+  '((link-name "sub_vector")
+    (parameter-count 2)
+    (bind a BigVec)
+    (bind b BigVec)
+    (bind c BigVec)
+    (subtract c a b)
+    (return c)))
+
+(def ctx (sysir/context))
+(sysir/asm ctx types-asm)
+(sysir/asm ctx add-asm)
+(sysir/asm ctx sub-asm)
+(print (sysir/to-c ctx))

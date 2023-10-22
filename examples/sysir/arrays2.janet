@@ -1,20 +1,19 @@
-
 (def ir-asm
-  @{:instructions
-   '(
-     # Types
-     (type-prim Double f64)
-     (type-array BigVec Double 100)
-     (type-pointer BigVecP BigVec)
+  '((link-name "add_vectorp")
+    (parameter-count 2)
 
-     # Declarations
-     (bind 0 BigVecP)
-     (bind 1 BigVecP)
-     (bind 2 BigVecP)
-     (add 2 0 1)
-     (return 2))
-   :parameter-count 2
-   :link-name "add_vectorp"})
+    # Types
+    (type-prim Double f64)
+    (type-array BigVec Double 100)
+    (type-pointer BigVecP BigVec)
 
-(def as (sysir/asm ir-asm))
-(print (sysir/to-c as))
+    # Declarations
+    (bind 0 BigVecP)
+    (bind 1 BigVecP)
+    (bind 2 BigVecP)
+    (add 2 0 1)
+    (return 2)))
+
+(def ctx (sysir/context))
+(sysir/asm ctx ir-asm)
+(print (sysir/to-c ctx))
