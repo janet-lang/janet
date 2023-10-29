@@ -125,7 +125,7 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
         default:
             break;
 #ifndef JANET_WINDOWS
-        /* Wait until we have an actually event before checking.
+        /* Wait until we have an actual event before checking.
          * Windows doesn't support async connect with this, just try immediately.*/
         case JANET_ASYNC_EVENT_INIT:
 #endif
@@ -160,7 +160,7 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     janet_async_end(fiber);
 }
 
-static void net_sched_connect(JanetStream *stream) {
+static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
     NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
     state->did_connect = 0;
     janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, state);
@@ -575,7 +575,6 @@ JANET_CORE_FN(cfun_net_connect,
     }
 
     net_sched_connect(stream);
-    janet_await();
 }
 
 static const char *serverify_socket(JSock sfd) {
