@@ -1818,8 +1818,8 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
         JanetStream *stream = janet_vm.streams[i];
         janet_vm.fds[i + 1].events = 0;
         janet_vm.fds[i + 1].revents = 0;
-        if (stream->read_fiber) janet_vm.fds[i + 1].events |= POLLIN;
-        if (stream->write_fiber) janet_vm.fds[i + 1].events |= POLLOUT;
+        if (stream->read_fiber && stream->read_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLIN;
+        if (stream->write_fiber && stream->write_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLOUT;
     }
 
     /* Poll for events */
