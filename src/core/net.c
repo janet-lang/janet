@@ -955,8 +955,10 @@ static const struct sockopt_type sockopt_type_list[] = {
     { "ip-multicast-ttl", IPPROTO_IP, IP_MULTICAST_TTL, JANET_NUMBER },
     { "ip-add-membership", IPPROTO_IP, IP_ADD_MEMBERSHIP, JANET_POINTER },
     { "ip-drop-membership", IPPROTO_IP, IP_DROP_MEMBERSHIP, JANET_POINTER },
+#ifndef JANET_NO_IPV6
     { "ipv6-join-group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
     { "ipv6-leave-group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
+#endif
     { NULL, 0, 0, JANET_POINTER }
 };
 
@@ -993,7 +995,9 @@ JANET_CORE_FN(cfun_net_setsockopt,
     union {
         int v_int;
         struct ip_mreq v_mreq;
+#ifndef JANET_NO_IPV6
         struct ipv6_mreq v_mreq6;
+#endif
     } val;
 
     void *optval = (void *)&val;
@@ -1011,12 +1015,14 @@ JANET_CORE_FN(cfun_net_setsockopt,
         val.v_mreq.imr_interface.s_addr = htonl(INADDR_ANY);
         inet_pton(AF_INET, addr, &val.v_mreq.imr_multiaddr.s_addr);
         optlen = sizeof(val.v_mreq);
+#ifndef JANET_NO_IPV6
     } else if (st->optname == IPV6_JOIN_GROUP || st->optname == IPV6_LEAVE_GROUP) {
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq6, 0, sizeof val.v_mreq6);
         val.v_mreq6.ipv6mr_interface = 0;
         inet_pton(AF_INET6, addr, &val.v_mreq6.ipv6mr_multiaddr);
         optlen = sizeof(val.v_mreq6);
+#endif
     } else {
         janet_panicf("invalid socket option type");
     }

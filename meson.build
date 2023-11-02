@@ -61,6 +61,7 @@ conf.set('JANET_NO_SOURCEMAPS', not get_option('sourcemaps'))
 conf.set('JANET_NO_ASSEMBLER', not get_option('assembler'))
 conf.set('JANET_NO_PEG', not get_option('peg'))
 conf.set('JANET_NO_NET', not get_option('net'))
+conf.set('JANET_NO_IPV6', not get_option('ipv6'))
 conf.set('JANET_NO_EV', not get_option('ev') or get_option('single_threaded'))
 conf.set('JANET_REDUCED_OS', get_option('reduced_os'))
 conf.set('JANET_NO_INT_TYPES', not get_option('int_types'))
@@ -78,6 +79,7 @@ conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
 conf.set('JANET_NO_FFI', not get_option('ffi'))
 conf.set('JANET_NO_FFI_JIT', not get_option('ffi_jit'))
+conf.set('JANET_NO_CRYPTORAND', not get_option('cryptorand'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
 endif
@@ -183,32 +185,41 @@ if not get_option('single_threaded')
   janet_dependencies += thread_dep
 endif
 
+# Allow building with no shared library
 if cc.has_argument('-fvisibility=hidden')
   lib_cflags = ['-fvisibility=hidden']
 else
   lib_cflags = []
 endif
-libjanet = library('janet', janetc,
-  include_directories : incdir,
-  dependencies : janet_dependencies,
-  version: meson.project_version(),
-  soversion: version_parts[0] + '.' + version_parts[1],
-  c_args : lib_cflags,
-  install : true)
-
+if get_option('shared')
+  libjanet = library('janet', janetc,
+    include_directories : incdir,
+    dependencies : janet_dependencies,
+    version: meson.project_version(),
+    soversion: version_parts[0] + '.' + version_parts[1],
+    c_args : lib_cflags,
+    install : true)
 # Extra c flags - adding -fvisibility=hidden matches the Makefile and
 # shaves off about 10k on linux x64, likely similar on other platforms.
-if cc.has_argument('-fvisibility=hidden')
-  extra_cflags = ['-fvisibility=hidden', '-DJANET_DLL_IMPORT']
+  if cc.has_argument('-fvisibility=hidden')
+    extra_cflags = ['-fvisibility=hidden', '-DJANET_DLL_IMPORT']
+  else
+    extra_cflags = ['-DJANET_DLL_IMPORT']
+  endif
+  janet_mainclient = executable('janet', mainclient_src,
+    include_directories : incdir,
+    dependencies : janet_dependencies,
+    link_with: [libjanet],
+    c_args : extra_cflags,
+    install : true)
 else
-  extra_cflags = ['-DJANET_DLL_IMPORT']
+  # No shared library
+  janet_mainclient = executable('janet', mainclient_src, janetc,
+    include_directories : incdir,
+    dependencies : janet_dependencies,
+    c_args : lib_cflags,
+    install : true)
 endif
-janet_mainclient = executable('janet', mainclient_src,
-  include_directories : incdir,
-  dependencies : janet_dependencies,
-  link_with: [libjanet],
-  c_args : extra_cflags,
-  install : true)
 
 if meson.is_cross_build()
   native_cc = meson.get_compiler('c', native: true)
@@ -272,14 +283,15 @@ endforeach
 run_target('repl', command : [janet_nativeclient])
 
 # For use as meson subproject (wrap)
-janet_dep = declare_dependency(include_directories : incdir,
-  link_with : libjanet)
-
+if get_option('shared')
+  janet_dep = declare_dependency(include_directories : incdir,
+    link_with : libjanet)
 # pkgconfig
-pkg = import('pkgconfig')
-pkg.generate(libjanet,
-  subdirs: 'janet',
-  description: 'Library for the Janet programming language.')
+  pkg = import('pkgconfig')
+  pkg.generate(libjanet,
+    subdirs: 'janet',
+    description: 'Library for the Janet programming language.')
+endif
 
 # Installation
 install_man('janet.1')

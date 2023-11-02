@@ -42,6 +42,7 @@ JANET_DIST_DIR?=janet-dist
 JANET_BOOT_FLAGS:=. JANET_PATH '$(JANET_PATH)'
 JANET_TARGET_OBJECTS=build/janet.o build/shell.o
 JPM_TAG?=master
+HAS_SHARED?=1
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
 
@@ -98,7 +99,10 @@ ifeq ($(findstring MINGW,$(UNAME)), MINGW)
 endif
 
 $(shell mkdir -p build/core build/c build/boot build/mainclient)
-all: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.h
+all: $(JANET_TARGET) $(JANET_STATIC_LIBRARY) build/janet.h
+ifeq ($(HAS_SHARED), 1)
+all: $(JANET_LIBRARY)
+endif
 
 ######################
 ##### Name Files #####
@@ -264,7 +268,7 @@ dist: build/janet-dist.tar.gz
 
 build/janet-%.tar.gz: $(JANET_TARGET) \
 	build/janet.h \
-	janet.1 LICENSE CONTRIBUTING.md $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) \
+	janet.1 LICENSE CONTRIBUTING.md $(JANET_STATIC_LIBRARY) \
 	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
@@ -272,13 +276,17 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
-	cp $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/$(JANET_DIST_DIR)/lib/
+	cp $(JANET_STATIC_LIBRARY) build/$(JANET_DIST_DIR)/lib/
+	cp $(JANET_LIBRARY) build/$(JANET_DIST_DIR)/lib/ || true
 	mkdir -p build/$(JANET_DIST_DIR)/man/man1/
 	cp janet.1 build/$(JANET_DIST_DIR)/man/man1/janet.1
 	mkdir -p build/$(JANET_DIST_DIR)/src/
 	cp build/c/janet.c build/c/shell.c build/$(JANET_DIST_DIR)/src/
 	cp CONTRIBUTING.md LICENSE README.md build/$(JANET_DIST_DIR)/
 	cd build && tar -czvf ../$@ ./$(JANET_DIST_DIR)
+ifeq ($(HAS_SHARED), 1)
+build/janet-%.tar.gz: $(JANET_LIBRARY)
+endif
 
 #########################
 ##### Documentation #####

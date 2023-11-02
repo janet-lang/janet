@@ -11,6 +11,7 @@ option('peg', type : 'boolean', value : true)
 option('int_types', type : 'boolean', value : true)
 option('prf', type : 'boolean', value : false)
 option('net', type : 'boolean', value : true)
+option('ipv6', type : 'boolean', value : true)
 option('ev', type : 'boolean', value : true)
 option('processes', type : 'boolean', value : true)
 option('umask', type : 'boolean', value : true)
@@ -29,3 +30,5 @@ option('stack_max', type : 'integer', min : 8096, max : 0x7fffffff, value : 0x7f
 
 option('arch_name', type : 'string', value: '')
 option('os_name', type : 'string', value: '')
+option('shared', type : 'boolean', value: true)
+option('cryptorand', type : 'boolean', value: true)
