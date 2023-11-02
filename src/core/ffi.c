@@ -999,13 +999,13 @@ typedef struct {
     uint64_t x;
 } sysv64_sseint_return;
 typedef sysv64_int_return janet_sysv64_variant_1(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
-    double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 typedef sysv64_sse_return janet_sysv64_variant_2(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
-    double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 typedef sysv64_intsse_return janet_sysv64_variant_3(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
-    double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 typedef sysv64_sseint_return janet_sysv64_variant_4(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f,
-    double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
+        double r1, double r2, double r3, double r4, double r5, double r6, double r7, double r8);
 
 static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
     union {
