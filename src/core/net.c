@@ -79,11 +79,19 @@ const JanetAbstractType janet_address_type = {
 
 /* maximum number of bytes in a socket address host (post name resolution) */
 #ifdef JANET_WINDOWS
+#ifdef JANET_NO_IPV6
+#define SA_ADDRSTRLEN (INET_ADDRSTRLEN + 1)
+#else
 #define SA_ADDRSTRLEN (INET6_ADDRSTRLEN + 1)
+#endif
 typedef unsigned short in_port_t;
 #else
 #define JANET_SA_MAX(a, b) (((a) > (b))? (a) : (b))
+#ifdef JANET_NO_IPV6
+#define SA_ADDRSTRLEN JANET_SA_MAX(INET_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#else
 #define SA_ADDRSTRLEN JANET_SA_MAX(INET6_ADDRSTRLEN + 1, (sizeof ((struct sockaddr_un *)0)->sun_path) + 1)
+#endif
 #endif
 
 static JanetStream *make_stream(JSock handle, uint32_t flags);
@@ -745,6 +753,7 @@ static Janet janet_so_getname(const void *sa_any) {
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai->sin_port))};
             return janet_wrap_tuple(janet_tuple_n(pair, 2));
         }
+#ifndef JANET_NO_IPV6
         case AF_INET6: {
             const struct sockaddr_in6 *sai6 = sa_any;
             if (!inet_ntop(AF_INET6, &(sai6->sin6_addr), buffer, sizeof(buffer))) {
@@ -753,6 +762,7 @@ static Janet janet_so_getname(const void *sa_any) {
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai6->sin6_port))};
             return janet_wrap_tuple(janet_tuple_n(pair, 2));
         }
+#endif
 #ifndef JANET_WINDOWS
         case AF_UNIX: {
             const struct sockaddr_un *sun = sa_any;
