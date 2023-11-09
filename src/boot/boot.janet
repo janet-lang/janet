@@ -420,10 +420,14 @@
 
 (defn- range-template
   [binding object kind rest op comparison]
-  (let [[start stop step] (check-indexed object)]
-    (case kind
-      :range (for-template binding (if stop start 0) (or stop start) (or step 1) comparison op [rest])
-      :down (for-template binding start (or stop 0) (or step 1) comparison op [rest]))))
+  (check-indexed object)
+  (def [a b c] object)
+  (def [start stop step]
+    (case (length object)
+      1 (case kind :range [0 a 1] :down [a 0 1])
+      2 [a b 1]
+      [a b c]))
+  (for-template binding start stop step comparison op [rest]))
 
 (defn- each-template
   [binding inx kind body]

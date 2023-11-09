@@ -241,6 +241,16 @@
   (assert (pos? (% x 4)) "generate in loop"))
 (assert (= gencount 75) "generate loop count")
 
+# more loop checks
+(assert (deep= (seq [i :range [0 10]] i) @[0 1 2 3 4 5 6 7 8 9]) "seq 1")
+(assert (deep= (seq [i :range [0 10 2]] i) @[0 2 4 6 8]) "seq 2")
+(assert (deep= (seq [i :range [10]] i) @[0 1 2 3 4 5 6 7 8 9]) "seq 3")
+(assert (deep= (seq [i :range-to [10]] i) @[0 1 2 3 4 5 6 7 8 9 10]) "seq 4")
+(def gen (generate [x :range-to [0 nil 2]] x))
+(assert (deep= (take 5 gen) @[0 2 4 6 8]) "generate nil limit")
+(def gen (generate [x :range [0 nil 2]] x))
+(assert (deep= (take 5 gen) @[0 2 4 6 8]) "generate nil limit 2")
+
 # Even and odd
 # ff163a5ae
 (assert (odd? 9) "odd? 1")
