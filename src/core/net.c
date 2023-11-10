@@ -122,13 +122,9 @@ static void janet_net_socknoblock(JSock s) {
 
 /* State machine for async connect */
 
-typedef struct {
-    int did_connect;
-} NetStateConnect;
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetStream *stream = fiber->ev_stream;
-    NetStateConnect *state = (NetStateConnect *)fiber->ev_state;
     switch (event) {
         default:
             break;
@@ -155,7 +151,6 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
 #endif
     if (r == 0) {
         if (res == 0) {
-            state->did_connect = 1;
             janet_schedule(fiber, janet_wrap_abstract(stream));
         } else {
             janet_cancel(fiber, janet_cstringv(strerror(res)));
@@ -169,9 +164,7 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
 }
 
 static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
-    NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
-    state->did_connect = 0;
-    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, state);
+    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, NULL);
 }
 
 /* State machine for accepting connections. */
