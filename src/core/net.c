@@ -122,7 +122,6 @@ static void janet_net_socknoblock(JSock s) {
 
 /* State machine for async connect */
 
-
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetStream *stream = fiber->ev_stream;
     switch (event) {
