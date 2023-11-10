@@ -258,12 +258,12 @@ void janet_async_end(JanetFiber *fiber) {
         fiber->ev_callback(fiber, JANET_ASYNC_EVENT_DEINIT);
         janet_gcunroot(janet_wrap_abstract(fiber->ev_stream));
         fiber->ev_callback = NULL;
-        if (fiber->ev_state) {
-            if (!(fiber->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
+        if (!(fiber->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
+            if (fiber->ev_state) {
                 janet_free(fiber->ev_state);
-                janet_ev_dec_refcount();
+                fiber->ev_state = NULL;
             }
-            fiber->ev_state = NULL;
+            janet_ev_dec_refcount();
         }
     }
 }
