@@ -197,7 +197,7 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
     }
     janet_env_valid(env);
     janet_v_push(st->seen_envs, env);
-    if (env->offset > 0 && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber))) {
+    if (env->offset > 0 && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber) || (flags & JANET_MARSHAL_UNSAFE))) {
         pushint(st, 0);
         pushint(st, env->length);
         Janet *values = env->as.fiber->data + env->offset;
@@ -328,7 +328,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
-        if (!frame->func) janet_panic("cannot marshal fiber with c stackframe");
+        if (!frame->func) janet_panicf("cannot marshal fiber with c stackframe (%v)", janet_wrap_cfunction((JanetCFunction) frame->pc));
         pushint(st, frame->flags);
         pushint(st, frame->prevframe);
         int32_t pcdiff = (int32_t)(frame->pc - frame->func->def->bytecode);
