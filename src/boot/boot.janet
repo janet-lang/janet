@@ -162,7 +162,7 @@
   ``Define a default value for an optional argument.
   Expands to `(def sym (if (= nil sym) val sym))`.``
   [sym val]
-  ~(def ,sym (if (= nil ,sym) ,val ,sym)))
+  ~(def ,sym (if (,= nil ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."

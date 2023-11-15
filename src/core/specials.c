@@ -531,17 +531,11 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
 }
 
 /* Check if a form matches the pattern (= nil _) or (not= nil _) */
-static int janetc_check_nil_form(JanetFopts opts, Janet x, Janet *capture, uint32_t fun_tag) {
+static int janetc_check_nil_form(Janet x, Janet *capture, uint32_t fun_tag) {
     if (!janet_checktype(x, JANET_TUPLE)) return 0;
     JanetTuple tup = janet_unwrap_tuple(x);
     if (3 != janet_tuple_length(tup)) return 0;
     Janet op1 = tup[0];
-    if (janet_checktype(op1, JANET_SYMBOL)) {
-        Janet entry = janet_table_get(opts.compiler->env, op1);
-        if (janet_checktype(entry, JANET_TABLE)) {
-            op1 = janet_table_get(janet_unwrap_table(entry), janet_ckeywordv("value"));
-        }
-    }
     if (!janet_checktype(op1, JANET_FUNCTION)) return 0;
     JanetFunction *fun = janet_unwrap_function(op1);
     uint32_t tag = fun->def->flags & JANET_FUNCDEF_FLAG_TAG;
@@ -601,10 +595,9 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     janetc_scope(&condscope, c, 0, "if");
 
     Janet condform = argv[0];
-    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_EQ)) {
+    if (janetc_check_nil_form(condform, &condform, JANET_FUN_EQ)) {
         ifnjmp = JOP_JUMP_IF_NOT_NIL;
-    }
-    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_NEQ)) {
+    } else if (janetc_check_nil_form(condform, &condform, JANET_FUN_NEQ)) {
         ifnjmp = JOP_JUMP_IF_NIL;
     }
 
@@ -613,7 +606,11 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     /* Check constant condition. */
     /* TODO: Use type info for more short circuits */
     if (cond.flags & JANET_SLOT_CONSTANT) {
-        if (!janet_truthy(cond.constant)) {
+        int swap_condition = 0;
+        if (ifnjmp == JOP_JUMP_IF_NOT && !janet_truthy(cond.constant)) swap_condition = 1;
+        if (ifnjmp == JOP_JUMP_IF_NIL && janet_checktype(cond.constant, JANET_NIL)) swap_condition = 1;
+        if (ifnjmp == JOP_JUMP_IF_NOT_NIL && !janet_checktype(cond.constant, JANET_NIL)) swap_condition = 1;
+        if (swap_condition) {
             /* Swap the true and false bodies */
             Janet temp = falsebody;
             falsebody = truebody;
@@ -808,12 +805,12 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
      * jmpnl or jmpnn instructions. This let's us implement `(each ...)`
      * more efficiently. */
     Janet condform = argv[0];
-    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_EQ)) {
+    if (janetc_check_nil_form(condform, &condform, JANET_FUN_EQ)) {
         is_nil_form = 1;
         ifjmp = JOP_JUMP_IF_NIL;
         ifnjmp = JOP_JUMP_IF_NOT_NIL;
     }
-    if (janetc_check_nil_form(opts, condform, &condform, JANET_FUN_NEQ)) {
+    if (janetc_check_nil_form(condform, &condform, JANET_FUN_NEQ)) {
         is_notnil_form = 1;
         ifjmp = JOP_JUMP_IF_NOT_NIL;
         ifnjmp = JOP_JUMP_IF_NIL;

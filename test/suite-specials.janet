@@ -198,5 +198,9 @@
 
 (assert (= (test) '(1 ())) "issue #919")
 
-(end-suite)
+# Regression #1327
+(def x "A")
+(def x (if (= nil x) "B" x))
+(assert (= x "A"))
 
+(end-suite)
