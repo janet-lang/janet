@@ -640,7 +640,7 @@ static const struct keyword_signal signal_keywords[] = {
 #ifdef SIGTERM
     {"term", SIGTERM},
 #endif
-#ifdef SIGARLM
+#ifdef SIGALRM
     {"alrm", SIGALRM},
 #endif
 #ifdef SIGHUP
