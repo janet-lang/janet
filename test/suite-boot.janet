@@ -961,4 +961,11 @@
 # (pp (disasm case-2))
 # (pp (disasm case-3))
 
+# Regression #1330
+(defn regress-1330 [&]
+  (def a [1 2 3])
+  (def b [;a])
+  (identity a))
+(assert (= [1 2 3] (regress-1330)) "regression 1330")
+
 (end-suite)
