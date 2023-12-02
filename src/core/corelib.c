@@ -1144,7 +1144,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                     JDOC("(next ds &opt key)\n\n"
                          "Gets the next key in a data structure. Can be used to iterate through "
                          "the keys of a data structure in an unspecified order. Keys are guaranteed "
-                         "to be seen only once per iteration if they data structure is not mutated "
+                         "to be seen only once per iteration if the data structure is not mutated "
                          "during iteration. If key is nil, next returns the first key. If next "
                          "returns nil, there are no more keys to iterate through."));
     janet_quick_asm(env, JANET_FUN_PROP,
