@@ -1652,7 +1652,7 @@ typedef struct {
 static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     PegCall ret;
     int32_t min = get_replace ? 3 : 2;
-    janet_arity(argc, get_replace, -1);
+    janet_arity(argc, min, -1);
     if (janet_checktype(argv[0], JANET_ABSTRACT) &&
             janet_abstract_type(janet_unwrap_abstract(argv[0])) == &janet_peg_type) {
         ret.peg = janet_unwrap_abstract(argv[0]);
