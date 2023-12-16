@@ -233,6 +233,7 @@ const uint8_t *janet_symbol_gen(void) {
     head->length = sizeof(janet_vm.gensym_counter) - 1;
     head->hash = hash;
     sym = (uint8_t *)(head->data);
+    sym[head->length] = 0;
     memcpy(sym, janet_vm.gensym_counter, sizeof(janet_vm.gensym_counter));
     janet_symcache_put((const uint8_t *)sym, bucket);
     return (const uint8_t *)sym;

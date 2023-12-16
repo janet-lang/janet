@@ -2031,33 +2031,35 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
     if (return_value.fiber == NULL) {
         return;
     }
-    switch (return_value.tag) {
-        default:
-        case JANET_EV_TCTAG_NIL:
-            janet_schedule(return_value.fiber, janet_wrap_nil());
-            break;
-        case JANET_EV_TCTAG_INTEGER:
-            janet_schedule(return_value.fiber, janet_wrap_integer(return_value.argi));
-            break;
-        case JANET_EV_TCTAG_STRING:
-        case JANET_EV_TCTAG_STRINGF:
-            janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
-            break;
-        case JANET_EV_TCTAG_KEYWORD:
-            janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
-            break;
-        case JANET_EV_TCTAG_ERR_STRING:
-        case JANET_EV_TCTAG_ERR_STRINGF:
-            janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
-            break;
-        case JANET_EV_TCTAG_ERR_KEYWORD:
-            janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
-            break;
-        case JANET_EV_TCTAG_BOOLEAN:
-            janet_schedule(return_value.fiber, janet_wrap_boolean(return_value.argi));
-            break;
+    if (janet_fiber_can_resume(return_value.fiber)) {
+        switch (return_value.tag) {
+            default:
+            case JANET_EV_TCTAG_NIL:
+                janet_schedule(return_value.fiber, janet_wrap_nil());
+                break;
+            case JANET_EV_TCTAG_INTEGER:
+                janet_schedule(return_value.fiber, janet_wrap_integer(return_value.argi));
+                break;
+            case JANET_EV_TCTAG_STRING:
+            case JANET_EV_TCTAG_STRINGF:
+                janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+                if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
+                break;
+            case JANET_EV_TCTAG_KEYWORD:
+                janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+                break;
+            case JANET_EV_TCTAG_ERR_STRING:
+            case JANET_EV_TCTAG_ERR_STRINGF:
+                janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+                if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
+                break;
+            case JANET_EV_TCTAG_ERR_KEYWORD:
+                janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+                break;
+            case JANET_EV_TCTAG_BOOLEAN:
+                janet_schedule(return_value.fiber, janet_wrap_boolean(return_value.argi));
+                break;
+        }
     }
     janet_gcunroot(janet_wrap_fiber(return_value.fiber));
 }

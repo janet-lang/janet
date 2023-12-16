@@ -529,7 +529,9 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
             JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
             janet_cancel(args.fiber, janet_wrap_string(s));
         } else {
-            janet_schedule(args.fiber, janet_wrap_integer(status));
+            if (janet_fiber_can_resume(args.fiber)) {
+                janet_schedule(args.fiber, janet_wrap_integer(status));
+            }
         }
     }
 }
