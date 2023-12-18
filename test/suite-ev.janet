@@ -366,4 +366,10 @@
                (exec-slurp ;run janet "-e" "(print :hi)")))
           "exec-slurp 1"))
 
+# valgrind-able check for #1337
+(def superv (ev/chan 10))
+(def f (ev/go |(ev/sleep 1e9) nil superv))
+(ev/cancel f (gensym))
+(ev/take superv)
+
 (end-suite)
