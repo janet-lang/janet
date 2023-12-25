@@ -821,6 +821,7 @@ JANET_CORE_FN(cfun_stream_accept_loop,
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_ACCEPTABLE | JANET_STREAM_SOCKET);
     JanetFunction *fun = janet_getfunction(argv, 1);
+    if (fun->def->arity != 1) janet_panicf("handler arity != 1");
     janet_sched_accept(stream, fun);
 }
 
