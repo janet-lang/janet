@@ -39,7 +39,7 @@
 typedef struct {
     const uint8_t *text_start;
     const uint8_t *text_end;
-    /* text_end will be restricted in a (sub) rule, but
+    /* text_end can be restricted by some rules, but
        outer_text_end will always contain the real end of
        input, which we need to generate a line mapping */
     const uint8_t *outer_text_end;
@@ -508,6 +508,44 @@ tail:
             }
 
             return window_end;
+        }
+
+        case RULE_SPLIT: {
+            const uint8_t *saved_end = s->text_end;
+            const uint32_t *rule_separator = s->bytecode + rule[1];
+            const uint32_t *rule_subpattern = s->bytecode + rule[2];
+
+            const uint8_t *separator_end = NULL;
+            do {
+                const uint8_t *text_start = text;
+                CapState cs = cap_save(s);
+                down1(s);
+                while (text <= s->text_end) {
+                    separator_end = peg_rule(s, rule_separator, text);
+                    cap_load(s, cs);
+                    if (separator_end) {
+                        break;
+                    }
+                    text++;
+                }
+                up1(s);
+
+                if (separator_end) {
+                    s->text_end = text;
+                    text = separator_end;
+                }
+
+                down1(s);
+                const uint8_t *subpattern_end = peg_rule(s, rule_subpattern, text_start);
+                up1(s);
+                s->text_end = saved_end;
+
+                if (!subpattern_end) {
+                    return NULL;
+                }
+            } while (separator_end);
+
+            return s->text_end;
         }
 
         case RULE_REPLACE:
@@ -1143,6 +1181,14 @@ static void spec_sub(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_SUB, subrule1, subrule2);
 }
 
+static void spec_split(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t subrule1 = peg_compile1(b, argv[0]);
+    uint32_t subrule2 = peg_compile1(b, argv[1]);
+    emit_2(r, RULE_SPLIT, subrule1, subrule2);
+}
+
 #ifdef JANET_INT_TYPES
 #define JANET_MAX_READINT_WIDTH 8
 #else
@@ -1226,6 +1272,7 @@ static const SpecialPair peg_specials[] = {
     {"sequence", spec_sequence},
     {"set", spec_set},
     {"some", spec_some},
+    {"split", spec_split},
     {"sub", spec_sub},
     {"thru", spec_thru},
     {"to", spec_to},
@@ -1562,6 +1609,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 4;
                 break;
             case RULE_SUB:
+            case RULE_SPLIT:
                 /* [rule, rule] */
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= blen) goto bad;

@@ -265,6 +265,7 @@
 (marshpeg '(group "abc"))
 (marshpeg '(sub "abcdf" "abc"))
 (marshpeg '(* (sub 1 1)))
+(marshpeg '(split "," (+ "a" "b" "c")))
 
 # Peg swallowing errors
 # 159651117
@@ -709,6 +710,51 @@
   ~(* (sub "abc" "ab") "d")
   "abcdef"
   @[])
+
+(test "split: basic functionality"
+  ~(split "," '1)
+  "a,b,c"
+  @["a" "b" "c"])
+
+(test "split: drops captures from separator pattern"
+  ~(split '"," '1)
+  "a,b,c"
+  @["a" "b" "c"])
+
+(test "split: can match empty subpatterns"
+  ~(split "," ':w*)
+  ",a,,bar,,,c,,"
+  @["" "a" "" "bar" "" "" "c" "" ""])
+
+(test "split: subpattern is limited to only text before the separator"
+  ~(split "," '(to -1))
+  "a,,bar,c"
+  @["a" "" "bar" "c"])
+
+(test "split: fails if any subpattern fails"
+  ~(split "," '"a")
+  "a,a,b"
+  nil)
+
+(test "split: separator does not have to match anything"
+  ~(split "x" '(to -1))
+  "a,a,b"
+  @["a,a,b"])
+
+(test "split: always consumes entire input"
+  ~(split 1 '"")
+  "abc"
+  @["" "" "" ""])
+
+(test "split: separator can be an arbitrary PEG"
+  ~(split :s+ '(to -1))
+  "a   b      c"
+  @["a" "b" "c"])
+
+(test "split: does not advance past the end of the input"
+  ~(* (split "," ':w+) 0)
+  "a,b,c"
+  @["a" "b" "c"])
 
 (end-suite)
 
