@@ -263,6 +263,8 @@
 (marshpeg '(if-not "abcdf" 123))
 (marshpeg ~(cmt "abcdf" ,identity))
 (marshpeg '(group "abc"))
+(marshpeg '(sub "abcdf" "abc"))
+(marshpeg '(* (sub 1 1)))
 
 # Peg swallowing errors
 # 159651117
@@ -659,6 +661,54 @@
 (assert (deep=
   (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
   @[]) "peg if not")
+
+(defn test [name peg input expected]
+  (assert (deep= (peg/match peg input) expected) name))
+
+(test "sub: matches the same input twice"
+  ~(sub "abcd" "abc")
+  "abcdef"
+  @[])
+
+(test "sub: second pattern cannot match more than the first pattern"
+  ~(sub "abcd" "abcde")
+  "abcdef"
+  nil)
+
+(test "sub: fails if first pattern fails"
+  ~(sub "x" "abc")
+  "abcdef"
+  nil)
+
+(test "sub: fails if second pattern fails"
+  ~(sub "abc" "x")
+  "abcdef"
+  nil)
+
+(test "sub: keeps captures from both patterns"
+  ~(sub '"abcd" '"abc")
+  "abcdef"
+  @["abcd" "abc"])
+
+(test "sub: second pattern can reference captures from first"
+  ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
+  "abcdef"
+  @[5 "abc" "abc"])
+
+(test "sub: second pattern can't see past what the first pattern matches"
+  ~(sub "abc" (* "abc" -1))
+  "abcdef"
+  @[])
+
+(test "sub: positions inside second match are still relative to the entire input"
+  ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
+  "one\ntwo\nthree\n"
+  @[6 2 3])
+
+(test "sub: advances to the end of the first pattern's match"
+  ~(* (sub "abc" "ab") "d")
+  "abcdef"
+  @[])
 
 (end-suite)
 
