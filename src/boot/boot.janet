@@ -2127,6 +2127,7 @@
      'upscope expandall})
 
   (defn dotup [t]
+    (if (= nil (next t)) (break ()))
     (def h (in t 0))
     (def s (in specs h))
     (def entry (or (dyn h) {}))

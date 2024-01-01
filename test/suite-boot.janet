@@ -968,4 +968,8 @@
   (identity a))
 (assert (= [1 2 3] (regress-1330)) "regression 1330")
 
+# Issue 1341
+(assert (= () '() (macex '())) "macex ()")
+(assert (= '[] (macex '[])) "macex []")
+
 (end-suite)
