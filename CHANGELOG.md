@@ -1,6 +1,29 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.33.0 - 2023-01-07
+- Add more + and * keywords to default-peg-grammar by @sogaiu.
+- Use libc strlen in janet_buffer_push_cstring by @williewillus.
+- Be a bit safer with reference counting.
+- Add support for atomic loads in Janet's atomic abstraction.
+- Fix poll event loop CPU usage issue.
+- Add ipv6, shared, and cryptorand options to meson.
+- Add more ipv6 feature detection.
+- Fix loop for forever loop.
+- Cleaned up unused NetStateConnect, fixed janet_async_end() ev refcount by @zevv.
+- Fix warnings w/ MSVC and format.
+- Fix marshal_one_env w/ JANET_MARSHAL_UNSAFE.
+- Fix `(default)`.
+- Fix cannot marshal fiber with c stackframe, in a dynamic way that is fairly conservative.
+- Fix typo for SIGALARM in os/proc-kill.
+- Prevent bytecode optimization from remove mk* instructions.
+- Fix arity typo in peg.c by @pepe.
+- Update Makefile for MinGW.
+- Fix canceling waiting fiber.
+- Add a new (sub) PEG special by @ianthehenry.
+- Fix if net/server's handler has incorrect arity.
+- Fix macex raising on ().
+
 ## 1.32.1 - 2023-10-15
 - Fix return value from C function `janet_dobytes` when called on Janet functions that yield to event loop.
 - Change C API for event loop interaction - get rid of JanetListener and instead use `janet_async_start` and `janet_async_end`.
