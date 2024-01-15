@@ -2141,7 +2141,8 @@ typedef enum {
     RULE_COLUMN,       /* [tag] */
     RULE_UNREF,        /* [rule, tag] */
     RULE_CAPTURE_NUM,  /* [rule, tag] */
-    RULE_SUB           /* [rule, rule] */
+    RULE_SUB,          /* [rule, rule] */
+    RULE_SPLIT         /* [rule, rule] */
 } JanetPegOpcod;
 
 typedef struct {
