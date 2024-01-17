@@ -1,7 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.33.0 - 2023-01-07
+## Unreleased - 2024-02-??
+- Add a new (split) PEG special by @ianthehenry
+- Add buffer/push-* sized int and float by @pnelson
+
+## 1.33.0 - 2024-01-07
 - Add more + and * keywords to default-peg-grammar by @sogaiu.
 - Use libc strlen in janet_buffer_push_cstring by @williewillus.
 - Be a bit safer with reference counting.
