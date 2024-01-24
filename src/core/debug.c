@@ -388,8 +388,8 @@ JANET_CORE_FN(cfun_debug_stack,
 JANET_CORE_FN(cfun_debug_stacktrace,
               "(debug/stacktrace fiber &opt err prefix)",
               "Prints a nice looking stacktrace for a fiber. Can optionally provide "
-              "an error value to print the stack trace with. If `err` is nil or not "
-              "provided, and no prefix is given, will skip the error line. Returns the fiber.") {
+              "an error value to print the stack trace with. If `prefix` is nil or not "
+              "provided, will skip the error line. Returns the fiber.") {
     janet_arity(argc, 1, 3);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet x = argc == 1 ? janet_wrap_nil() : argv[1];
