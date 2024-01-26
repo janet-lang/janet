@@ -149,7 +149,7 @@ static int destructure(JanetCompiler *c,
                        JanetTable *attr) {
     switch (janet_type(left)) {
         default:
-            janetc_error(c, janet_formatc("unexpected type in destruction, got %v", left));
+            janetc_error(c, janet_formatc("unexpected type in destructuring, got %v", left));
             return 1;
         case JANET_SYMBOL:
             /* Leaf, assign right to left */
