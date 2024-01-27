@@ -116,8 +116,8 @@ JANET_CORE_FN(janet_core_expand_path,
               "* :@all: -- Same as :all:, but if `path` starts with the @ character, "
               "the first path segment is replaced with a dynamic binding "
               "`(dyn <first path segment as keyword>)`.\n\n"
-              "* :cur: -- the current file, or (dyn :current-file)\n\n"
-              "* :dir: -- the directory containing the current file\n\n"
+              "* :cur: -- the directory portion, if any, of (dyn :current-file)\n\n"
+              "* :dir: -- the directory portion, if any, of the path argument\n\n"
               "* :name: -- the name component of path, with extension if given\n\n"
               "* :native: -- the extension used to load natives, .so or .dll\n\n"
               "* :sys: -- the system path, or (dyn :syspath)") {
