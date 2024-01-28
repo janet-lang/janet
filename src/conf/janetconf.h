@@ -54,6 +54,7 @@
 /* #define JANET_NO_INTERPRETER_INTERRUPT */
 /* #define JANET_NO_IPV6 */
 /* #define JANET_NO_CRYPTORAND */
+/* #define JANET_USE_STDATOMIC */
 
 /* Custom vm allocator support */
 /* #include <mimalloc.h> */
