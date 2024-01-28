@@ -21,6 +21,9 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(def test-port (os/getenv "JANET_TEST_PORT" "8761"))
+(def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))
+
 # Subprocess
 # 5e1a8c86f
 (def janet (dyn *executable*))
@@ -192,11 +195,11 @@
       (net/write stream b)
       (buffer/clear b)))
 
-  (def s (net/server "127.0.0.1" "8000" handler))
+  (def s (net/server test-host test-port handler))
   (assert s "made server 1")
 
   (defn test-echo [msg]
-    (with [conn (net/connect "127.0.0.1" "8000")]
+    (with [conn (net/connect test-host test-port)]
       (net/write conn msg)
       (def res (net/read conn 1024))
       (assert (= (string res) msg) (string "echo " msg))))
@@ -216,18 +219,18 @@
     # prevent immediate close
     (ev/read stream 1)
     (def [host port] (net/localname stream))
-    (assert (= host "127.0.0.1") "localname host server")
-    (assert (= port 8000) "localname port server")))
+    (assert (= host test-host) "localname host server")
+    (assert (= port (scan-number test-port)) "localname port server")))
 
 # Test localname and peername
 # 077bf5eba
 (repeat 10
-  (with [s (net/server "127.0.0.1" "8000" names-handler)]
+  (with [s (net/server test-host test-port names-handler)]
     (repeat 10
-      (with [conn (net/connect "127.0.0.1" "8000")]
+      (with [conn (net/connect test-host test-port)]
         (def [host port] (net/peername conn))
-        (assert (= host "127.0.0.1") "peername host client ")
-        (assert (= port 8000) "peername port client")
+        (assert (= host test-host) "peername host client ")
+        (assert (= port (scan-number test-port)) "peername port client")
         # let server close
         (ev/write conn " "))))
   (gccollect))
