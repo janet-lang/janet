@@ -229,10 +229,11 @@ JANET_CORE_FN(os_compiler,
 #undef janet_stringify
 
 JANET_CORE_FN(os_exit,
-              "(os/exit &opt x)",
+              "(os/exit &opt x force)",
               "Exit from janet with an exit code equal to x. If x is not an integer, "
-              "the exit with status equal the hash of x.") {
-    janet_arity(argc, 0, 1);
+              "the exit with status equal the hash of x. If `force` is truthy will exit immediately and "
+              "skip cleanup code.") {
+    janet_arity(argc, 0, 2);
     int status;
     if (argc == 0) {
         status = EXIT_SUCCESS;
@@ -242,7 +243,11 @@ JANET_CORE_FN(os_exit,
         status = EXIT_FAILURE;
     }
     janet_deinit();
-    exit(status);
+    if (argc >= 2 && janet_truthy(argv[1])) {
+        _exit(status);
+    } else {
+        exit(status);
+    }
     return janet_wrap_nil();
 }
 
@@ -613,7 +618,7 @@ os_proc_wait_impl(JanetProc *proc) {
 
 JANET_CORE_FN(os_proc_wait,
               "(os/proc-wait proc)",
-              "Block until the subprocess completes. Returns the subprocess return code.") {
+              "Suspend the current fiber until the subprocess completes. Returns the subprocess return code.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -877,8 +882,9 @@ JANET_CORE_FN(os_sigaction,
     }
     struct sigaction action;
     sigset_t mask;
-    sigfillset(&mask);
+    sigaddset(&mask, sig);
     memset(&action, 0, sizeof(action));
+    action.sa_flags |= SA_RESTART;
     if (can_interrupt) {
 #ifdef JANET_NO_INTERPRETER_INTERRUPT
         janet_panic("interpreter interrupt not enabled");
