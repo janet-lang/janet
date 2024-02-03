@@ -1150,11 +1150,14 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"
-                         "Propagate a signal from a fiber to the current fiber. The resulting "
-                         "stack trace from the current fiber will include frames from fiber. If "
-                         "fiber is in a state that can be resumed, resuming the current fiber will "
-                         "first resume fiber. This function can be used to re-raise an error without "
-                         "losing the original stack trace."));
+                         "Propagate a signal from a fiber to the current fiber and "
+                         "set the last value of the current fiber to `x`.  The signal "
+                         "value is then available as the status of the current fiber. "
+                         "The resulting stack trace from the current fiber will include "
+                         "frames from fiber. If fiber is in a state that can be resumed, "
+                         "resuming the current fiber will first resume `fiber`. "
+                         "This function can be used to re-raise an error without losing "
+                         "the original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"
