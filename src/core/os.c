@@ -618,7 +618,11 @@ os_proc_wait_impl(JanetProc *proc) {
 
 JANET_CORE_FN(os_proc_wait,
               "(os/proc-wait proc)",
-              "Suspend the current fiber until the subprocess completes. Returns the subprocess return code.") {
+              "Suspend the current fiber until the subprocess completes. Returns the subprocess return code. "
+              "os/proc-wait cannot be called twice on the same process. If `ev/with-deadline` cancels `os/proc-wait` "
+              "with an error or os/proc-wait is cancelled with any error caused by anything else, os/proc-wait still "
+              "finishes in the background. Only after os/proc-wait finishes, a process is cleaned up by the operating "
+              "system. Thus, a process becomes a zombie process if os/proc-wait is not called.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -729,10 +733,11 @@ static int get_signal_kw(const Janet *argv, int32_t n) {
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait signal)",
               "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-              "handle on windows. If `wait` is truthy, will wait for the process to finish and "
-              "returns the exit code. Otherwise, returns `proc`. If signal is specified send it instead."
-              "Signal keywords are named after their C counterparts but in lowercase with the leading "
-              "`SIG` stripped. Signals are ignored on windows.") {
+              "handle on windows. If os/proc-wait already finished for proc, os/proc-kill raises an error. After "
+              "sending signal to proc, if `wait` is truthy, will wait for the process to finish and return the exit "
+              "code by calling os/proc-wait. Otherwise, returns `proc`. If signal is specified, send it instead. "
+              "Signal keywords are named after their C counterparts but in lowercase with the leading `SIG` stripped. "
+              "Signals are ignored on windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
@@ -771,8 +776,9 @@ JANET_CORE_FN(os_proc_kill,
 
 JANET_CORE_FN(os_proc_close,
               "(os/proc-close proc)",
-              "Wait on a process if it has not been waited on, and close pipes created by `os/spawn` "
-              "if they have not been closed. Returns nil.") {
+              "Close pipes created by `os/spawn` if they have not been closed. Then, if os/proc-wait was not already "
+              "called on proc, os/proc-wait is called on it, and it returns the exit code returned by os/proc-wait. "
+              "Otherwise, returns nil.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -1377,21 +1383,26 @@ JANET_CORE_FN(os_execute,
               "* :d - Don't try and terminate the process on garbage collection (allow spawning zombies).\n"
               "`env` is a table or struct mapping environment variables to values. It can also "
               "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
-              "These arguments should be core/file values. "
-              "Returns the exit status of the program.") {
+              ":in, :out, and :err should be core/file values or core/stream values. core/file values and core/stream "
+              "values passed to :in, :out, and :err should be closed manually because os/execute doesn't close them. "
+              "Returns the exit code of the program.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXECUTE);
 }
 
 JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
               "Execute a program on the system and return a handle to the process. Otherwise, takes the "
-              "same arguments as `os/execute`. Does not wait for the process. "
-              "For each of the :in, :out, and :err keys to the `env` argument, one "
-              "can also pass in the keyword `:pipe` "
-              "to get streams for standard IO of the subprocess that can be read from and written to. "
-              "The returned value `proc` has the fields :in, :out, :err, :return-code, and "
-              "the additional field :pid on unix-like platforms. Use `(os/proc-wait proc)` to rejoin the "
-              "subprocess or `(os/proc-kill proc)`.") {
+              "same arguments as `os/execute`. Does not wait for the process. For each of the :in, :out, and :err keys "
+              "of the `env` argument, one can also pass in the keyword `:pipe` to get streams for standard IO of the "
+              "subprocess that can be read from and written to. The returned value `proc` has the fields :in, :out, "
+              ":err, and the additional field :pid on unix-like platforms. `(os/proc-wait proc)` must be called to "
+              "rejoin the subprocess. After `(os/proc-wait proc)` finishes, proc gains a new field, :return-code. "
+              "If :x flag is passed to os/spawn, non-zero exit code will cause os/proc-wait to raise an error. "
+              "If pipe streams created with :pipe keyword are not closed in time, janet can run out of file "
+              "descriptors. They can be closed individually, or `os/proc-close` can close all pipe streams on proc. "
+              "If pipe streams aren't read before `os/proc-wait` finishes, then pipe buffers become full, and the "
+              "process cannot finish because the process cannot print more on pipe buffers which are already full. "
+              "If the process cannot finish, os/proc-wait cannot finish, either.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
 }
 
