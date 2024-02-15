@@ -665,6 +665,9 @@
   (each x xs (*= accum x))
   accum)
 
+# declare ahead of time
+(var- macexvar nil)
+
 (defmacro if-let
   ``Make multiple bindings, and if all are truthy,
   evaluate the `tru` form. If any are false or nil, evaluate
@@ -673,20 +676,19 @@
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
-  (def res (gensym))
+  (def fal2 (if macexvar (macexvar fal) fal))
   (defn aux [i]
     (if (>= i len)
-      ~(do (set ,res ,tru) true)
+      tru
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
         (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)))
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
           ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i))))))))
-  ~(do
-     (var ,res nil)
-     (if ,(aux 0) ,res ,fal)))
+             (do (def ,bl ,sym) ,(aux (+ 2 i)))
+             ,fal2)))))
+   (aux 0))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
@@ -2247,6 +2249,8 @@
     (set previous current)
     (set current (macex1 current on-binding)))
   current)
+
+(set macexvar macex)
 
 (defmacro varfn
   ``Create a function that can be rebound. `varfn` has the same signature
