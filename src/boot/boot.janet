@@ -442,8 +442,8 @@
               :each ~(,in ,ds ,k)
               :keys k
               :pairs ~[,k (,in ,ds ,k)]))
-         (set ,k (,next ,ds ,k))
-         ,;body))))
+         ,;body
+         (set ,k (,next ,ds ,k))))))
 
 (defn- iterate-template
   [binding expr body]
