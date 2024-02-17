@@ -505,7 +505,7 @@ static int proc_get_status(JanetProc *proc) {
         status = WEXITSTATUS(status);
     } else if (WIFSTOPPED(status)) {
         status = WSTOPSIG(status) + 128;
-    } else if (WIFSIGNALED(status)){
+    } else if (WIFSIGNALED(status)) {
         status = WTERMSIG(status) + 128;
     } else {
         /* Could possibly return -1 but for now, just panic */
