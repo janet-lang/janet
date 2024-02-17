@@ -2136,15 +2136,15 @@
     (def m (do (def r (get entry :ref)) (if r (in r 0) (get entry :value))))
     (def m? (in entry :macro))
     (cond
-      s (s t)
+      s (keep-syntax t (s t))
       m? (do (setdyn *macro-form* t) (m ;(tuple/slice t 1)))
-      (tuple/slice (map recur t))))
+      (keep-syntax! t (map recur t))))
 
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-               (tuple/brackets ;(map recur x))
-               (dotup x))
+                 (tuple/brackets ;(map recur x))
+                 (dotup x))
       :array (map recur x)
       :struct (table/to-struct (dotable x recur))
       :table (dotable x recur)
