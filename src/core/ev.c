@@ -1166,10 +1166,12 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
-                if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
-                    janet_schedule(writer.fiber, make_close_result(channel));
-                } else {
-                    janet_schedule(writer.fiber, janet_wrap_nil());
+                if (janet_fiber_can_resume(writer.fiber)) {
+                    if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
+                        janet_schedule(writer.fiber, make_close_result(channel));
+                    } else {
+                        janet_schedule(writer.fiber, janet_wrap_nil());
+                    }
                 }
             }
         }
@@ -1185,10 +1187,12 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
-                if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
-                    janet_schedule(reader.fiber, make_close_result(channel));
-                } else {
-                    janet_schedule(reader.fiber, janet_wrap_nil());
+                if (janet_fiber_can_resume(reader.fiber)) {
+                    if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
+                        janet_schedule(reader.fiber, make_close_result(channel));
+                    } else {
+                        janet_schedule(reader.fiber, janet_wrap_nil());
+                    }
                 }
             }
         }
