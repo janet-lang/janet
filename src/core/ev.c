@@ -451,6 +451,7 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
 #else
     p->handle = (JanetHandle) janet_unmarshal_int(ctx);
 #endif
+    janet_register_stream(p);
     return p;
 }
 
