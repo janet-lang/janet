@@ -451,7 +451,9 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
 #else
     p->handle = (JanetHandle) janet_unmarshal_int(ctx);
 #endif
+#ifdef JANET_EV_POLL
     janet_register_stream(p);
+#endif
     return p;
 }
 
@@ -1457,7 +1459,7 @@ void janet_ev_deinit(void) {
     CloseHandle(janet_vm.iocp);
 }
 
-void janet_register_stream(JanetStream *stream) {
+static void janet_register_stream(JanetStream *stream) {
     if (NULL == CreateIoCompletionPort(stream->handle, janet_vm.iocp, (ULONG_PTR) stream, 0)) {
         janet_panicf("failed to listen for events: %V", janet_ev_lasterr());
     }
