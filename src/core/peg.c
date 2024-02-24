@@ -1865,7 +1865,7 @@ JANET_CORE_FN(cfun_peg_replace_all,
 }
 
 JANET_CORE_FN(cfun_peg_replace,
-              "(peg/replace peg repl text &opt start & args)",
+              "(peg/replace peg subst text &opt start & args)",
               "Replace first match of `peg` in `text` with `subst`, returning a new buffer. "
               "The peg does not need to make captures to do replacement. "
               "If `subst` is a function, it will be called with the "
