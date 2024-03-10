@@ -560,6 +560,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("vararg"));
     if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
 
+    /* Initialize slotcount */
+    def->slotcount = !!(def->flags & JANET_FUNCDEF_FLAG_VARARG) + def->arity;
+
     /* Check structarg */
     x = janet_get1(s, janet_ckeywordv("structarg"));
     if (janet_truthy(x)) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
@@ -784,8 +787,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     }
 
     /* Verify the func def */
-    if (janet_verify(def)) {
-        janet_asm_error(&a, "invalid assembly");
+    int verify_status = janet_verify(def);
+    if (verify_status) {
+        janet_asm_errorv(&a, janet_formatc("invalid assembly (%d)", verify_status));
     }
 
     /* Add final flags */

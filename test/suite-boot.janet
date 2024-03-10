@@ -364,7 +364,7 @@
         "sort 5")
 (assert (<= ;(sort (map (fn [x] (math/random)) (range 1000)))) "sort 6")
 
-# #1283  
+# #1283
 (assert (deep=
           (partition 2 (generate [ i :in [:a :b :c :d :e]] i))
           '@[(:a :b) (:c :d) (:e)]))
@@ -955,6 +955,10 @@
 (defn case-4 [&]
   (def x (break (break (break)))))
 (bytecode-roundtrip case-4)
+(defn case-5 []
+  (def foo (fn [one two] one))
+  (foo 100 200))
+(bytecode-roundtrip case-5)
 
 # Debug bytecode of these functions
 # (pp (disasm case-1))
