@@ -3736,12 +3736,20 @@
     ~(,ev/thread (fn _spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
-    `Run a body of code with a deadline, such that if the code does not complete before
-    the deadline is up, it will be canceled.`
-    [deadline & body]
+    ``
+    Create a fiber to execute `body`, schedule the event loop to cancel
+    the task (root fiber) associated with `body`'s fiber, and start
+    `body`'s fiber by resuming it.
+
+    The event loop will try to cancel the root fiber if `body`'s fiber
+    has not completed after at least `sec` seconds.
+
+    `sec` is a number that can have a fractional part.
+    ``
+    [sec & body]
     (with-syms [f]
       ~(let [,f (coro ,;body)]
-         (,ev/deadline ,deadline nil ,f)
+         (,ev/deadline ,sec nil ,f)
          (,resume ,f))))
 
   (defn- cancel-all [chan fibers reason]

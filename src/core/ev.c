@@ -2952,10 +2952,15 @@ JANET_CORE_FN(cfun_ev_sleep,
 
 JANET_CORE_FN(cfun_ev_deadline,
               "(ev/deadline sec &opt tocancel tocheck)",
-              "Set a deadline for a fiber `tocheck`. If `tocheck` is not finished after `sec` seconds, "
-              "`tocancel` will be canceled as with `ev/cancel`. "
-              "If `tocancel` and `tocheck` are not given, they default to `(fiber/root)` and "
-              "`(fiber/current)` respectively. Returns `tocancel`.") {
+              "Schedules the event loop to try to cancel the `tocancel` "
+              "task as with `ev/cancel`. After `sec` seconds, the event "
+              "loop will attempt cancellation of `tocancel` if the "
+              "`tocheck` fiber is resumable. `sec` is a number that can "
+              "have a fractional part. `tocancel` defaults to "
+              "`(fiber/root)`, but if specified, must be a task (root "
+              "fiber). `tocheck` defaults to `(fiber/current)`, but if "
+              "specified, should be a fiber. Returns `tocancel` "
+              "immediately.") {
     janet_arity(argc, 1, 3);
     double sec = janet_getnumber(argv, 0);
     JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm.root_fiber);
