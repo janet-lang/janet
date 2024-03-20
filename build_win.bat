@@ -91,7 +91,9 @@ exit /b 0
 :CLEAN
 del *.exe *.lib *.exp
 rd /s /q build
-rd /s /q dist
+if exist dist (
+    rd /s /q dist
+)
 exit /b 0
 
 @rem Run tests
