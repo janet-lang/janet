@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file.
 ## 1.34.0 - 2024-03-21
 - Add a new (split) PEG special by @ianthehenry
 - Add buffer/push-* sized int and float by @pnelson
-- Documentation improvements: @amano-kenji, @MaxGyver83, @sogaiu, @pepe.
-- Expose _exit to skip certain cleanup with os/exit
+- Documentation improvements: @amano-kenji, @MaxGyver83, @sogaiu, @pepe, @llmII.
+- Expose _exit to skip certain cleanup with os/exit.
 - Swap set / body order for each by @sogaiu.
 - Abort on assert failure instead of exit.
 - Fix: os/proc-wait by @llmII.
