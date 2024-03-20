@@ -6,7 +6,8 @@ All notable changes to this project will be documented in this file.
 - Add buffer/push-* sized int and float by @pnelson
 - Documentation improvements: @amano-kenji, @MaxGyver83, @sogaiu, @pepe.
 - Expose _exit to skip certain cleanup with os/exit
-- Abort on assert failure instead of exit.)
+- Swap set / body order for each by @sogaiu.
+- Abort on assert failure instead of exit.
 - Fix: os/proc-wait by @llmII.
 - Fix macex1 to keep syntax location for all tuples.
 - Restore if-let tail calls.
