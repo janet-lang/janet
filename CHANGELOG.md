@@ -1,10 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.34.0 - 2024-03-21
+## 1.34.0 - 2024-03-22
 - Add a new (split) PEG special by @ianthehenry
 - Add buffer/push-* sized int and float by @pnelson
-- Documentation improvements: @amano-kenji, @MaxGyver83, @sogaiu, @pepe, @llmII.
+- Documentation improvements: @amano-kenji, @llmII, @MaxGyver83, @pepe, @sogaiu.
 - Expose _exit to skip certain cleanup with os/exit.
 - Swap set / body order for each by @sogaiu.
 - Abort on assert failure instead of exit.
