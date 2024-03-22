@@ -1,9 +1,19 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - 2024-02-??
+## 1.34.0 - 2024-03-22
 - Add a new (split) PEG special by @ianthehenry
 - Add buffer/push-* sized int and float by @pnelson
+- Documentation improvements: @amano-kenji, @llmII, @MaxGyver83, @pepe, @sogaiu.
+- Expose _exit to skip certain cleanup with os/exit.
+- Swap set / body order for each by @sogaiu.
+- Abort on assert failure instead of exit.
+- Fix: os/proc-wait by @llmII.
+- Fix macex1 to keep syntax location for all tuples.
+- Restore if-let tail calls.
+- Don't try and resume fibers that can't be resumed.
+- Register stream on unmarshal.
+- Fix asm roundtrip issue.
 
 ## 1.33.0 - 2024-01-07
 - Add more + and * keywords to default-peg-grammar by @sogaiu.
