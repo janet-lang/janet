@@ -96,10 +96,22 @@
   (assert (= (in buf 0) 0) "cryptorand doesn't overwrite buffer")
   (assert (= (length buf) 2) "cryptorand appends to buffer"))
 
+(assert-no-error "realtime clock" (os/clock))
+(assert-no-error "realtime clock" (os/clock nil))
+(assert-no-error "realtime clock" (os/clock nil nil))
+
 # 80db68210
 (assert-no-error "realtime clock" (os/clock :realtime))
 (assert-no-error "cputime clock" (os/clock :cputime))
 (assert-no-error "monotonic clock" (os/clock :monotonic))
+
+(assert-no-error "realtime clock double output" (os/clock nil :double))
+(assert-no-error "realtime clock int output" (os/clock nil :int))
+(assert-no-error "realtime clock tuple output" (os/clock nil :tuple))
+
+(assert-error "invalid clock" (os/clock :a))
+(assert-error "invalid output" (os/clock :realtime :b))
+(assert-error "invalid clock and output" (os/clock :a :b))
 
 (def before (os/clock :monotonic))
 (def after (os/clock :monotonic))
@@ -148,4 +160,3 @@
                                {:out dn :err dn})))
 
 (end-suite)
-
