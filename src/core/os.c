@@ -1564,34 +1564,50 @@ JANET_CORE_FN(os_time,
 }
 
 JANET_CORE_FN(os_clock,
-              "(os/clock &opt source)",
-              "Return the number of whole + fractional seconds of the requested clock source.\n\n"
+              "(os/clock &opt source format)",
+              "Return the current time of the requested clock source.\n\n"
               "The `source` argument selects the clock source to use, when not specified the default "
               "is `:realtime`:\n"
               "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
               "  jumps in the system time\n"
               "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
               "  time. The clock is guaranteed to be non-decreasing in real time.\n"
-              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n") {
+              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n"
+              "The `format` argument selects the type of output, when not specified the default is `:double`:\n"
+              "- :double: Return the number of seconds + fractional seconds as a double\n"
+              "- :int: Return the number of seconds as am integer\n"
+              "- :tuple: Return a 2 integer tuple {seconds, nanoseconds}\n") {
+    enum JanetTimeSource source;
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
-    janet_arity(argc, 0, 1);
-    enum JanetTimeSource source = JANET_TIME_REALTIME;
-    if (argc == 1) {
-        JanetKeyword sourcestr = janet_getkeyword(argv, 0);
-        if (janet_cstrcmp(sourcestr, "realtime") == 0) {
-            source = JANET_TIME_REALTIME;
-        } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
-            source = JANET_TIME_MONOTONIC;
-        } else if (janet_cstrcmp(sourcestr, "cputime") == 0) {
-            source = JANET_TIME_CPUTIME;
-        } else {
-            janet_panicf("expected :realtime, :monotonic, or :cputime, got %v", argv[0]);
-        }
+    janet_arity(argc, 0, 2);
+
+    JanetKeyword sourcestr = janet_optkeyword(argv, argc, 0, (const uint8_t *) "realtime");
+    if (janet_cstrcmp(sourcestr, "realtime") == 0) {
+        source = JANET_TIME_REALTIME;
+    } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
+        source = JANET_TIME_MONOTONIC;
+    } else if (janet_cstrcmp(sourcestr, "cputime") == 0) {
+        source = JANET_TIME_CPUTIME;
+    } else {
+        janet_panicf("expected :realtime, :monotonic, or :cputime, got %v", argv[0]);
     }
+
     struct timespec tv;
     if (janet_gettime(&tv, source)) janet_panic("could not get time");
-    double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
-    return janet_wrap_number(dtime);
+
+    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1 , (const uint8_t *) "double");
+    if (janet_cstrcmp(formatstr, "double") == 0) {
+        double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
+        return janet_wrap_number(dtime);
+    } else if (janet_cstrcmp(formatstr, "int") == 0) {
+        return janet_wrap_number(tv.tv_sec);
+    } else if (janet_cstrcmp(formatstr, "tuple") == 0) {
+        Janet tup[2] = {janet_wrap_integer(tv.tv_sec),
+                        janet_wrap_integer(tv.tv_nsec)};
+        return janet_wrap_tuple(janet_tuple_n(tup, 2));
+    } else {
+        janet_panicf("expected :double, :int, or :tuple, got %v", argv[1]);
+    }
 }
 
 JANET_CORE_FN(os_sleep,
