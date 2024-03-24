@@ -1575,8 +1575,8 @@ JANET_CORE_FN(os_clock,
               "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n"
               "The `format` argument selects the type of output, when not specified the default is `:double`:\n"
               "- :double: Return the number of seconds + fractional seconds as a double\n"
-              "- :int: Return the number of seconds as am integer\n"
-              "- :tuple: Return a 2 integer tuple {seconds, nanoseconds}\n") {
+              "- :int: Return the number of seconds as an integer\n"
+              "- :tuple: Return a 2 integer tuple [seconds, nanoseconds]\n") {
     enum JanetTimeSource source;
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_arity(argc, 0, 2);
