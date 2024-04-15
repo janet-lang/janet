@@ -965,8 +965,8 @@ struct JanetStackFrame {
 /* A dynamic array type. */
 struct JanetArray {
     JanetGCObject gc;
-    int32_t count;
-    int32_t capacity;
+    size_t count;
+    size_t capacity;
     Janet *data;
 };
 
