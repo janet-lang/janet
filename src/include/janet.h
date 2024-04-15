@@ -981,9 +981,9 @@ struct JanetBuffer {
 /* A mutable associative data type. Backed by a hashtable. */
 struct JanetTable {
     JanetGCObject gc;
-    int32_t count;
-    int32_t capacity;
-    int32_t deleted;
+    size_t count;
+    size_t capacity;
+    size_t deleted;
     JanetKV *data;
     JanetTable *proto;
 };

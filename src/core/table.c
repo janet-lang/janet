@@ -30,8 +30,8 @@
 
 #define JANET_TABLE_FLAG_STACK 0x10000
 
-static void *janet_memalloc_empty_local(int32_t count) {
-    int32_t i;
+static void *janet_memalloc_empty_local(size_t count) {
+    size_t i;
     void *mem = janet_smalloc((size_t) count * sizeof(JanetKV));
     JanetKV *mmem = (JanetKV *)mem;
     for (i = 0; i < count; i++) {
@@ -42,7 +42,7 @@ static void *janet_memalloc_empty_local(int32_t count) {
     return mem;
 }
 
-static JanetTable *janet_table_init_impl(JanetTable *table, int32_t capacity, int stackalloc) {
+static JanetTable *janet_table_init_impl(JanetTable *table, size_t capacity, int stackalloc) {
     JanetKV *data;
     capacity = janet_tablen(capacity);
     if (stackalloc) table->gc.flags = JANET_TABLE_FLAG_STACK;
@@ -68,12 +68,12 @@ static JanetTable *janet_table_init_impl(JanetTable *table, int32_t capacity, in
 }
 
 /* Initialize a table (for use withs scratch memory) */
-JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
+JanetTable *janet_table_init(JanetTable *table, size_t capacity) {
     return janet_table_init_impl(table, capacity, 1);
 }
 
 /* Initialize a table without using scratch memory */
-JanetTable *janet_table_init_raw(JanetTable *table, int32_t capacity) {
+JanetTable *janet_table_init_raw(JanetTable *table, size_t capacity) {
     return janet_table_init_impl(table, capacity, 0);
 }
 
@@ -88,22 +88,22 @@ void janet_table_deinit(JanetTable *table) {
 
 /* Create a new table */
 
-JanetTable *janet_table(int32_t capacity) {
+JanetTable *janet_table(size_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE, sizeof(JanetTable));
     return janet_table_init_impl(table, capacity, 0);
 }
 
-JanetTable *janet_table_weakk(int32_t capacity) {
+JanetTable *janet_table_weakk(size_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKK, sizeof(JanetTable));
     return janet_table_init_impl(table, capacity, 0);
 }
 
-JanetTable *janet_table_weakv(int32_t capacity) {
+JanetTable *janet_table_weakv(size_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKV, sizeof(JanetTable));
     return janet_table_init_impl(table, capacity, 0);
 }
 
-JanetTable *janet_table_weakkv(int32_t capacity) {
+JanetTable *janet_table_weakkv(size_t capacity) {
     JanetTable *table = janet_gcalloc(JANET_MEMORY_TABLE_WEAKKV, sizeof(JanetTable));
     return janet_table_init_impl(table, capacity, 0);
 }
@@ -115,7 +115,7 @@ JanetKV *janet_table_find(JanetTable *t, Janet key) {
 }
 
 /* Resize the dictionary table. */
-static void janet_table_rehash(JanetTable *t, int32_t size) {
+static void janet_table_rehash(JanetTable *t, size_t size) {
     JanetKV *olddata = t->data;
     JanetKV *newdata;
     int islocal = t->gc.flags & JANET_TABLE_FLAG_STACK;
@@ -127,11 +127,11 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
             JANET_OUT_OF_MEMORY;
         }
     }
-    int32_t oldcapacity = t->capacity;
+    size_t oldcapacity = t->capacity;
     t->data = newdata;
     t->capacity = size;
     t->deleted = 0;
-    for (int32_t i = 0; i < oldcapacity; i++) {
+    for (size_t i = 0; i < oldcapacity; i++) {
         JanetKV *kv = olddata + i;
         if (!janet_checktype(kv->key, JANET_NIL)) {
             JanetKV *newkv = janet_table_find(t, kv->key);
@@ -235,7 +235,7 @@ static void janet_table_put_no_overwrite(JanetTable *t, Janet key, Janet value) 
 
 /* Clear a table */
 void janet_table_clear(JanetTable *t) {
-    int32_t capacity = t->capacity;
+    size_t capacity = t->capacity;
     JanetKV *data = t->data;
     janet_memempty(data, capacity);
     t->count = 0;
@@ -253,13 +253,13 @@ JanetTable *janet_table_clone(JanetTable *table) {
     if (NULL == newTable->data) {
         JANET_OUT_OF_MEMORY;
     }
-    memcpy(newTable->data, table->data, (size_t) table->capacity * sizeof(JanetKV));
+    memcpy(newTable->data, table->data, table->capacity * sizeof(JanetKV));
     return newTable;
 }
 
 /* Merge a table or struct into a table */
-static void janet_table_mergekv(JanetTable *table, const JanetKV *kvs, int32_t cap) {
-    int32_t i;
+static void janet_table_mergekv(JanetTable *table, const JanetKV *kvs, size_t cap) {
+    size_t i;
     for (i = 0; i < cap; i++) {
         const JanetKV *kv = kvs + i;
         if (!janet_checktype(kv->key, JANET_NIL)) {
@@ -316,7 +316,7 @@ JANET_CORE_FN(cfun_table_new,
               "can be avoided. "
               "Returns the new table.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getnat(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
 /*
@@ -332,7 +332,7 @@ JANET_CORE_FN(cfun_table_weak,
               "Creates a new empty table with weak references to keys and values. Similar to `table/new`. "
               "Returns the new table.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getnat(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     return janet_wrap_table(janet_table_weakkv(cap));
 }
 
@@ -341,7 +341,7 @@ JANET_CORE_FN(cfun_table_weak_keys,
               "Creates a new empty table with weak references to keys and normal references to values. Similar to `table/new`. "
               "Returns the new table.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getnat(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     return janet_wrap_table(janet_table_weakk(cap));
 }
 
@@ -350,7 +350,7 @@ JANET_CORE_FN(cfun_table_weak_values,
               "Creates a new empty table with normal references to keys and weak references to values. Similar to `table/new`. "
               "Returns the new table.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getnat(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     return janet_wrap_table(janet_table_weakv(cap));
 }
 
