@@ -1595,7 +1595,7 @@ JANET_CORE_FN(os_clock,
     struct timespec tv;
     if (janet_gettime(&tv, source)) janet_panic("could not get time");
 
-    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1 , (const uint8_t *) "double");
+    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, (const uint8_t *) "double");
     if (janet_cstrcmp(formatstr, "double") == 0) {
         double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
         return janet_wrap_number(dtime);
@@ -1603,7 +1603,8 @@ JANET_CORE_FN(os_clock,
         return janet_wrap_number(tv.tv_sec);
     } else if (janet_cstrcmp(formatstr, "tuple") == 0) {
         Janet tup[2] = {janet_wrap_integer(tv.tv_sec),
-                        janet_wrap_integer(tv.tv_nsec)};
+                        janet_wrap_integer(tv.tv_nsec)
+                       };
         return janet_wrap_tuple(janet_tuple_n(tup, 2));
     } else {
         janet_panicf("expected :double, :int, or :tuple, got %v", argv[1]);

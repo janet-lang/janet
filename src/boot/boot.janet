@@ -2767,6 +2767,11 @@
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "@" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
+(defdyn *module/cache* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/paths* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
+
 (def module/cache
   "A table, mapping loaded module identifiers to their environments."
   @{})
@@ -2795,24 +2800,25 @@
   keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
   ```
   [ext loader]
+  (def mp (dyn *module/paths* module/paths))
   (defn- find-prefix
     [pre]
-    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
+    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) mp) 0))
   (def dyn-index (find-prefix ":@all:"))
-  (array/insert module/paths dyn-index [(string ":@all:" ext) loader check-dyn-relative])
+  (array/insert mp dyn-index [(string ":@all:" ext) loader check-dyn-relative])
   (def all-index (find-prefix ".:all:"))
-  (array/insert module/paths all-index [(string ".:all:" ext) loader check-project-relative])
+  (array/insert mp all-index [(string ".:all:" ext) loader check-project-relative])
   (def sys-index (find-prefix ":sys:"))
-  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
+  (array/insert mp sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
-  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
-  module/paths)
+  (array/insert mp curall-index [(string ":cur:/:all:" ext) loader check-relative])
+  mp)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-not-relative])
+(array/insert module/paths 0 [(fn is-cached [path] (if (in (dyn *module/cache* module/cache) path) path)) :preload check-not-relative])
 
 # Version of fexists that works even with a reduced OS
 (defn- fexists
@@ -2842,7 +2848,8 @@
   ```
   [path]
   (var ret nil)
-  (each [p mod-kind checker] module/paths
+  (def mp (dyn *module/paths* module/paths))
+  (each [p mod-kind checker] mp
     (when (mod-filter checker path)
       (if (function? p)
         (when-let [res (p path)]
@@ -2858,7 +2865,7 @@
                      (when (string? t)
                        (when (mod-filter chk path)
                          (module/expand-path path t))))
-          paths (filter identity (map expander module/paths))
+          paths (filter identity (map expander mp))
           str-parts (interpose "\n    " paths)]
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
@@ -3013,13 +3020,15 @@
   of files as modules.``
   @{:native (fn native-loader [path &] (native path (make-env)))
     :source (fn source-loader [path args]
-              (put module/loading path true)
-              (defer (put module/loading path nil)
+              (def ml (dyn *module/loading* module/loading))
+              (put ml path true)
+              (defer (put ml path nil)
                 (dofile path ;args)))
     :preload (fn preload-loader [path & args]
-               (when-let [m (in module/cache path)]
+               (def mc (dyn *module/cache* module/cache))
+               (when-let [m (in mc path)]
                  (if (function? m)
-                   (set (module/cache path) (m path ;args))
+                   (set (mc path) (m path ;args))
                    m)))
     :image (fn image-loader [path &] (load-image (slurp path)))})
 
@@ -3027,15 +3036,18 @@
   [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
-  (if-let [check (if-not (kargs :fresh) (in module/cache fullpath))]
+  (def mc (dyn *module/cache* module/cache))
+  (def ml (dyn *module/loading* module/loading))
+  (def mls (dyn *module/loaders* module/loaders))
+  (if-let [check (if-not (kargs :fresh) (in mc fullpath))]
     check
-    (if (module/loading fullpath)
+    (if (ml fullpath)
       (error (string "circular dependency " fullpath " detected"))
       (do
-        (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
+        (def loader (if (keyword? mod-kind) (mls mod-kind) mod-kind))
         (unless loader (error (string "module type " mod-kind " unknown")))
         (def env (loader fullpath args))
-        (put module/cache fullpath env)
+        (put mc fullpath env)
         env))))
 
 (defn require
