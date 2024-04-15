@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-static void janet_array_impl(JanetArray *array, int32_t capacity) {
+static void janet_array_impl(JanetArray *array, size_t capacity) {
     Janet *data = NULL;
     if (capacity > 0) {
         janet_vm.next_collection += capacity * sizeof(Janet);
@@ -45,21 +45,23 @@ static void janet_array_impl(JanetArray *array, int32_t capacity) {
 }
 
 /* Creates a new array */
-JanetArray *janet_array(int32_t capacity) {
+JanetArray *janet_array(size_t capacity) {
+    if (capacity > JANET_SIZEMAX) capacity = JANET_SIZEMAX;
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     janet_array_impl(array, capacity);
     return array;
 }
 
 /* Creates a new array with weak references */
-JanetArray *janet_array_weak(int32_t capacity) {
+JanetArray *janet_array_weak(size_t capacity) {
+    if (capacity > JANET_SIZEMAX) capacity = JANET_SIZEMAX;
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY_WEAK, sizeof(JanetArray));
     janet_array_impl(array, capacity);
     return array;
 }
 
 /* Creates a new array from n elements. */
-JanetArray *janet_array_n(const Janet *elements, int32_t n) {
+JanetArray *janet_array_n(const Janet *elements, size_t n) {
     JanetArray *array = janet_gcalloc(JANET_MEMORY_ARRAY, sizeof(JanetArray));
     array->capacity = n;
     array->count = n;
@@ -72,13 +74,13 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
 }
 
 /* Ensure the array has enough capacity for elements */
-void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
+void janet_array_ensure(JanetArray *array, size_t capacity, int32_t growth) {
     Janet *newData;
     Janet *old = array->data;
     if (capacity <= array->capacity) return;
     int64_t new_capacity = ((int64_t) capacity) * growth;
-    if (new_capacity > INT32_MAX) new_capacity = INT32_MAX;
-    capacity = (int32_t) new_capacity;
+    if (new_capacity > JANET_SIZEMAX) new_capacity = JANET_SIZEMAX;
+    capacity = (size_t) new_capacity;
     newData = janet_realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
@@ -89,11 +91,10 @@ void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth) {
 }
 
 /* Set the count of an array. Extend with nil if needed. */
-void janet_array_setcount(JanetArray *array, int32_t count) {
-    if (count < 0)
-        return;
+void janet_array_setcount(JanetArray *array, size_t count) {
+    if (count > JANET_SIZEMAX) count = JANET_SIZEMAX;
     if (count > array->count) {
-        int32_t i;
+        size_t i;
         janet_array_ensure(array, count, 1);
         for (i = array->count; i < count; i++) {
             array->data[i] = janet_wrap_nil();
@@ -104,10 +105,10 @@ void janet_array_setcount(JanetArray *array, int32_t count) {
 
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
-    if (array->count == INT32_MAX) {
+    if (array->count == JANET_SIZEMAX) {
         janet_panic("array overflow");
     }
-    int32_t newcount = array->count + 1;
+    size_t newcount = array->count + 1;
     janet_array_ensure(array, newcount, 2);
     array->data[array->count] = x;
     array->count = newcount;
@@ -138,7 +139,7 @@ JANET_CORE_FN(cfun_array_new,
               "Creates a new empty array with a pre-allocated capacity. The same as "
               "`(array)` but can be more efficient if the maximum size of an array is known.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getinteger(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     JanetArray *array = janet_array(cap);
     return janet_wrap_array(array);
 }
@@ -147,7 +148,7 @@ JANET_CORE_FN(cfun_array_weak,
               "(array/weak capacity)",
               "Creates a new empty array with a pre-allocated capacity and support for weak references. Similar to `array/new`.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getinteger(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     JanetArray *array = janet_array_weak(cap);
     return janet_wrap_array(array);
 }
@@ -156,7 +157,7 @@ JANET_CORE_FN(cfun_array_new_filled,
               "(array/new-filled count &opt value)",
               "Creates a new array of `count` elements, all set to `value`, which defaults to nil. Returns the new array.") {
     janet_arity(argc, 1, 2);
-    int32_t count = janet_getnat(argv, 0);
+    size_t count = janet_getsize(argv, 0);
     Janet x = (argc == 2) ? argv[1] : janet_wrap_nil();
     JanetArray *array = janet_array(count);
     for (int32_t i = 0; i < count; i++) {
@@ -201,10 +202,10 @@ JANET_CORE_FN(cfun_array_push,
               "Push all the elements of xs to the end of an array. Modifies the input array and returns it.") {
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    if (INT32_MAX - argc + 1 <= array->count) {
+    if ((size_t)(INT32_MAX - argc + 1) <= array->count) {
         janet_panic("array overflow");
     }
-    int32_t newcount = array->count - 1 + argc;
+    size_t newcount = array->count - 1 + (size_t) argc;
     janet_array_ensure(array, newcount, 2);
     if (argc > 1) memcpy(array->data + array->count, argv + 1, (size_t)(argc - 1) * sizeof(Janet));
     array->count = newcount;
@@ -219,7 +220,7 @@ JANET_CORE_FN(cfun_array_ensure,
               "Otherwise, the backing memory will be reallocated so that there is enough space.") {
     janet_fixarity(argc, 3);
     JanetArray *array = janet_getarray(argv, 0);
-    int32_t newcount = janet_getinteger(argv, 1);
+    size_t newcount = janet_getsize(argv, 1);
     int32_t growth = janet_getinteger(argv, 2);
     if (newcount < 1) janet_panic("expected positive integer");
     janet_array_ensure(array, newcount, growth);
@@ -258,7 +259,7 @@ JANET_CORE_FN(cfun_array_concat,
                 break;
             case JANET_ARRAY:
             case JANET_TUPLE: {
-                int32_t j, len = 0;
+                size_t j, len = 0;
                 const Janet *vals = NULL;
                 janet_indexed_view(argv[i], &vals, &len);
                 if (array->data == vals) {
