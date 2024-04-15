@@ -1823,10 +1823,17 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     /* set event flags */
     for (size_t i = 0; i < janet_vm.stream_count; i++) {
         JanetStream *stream = janet_vm.streams[i];
-        janet_vm.fds[i + 1].events = 0;
-        janet_vm.fds[i + 1].revents = 0;
-        if (stream->read_fiber && stream->read_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLIN;
-        if (stream->write_fiber && stream->write_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLOUT;
+        struct pollfd *pfd = janet_vm.fds + i + 1;
+        pfd->events = 0;
+        pfd->revents = 0;
+        JanetFiber *rf = stream->read_fiber;
+        JanetFiber *wf = stream->write_fiber;
+        if (rf && rf->ev_callback) pfd->events |= POLLIN;
+        if (wf && wf->ev_callback) pfd->events |= POLLOUT;
+        /* Hack to ignore a file descriptor - make file descriptor negative if we want to ignore */
+        if (!pfd->events) {
+            pfd->fd = -pfd->fd;
+        }
     }
 
     /* Poll for events */
@@ -1841,6 +1848,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     } while (ready == -1 && errno == EINTR);
     if (ready == -1) {
         JANET_EXIT("failed to poll events");
+    }
+
+    /* Undo negative hack */
+    for (size_t i = 0; i < janet_vm.stream_count; i++) {
+        struct pollfd *pfd = janet_vm.fds + i + 1;
+        if (!pfd->events) {
+            pfd->fd = -pfd->fd;
+        }
     }
 
     /* Check selfpipe */
