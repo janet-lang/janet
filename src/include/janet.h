@@ -997,7 +997,7 @@ struct JanetKV {
 /* Prefix for a tuple */
 struct JanetTupleHead {
     JanetGCObject gc;
-    int32_t length;
+    size_t length;
     int32_t hash;
     int32_t sm_line;
     int32_t sm_column;
@@ -1641,9 +1641,9 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 #define janet_tuple_sm_line(t) (janet_tuple_head(t)->sm_line)
 #define janet_tuple_sm_column(t) (janet_tuple_head(t)->sm_column)
 #define janet_tuple_flag(t) (janet_tuple_head(t)->gc.flags)
-JANET_API Janet *janet_tuple_begin(int32_t length);
+JANET_API Janet *janet_tuple_begin(size_t length);
 JANET_API JanetTuple janet_tuple_end(Janet *tuple);
-JANET_API JanetTuple janet_tuple_n(const Janet *values, int32_t n);
+JANET_API JanetTuple janet_tuple_n(const Janet *values, size_t n);
 
 /* String/Symbol functions */
 #define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))

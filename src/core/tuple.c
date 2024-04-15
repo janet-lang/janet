@@ -31,8 +31,8 @@
 /* Create a new empty tuple of the given size. This will return memory
  * which should be filled with Janets. The memory will not be collected until
  * janet_tuple_end is called. */
-Janet *janet_tuple_begin(int32_t length) {
-    size_t size = sizeof(JanetTupleHead) + ((size_t) length * sizeof(Janet));
+Janet *janet_tuple_begin(size_t length) {
+    size_t size = sizeof(JanetTupleHead) + (length * sizeof(Janet));
     JanetTupleHead *head = janet_gcalloc(JANET_MEMORY_TUPLE, size);
     head->sm_line = -1;
     head->sm_column = -1;
@@ -47,7 +47,7 @@ const Janet *janet_tuple_end(Janet *tuple) {
 }
 
 /* Build a tuple with n values */
-const Janet *janet_tuple_n(const Janet *values, int32_t n) {
+const Janet *janet_tuple_n(const Janet *values, size_t n) {
     Janet *t = janet_tuple_begin(n);
     safe_memcpy(t, values, sizeof(Janet) * n);
     return janet_tuple_end(t);
