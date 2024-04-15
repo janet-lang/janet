@@ -48,14 +48,17 @@ static void fiber_reset(JanetFiber *fiber) {
     janet_fiber_set_status(fiber, JANET_STATUS_NEW);
 }
 
-static JanetFiber *fiber_alloc(int32_t capacity) {
+static JanetFiber *fiber_alloc(size_t capacity) {
     Janet *data;
     JanetFiber *fiber = janet_gcalloc(JANET_MEMORY_FIBER, sizeof(JanetFiber));
     if (capacity < 32) {
         capacity = 32;
     }
+    if (capacity > JANET_INTMAX_INT64) {
+        capacity = JANET_INTMAX_INT64;
+    }
     fiber->capacity = capacity;
-    data = janet_malloc(sizeof(Janet) * (size_t) capacity);
+    data = janet_malloc(sizeof(Janet) * capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -93,7 +96,7 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
 }
 
 /* Create a new fiber with argn values on the stack. */
-JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv) {
+JanetFiber *janet_fiber(JanetFunction *callee, size_t capacity, int32_t argc, const Janet *argv) {
     return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
 }
 
@@ -114,9 +117,9 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
 #endif
 
 /* Ensure that the fiber has enough extra capacity */
-void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
-    int32_t old_size = fiber->capacity;
-    int32_t diff = n - old_size;
+void janet_fiber_setcapacity(JanetFiber *fiber, size_t n) {
+    size_t old_size = fiber->capacity;
+    size_t diff = n - old_size;
     Janet *newData = janet_realloc(fiber->data, sizeof(Janet) * n);
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
@@ -127,8 +130,8 @@ void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
 }
 
 /* Grow fiber if needed */
-static void janet_fiber_grow(JanetFiber *fiber, int32_t needed) {
-    int32_t cap = needed > (INT32_MAX / 2) ? INT32_MAX : 2 * needed;
+static void janet_fiber_grow(JanetFiber *fiber, size_t needed) {
+    size_t cap = needed > (JANET_INTMAX_INT64 / 2) ? JANET_INTMAX_INT64 : 2 * needed;
     janet_fiber_setcapacity(fiber, cap);
 }
 
@@ -178,8 +181,8 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
 }
 
 /* Create a struct with n values. If n is odd, the last value is ignored. */
-static Janet make_struct_n(const Janet *args, int32_t n) {
-    int32_t i = 0;
+static Janet make_struct_n(const Janet *args, size_t n) {
+    size_t i = 0;
     JanetKV *st = janet_struct_begin(n & (~1));
     for (; i < n; i += 2) {
         janet_struct_put(st, args[i], args[i + 1]);

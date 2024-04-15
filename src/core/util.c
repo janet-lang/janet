@@ -267,8 +267,7 @@ int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len) {
 
 /* Calculate next power of 2. May overflow. If n is 0,
  * will return 0. */
-int32_t janet_tablen(int32_t n) {
-    if (n < 0) return 0;
+size_t janet_tablen(size_t n) {
     n |= n >> 1;
     n |= n >> 2;
     n |= n >> 4;

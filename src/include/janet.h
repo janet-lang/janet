@@ -924,7 +924,7 @@ struct JanetFiber {
     int32_t frame; /* Index of the stack frame */
     int32_t stackstart; /* Beginning of next args */
     int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
-    int32_t capacity; /* How big is the stack memory */
+    size_t capacity; /* How big is the stack memory */
     int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     JanetTable *env; /* Dynamic bindings table (usually current environment). */
     Janet *data; /* Dynamically resized stack memory */
@@ -1686,7 +1686,7 @@ JANET_API JanetSymbol janet_symbol_gen(void);
 #define janet_struct_capacity(t) (janet_struct_head(t)->capacity)
 #define janet_struct_hash(t) (janet_struct_head(t)->hash)
 #define janet_struct_proto(t) (janet_struct_head(t)->proto)
-JANET_API JanetKV *janet_struct_begin(int32_t count);
+JANET_API JanetKV *janet_struct_begin(size_t count);
 JANET_API void janet_struct_put(JanetKV *st, Janet key, Janet value);
 JANET_API JanetStruct janet_struct_end(JanetKV *st);
 JANET_API Janet janet_struct_get(JanetStruct st, Janet key);
@@ -1713,7 +1713,7 @@ JANET_API JanetTable *janet_table_clone(JanetTable *table);
 JANET_API void janet_table_clear(JanetTable *table);
 
 /* Fiber */
-JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
+JANET_API JanetFiber *janet_fiber(JanetFunction *callee, size_t capacity, int32_t argc, const Janet *argv);
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
 JANET_API int janet_fiber_can_resume(JanetFiber *fiber);
