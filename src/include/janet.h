@@ -1017,7 +1017,7 @@ struct JanetStructHead {
 /* Prefix for a string */
 struct JanetStringHead {
     JanetGCObject gc;
-    int32_t length;
+    size_t length;
     int32_t hash;
     const uint8_t data[];
 };
@@ -1649,13 +1649,13 @@ JANET_API JanetTuple janet_tuple_n(const Janet *values, size_t n);
 #define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))
 #define janet_string_length(s) (janet_string_head(s)->length)
 #define janet_string_hash(s) (janet_string_head(s)->hash)
-JANET_API uint8_t *janet_string_begin(int32_t length);
+JANET_API uint8_t *janet_string_begin(size_t length);
 JANET_API JanetString janet_string_end(uint8_t *str);
-JANET_API JanetString janet_string(const uint8_t *buf, int32_t len);
+JANET_API JanetString janet_string(const uint8_t *buf, size_t len);
 JANET_API JanetString janet_cstring(const char *cstring);
 JANET_API int janet_string_compare(JanetString lhs, JanetString rhs);
 JANET_API int janet_string_equal(JanetString lhs, JanetString rhs);
-JANET_API int janet_string_equalconst(JanetString lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash);
+JANET_API int janet_string_equalconst(JanetString lhs, const uint8_t *rhs, size_t rlen, size_t rhash);
 JANET_API JanetString janet_description(Janet x);
 JANET_API JanetString janet_to_string(Janet x);
 JANET_API void janet_to_string_b(JanetBuffer *buffer, Janet x);

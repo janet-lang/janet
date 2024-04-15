@@ -31,8 +31,8 @@
 #include <string.h>
 
 /* Begin building a string */
-uint8_t *janet_string_begin(int32_t length) {
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + (size_t) length + 1);
+uint8_t *janet_string_begin(size_t length) {
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + length + 1);
     head->length = length;
     uint8_t *data = (uint8_t *)head->data;
     data[length] = 0;
@@ -46,8 +46,8 @@ const uint8_t *janet_string_end(uint8_t *str) {
 }
 
 /* Load a buffer as a string */
-const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + (size_t) len + 1);
+const uint8_t *janet_string(const uint8_t *buf, size_t len) {
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + len + 1);
     head->length = len;
     head->hash = janet_string_calchash(buf, len);
     uint8_t *data = (uint8_t *)head->data;
@@ -60,7 +60,7 @@ const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
 int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
     int32_t xlen = janet_string_length(lhs);
     int32_t ylen = janet_string_length(rhs);
-    int32_t len = xlen > ylen ? ylen : xlen;
+    size_t len = xlen > ylen ? ylen : xlen;
     int res = memcmp(lhs, rhs, len);
     if (res) return res > 0 ? 1 : -1;
     if (xlen == ylen) return 0;
@@ -68,9 +68,9 @@ int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
 }
 
 /* Compare a janet string with a piece of memory */
-int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
+int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, size_t rlen, int32_t rhash) {
     int32_t lhash = janet_string_hash(lhs);
-    int32_t llen = janet_string_length(lhs);
+    size_t llen = janet_string_length(lhs);
     if (lhs == rhs)
         return 1;
     if (lhash != rhash || llen != rlen)
@@ -208,7 +208,7 @@ JANET_CORE_FN(cfun_string_repeat,
     if (rep < 0) janet_panic("expected non-negative number of repetitions");
     if (rep == 0) return janet_cstringv("");
     int64_t mulres = (int64_t) rep * view.len;
-    if (mulres > INT32_MAX) janet_panic("result string is too long");
+    if (mulres > JANET_INTMAX_INT64) janet_panic("result string is too long");
     uint8_t *newbuf = janet_string_begin((int32_t) mulres);
     uint8_t *end = newbuf + mulres;
     for (uint8_t *p = newbuf; p < end; p += view.len) {
@@ -223,7 +223,7 @@ JANET_CORE_FN(cfun_string_bytes,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     Janet *tup = janet_tuple_begin(view.len);
-    int32_t i;
+    size_t i;
     for (i = 0; i < view.len; i++) {
         tup[i] = janet_wrap_integer((int32_t) view.bytes[i]);
     }
@@ -504,11 +504,11 @@ JANET_CORE_FN(cfun_string_join,
         joiner.len = 0;
     }
     /* Check args */
-    int32_t i;
+    size_t i;
     int64_t finallen = 0;
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk;
-        int32_t chunklen = 0;
+        size_t chunklen = 0;
         if (!janet_bytes_view(parts.items[i], &chunk, &chunklen)) {
             janet_panicf("item %d of parts is not a byte sequence, got %v", i, parts.items[i]);
         }
@@ -518,10 +518,10 @@ JANET_CORE_FN(cfun_string_join,
             janet_panic("result string too long");
     }
     uint8_t *buf, *out;
-    out = buf = janet_string_begin((int32_t) finallen);
+    out = buf = janet_string_begin((size_t) finallen);
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk = NULL;
-        int32_t chunklen = 0;
+        size_t chunklen = 0;
         if (i) {
             safe_memcpy(out, joiner.bytes, joiner.len);
             out += joiner.len;
