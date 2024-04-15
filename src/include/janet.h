@@ -1604,25 +1604,25 @@ JANET_API uint32_t janet_rng_u32(JanetRNG *rng);
 JANET_API double janet_rng_double(JanetRNG *rng);
 
 /* Array functions */
-JANET_API JanetArray *janet_array(int32_t capacity);
-JANET_API JanetArray *janet_array_weak(int32_t capacity);
-JANET_API JanetArray *janet_array_n(const Janet *elements, int32_t n);
-JANET_API void janet_array_ensure(JanetArray *array, int32_t capacity, int32_t growth);
-JANET_API void janet_array_setcount(JanetArray *array, int32_t count);
+JANET_API JanetArray *janet_array(size_t capacity);
+JANET_API JanetArray *janet_array_weak(size_t capacity);
+JANET_API JanetArray *janet_array_n(const Janet *elements, size_t n);
+JANET_API void janet_array_ensure(JanetArray *array, size_t capacity, size_t growth);
+JANET_API void janet_array_setcount(JanetArray *array, size_t count);
 JANET_API void janet_array_push(JanetArray *array, Janet x);
 JANET_API Janet janet_array_pop(JanetArray *array);
 JANET_API Janet janet_array_peek(JanetArray *array);
 
 /* Buffer functions */
 #define JANET_BUFFER_FLAG_NO_REALLOC 0x10000
-JANET_API JanetBuffer *janet_buffer(int32_t capacity);
-JANET_API JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity);
-JANET_API JanetBuffer *janet_pointer_buffer_unsafe(void *memory, int32_t capacity, int32_t count);
+JANET_API JanetBuffer *janet_buffer(size_t capacity);
+JANET_API JanetBuffer *janet_buffer_init(JanetBuffer *buffer, size_t capacity);
+JANET_API JanetBuffer *janet_pointer_buffer_unsafe(void *memory, size_t capacity, size_t count);
 JANET_API void janet_buffer_deinit(JanetBuffer *buffer);
-JANET_API void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth);
-JANET_API void janet_buffer_setcount(JanetBuffer *buffer, int32_t count);
-JANET_API void janet_buffer_extra(JanetBuffer *buffer, int32_t n);
-JANET_API void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, int32_t len);
+JANET_API void janet_buffer_ensure(JanetBuffer *buffer, size_t capacity, size_t growth);
+JANET_API void janet_buffer_setcount(JanetBuffer *buffer, size_t count);
+JANET_API void janet_buffer_extra(JanetBuffer *buffer, size_t n);
+JANET_API void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, size_t len);
 JANET_API void janet_buffer_push_string(JanetBuffer *buffer, JanetString string);
 JANET_API void janet_buffer_push_cstring(JanetBuffer *buffer, const char *cstring);
 JANET_API void janet_buffer_push_u8(JanetBuffer *buffer, uint8_t x);
@@ -1696,9 +1696,9 @@ JANET_API JanetTable *janet_struct_to_table(JanetStruct st);
 JANET_API const JanetKV *janet_struct_find(JanetStruct st, Janet key);
 
 /* Table functions */
-JANET_API JanetTable *janet_table(int32_t capacity);
-JANET_API JanetTable *janet_table_init(JanetTable *table, int32_t capacity);
-JANET_API JanetTable *janet_table_init_raw(JanetTable *table, int32_t capacity);
+JANET_API JanetTable *janet_table(size_t capacity);
+JANET_API JanetTable *janet_table_init(JanetTable *table, size_t capacity);
+JANET_API JanetTable *janet_table_init_raw(JanetTable *table, size_t capacity);
 JANET_API void janet_table_deinit(JanetTable *table);
 JANET_API Janet janet_table_get(JanetTable *t, Janet key);
 JANET_API Janet janet_table_get_ex(JanetTable *t, Janet key, JanetTable **which);
