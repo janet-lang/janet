@@ -29,12 +29,11 @@
 #endif
 
 /* Begin creation of a struct */
-JanetKV *janet_struct_begin(int32_t count) {
+JanetKV *janet_struct_begin(size_t count) {
     /* Calculate capacity as power of 2 after 2 * count. */
-    int32_t capacity = janet_tablen(2 * count);
-    if (capacity < 0) capacity = janet_tablen(count + 1);
+    size_t capacity = janet_tablen(2 * count);
 
-    size_t size = sizeof(JanetStructHead) + (size_t) capacity * sizeof(JanetKV);
+    size_t size = sizeof(JanetStructHead) + capacity * sizeof(JanetKV);
     JanetStructHead *head = janet_gcalloc(JANET_MEMORY_STRUCT, size);
     head->length = count;
     head->capacity = capacity;
@@ -49,9 +48,9 @@ JanetKV *janet_struct_begin(int32_t count) {
 /* Find an item in a struct without looking for prototypes. Should be similar to janet_dict_find, but
  * specialized to structs (slightly more compact). */
 const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
-    int32_t cap = janet_struct_capacity(st);
+    size_t cap = janet_struct_capacity(st);
     int32_t index = janet_maphash(cap, janet_hash(key));
-    int32_t i;
+    size_t i;
     for (i = index; i < cap; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
@@ -70,7 +69,7 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
  * hash map is independent of insertion order.
  */
 void janet_struct_put_ext(JanetKV *st, Janet key, Janet value, int replace) {
-    int32_t cap = janet_struct_capacity(st);
+    size_t cap = janet_struct_capacity(st);
     int32_t hash = janet_hash(key);
     int32_t index = janet_maphash(cap, hash);
     int32_t i, j, dist;
@@ -144,7 +143,7 @@ const JanetKV *janet_struct_end(JanetKV *st) {
          * the struct using only the values that went in. The second creation should always
          * succeed. */
         JanetKV *newst = janet_struct_begin(janet_struct_hash(st));
-        for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+        for (size_t i = 0; i < janet_struct_capacity(st); i++) {
             JanetKV *kv = st + i;
             if (!janet_checktype(kv->key, JANET_NIL)) {
                 janet_struct_put(newst, kv->key, kv->value);
@@ -192,7 +191,7 @@ Janet janet_struct_get_ex(const JanetKV *st, Janet key, JanetStruct *which) {
 /* Convert struct to table */
 JanetTable *janet_struct_to_table(const JanetKV *st) {
     JanetTable *table = janet_table(janet_struct_capacity(st));
-    int32_t i;
+    size_t i;
     for (i = 0; i < janet_struct_capacity(st); i++) {
         const JanetKV *kv = st + i;
         if (!janet_checktype(kv->key, JANET_NIL)) {
@@ -245,14 +244,14 @@ JANET_CORE_FN(cfun_struct_flatten,
         cursor = janet_struct_proto(cursor);
     }
 
-    if (pair_count > INT32_MAX) {
+    if (pair_count > JANET_INTMAX_INT64) {
         janet_panic("struct too large");
     }
 
-    JanetKV *accum = janet_struct_begin((int32_t) pair_count);
+    JanetKV *accum = janet_struct_begin((size_t) pair_count);
     cursor = st;
     while (cursor) {
-        for (int32_t i = 0; i < janet_struct_capacity(cursor); i++) {
+        for (size_t i = 0; i < janet_struct_capacity(cursor); i++) {
             const JanetKV *kv = cursor + i;
             if (!janet_checktype(kv->key, JANET_NIL)) {
                 janet_struct_put_ext(accum, kv->key, kv->value, 0);
@@ -283,7 +282,7 @@ JANET_CORE_FN(cfun_struct_to_table,
         }
         /* TODO - implement as memcpy since struct memory should be compatible
          * with table memory */
-        for (int32_t i = 0; i < janet_struct_capacity(cursor); i++) {
+        for (size_t i = 0; i < janet_struct_capacity(cursor); i++) {
             const JanetKV *kv = cursor + i;
             if (!janet_checktype(kv->key, JANET_NIL)) {
                 janet_table_put(tab_cursor, kv->key, kv->value);

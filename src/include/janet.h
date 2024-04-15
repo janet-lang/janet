@@ -1007,9 +1007,9 @@ struct JanetTupleHead {
 /* Prefix for a struct */
 struct JanetStructHead {
     JanetGCObject gc;
-    int32_t length;
+    size_t length;
     int32_t hash;
-    int32_t capacity;
+    size_t capacity;
     const JanetKV *proto;
     const JanetKV data[];
 };
