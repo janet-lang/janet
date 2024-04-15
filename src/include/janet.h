@@ -973,8 +973,8 @@ struct JanetArray {
 /* A byte buffer type. Used as a mutable string or string builder. */
 struct JanetBuffer {
     JanetGCObject gc;
-    int32_t count;
-    int32_t capacity;
+    size_t count;
+    size_t capacity;
     uint8_t *data;
 };
 

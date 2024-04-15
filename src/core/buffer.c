@@ -36,11 +36,13 @@ static void janet_buffer_can_realloc(JanetBuffer *buffer) {
 }
 
 /* Initialize a buffer */
-static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, int32_t capacity) {
+static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, size_t capacity) {
     uint8_t *data = NULL;
     if (capacity < 4) capacity = 4;
+    if (capacity > JANET_INTMAX_INT64)
+      capacity = JANET_INTMAX_INT64;
     janet_gcpressure(capacity);
-    data = janet_malloc(sizeof(uint8_t) * (size_t) capacity);
+    data = janet_malloc(sizeof(uint8_t) * capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -51,7 +53,7 @@ static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, int32_t capacity
 }
 
 /* Initialize a buffer */
-JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
+JanetBuffer *janet_buffer_init(JanetBuffer *buffer, size_t capacity) {
     janet_buffer_init_impl(buffer, capacity);
     buffer->gc.data.next = NULL;
     buffer->gc.flags = JANET_MEM_DISABLED;
@@ -59,7 +61,7 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity) {
 }
 
 /* Initialize an unmanaged buffer */
-JanetBuffer *janet_pointer_buffer_unsafe(void *memory, int32_t capacity, int32_t count) {
+JanetBuffer *janet_pointer_buffer_unsafe(void *memory, size_t capacity, size_t count) {
     if (count < 0) janet_panic("count < 0");
     if (capacity < count) janet_panic("capacity < count");
     JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
@@ -78,21 +80,21 @@ void janet_buffer_deinit(JanetBuffer *buffer) {
 }
 
 /* Initialize a buffer */
-JanetBuffer *janet_buffer(int32_t capacity) {
+JanetBuffer *janet_buffer(size_t capacity) {
     JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
     return janet_buffer_init_impl(buffer, capacity);
 }
 
 /* Ensure that the buffer has enough internal capacity */
-void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) {
+void janet_buffer_ensure(JanetBuffer *buffer, size_t capacity, size_t growth) {
     uint8_t *new_data;
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
     janet_buffer_can_realloc(buffer);
-    int64_t big_capacity = ((int64_t) capacity) * growth;
-    capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
+    size_t big_capacity = (capacity) * growth;
+    capacity = big_capacity > JANET_INTMAX_INT64 ? JANET_INTMAX_INT64 : big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
-    new_data = janet_realloc(old, (size_t) capacity * sizeof(uint8_t));
+    new_data = janet_realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -101,11 +103,11 @@ void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) 
 }
 
 /* Ensure that the buffer has enough internal capacity */
-void janet_buffer_setcount(JanetBuffer *buffer, int32_t count) {
+void janet_buffer_setcount(JanetBuffer *buffer, size_t count) {
     if (count < 0)
         return;
     if (count > buffer->count) {
-        int32_t oldcount = buffer->count;
+        size_t oldcount = buffer->count;
         janet_buffer_ensure(buffer, count, 1);
         memset(buffer->data + oldcount, 0, count - oldcount);
     }
@@ -114,15 +116,15 @@ void janet_buffer_setcount(JanetBuffer *buffer, int32_t count) {
 
 /* Adds capacity for enough extra bytes to the buffer. Ensures that the
  * next n bytes pushed to the buffer will not cause a reallocation */
-void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
+void janet_buffer_extra(JanetBuffer *buffer, size_t n) {
     /* Check for buffer overflow */
-    if ((int64_t)n + buffer->count > INT32_MAX) {
+    if (n + buffer->count > JANET_INTMAX_INT64) {
         janet_panic("buffer overflow");
     }
-    int32_t new_size = buffer->count + n;
+    size_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
         janet_buffer_can_realloc(buffer);
-        int32_t new_capacity = (new_size > (INT32_MAX / 2)) ? INT32_MAX : (new_size * 2);
+        size_t new_capacity = (new_size > (JANET_INTMAX_INT64 / 2)) ? JANET_INTMAX_INT64 : (new_size * 2);
         uint8_t *new_data = janet_realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
         if (NULL == new_data) {
@@ -135,12 +137,12 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
 
 /* Push a cstring to buffer */
 void janet_buffer_push_cstring(JanetBuffer *buffer, const char *cstring) {
-    int32_t len = (int32_t) strlen(cstring);
+    size_t len = strlen(cstring);
     janet_buffer_push_bytes(buffer, (const uint8_t *) cstring, len);
 }
 
 /* Push multiple bytes into the buffer */
-void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, int32_t length) {
+void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, size_t length) {
     if (0 == length) return;
     janet_buffer_extra(buffer, length);
     memcpy(buffer->data + buffer->count, string, length);
@@ -197,7 +199,7 @@ JANET_CORE_FN(cfun_buffer_new,
               "Creates a new, empty buffer with enough backing memory for `capacity` bytes. "
               "Returns a new buffer of length 0.") {
     janet_fixarity(argc, 1);
-    int32_t cap = janet_getinteger(argv, 0);
+    size_t cap = janet_getsize(argv, 0);
     JanetBuffer *buffer = janet_buffer(cap);
     return janet_wrap_buffer(buffer);
 }
@@ -207,7 +209,7 @@ JANET_CORE_FN(cfun_buffer_new_filled,
               "Creates a new buffer of length `count` filled with `byte`. By default, `byte` is 0. "
               "Returns the new buffer.") {
     janet_arity(argc, 1, 2);
-    int32_t count = janet_getinteger(argv, 0);
+    size_t count = janet_getsize(argv, 0);
     if (count < 0) count = 0;
     int32_t byte = 0;
     if (argc == 2) {
@@ -224,10 +226,10 @@ JANET_CORE_FN(cfun_buffer_frombytes,
               "(buffer/from-bytes & byte-vals)",
               "Creates a buffer from integer parameters with byte values. All integers "
               "will be coerced to the range of 1 byte 0-255.") {
-    int32_t i;
+    size_t i;
     JanetBuffer *buffer = janet_buffer(argc);
     for (i = 0; i < argc; i++) {
-        int32_t c = janet_getinteger(argv, i);
+        size_t c = janet_getsize(argv, i);
         buffer->data[i] = c & 0xFF;
     }
     buffer->count = argc;
@@ -258,7 +260,7 @@ JANET_CORE_FN(cfun_buffer_trim,
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     janet_buffer_can_realloc(buffer);
     if (buffer->count < buffer->capacity) {
-        int32_t newcap = buffer->count > 4 ? buffer->count : 4;
+        size_t newcap = buffer->count > 4 ? buffer->count : 4;
         uint8_t *newData = janet_realloc(buffer->data, newcap);
         if (NULL == newData) {
             JANET_OUT_OF_MEMORY;
@@ -273,7 +275,7 @@ JANET_CORE_FN(cfun_buffer_u8,
               "(buffer/push-byte buffer & xs)",
               "Append bytes to a buffer. Will expand the buffer as necessary. "
               "Returns the modified buffer. Will throw an error if the buffer overflows.") {
-    int32_t i;
+    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     for (i = 1; i < argc; i++) {
@@ -287,7 +289,7 @@ JANET_CORE_FN(cfun_buffer_word,
               "Append machine words to a buffer. The 4 bytes of the integer are appended "
               "in twos complement, little endian order, unsigned for all x. Returns the modified buffer. Will "
               "throw an error if the buffer overflows.") {
-    int32_t i;
+    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     for (i = 1; i < argc; i++) {
@@ -306,7 +308,7 @@ JANET_CORE_FN(cfun_buffer_chars,
               "Will accept any of strings, keywords, symbols, and buffers. "
               "Returns the modified buffer. "
               "Will throw an error if the buffer overflows.") {
-    int32_t i;
+    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     for (i = 1; i < argc; i++) {
@@ -320,7 +322,7 @@ JANET_CORE_FN(cfun_buffer_chars,
     return argv[0];
 }
 
-static int should_reverse_bytes(const Janet *argv, int32_t argc) {
+static int should_reverse_bytes(const Janet *argv, size_t argc) {
     JanetKeyword order_kw = janet_getkeyword(argv, argc);
     if (!janet_cstrcmp(order_kw, "le")) {
 #if JANET_BIG_ENDIAN
@@ -478,8 +480,8 @@ JANET_CORE_FN(cfun_buffer_push_at,
               " at index `index`.") {
     janet_arity(argc, 2, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    int32_t index = janet_getinteger(argv, 1);
-    int32_t old_count = buffer->count;
+    size_t index = janet_getsize(argv, 1);
+    size_t old_count = buffer->count;
     if (index < 0 || index > old_count) {
         janet_panicf("index out of range [0, %d)", old_count);
     }
@@ -519,7 +521,7 @@ JANET_CORE_FN(cfun_buffer_popn,
               "Removes the last `n` bytes from the buffer. Returns the modified buffer.") {
     janet_fixarity(argc, 2);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    int32_t n = janet_getinteger(argv, 1);
+    size_t n = janet_getsize(argv, 1);
     if (n < 0) janet_panic("n must be non-negative");
     if (buffer->count < n) {
         buffer->count = 0;
@@ -544,7 +546,7 @@ JANET_CORE_FN(cfun_buffer_slice,
     return janet_wrap_buffer(buffer);
 }
 
-static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, int32_t *index, int *bit) {
+static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, size_t *index, int *bit) {
     janet_fixarity(argc, 2);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     double x = janet_getnumber(argv, 1);
@@ -554,7 +556,7 @@ static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, int32_t *index, i
     if (bitindex != x || bitindex < 0 || byteindex >= buffer->count)
         janet_panicf("invalid bit index %v", argv[1]);
     *b = buffer;
-    *index = (int32_t) byteindex;
+    *index = (size_t) byteindex;
     *bit = which_bit;
 }
 
@@ -562,7 +564,7 @@ JANET_CORE_FN(cfun_buffer_bitset,
               "(buffer/bit-set buffer index)",
               "Sets the bit at the given bit-index. Returns the buffer.") {
     int bit;
-    int32_t index;
+    size_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
     buffer->data[index] |= 1 << bit;
@@ -573,7 +575,7 @@ JANET_CORE_FN(cfun_buffer_bitclear,
               "(buffer/bit-clear buffer index)",
               "Clears the bit at the given bit-index. Returns the buffer.") {
     int bit;
-    int32_t index;
+    size_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
     buffer->data[index] &= ~(1 << bit);
@@ -584,7 +586,7 @@ JANET_CORE_FN(cfun_buffer_bitget,
               "(buffer/bit buffer index)",
               "Gets the bit at the given bit-index. Returns true if the bit is set, false if not.") {
     int bit;
-    int32_t index;
+    size_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
     return janet_wrap_boolean(buffer->data[index] & (1 << bit));
@@ -594,7 +596,7 @@ JANET_CORE_FN(cfun_buffer_bittoggle,
               "(buffer/bit-toggle buffer index)",
               "Toggles the bit at the given bit index in buffer. Returns the buffer.") {
     int bit;
-    int32_t index;
+    size_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
     buffer->data[index] ^= (1 << bit);
@@ -610,15 +612,15 @@ JANET_CORE_FN(cfun_buffer_blit,
     JanetBuffer *dest = janet_getbuffer(argv, 0);
     JanetByteView src = janet_getbytes(argv, 1);
     int same_buf = src.bytes == dest->data;
-    int32_t offset_dest = 0;
-    int32_t offset_src = 0;
+    size_t offset_dest = 0;
+    size_t offset_src = 0;
     if (argc > 2 && !janet_checktype(argv[2], JANET_NIL))
         offset_dest = janet_gethalfrange(argv, 2, dest->count, "dest-start");
     if (argc > 3 && !janet_checktype(argv[3], JANET_NIL))
         offset_src = janet_gethalfrange(argv, 3, src.len, "src-start");
-    int32_t length_src;
+    size_t length_src;
     if (argc > 4) {
-        int32_t src_end = src.len;
+        size_t src_end = src.len;
         if (!janet_checktype(argv[4], JANET_NIL))
             src_end = janet_gethalfrange(argv, 4, src.len, "src-end");
         length_src = src_end - offset_src;
@@ -627,9 +629,9 @@ JANET_CORE_FN(cfun_buffer_blit,
         length_src = src.len - offset_src;
     }
     int64_t last = (int64_t) offset_dest + length_src;
-    if (last > INT32_MAX)
+    if (last > JANET_INTMAX_INT64)
         janet_panic("buffer blit out of range");
-    int32_t last32 = (int32_t) last;
+    size_t last32 = (size_t) last;
     janet_buffer_ensure(dest, last32, 2);
     if (last32 > dest->count) dest->count = last32;
     if (length_src) {
