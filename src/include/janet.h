@@ -143,19 +143,6 @@ extern "C" {
 #define JANET_LITTLE_ENDIAN 1
 #endif
 
-/* Limits for converting doubles to 64 bit integers */
-#define JANET_INTMAX_DOUBLE 9007199254740992.0
-#define JANET_INTMIN_DOUBLE (-9007199254740992.0)
-#define JANET_INTMAX_INT64 9007199254740992
-#define JANET_INTMIN_INT64 (-9007199254740992)
-#if defined(JANET_64)
-    #define JANET_INTMAX_SIZE JANET_INTMAX_INT64
-    #define JANET_INTMIN_SIZE JANET_INTMIN_INT64
-#else
-    #define JANET_INTMAX_SIZE 4294967295
-    #define JANET_INTMIN_SIZE (-4294967295)
-#endif
-
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
 #define JANET_NO_DYNAMIC_MODULES
@@ -378,6 +365,19 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 #include <setjmp.h>
 #include <stddef.h>
 #include <stdio.h>
+
+/* Limits for converting doubles to 64 bit integers */
+#define JANET_INTMAX_DOUBLE 9007199254740992.0
+#define JANET_INTMIN_DOUBLE (-9007199254740992.0)
+#define JANET_INTMAX_INT64 9007199254740992
+#define JANET_INTMIN_INT64 (-9007199254740992)
+#if defined(JANET_64)
+    #define JANET_INTMAX_SIZE JANET_INTMAX_INT64
+    #define JANET_INTMIN_SIZE JANET_INTMIN_INT64
+#else
+    #define JANET_INTMAX_SIZE INT32_MAX
+    #define JANET_INTMIN_SIZE INT32_MIN
+#endif
 
 /* signed size */
 #ifdef _SSIZE_T
