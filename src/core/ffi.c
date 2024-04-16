@@ -432,7 +432,7 @@ static JanetFFIType decode_ffi_type(Janet x) {
         ret.st = janet_unwrap_abstract(x);
         return ret;
     }
-    int32_t len;
+    size_t len;
     const Janet *els;
     if (janet_indexed_view(x, &els, &len)) {
         if (janet_checktype(x, JANET_ARRAY)) {

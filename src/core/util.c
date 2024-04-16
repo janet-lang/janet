@@ -117,7 +117,7 @@ const char *const janet_status_names[16] = {
 
 #ifndef JANET_PRF
 
-int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
+int32_t janet_string_calchash(const uint8_t *str, size_t len) {
     if (NULL == str) return 5381;
     const uint8_t *end = str + len;
     uint32_t hash = 5381;
@@ -230,7 +230,7 @@ void janet_init_hash_key(uint8_t new_key[JANET_HASH_KEY_SIZE]) {
 
 /* Calculate hash for string */
 
-int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
+int32_t janet_string_calchash(const uint8_t *str, size_t len) {
     uint32_t hash;
     hash = halfsiphash(str, len, hash_key);
     return (int32_t)hash;
@@ -244,7 +244,7 @@ uint32_t janet_hash_mix(uint32_t input, uint32_t more) {
 }
 
 /* Computes hash of an array of values */
-int32_t janet_array_calchash(const Janet *array, int32_t len) {
+int32_t janet_array_calchash(const Janet *array, size_t len) {
     const Janet *end = array + len;
     uint32_t hash = 33;
     while (array < end) {
@@ -254,7 +254,7 @@ int32_t janet_array_calchash(const Janet *array, int32_t len) {
 }
 
 /* Computes hash of an array of values */
-int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len) {
+int32_t janet_kv_calchash(const JanetKV *kvs, size_t len) {
     const JanetKV *end = kvs + len;
     uint32_t hash = 33;
     while (kvs < end) {
@@ -284,9 +284,9 @@ void safe_memcpy(void *dest, const void *src, size_t len) {
 
 /* Helper to find a value in a Janet struct or table. Returns the bucket
  * containing the key, or the first empty bucket if there is no such key. */
-const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
+const JanetKV *janet_dict_find(const JanetKV *buckets, size_t cap, Janet key) {
     int32_t index = janet_maphash(cap, janet_hash(key));
-    int32_t i;
+    size_t i;
     const JanetKV *first_bucket = NULL;
     /* Higher half */
     for (i = index; i < cap; i++) {
@@ -318,7 +318,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
 }
 
 /* Get a value from a janet struct or table. */
-Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key) {
+Janet janet_dictionary_get(const JanetKV *data, size_t cap, Janet key) {
     const JanetKV *kv = janet_dict_find(data, cap, key);
     if (kv && !janet_checktype(kv->key, JANET_NIL)) {
         return kv->value;
@@ -327,7 +327,7 @@ Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key) {
 }
 
 /* Iterate through a struct or dictionary generically */
-const JanetKV *janet_dictionary_next(const JanetKV *kvs, int32_t cap, const JanetKV *kv) {
+const JanetKV *janet_dictionary_next(const JanetKV *kvs, size_t cap, const JanetKV *kv) {
     const JanetKV *end = kvs + cap;
     kv = (kv == NULL) ? kvs : kv + 1;
     while (kv < end) {
@@ -740,7 +740,7 @@ Janet janet_resolve_core(const char *name) {
 
 /* Read both tuples and arrays as c pointers + int32_t length. Return 1 if the
  * view can be constructed, 0 if an invalid type. */
-int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
+int janet_indexed_view(Janet seq, const Janet **data, size_t *len) {
     if (janet_checktype(seq, JANET_ARRAY)) {
         *data = janet_unwrap_array(seq)->data;
         *len = janet_unwrap_array(seq)->count;
@@ -755,7 +755,7 @@ int janet_indexed_view(Janet seq, const Janet **data, int32_t *len) {
 
 /* Read both strings and buffer as unsigned character array + int32_t len.
  * Returns 1 if the view can be constructed and 0 if the type is invalid. */
-int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len) {
+int janet_bytes_view(Janet str, const uint8_t **data, size_t *len) {
     JanetType t = janet_type(str);
     if (t == JANET_STRING || t == JANET_SYMBOL || t == JANET_KEYWORD) {
         *data = janet_unwrap_string(str);
@@ -782,7 +782,7 @@ int janet_bytes_view(Janet str, const uint8_t **data, int32_t *len) {
 /* Read both structs and tables as the entries of a hashtable with
  * identical structure. Returns 1 if the view can be constructed and
  * 0 if the type is invalid. */
-int janet_dictionary_view(Janet tab, const JanetKV **data, int32_t *len, int32_t *cap) {
+int janet_dictionary_view(Janet tab, const JanetKV **data, size_t *len, size_t *cap) {
     if (janet_checktype(tab, JANET_TABLE)) {
         *data = janet_unwrap_table(tab)->data;
         *cap = janet_unwrap_table(tab)->capacity;

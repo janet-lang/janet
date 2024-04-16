@@ -160,10 +160,10 @@ Janet(janet_wrap_number)(double x) {
 
 /*****/
 
-void *janet_memalloc_empty(int32_t count) {
-    int32_t i;
-    void *mem = janet_malloc((size_t) count * sizeof(JanetKV));
-    janet_vm.next_collection += (size_t) count * sizeof(JanetKV);
+void *janet_memalloc_empty(size_t count) {
+    size_t i;
+    void *mem = janet_malloc(count * sizeof(JanetKV));
+    janet_vm.next_collection += count * sizeof(JanetKV);
     if (NULL == mem) {
         JANET_OUT_OF_MEMORY;
     }
@@ -176,8 +176,8 @@ void *janet_memalloc_empty(int32_t count) {
     return mem;
 }
 
-void janet_memempty(JanetKV *mem, int32_t count) {
-    int32_t i;
+void janet_memempty(JanetKV *mem, size_t count) {
+    size_t i;
     for (i = 0; i < count; i++) {
         mem[i].key = janet_wrap_nil();
         mem[i].value = janet_wrap_nil();

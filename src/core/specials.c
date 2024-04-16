@@ -105,7 +105,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
         case JANET_TABLE:
         case JANET_STRUCT: {
             const JanetKV *kv = NULL, *kvs = NULL;
-            int32_t len, cap = 0;
+            size_t len, cap = 0;
             janet_dictionary_view(x, &kvs, &len, &cap);
             while ((kv = janet_dictionary_next(kvs, cap, kv))) {
                 JanetSlot key = quasiquote(subopts, kv->key, depth - 1, level);
@@ -156,10 +156,10 @@ static int destructure(JanetCompiler *c,
             return leaf(c, janet_unwrap_symbol(left), right, attr);
         case JANET_TUPLE:
         case JANET_ARRAY: {
-            int32_t len = 0;
+            size_t len = 0;
             const Janet *values = NULL;
             janet_indexed_view(left, &values, &len);
-            for (int32_t i = 0; i < len; i++) {
+            for (size_t i = 0; i < len; i++) {
                 JanetSlot nextright = janetc_farslot(c);
                 Janet subval = values[i];
 
@@ -170,11 +170,11 @@ static int destructure(JanetCompiler *c,
                     }
 
                     if (i + 2 < len) {
-                        int32_t num_extra = len - i - 1;
+                        size_t num_extra = len - i - 1;
                         Janet *extra = janet_tuple_begin(num_extra);
                         janet_tuple_flag(extra) |= JANET_TUPLE_FLAG_BRACKETCTOR;
 
-                        for (int32_t j = 0; j < num_extra; ++j) {
+                        for (size_t j = 0; j < num_extra; ++j) {
                             extra[j] = values[j + i + 1];
                         }
 
@@ -237,9 +237,9 @@ static int destructure(JanetCompiler *c,
         case JANET_TABLE:
         case JANET_STRUCT: {
             const JanetKV *kvs = NULL;
-            int32_t cap = 0, len = 0;
+            size_t cap = 0, len = 0;
             janet_dictionary_view(left, &kvs, &len, &cap);
-            for (int32_t i = 0; i < cap; i++) {
+            for (size_t i = 0; i < cap; i++) {
                 if (janet_checktype(kvs[i].key, JANET_NIL)) continue;
                 JanetSlot nextright = janetc_farslot(c);
                 JanetSlot k = janetc_value(janetc_fopts_default(c), kvs[i].key);
@@ -362,7 +362,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
         janet_indexed_view(lhs, &view_lhs.items, &view_lhs.len);
         janet_indexed_view(rhs, &view_rhs.items, &view_rhs.len);
         int found_amp = 0;
-        for (int32_t i = 0; i < view_lhs.len; i++) {
+        for (size_t i = 0; i < view_lhs.len; i++) {
             if (janet_symeq(view_lhs.items[i], "&")) {
                 found_amp = 1;
                 /* Good error will be generated later. */
@@ -370,7 +370,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
             }
         }
         if (!found_amp) {
-            for (int32_t i = 0; i < view_lhs.len; i++) {
+            for (size_t i = 0; i < view_lhs.len; i++) {
                 Janet sub_rhs = view_rhs.len <= i ? janet_wrap_nil() : view_rhs.items[i];
                 into = dohead_destructure(c, into, subopts, view_lhs.items[i], sub_rhs);
             }

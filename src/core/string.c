@@ -94,8 +94,8 @@ const uint8_t *janet_cstring(const char *str) {
 struct kmp_state {
     int32_t i;
     int32_t j;
-    int32_t textlen;
-    int32_t patlen;
+    size_t textlen;
+    size_t patlen;
     int32_t *lookup;
     const uint8_t *text;
     const uint8_t *pat;
@@ -103,8 +103,8 @@ struct kmp_state {
 
 static void kmp_init(
     struct kmp_state *s,
-    const uint8_t *text, int32_t textlen,
-    const uint8_t *pat, int32_t patlen) {
+    const uint8_t *text, size_t textlen,
+    const uint8_t *pat, size_t patlen) {
     if (patlen == 0) {
         janet_panic("expected non-empty pattern");
     }
@@ -142,8 +142,8 @@ static void kmp_seti(struct kmp_state *state, int32_t i) {
 static int32_t kmp_next(struct kmp_state *state) {
     int32_t i = state->i;
     int32_t j = state->j;
-    int32_t textlen = state->textlen;
-    int32_t patlen = state->patlen;
+    size_t textlen = state->textlen;
+    size_t patlen = state->patlen;
     const uint8_t *text = state->text;
     const uint8_t *pat = state->pat;
     int32_t *lookup = state->lookup;
@@ -251,7 +251,7 @@ JANET_CORE_FN(cfun_string_asciilower,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    for (int32_t i = 0; i < view.len; i++) {
+    for (size_t i = 0; i < view.len; i++) {
         uint8_t c = view.bytes[i];
         if (c >= 65 && c <= 90) {
             buf[i] = c + 32;
@@ -568,21 +568,21 @@ JANET_CORE_FN(cfun_string_format,
 }
 
 static int trim_help_checkset(JanetByteView set, uint8_t x) {
-    for (int32_t j = 0; j < set.len; j++)
+    for (size_t j = 0; j < set.len; j++)
         if (set.bytes[j] == x)
             return 1;
     return 0;
 }
 
 static int32_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
-    for (int32_t i = 0; i < str.len; i++)
+    for (size_t i = 0; i < str.len; i++)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i;
     return str.len;
 }
 
 static int32_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
-    for (int32_t i = str.len - 1; i >= 0; i--)
+    for (size_t i = str.len - 1; i >= 0; i--)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i + 1;
     return 0;

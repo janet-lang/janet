@@ -423,10 +423,10 @@ tail:
             /* check number parsing */
             double x = 0.0;
             int32_t base = (int32_t) rule[2];
-            if (janet_scan_number_base(text, (int32_t)(result - text), base, &x)) return NULL;
+            if (janet_scan_number_base(text, (size_t)(result - text), base, &x)) return NULL;
             /* Specialized pushcap - avoid intermediate string creation */
             if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
-                janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
+                janet_buffer_push_bytes(s->scratch, text, (size_t)(result - text));
             } else {
                 uint32_t tag = rule[3];
                 pushcap(s, janet_wrap_number(x), tag);

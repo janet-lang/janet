@@ -42,8 +42,8 @@ typedef struct JanetScratch {
 typedef struct {
     JanetGCObject *self;
     JanetGCObject *other;
-    int32_t index;
-    int32_t index2;
+    size_t index;
+    size_t index2;
 } JanetTraversalNode;
 
 typedef struct {

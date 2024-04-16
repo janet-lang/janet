@@ -59,11 +59,11 @@ int janet_is_symbol_char(uint8_t c) {
 /* Validate some utf8. Useful for identifiers. Only validates
  * the encoding, does not check for valid code points (they
  * are less well defined than the encoding). */
-int janet_valid_utf8(const uint8_t *str, int32_t len) {
-    int32_t i = 0;
-    int32_t j;
+int janet_valid_utf8(const uint8_t *str, size_t len) {
+    size_t i = 0;
+    size_t j;
     while (i < len) {
-        int32_t nexti;
+        size_t nexti;
         uint8_t c = str[i];
 
         /* Check the number of bytes in code point */
@@ -449,14 +449,14 @@ static int check_str_const(const char *cstr, const uint8_t *str, int32_t len) {
 static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
-    int32_t blen;
+    size_t blen;
     if (janet_is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
         return 1;
     }
     /* Token finished */
-    blen = (int32_t) p->bufcount;
+    blen = p->bufcount;
     int start_dig = p->buf[0] >= '0' && p->buf[0] <= '9';
     int start_num = start_dig || p->buf[0] == '-' || p->buf[0] == '+' || p->buf[0] == '.';
     if (p->buf[0] == ':') {

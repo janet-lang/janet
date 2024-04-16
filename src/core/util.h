@@ -66,18 +66,18 @@
 /* Utils */
 uint32_t janet_hash_mix(uint32_t input, uint32_t more);
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
-int janet_valid_utf8(const uint8_t *str, int32_t len);
+int janet_valid_utf8(const uint8_t *str, size_t len);
 int janet_is_symbol_char(uint8_t c);
 extern const char janet_base64[65];
-int32_t janet_array_calchash(const Janet *array, int32_t len);
-int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len);
-int32_t janet_string_calchash(const uint8_t *str, int32_t len);
-int32_t janet_tablen(int32_t n);
+int32_t janet_array_calchash(const Janet *array, size_t len);
+int32_t janet_kv_calchash(const JanetKV *kvs, size_t len);
+int32_t janet_string_calchash(const uint8_t *str, size_t len);
+size_t janet_tablen(size_t n);
 void safe_memcpy(void *dest, const void *src, size_t len);
 void janet_buffer_push_types(JanetBuffer *buffer, int types);
-const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key);
-void janet_memempty(JanetKV *mem, int32_t count);
-void *janet_memalloc_empty(int32_t count);
+const JanetKV *janet_dict_find(const JanetKV *buckets, size_t cap, Janet key);
+void janet_memempty(JanetKV *mem, size_t count);
+void *janet_memalloc_empty(size_t count);
 JanetTable *janet_get_core_table(const char *name);
 void janet_def_addflags(JanetFuncDef *def);
 const void *janet_strbinsearch(

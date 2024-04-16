@@ -279,10 +279,10 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
 
 /* Check if a symbol or keyword contains no symbol characters */
 static int contains_bad_chars(const uint8_t *sym, int issym) {
-    int32_t len = janet_string_length(sym);
+    size_t len = janet_string_length(sym);
     if (len && issym && sym[0] >= '0' && sym[0] <= '9') return 1;
     if (!janet_valid_utf8(sym, len)) return 1;
-    for (int32_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         if (!janet_is_symbol_char(sym[i])) return 1;
     }
     return 0;
@@ -536,7 +536,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         }
         case JANET_ARRAY:
         case JANET_TUPLE: {
-            int32_t i = 0, len = 0;
+            size_t i = 0, len = 0;
             const Janet *arr = NULL;
             int isarray = janet_checktype(x, JANET_ARRAY);
             janet_indexed_view(x, &arr, &len);
@@ -587,7 +587,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (NULL != proto) {
                     Janet name = janet_table_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
-                    int32_t len;
+                    size_t len;
                     if (janet_bytes_view(name, &n, &len)) {
                         if (S->flags & JANET_PRETTY_COLOR) {
                             janet_buffer_push_cstring(S->buffer, janet_class_color);
@@ -604,7 +604,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (NULL != proto) {
                     Janet name = janet_struct_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
-                    int32_t len;
+                    size_t len;
                     if (janet_bytes_view(name, &n, &len)) {
                         if (S->flags & JANET_PRETTY_COLOR) {
                             janet_buffer_push_cstring(S->buffer, janet_class_color);
@@ -623,7 +623,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (S->depth == 0) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
-                int32_t i = 0, len = 0, cap = 0;
+                size_t i = 0, len = 0, cap = 0;
                 const JanetKV *kvs = NULL;
                 janet_dictionary_view(x, &kvs, &len, &cap);
                 if (!istable && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_DICT_ONELINE)
