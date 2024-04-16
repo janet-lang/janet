@@ -626,7 +626,7 @@ static JanetByteView longest_common_prefix(void) {
         bv = gbl_matches[0];
         for (int i = 0; i < gbl_match_count; i++) {
             JanetByteView other = gbl_matches[i];
-            int32_t minlen = other.len < bv.len ? other.len : bv.len;
+            size_t minlen = other.len < bv.len ? other.len : bv.len;
             for (bv.len = 0; bv.len < minlen; bv.len++) {
                 if (bv.bytes[bv.len] != other.bytes[bv.len]) {
                     break;
@@ -691,7 +691,7 @@ static void doc_format(JanetString doc, int32_t width) {
     int32_t current = 0;
     if (maxcol > 200) maxcol = 200;
     fprintf(stderr, "    ");
-    for (int32_t i = 0; i < janet_string_length(doc); i++) {
+    for (size_t i = 0; i < janet_string_length(doc); i++) {
         uint8_t b = doc[i];
         switch (b) {
             default: {
@@ -814,13 +814,13 @@ static void kshowcomp(void) {
     check_specials(prefix);
 
     JanetByteView lcp = longest_common_prefix();
-    for (int i = prefix.len; i < lcp.len; i++) {
+    for (size_t i = prefix.len; i < lcp.len; i++) {
         insert(lcp.bytes[i], 0);
     }
 
     if (!gbl_lines_below && prefix.len != lcp.len) return;
 
-    int32_t maxlen = 0;
+    size_t maxlen = 0;
     for (int i = 0; i < gbl_match_count; i++)
         if (gbl_matches[i].len > maxlen)
             maxlen = gbl_matches[i].len;
