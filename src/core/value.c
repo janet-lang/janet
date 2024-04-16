@@ -439,16 +439,6 @@ int janet_compare(Janet x, Janet y) {
     return status - 2;
 }
 
-static int32_t getter_checkint(JanetType type, Janet key, int32_t max) {
-    if (!janet_checkint(key)) goto bad;
-    int32_t ret = janet_unwrap_integer(key);
-    if (ret < 0) goto bad;
-    if (ret >= max) goto bad;
-    return ret;
-bad:
-    janet_panicf("expected integer key for %s in range [0, %d), got %v", janet_type_names[type], max, key);
-}
-
 static size_t getter_checksize(JanetType type, Janet key, size_t max) {
     if (!janet_checksize(key)) goto bad;
     size_t ret = janet_unwrap_size(key);
