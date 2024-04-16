@@ -408,7 +408,7 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
             st->fields[i].offset = st->size;
             st->size += (uint32_t) el_size;
         } else {
-            if (el_align > st->align) st->align = (uint32_t) el_align;
+            if (el_align > (size_t) st->align) st->align = (uint32_t) el_align;
             st->fields[i].offset = (uint32_t)(((st->size + el_align - 1) / el_align) * el_align);
             st->size = (uint32_t)(el_size + st->fields[i].offset);
         }
@@ -518,11 +518,11 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
         el_type.array_count = -1;
         size_t el_size = type_size(el_type);
         JanetView els = janet_getindexed(argv, n);
-        if (els.len != type.array_count) {
+        if (els.len != (size_t) type.array_count) {
             janet_panicf("bad array length, expected %d, got %d", type.array_count, els.len);
         }
         char *cursor = to;
-        for (int32_t i = 0; i < els.len; i++) {
+        for (size_t i = 0; i < els.len; i++) {
             janet_ffi_write_one(cursor, els.items, i, el_type, recur - 1);
             cursor += el_size;
         }
@@ -541,7 +541,7 @@ static void janet_ffi_write_one(void *to, const Janet *argv, int32_t n, JanetFFI
                 janet_panicf("wrong number of fields in struct, expected %d, got %d",
                              (int32_t) st->field_count, els.len);
             }
-            for (int32_t i = 0; i < els.len; i++) {
+            for (size_t i = 0; i < els.len; i++) {
                 JanetFFIType tp = st->fields[i].type;
                 janet_ffi_write_one((char *) to + st->fields[i].offset, els.items, i, tp, recur - 1);
             }
@@ -1385,10 +1385,10 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     JanetFFIType type = decode_ffi_type(argv[0]);
-    uint32_t el_size = (uint32_t) type_size(type);
+    size_t el_size = type_size(type);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
-    int32_t index = janet_optnat(argv, argc, 3, 0);
-    int32_t old_count = buffer->count;
+    size_t index = janet_optsize(argv, argc, 3, 0);
+    size_t old_count = buffer->count;
     if (index > old_count) janet_panic("index out of bounds");
     buffer->count = index;
     janet_buffer_extra(buffer, el_size);

@@ -997,7 +997,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_PUSH_ARRAY) {
         const Janet *vals;
-        int32_t len;
+        size_t len;
         if (janet_indexed_view(stack[D], &vals, &len)) {
             janet_fiber_pushn(fiber, vals, len);
         } else {

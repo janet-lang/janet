@@ -138,7 +138,7 @@ type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, type dflt) { \
 }
 
 #define DEFINE_OPTLEN(name, NAME, type) \
-type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len) { \
+type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, size_t dflt_len) { \
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {\
         return janet_##name(dflt_len); \
     }\

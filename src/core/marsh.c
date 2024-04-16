@@ -96,7 +96,7 @@ static Janet entry_getval(Janet env_entry) {
 /* Merge values from an environment into an existing lookup table. */
 void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix, int recurse) {
     while (env) {
-        for (int32_t i = 0; i < env->capacity; i++) {
+        for (size_t i = 0; i < env->capacity; i++) {
             if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
                 if (prefix) {
                     int32_t prelen = (int32_t) strlen(prefix);
@@ -566,12 +566,11 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         }
         case JANET_ARRAY: {
-            int32_t i;
             JanetArray *a = janet_unwrap_array(x);
             MARK_SEEN();
             pushbyte(st, LB_ARRAY);
             pushint(st, a->count);
-            for (i = 0; i < a->count; i++)
+            for (size_t i = 0; i < a->count; i++)
                 marshal_one(st, a->data[i], flags + 1);
             return;
         }
@@ -596,7 +595,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushint(st, t->count);
             if (t->proto)
                 marshal_one(st, janet_wrap_table(t->proto), flags + 1);
-            for (int32_t i = 0; i < t->capacity; i++) {
+            for (size_t i = 0; i < t->capacity; i++) {
                 if (janet_checktype(t->data[i].key, JANET_NIL))
                     continue;
                 marshal_one(st, t->data[i].key, flags + 1);
@@ -612,7 +611,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             pushint(st, count);
             if (janet_struct_proto(struct_))
                 marshal_one(st, janet_wrap_struct(janet_struct_proto(struct_)), flags + 1);
-            for (int32_t i = 0; i < janet_struct_capacity(struct_); i++) {
+            for (size_t i = 0; i < janet_struct_capacity(struct_); i++) {
                 if (janet_checktype(struct_[i].key, JANET_NIL))
                     continue;
                 marshal_one(st, struct_[i].key, flags + 1);
@@ -1094,7 +1093,7 @@ static const uint8_t *unmarshal_one_fiber(
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
     }
-    for (int32_t i = 0; i < fiber->capacity; i++) {
+    for (size_t i = 0; i < fiber->capacity; i++) {
         fiber->data[i] = janet_wrap_nil();
     }
 

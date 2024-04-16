@@ -718,12 +718,12 @@ JANET_CORE_FN(janet_core_memcmp,
     janet_arity(argc, 2, 5);
     JanetByteView a = janet_getbytes(argv, 0);
     JanetByteView b = janet_getbytes(argv, 1);
-    int32_t len = janet_optnat(argv, argc, 2, a.len < b.len ? a.len : b.len);
-    int32_t offset_a = janet_optnat(argv, argc, 3, 0);
-    int32_t offset_b = janet_optnat(argv, argc, 4, 0);
+    size_t len = janet_optsize(argv, argc, 2, a.len < b.len ? a.len : b.len);
+    size_t offset_a = janet_optsize(argv, argc, 3, 0);
+    size_t offset_b = janet_optsize(argv, argc, 4, 0);
     if (offset_a + len > a.len) janet_panicf("invalid offset-a: %d", offset_a);
     if (offset_b + len > b.len) janet_panicf("invalid offset-b: %d", offset_b);
-    return janet_wrap_integer(memcmp(a.bytes + offset_a, b.bytes + offset_b, (size_t) len));
+    return janet_wrap_integer(memcmp(a.bytes + offset_a, b.bytes + offset_b, len));
 }
 
 typedef struct SandboxOption {
@@ -1339,7 +1339,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_resolve(env, janet_csymbol("make-image-dict"), &midv);
     JanetTable *lid = janet_unwrap_table(lidv);
     JanetTable *mid = janet_unwrap_table(midv);
-    for (int32_t i = 0; i < lid->capacity; i++) {
+    for (size_t i = 0; i < lid->capacity; i++) {
         const JanetKV *kv = lid->data + i;
         if (!janet_checktype(kv->key, JANET_NIL)) {
             janet_table_put(mid, kv->value, kv->key);
@@ -1357,7 +1357,7 @@ JanetTable *janet_core_lookup_table(JanetTable *replacements) {
 
     /* Add replacements */
     if (replacements != NULL) {
-        for (int32_t i = 0; i < replacements->capacity; i++) {
+        for (size_t i = 0; i < replacements->capacity; i++) {
             JanetKV kv = replacements->data[i];
             if (!janet_checktype(kv.key, JANET_NIL)) {
                 janet_table_put(dict, kv.key, kv.value);

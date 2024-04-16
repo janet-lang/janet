@@ -920,13 +920,13 @@ JANET_CORE_FN(cfun_parse_consume,
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     JanetByteView view = janet_getbytes(argv, 1);
     if (argc == 3) {
-        int32_t offset = janet_getinteger(argv, 2);
+        size_t offset = janet_getsize(argv, 2);
         if (offset < 0 || offset > view.len)
             janet_panicf("invalid offset %d out of range [0,%d]", offset, view.len);
         view.len -= offset;
         view.bytes += offset;
     }
-    int32_t i;
+    size_t i;
     for (i = 0; i < view.len; i++) {
         janet_parser_consume(p, view.bytes[i]);
         switch (janet_parser_status(p)) {
@@ -934,10 +934,10 @@ JANET_CORE_FN(cfun_parse_consume,
             case JANET_PARSE_PENDING:
                 break;
             default:
-                return janet_wrap_integer(i + 1);
+                return janet_wrap_size(i + 1);
         }
     }
-    return janet_wrap_integer(i);
+    return janet_wrap_size(i);
 }
 
 JANET_CORE_FN(cfun_parse_eof,

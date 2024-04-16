@@ -30,7 +30,7 @@
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, size_t len, const char *sourcePath, Janet *out) {
     JanetParser parser;
     int errflags = 0, done = 0;
-    int32_t index = 0;
+    size_t index = 0;
     Janet ret = janet_wrap_nil();
     JanetFiber *fiber = NULL;
     const uint8_t *where = sourcePath ? janet_cstring(sourcePath) : NULL;

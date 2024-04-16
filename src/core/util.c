@@ -302,7 +302,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, size_t cap, Janet key) {
         }
     }
     /* Lower half */
-    for (i = 0; i < index; i++) {
+    for (i = 0; i < (size_t) index; i++) {
         const JanetKV *kv = buckets + i;
         if (janet_checktype(kv->key, JANET_NIL)) {
             if (janet_checktype(kv->value, JANET_NIL)) {
@@ -847,21 +847,21 @@ JanetTable *janet_get_core_table(const char *name) {
 }
 
 /* Sort keys of a dictionary type */
-int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffer) {
+int32_t janet_sorted_keys(const JanetKV *dict, size_t cap, int32_t *index_buffer) {
 
     /* First, put populated indices into index_buffer */
-    int32_t next_index = 0;
-    for (int32_t i = 0; i < cap; i++) {
+    size_t next_index = 0;
+    for (size_t i = 0; i < cap; i++) {
         if (!janet_checktype(dict[i].key, JANET_NIL)) {
             index_buffer[next_index++] = i;
         }
     }
 
     /* Next, sort those (simple insertion sort here for now) */
-    for (int32_t i = 1; i < next_index; i++) {
+    for (size_t i = 1; i < next_index; i++) {
         int32_t index_to_insert = index_buffer[i];
         Janet lhs = dict[index_to_insert].key;
-        for (int32_t j = i - 1; j >= 0; j--) {
+        for (size_t j = i - 1; j >= 0; j--) {
             index_buffer[j + 1] = index_buffer[j];
             Janet rhs = dict[index_buffer[j]].key;
             if (janet_compare(lhs, rhs) >= 0) {

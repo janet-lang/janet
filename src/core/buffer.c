@@ -226,9 +226,8 @@ JANET_CORE_FN(cfun_buffer_frombytes,
               "(buffer/from-bytes & byte-vals)",
               "Creates a buffer from integer parameters with byte values. All integers "
               "will be coerced to the range of 1 byte 0-255.") {
-    size_t i;
     JanetBuffer *buffer = janet_buffer(argc);
-    for (i = 0; i < argc; i++) {
+    for (int32_t i = 0; i < argc; i++) {
         size_t c = janet_getsize(argv, i);
         buffer->data[i] = c & 0xFF;
     }
@@ -275,10 +274,9 @@ JANET_CORE_FN(cfun_buffer_u8,
               "(buffer/push-byte buffer & xs)",
               "Append bytes to a buffer. Will expand the buffer as necessary. "
               "Returns the modified buffer. Will throw an error if the buffer overflows.") {
-    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    for (i = 1; i < argc; i++) {
+    for (int32_t i = 1; i < argc; i++) {
         janet_buffer_push_u8(buffer, (uint8_t)(janet_getinteger(argv, i) & 0xFF));
     }
     return argv[0];
@@ -289,10 +287,9 @@ JANET_CORE_FN(cfun_buffer_word,
               "Append machine words to a buffer. The 4 bytes of the integer are appended "
               "in twos complement, little endian order, unsigned for all x. Returns the modified buffer. Will "
               "throw an error if the buffer overflows.") {
-    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    for (i = 1; i < argc; i++) {
+    for (int32_t i = 1; i < argc; i++) {
         double number = janet_getnumber(argv, i);
         uint32_t word = (uint32_t) number;
         if (word != number)
@@ -308,10 +305,9 @@ JANET_CORE_FN(cfun_buffer_chars,
               "Will accept any of strings, keywords, symbols, and buffers. "
               "Returns the modified buffer. "
               "Will throw an error if the buffer overflows.") {
-    size_t i;
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
-    for (i = 1; i < argc; i++) {
+    for (int32_t i = 1; i < argc; i++) {
         JanetByteView view = janet_getbytes(argv, i);
         if (view.bytes == buffer->data) {
             janet_buffer_ensure(buffer, buffer->count + view.len, 2);
@@ -553,7 +549,7 @@ static void bitloc(int32_t argc, Janet *argv, JanetBuffer **b, size_t *index, in
     int64_t bitindex = (int64_t) x;
     int64_t byteindex = bitindex >> 3;
     int which_bit = bitindex & 7;
-    if (bitindex != x || bitindex < 0 || byteindex >= buffer->count)
+    if (bitindex != x || bitindex < 0 || (size_t) byteindex >= buffer->count)
         janet_panicf("invalid bit index %v", argv[1]);
     *b = buffer;
     *index = (size_t) byteindex;

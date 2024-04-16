@@ -204,11 +204,11 @@ JANET_CORE_FN(cfun_io_fread,
     } else {
         buffer = janet_getbuffer(argv, 2);
     }
-    int32_t bufstart = buffer->count;
+    size_t bufstart = buffer->count;
     if (janet_checktype(argv[1], JANET_KEYWORD)) {
         const uint8_t *sym = janet_unwrap_keyword(argv[1]);
         if (!janet_cstrcmp(sym, "all")) {
-            int32_t sizeBefore;
+            size_t sizeBefore;
             do {
                 sizeBefore = buffer->count;
                 read_chunk(iof, buffer, 4096);

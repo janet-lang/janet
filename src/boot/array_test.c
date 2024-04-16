@@ -26,8 +26,6 @@
 #include "tests.h"
 
 int array_test() {
-
-    int i;
     JanetArray *array1, *array2;
 
     array1 = janet_array(10);
@@ -53,7 +51,7 @@ int array_test() {
     janet_array_push(array2, janet_cstringv("six"));
     janet_array_push(array2, janet_cstringv("seven"));
 
-    for (i = 0; i < array2->count; i++) {
+    for (size_t i = 0; i < array2->count; i++) {
         assert(janet_equals(array1->data[i], array2->data[i]));
     }
 

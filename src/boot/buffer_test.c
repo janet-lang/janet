@@ -26,8 +26,6 @@
 #include "tests.h"
 
 int buffer_test() {
-
-    int i;
     JanetBuffer *buffer1, *buffer2;
 
     buffer1 = janet_buffer(100);
@@ -54,7 +52,7 @@ int buffer_test() {
     assert(buffer1->capacity >= buffer1->count);
     assert(buffer2->capacity >= buffer2->count);
 
-    for (i = 0; i < buffer1->count; i++) {
+    for (size_t i = 0; i < buffer1->count; i++) {
         assert(buffer1->data[i] == buffer2->data[i]);
     }
 

@@ -481,7 +481,7 @@ void janet_sweep() {
 #ifdef JANET_EV
     /* Sweep threaded abstract types for references to decrement */
     JanetKV *items = janet_vm.threaded_abstracts.data;
-    for (int32_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
+    for (size_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
         if (janet_checktype(items[i].key, JANET_ABSTRACT)) {
 
             /* If item was not visited during the mark phase, then this
@@ -665,7 +665,7 @@ int janet_gcunrootall(Janet root) {
 void janet_clear_memory(void) {
 #ifdef JANET_EV
     JanetKV *items = janet_vm.threaded_abstracts.data;
-    for (int32_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
+    for (size_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
         if (janet_checktype(items[i].key, JANET_ABSTRACT)) {
             void *abst = janet_unwrap_abstract(items[i].key);
             if (0 == janet_abstract_decref(abst)) {

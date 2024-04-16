@@ -282,7 +282,7 @@ static int32_t doarg_1(
         case JANET_TUPLE: {
             const Janet *t = janet_unwrap_tuple(x);
             if (argtype == JANET_OAT_TYPE) {
-                int32_t i = 0;
+                size_t i = 0;
                 ret = 0;
                 for (i = 0; i < janet_tuple_length(t); i++) {
                     ret |= doarg_1(a, JANET_OAT_SIMPLETYPE, t[i]);
@@ -492,7 +492,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     JanetAssembler a;
     Janet s = source;
     JanetFuncDef *def;
-    int32_t count, i;
+    size_t count, i;
     const Janet *arr;
     Janet x;
     (void) flags;
@@ -578,8 +578,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             Janet v = arr[i];
             if (janet_checktype(v, JANET_TUPLE)) {
                 const Janet *t = janet_unwrap_tuple(v);
-                int32_t j;
-                for (j = 0; j < janet_tuple_length(t); j++) {
+                for (size_t j = 0; j < janet_tuple_length(t); j++) {
                     if (!janet_checktype(t[j], JANET_SYMBOL))
                         janet_asm_error(&a, "slot names must be symbols");
                     janet_table_put(&a.slots, t[j], janet_wrap_integer(i));
@@ -615,8 +614,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         x = janet_get1(s, janet_ckeywordv("defs"));
     }
     if (janet_indexed_view(x, &arr, &count)) {
-        int32_t i;
-        for (i = 0; i < count; i++) {
+        for (size_t i = 0; i < count; i++) {
             JanetAssembleResult subres;
             Janet subname;
             int32_t newlen;
@@ -701,7 +699,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     /* Check for source mapping */
     x = janet_get1(s, janet_ckeywordv("sourcemap"));
     if (janet_indexed_view(x, &arr, &count)) {
-        janet_asm_assert(&a, count == def->bytecode_length, "sourcemap must have the same length as the bytecode");
+        janet_asm_assert(&a, count == (size_t) def->bytecode_length, "sourcemap must have the same length as the bytecode");
         def->sourcemap = janet_malloc(sizeof(JanetSourceMapping) * (size_t) count);
         if (NULL == def->sourcemap) {
             JANET_OUT_OF_MEMORY;
@@ -775,7 +773,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         if (def->environments_length) {
             def->environments = janet_realloc(def->environments, def->environments_length * sizeof(int32_t));
         }
-        for (int32_t i = 0; i < count; i++) {
+        for (size_t i = 0; i < count; i++) {
             if (!janet_checkint(arr[i])) {
                 janet_asm_error(&a, "expected integer");
             }

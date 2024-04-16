@@ -327,7 +327,7 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
 #else
     char **envp = janet_smalloc(sizeof(char *) * ((size_t)dict.len + 1));
     int32_t j = 0;
-    for (int32_t i = 0; i < dict.cap; i++) {
+    for (size_t i = 0; i < dict.cap; i++) {
         const JanetKV *kv = dict.kvs + i;
         if (!janet_checktype(kv->key, JANET_STRING)) continue;
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
@@ -1247,7 +1247,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     int status = 0;
 
     const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
-    for (int32_t i = 0; i < exargs.len; i++)
+    for (size_t i = 0; i < exargs.len; i++)
         child_argv[i] = janet_getcstring(exargs.items, i);
     child_argv[exargs.len] = NULL;
     /* Coerce to form that works for spawn. I'm fairly confident no implementation

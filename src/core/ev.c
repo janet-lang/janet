@@ -1011,7 +1011,7 @@ JANET_CORE_FN(cfun_channel_pop,
 
 static void chan_unlock_args(const Janet *argv, int32_t n) {
     for (int32_t i = 0; i < n; i++) {
-        int32_t len;
+        size_t len;
         const Janet *data;
         JanetChannel *chan;
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
@@ -1036,7 +1036,7 @@ JANET_CORE_FN(cfun_channel_choice,
               "channel was closed while waiting, or that the channel was already "
               "closed.") {
     janet_arity(argc, 1, -1);
-    int32_t len;
+    size_t len;
     const Janet *data;
 
     /* Check channels for immediate reads and writes */
@@ -3185,7 +3185,7 @@ JANET_CORE_FN(janet_cfun_ev_all_tasks,
     janet_fixarity(argc, 0);
     (void) argv;
     JanetArray *array = janet_array(janet_vm.active_tasks.count);
-    for (int32_t i = 0; i < janet_vm.active_tasks.capacity; i++) {
+    for (size_t i = 0; i < janet_vm.active_tasks.capacity; i++) {
         if (!janet_checktype(janet_vm.active_tasks.data[i].key, JANET_NIL)) {
             janet_array_push(array, janet_vm.active_tasks.data[i].key);
         }

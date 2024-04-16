@@ -924,11 +924,11 @@ struct JanetGCObject {
 struct JanetFiber {
     JanetGCObject gc; /* GC Object stuff */
     int32_t flags; /* More flags */
-    int32_t frame; /* Index of the stack frame */
-    int32_t stackstart; /* Beginning of next args */
-    int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
+    size_t frame; /* Index of the stack frame */
+    size_t stackstart; /* Beginning of next args */
+    size_t stacktop; /* Top of stack. Where values are pushed and popped from. */
     size_t capacity; /* How big is the stack memory */
-    int32_t maxstack; /* Arbitrary defined limit for stack overflow */
+    size_t maxstack; /* Arbitrary defined limit for stack overflow */
     JanetTable *env; /* Dynamic bindings table (usually current environment). */
     Janet *data; /* Dynamically resized stack memory */
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
@@ -1658,7 +1658,7 @@ JANET_API JanetString janet_string(const uint8_t *buf, size_t len);
 JANET_API JanetString janet_cstring(const char *cstring);
 JANET_API int janet_string_compare(JanetString lhs, JanetString rhs);
 JANET_API int janet_string_equal(JanetString lhs, JanetString rhs);
-JANET_API int janet_string_equalconst(JanetString lhs, const uint8_t *rhs, size_t rlen, size_t rhash);
+JANET_API int janet_string_equalconst(JanetString lhs, const uint8_t *rhs, size_t rlen, int32_t rhash);
 JANET_API JanetString janet_description(Janet x);
 JANET_API JanetString janet_to_string(Janet x);
 JANET_API void janet_to_string_b(JanetBuffer *buffer, Janet x);
@@ -1808,13 +1808,13 @@ JANET_API Janet janet_getindex(Janet ds, size_t index);
 JANET_API size_t janet_length(Janet x);
 JANET_API Janet janet_lengthv(Janet x);
 JANET_API void janet_put(Janet ds, Janet key, Janet value);
-JANET_API void janet_putindex(Janet ds, int32_t index, Janet value);
+JANET_API void janet_putindex(Janet ds, size_t index, Janet value);
 #define janet_flag_at(F, I) ((F) & ((1ULL) << (I)))
 JANET_API Janet janet_wrap_number_safe(double x);
 JANET_API int janet_keyeq(Janet x, const char *cstring);
 JANET_API int janet_streq(Janet x, const char *cstring);
 JANET_API int janet_symeq(Janet x, const char *cstring);
-JANET_API int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffer);
+JANET_API int32_t janet_sorted_keys(const JanetKV *dict, size_t cap, int32_t *index_buffer);
 
 /* VM functions */
 JANET_API int janet_init(void);
@@ -2051,9 +2051,9 @@ JANET_API size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_
 JANET_API JanetAbstract janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, JanetAbstract dflt);
 
 /* Mutable optional types specify a size default, and construct a new value if none is provided */
-JANET_API JanetBuffer *janet_optbuffer(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len);
-JANET_API JanetTable *janet_opttable(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len);
-JANET_API JanetArray *janet_optarray(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len);
+JANET_API JanetBuffer *janet_optbuffer(const Janet *argv, int32_t argc, int32_t n, size_t dflt_len);
+JANET_API JanetTable *janet_opttable(const Janet *argv, int32_t argc, int32_t n, size_t dflt_len);
+JANET_API JanetArray *janet_optarray(const Janet *argv, int32_t argc, int32_t n, size_t dflt_len);
 
 JANET_API Janet janet_dyn(const char *name);
 JANET_API void janet_setdyn(const char *name, Janet value);

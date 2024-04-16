@@ -96,9 +96,8 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
                             : JOP_MAKE_TUPLE);
         }
         case JANET_ARRAY: {
-            int32_t i;
             JanetArray *array = janet_unwrap_array(x);
-            for (i = 0; i < array->count; i++)
+            for (size_t i = 0; i < array->count; i++)
                 janet_v_push(slots, quasiquote(subopts, array->data[i], depth - 1, level));
             return qq_slots(opts, slots, JOP_MAKE_ARRAY);
         }

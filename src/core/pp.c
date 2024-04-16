@@ -391,7 +391,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetTuple t = janet_unwrap_tuple(x);
             int isb = janet_tuple_flag(t) & JANET_TUPLE_FLAG_BRACKETCTOR;
             janet_buffer_push_u8(S->buffer, isb ? '[' : '(');
-            for (int32_t i = 0; i < janet_tuple_length(t); i++) {
+            for (size_t i = 0; i < janet_tuple_length(t); i++) {
                 if (i) janet_buffer_push_u8(S->buffer, ' ');
                 if (print_jdn_one(S, t[i], depth - 1)) return 1;
             }
@@ -402,7 +402,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             janet_table_put(&S->seen, x, janet_wrap_true());
             JanetArray *a = janet_unwrap_array(x);
             janet_buffer_push_cstring(S->buffer, "@[");
-            for (int32_t i = 0; i < a->count; i++) {
+            for (size_t i = 0; i < a->count; i++) {
                 if (i) janet_buffer_push_u8(S->buffer, ' ');
                 if (print_jdn_one(S, a->data[i], depth - 1)) return 1;
             }
@@ -414,7 +414,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetTable *tab = janet_unwrap_table(x);
             janet_buffer_push_cstring(S->buffer, "@{");
             int isFirst = 1;
-            for (int32_t i = 0; i < tab->capacity; i++) {
+            for (size_t i = 0; i < tab->capacity; i++) {
                 const JanetKV *kv = tab->data + i;
                 if (janet_checktype(kv->key, JANET_NIL)) continue;
                 if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');
@@ -430,7 +430,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetStruct st = janet_unwrap_struct(x);
             janet_buffer_push_u8(S->buffer, '{');
             int isFirst = 1;
-            for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+            for (size_t i = 0; i < janet_struct_capacity(st); i++) {
                 const JanetKV *kv = st + i;
                 if (janet_checktype(kv->key, JANET_NIL)) continue;
                 if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');

@@ -201,7 +201,7 @@ JANET_CORE_FN(cfun_array_push,
               "Push all the elements of xs to the end of an array. Modifies the input array and returns it.") {
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    if (JANET_INTMAX_INT64 - argc + 1 <= array->count) {
+    if ((size_t) JANET_INTMAX_INT64 - argc + 1 <= array->count) {
         janet_panic("array overflow");
     }
     size_t newcount = array->count - 1 + argc;
@@ -248,10 +248,9 @@ JANET_CORE_FN(cfun_array_concat,
               "which must be an array. If any of the parts are arrays or tuples, their elements will "
               "be inserted into the array. Otherwise, each part in `parts` will be appended to `arr` in order. "
               "Return the modified array `arr`.") {
-    size_t i;
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    for (i = 1; i < argc; i++) {
+    for (int32_t i = 1; i < argc; i++) {
         switch (janet_type(argv[i])) {
             default:
                 janet_array_push(array, argv[i]);
@@ -284,15 +283,15 @@ JANET_CORE_FN(cfun_array_insert,
     size_t chunksize, restsize;
     janet_arity(argc, 2, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    size_t at = janet_getinteger(argv, 1);
+    int32_t at = janet_getinteger(argv, 1);
     if (at < 0) {
         at = array->count + at + 1;
     }
-    if (at < 0 || at > array->count)
+    if (at < 0 || (size_t) at > array->count)
         janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
     chunksize = (argc - 2) * sizeof(Janet);
     restsize = (array->count - at) * sizeof(Janet);
-    if (JANET_INTMAX_INT64 - (argc - 2) < array->count) {
+    if ((size_t) JANET_INTMAX_INT64 - (argc - 2) < array->count) {
         janet_panic("array overflow");
     }
     janet_array_ensure(array, array->count + argc - 2, 2);
@@ -314,15 +313,15 @@ JANET_CORE_FN(cfun_array_remove,
               "Returns the array.") {
     janet_arity(argc, 2, 3);
     JanetArray *array = janet_getarray(argv, 0);
-    size_t at = janet_getinteger(argv, 1);
+    int32_t at = janet_getinteger(argv, 1);
     size_t n = 1;
     if (at < 0) {
         at = array->count + at;
     }
-    if (at < 0 || at > array->count)
+    if (at < 0 || (size_t) at > array->count)
         janet_panicf("removal index %d out of range [0,%d]", at, array->count);
     if (argc == 3) {
-        n = janet_getinteger(argv, 2);
+        n = janet_getsize(argv, 2);
         if (n < 0)
             janet_panicf("expected non-negative integer for argument n, got %v", argv[2]);
     }

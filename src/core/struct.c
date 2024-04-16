@@ -54,7 +54,7 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
     for (i = index; i < cap; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
-    for (i = 0; i < index; i++)
+    for (i = 0; i < (size_t) index; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
     return NULL;
@@ -77,7 +77,7 @@ void janet_struct_put_ext(JanetKV *st, Janet key, Janet value, int replace) {
     if (janet_checktype(key, JANET_NIL) || janet_checktype(value, JANET_NIL)) return;
     if (janet_checktype(key, JANET_NUMBER) && isnan(janet_unwrap_number(key))) return;
     /* Avoid extra items */
-    if (janet_struct_hash(st) == janet_struct_length(st)) return;
+    if ((size_t) janet_struct_hash(st) == janet_struct_length(st)) return;
     for (dist = 0, j = 0; j < 4; j += 2)
         for (i = bounds[j]; i < bounds[j + 1]; i++, dist++) {
             int status;
@@ -138,7 +138,7 @@ void janet_struct_put(JanetKV *st, Janet key, Janet value) {
 
 /* Finish building a struct */
 const JanetKV *janet_struct_end(JanetKV *st) {
-    if (janet_struct_hash(st) != janet_struct_length(st)) {
+    if ((size_t) janet_struct_hash(st) != janet_struct_length(st)) {
         /* Error building struct, probably duplicate values. We need to rebuild
          * the struct using only the values that went in. The second creation should always
          * succeed. */

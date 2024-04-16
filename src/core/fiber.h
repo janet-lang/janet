@@ -70,7 +70,7 @@
 
 #define janet_stack_frame(s) ((JanetStackFrame *)((s) - JANET_FRAME_SIZE))
 #define janet_fiber_frame(f) janet_stack_frame((f)->data + (f)->frame)
-void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n);
+void janet_fiber_setcapacity(JanetFiber *fiber, size_t n);
 void janet_fiber_push(JanetFiber *fiber, Janet x);
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y);
 void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z);

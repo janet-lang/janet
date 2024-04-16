@@ -92,8 +92,8 @@ const uint8_t *janet_cstring(const char *str) {
 /* Knuth Morris Pratt Algorithm */
 
 struct kmp_state {
-    int32_t i;
-    int32_t j;
+    size_t i;
+    size_t j;
     size_t textlen;
     size_t patlen;
     int32_t *lookup;
@@ -121,7 +121,8 @@ static void kmp_init(
     s->patlen = patlen;
     /* Init state machine */
     {
-        int32_t i, j;
+        size_t i;
+        int32_t j;
         for (i = 1, j = 0; i < patlen; i++) {
             while (j && pat[j] != pat[i]) j = lookup[j - 1];
             if (pat[j] == pat[i]) j++;
@@ -140,8 +141,8 @@ static void kmp_seti(struct kmp_state *state, int32_t i) {
 }
 
 static int32_t kmp_next(struct kmp_state *state) {
-    int32_t i = state->i;
-    int32_t j = state->j;
+    size_t i = state->i;
+    size_t j = state->j;
     size_t textlen = state->textlen;
     size_t patlen = state->patlen;
     const uint8_t *text = state->text;
@@ -270,7 +271,7 @@ JANET_CORE_FN(cfun_string_asciiupper,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    for (int32_t i = 0; i < view.len; i++) {
+    for (size_t i = 0; i < view.len; i++) {
         uint8_t c = view.bytes[i];
         if (c >= 97 && c <= 122) {
             buf[i] = c - 32;
@@ -287,7 +288,7 @@ JANET_CORE_FN(cfun_string_reverse,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    int32_t i, j;
+    size_t i, j;
     for (i = 0, j = view.len - 1; i < view.len; i++, j--) {
         buf[i] = view.bytes[j];
     }
@@ -474,13 +475,13 @@ JANET_CORE_FN(cfun_string_checkset,
     JanetByteView set = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
     /* Populate set */
-    for (int32_t i = 0; i < set.len; i++) {
+    for (size_t i = 0; i < set.len; i++) {
         int index = set.bytes[i] >> 5;
         uint32_t mask = 1 << (set.bytes[i] & 0x1F);
         bitset[index] |= mask;
     }
     /* Check set */
-    for (int32_t i = 0; i < str.len; i++) {
+    for (size_t i = 0; i < str.len; i++) {
         int index = str.bytes[i] >> 5;
         uint32_t mask = 1 << (str.bytes[i] & 0x1F);
         if (!(bitset[index] & mask)) {
