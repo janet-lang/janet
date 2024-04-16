@@ -340,6 +340,14 @@ size_t janet_getsize(const Janet *argv, int32_t n) {
     return (size_t) janet_unwrap_number(x);
 }
 
+ssize_t janet_getssize(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkssize(x)) {
+        janet_panicf("bad slot #%d, expected ssize, got %v", n, x);
+    }
+    return (ssize_t) janet_unwrap_number(x);
+}
+
 int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
     int32_t raw = janet_getinteger(argv, n);
     int32_t not_raw = raw;
@@ -490,6 +498,12 @@ size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_t dflt) {
     if (argc <= n) return dflt;
     if (janet_checktype(argv[n], JANET_NIL)) return dflt;
     return janet_getsize(argv, n);
+}
+
+ssize_t janet_optssize(const Janet *argv, int32_t argc, int32_t n, ssize_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getssize(argv, n);
 }
 
 void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, void *dflt) {

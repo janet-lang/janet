@@ -148,6 +148,13 @@ extern "C" {
 #define JANET_INTMIN_DOUBLE (-9007199254740992.0)
 #define JANET_INTMAX_INT64 9007199254740992
 #define JANET_INTMIN_INT64 (-9007199254740992)
+#if defined(JANET_64)
+    #define JANET_INTMAX_SIZE JANET_INTMAX_INT64
+    #define JANET_INTMIN_SIZE JANET_INTMIN_INT64
+#else
+    #define JANET_INTMAX_SIZE 4294967295
+    #define JANET_INTMIN_SIZE (-4294967295)
+#endif
 
 /* Check emscripten */
 #ifdef __EMSCRIPTEN__
@@ -371,6 +378,9 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 #include <setjmp.h>
 #include <stddef.h>
 #include <stdio.h>
+
+/* signed size */
+typedef ptrdiff_t ssize_t;
 
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
@@ -895,16 +905,20 @@ JANET_API int janet_checkuint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
+JANET_API int janet_checkssize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
 #define janet_checkuintrange(x) ((x) >= 0 && (x) <= UINT32_MAX && (x) == (uint32_t)(x))
 #define janet_checkint64range(x) ((x) >= JANET_INTMIN_DOUBLE && (x) <= JANET_INTMAX_DOUBLE && (x) == (int64_t)(x))
 #define janet_checkuint64range(x) ((x) >= 0 && (x) <= JANET_INTMAX_DOUBLE && (x) == (uint64_t)(x))
-#define janet_checksizerange(x) ((x) >= 0 && (x) <= JANET_INTMAX_INT64 && (x) == (size_t)(x))
+#define janet_checksizerange(x) ((x) >= 0 && (x) <= JANET_INTMAX_SIZE && (x) == (size_t)(x))
+#define janet_checkssizerange(x) ((x) >= JANET_INTMIN_SIZE && (x) <= JANET_INTMAX_SIZE && (x) == (ssize_t)(x))
 #define janet_unwrap_integer(x) ((int32_t) janet_unwrap_number(x))
 #define janet_wrap_integer(x) janet_wrap_number((int32_t)(x))
 #define janet_unwrap_size(x) ((size_t) janet_unwrap_number(x))
 #define janet_wrap_size(x) janet_wrap_number((size_t)(x))
+#define janet_unwrap_ssize(x) ((ssize_t) janet_unwrap_number(x))
+#define janet_wrap_ssize(x) janet_wrap_number((ssize_t)(x))
 
 #define janet_checktypes(x, tps) ((1 << janet_type(x)) & (tps))
 
@@ -2019,6 +2033,7 @@ JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
 JANET_API uint64_t janet_getuinteger64(const Janet *argv, int32_t n);
 JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
+JANET_API ssize_t janet_getssize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);
 JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);
 JANET_API JanetDictView janet_getdictionary(const Janet *argv, int32_t n);
@@ -2048,6 +2063,7 @@ JANET_API int32_t janet_optnat(const Janet *argv, int32_t argc, int32_t n, int32
 JANET_API int32_t janet_optinteger(const Janet *argv, int32_t argc, int32_t n, int32_t dflt);
 JANET_API int64_t janet_optinteger64(const Janet *argv, int32_t argc, int32_t n, int64_t dflt);
 JANET_API size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_t dflt);
+JANET_API ssize_t janet_optssize(const Janet *argv, int32_t argc, int32_t n, ssize_t dflt);
 JANET_API JanetAbstract janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, JanetAbstract dflt);
 
 /* Mutable optional types specify a size default, and construct a new value if none is provided */
