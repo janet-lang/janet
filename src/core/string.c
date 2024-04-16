@@ -583,7 +583,7 @@ static int32_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
 }
 
 static int32_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
-    for (size_t i = str.len - 1; i >= 0; i--)
+    for (size_t i = str.len - 1; i > 0; i--)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i + 1;
     return 0;

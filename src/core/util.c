@@ -861,7 +861,7 @@ int32_t janet_sorted_keys(const JanetKV *dict, size_t cap, int32_t *index_buffer
     for (size_t i = 1; i < next_index; i++) {
         int32_t index_to_insert = index_buffer[i];
         Janet lhs = dict[index_to_insert].key;
-        for (size_t j = i - 1; j >= 0; j--) {
+        for (size_t j = i - 1; j > 0; j--) {
             index_buffer[j + 1] = index_buffer[j];
             Janet rhs = dict[index_buffer[j]].key;
             if (janet_compare(lhs, rhs) >= 0) {

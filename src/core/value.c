@@ -179,7 +179,7 @@ Janet janet_next_impl(Janet ds, Janet key, int is_interpreter) {
             } else {
                 len = janet_string_length(janet_unwrap_string(ds));
             }
-            if (i < len && i >= 0) {
+            if (i < len) {
                 return janet_wrap_size(i);
             }
             break;
@@ -530,7 +530,6 @@ Janet janet_get(Janet ds, Janet key) {
         case JANET_KEYWORD: {
             if (!janet_checksize(key)) return janet_wrap_nil();
             size_t index = janet_unwrap_size(key);
-            if (index < 0) return janet_wrap_nil();
             const uint8_t *str = janet_unwrap_string(ds);
             if (index >= janet_string_length(str)) return janet_wrap_nil();
             return janet_wrap_integer(str[index]);
@@ -549,7 +548,6 @@ Janet janet_get(Janet ds, Janet key) {
         case JANET_BUFFER: {
             if (!janet_checkint(key)) return janet_wrap_nil();
             size_t index = janet_unwrap_size(key);
-            if (index < 0) return janet_wrap_nil();
             if (t == JANET_ARRAY) {
                 JanetArray *a = janet_unwrap_array(ds);
                 if (index >= a->count) return janet_wrap_nil();
@@ -584,7 +582,6 @@ Janet janet_get(Janet ds, Janet key) {
 
 Janet janet_getindex(Janet ds, size_t index) {
     Janet value;
-    if (index < 0) janet_panic("expected non-negative index");
     switch (janet_type(ds)) {
         default:
             janet_panicf("expected %T, got %v", JANET_TFLAG_LENGTHABLE, ds);

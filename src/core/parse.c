@@ -921,7 +921,7 @@ JANET_CORE_FN(cfun_parse_consume,
     JanetByteView view = janet_getbytes(argv, 1);
     if (argc == 3) {
         size_t offset = janet_getsize(argv, 2);
-        if (offset < 0 || offset > view.len)
+        if (offset > view.len)
             janet_panicf("invalid offset %d out of range [0,%d]", offset, view.len);
         view.len -= offset;
         view.bytes += offset;

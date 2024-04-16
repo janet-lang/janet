@@ -62,7 +62,6 @@ JanetBuffer *janet_buffer_init(JanetBuffer *buffer, size_t capacity) {
 
 /* Initialize an unmanaged buffer */
 JanetBuffer *janet_pointer_buffer_unsafe(void *memory, size_t capacity, size_t count) {
-    if (count < 0) janet_panic("count < 0");
     if (capacity < count) janet_panic("capacity < count");
     JanetBuffer *buffer = janet_gcalloc(JANET_MEMORY_BUFFER, sizeof(JanetBuffer));
     buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
@@ -104,8 +103,6 @@ void janet_buffer_ensure(JanetBuffer *buffer, size_t capacity, size_t growth) {
 
 /* Ensure that the buffer has enough internal capacity */
 void janet_buffer_setcount(JanetBuffer *buffer, size_t count) {
-    if (count < 0)
-        return;
     if (count > buffer->count) {
         size_t oldcount = buffer->count;
         janet_buffer_ensure(buffer, count, 1);
@@ -210,7 +207,6 @@ JANET_CORE_FN(cfun_buffer_new_filled,
               "Returns the new buffer.") {
     janet_arity(argc, 1, 2);
     size_t count = janet_getsize(argv, 0);
-    if (count < 0) count = 0;
     int32_t byte = 0;
     if (argc == 2) {
         byte = janet_getinteger(argv, 1) & 0xFF;
@@ -478,7 +474,7 @@ JANET_CORE_FN(cfun_buffer_push_at,
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     size_t index = janet_getsize(argv, 1);
     size_t old_count = buffer->count;
-    if (index < 0 || index > old_count) {
+    if (index > old_count) {
         janet_panicf("index out of range [0, %d)", old_count);
     }
     buffer->count = index;
@@ -518,7 +514,6 @@ JANET_CORE_FN(cfun_buffer_popn,
     janet_fixarity(argc, 2);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     size_t n = janet_getsize(argv, 1);
-    if (n < 0) janet_panic("n must be non-negative");
     if (buffer->count < n) {
         buffer->count = 0;
     } else {
@@ -620,7 +615,6 @@ JANET_CORE_FN(cfun_buffer_blit,
         if (!janet_checktype(argv[4], JANET_NIL))
             src_end = janet_gethalfrange(argv, 4, src.len, "src-end");
         length_src = src_end - offset_src;
-        if (length_src < 0) length_src = 0;
     } else {
         length_src = src.len - offset_src;
     }

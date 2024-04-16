@@ -90,8 +90,6 @@ void janet_array_ensure(JanetArray *array, size_t capacity, size_t growth) {
 
 /* Set the count of an array. Extend with nil if needed. */
 void janet_array_setcount(JanetArray *array, size_t count) {
-    if (count < 0)
-        return;
     if (count > array->count) {
         size_t i;
         janet_array_ensure(array, count, 1);
@@ -104,7 +102,7 @@ void janet_array_setcount(JanetArray *array, size_t count) {
 
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
-    if (array->count == INT32_MAX) {
+    if (array->count == JANET_INTMAX_INT64) {
         janet_panic("array overflow");
     }
     size_t newcount = array->count + 1;
@@ -322,8 +320,6 @@ JANET_CORE_FN(cfun_array_remove,
         janet_panicf("removal index %d out of range [0,%d]", at, array->count);
     if (argc == 3) {
         n = janet_getsize(argv, 2);
-        if (n < 0)
-            janet_panicf("expected non-negative integer for argument n, got %v", argv[2]);
     }
     if (at + n > array->count) {
         n = array->count - at;
