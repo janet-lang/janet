@@ -49,12 +49,12 @@ JanetKV *janet_struct_begin(size_t count) {
  * specialized to structs (slightly more compact). */
 const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
     size_t cap = janet_struct_capacity(st);
-    int32_t index = janet_maphash(cap, janet_hash(key));
+    size_t index = (size_t) janet_maphash(cap, janet_hash(key));
     size_t i;
     for (i = index; i < cap; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
-    for (i = 0; i < (size_t) index; i++)
+    for (i = 0; i < index; i++)
         if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
             return st + i;
     return NULL;
@@ -71,9 +71,9 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
 void janet_struct_put_ext(JanetKV *st, Janet key, Janet value, int replace) {
     size_t cap = janet_struct_capacity(st);
     int32_t hash = janet_hash(key);
-    int32_t index = janet_maphash(cap, hash);
-    int32_t i, j, dist;
-    int32_t bounds[4] = {index, cap, 0, index};
+    size_t index = (size_t) janet_maphash(cap, hash);
+    size_t i, j, dist;
+    size_t bounds[4] = {index, cap, 0, index};
     if (janet_checktype(key, JANET_NIL) || janet_checktype(value, JANET_NIL)) return;
     if (janet_checktype(key, JANET_NUMBER) && isnan(janet_unwrap_number(key))) return;
     /* Avoid extra items */
@@ -82,7 +82,7 @@ void janet_struct_put_ext(JanetKV *st, Janet key, Janet value, int replace) {
         for (i = bounds[j]; i < bounds[j + 1]; i++, dist++) {
             int status;
             int32_t otherhash;
-            int32_t otherindex, otherdist;
+            size_t otherindex, otherdist;
             JanetKV *kv = st + i;
             /* We found an empty slot, so just add key and value */
             if (janet_checktype(kv->key, JANET_NIL)) {
@@ -99,7 +99,7 @@ void janet_struct_put_ext(JanetKV *st, Janet key, Janet value, int replace) {
              * will compare properly - i.e., {1 2 3 4} should equal {3 4 1 2}.
              * Collisions are resolved via an insertion sort insertion. */
             otherhash = janet_hash(kv->key);
-            otherindex = janet_maphash(cap, otherhash);
+            otherindex = (size_t) janet_maphash(cap, otherhash);
             otherdist = (i + cap - otherindex) & (cap - 1);
             if (dist < otherdist)
                 status = -1;
@@ -237,18 +237,18 @@ JANET_CORE_FN(cfun_struct_flatten,
     JanetStruct st = janet_getstruct(argv, 0);
 
     /* get an upper bounds on the number of items in the final struct */
-    int64_t pair_count = 0;
+    size_t pair_count = 0;
     JanetStruct cursor = st;
     while (cursor) {
         pair_count += janet_struct_length(cursor);
         cursor = janet_struct_proto(cursor);
     }
 
-    if (pair_count > JANET_INTMAX_INT64) {
+    if (pair_count > JANET_INTMAX_SIZE) {
         janet_panic("struct too large");
     }
 
-    JanetKV *accum = janet_struct_begin((size_t) pair_count);
+    JanetKV *accum = janet_struct_begin(pair_count);
     cursor = st;
     while (cursor) {
         for (size_t i = 0; i < janet_struct_capacity(cursor); i++) {

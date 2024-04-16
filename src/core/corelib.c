@@ -92,7 +92,7 @@ static const char *janet_dyncstring(const char *name, const char *dflt) {
     }
     const uint8_t *jstr = janet_unwrap_string(x);
     const char *cstr = (const char *)jstr;
-    if (strlen(cstr) != (size_t) janet_string_length(jstr)) {
+    if (strlen(cstr) != janet_string_length(jstr)) {
         janet_panicf("string %v contains embedded 0s", x);
     }
     return cstr;

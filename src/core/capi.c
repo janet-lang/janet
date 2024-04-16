@@ -232,19 +232,19 @@ const char *janet_getcbytes(const Janet *argv, int32_t n) {
             char *new_string = janet_smalloc(b->count + 1);
             memcpy(new_string, b->data, b->count);
             new_string[b->count] = 0;
-            if (strlen(new_string) != (size_t) b->count) goto badzeros;
+            if (strlen(new_string) != b->count) goto badzeros;
             return new_string;
         } else {
             /* Ensure trailing 0 */
             janet_buffer_push_u8(b, 0);
             b->count--;
-            if (strlen((char *)b->data) != (size_t) b->count) goto badzeros;
+            if (strlen((char *)b->data) != b->count) goto badzeros;
             return (const char *) b->data;
         }
     }
     JanetByteView view = janet_getbytes(argv, n);
     const char *cstr = (const char *)view.bytes;
-    if (strlen(cstr) != (size_t) view.len) goto badzeros;
+    if (strlen(cstr) != view.len) goto badzeros;
     return cstr;
 
 badzeros:
@@ -337,7 +337,7 @@ size_t janet_getsize(const Janet *argv, int32_t n) {
     if (!janet_checksize(x)) {
         janet_panicf("bad slot #%d, expected size, got %v", n, x);
     }
-    return (size_t) janet_unwrap_number(x);
+    return janet_unwrap_size(x);
 }
 
 ssize_t janet_getssize(const Janet *argv, int32_t n) {
@@ -345,7 +345,7 @@ ssize_t janet_getssize(const Janet *argv, int32_t n) {
     if (!janet_checkssize(x)) {
         janet_panicf("bad slot #%d, expected ssize, got %v", n, x);
     }
-    return (ssize_t) janet_unwrap_number(x);
+    return janet_unwrap_ssize(x);
 }
 
 int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {

@@ -32,7 +32,7 @@
 
 static void *janet_memalloc_empty_local(size_t count) {
     size_t i;
-    void *mem = janet_smalloc((size_t) count * sizeof(JanetKV));
+    void *mem = janet_smalloc(count * sizeof(JanetKV));
     JanetKV *mmem = (JanetKV *)mem;
     for (i = 0; i < count; i++) {
         JanetKV *kv = mmem + i;

@@ -380,7 +380,11 @@ typedef struct JanetOSRWLock JanetOSRWLock;
 #include <stdio.h>
 
 /* signed size */
+#ifdef _SSIZE_T
+typedef ssize_t ssize_t;
+#else
 typedef ptrdiff_t ssize_t;
+#endif
 
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY

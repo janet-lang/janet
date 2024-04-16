@@ -77,7 +77,7 @@ void janet_array_ensure(JanetArray *array, size_t capacity, size_t growth) {
     Janet *old = array->data;
     if (capacity <= array->capacity) return;
     size_t new_capacity = (capacity) * growth;
-    if (new_capacity > JANET_INTMAX_INT64) new_capacity = JANET_INTMAX_INT64;
+    if (new_capacity > JANET_INTMAX_SIZE) new_capacity = JANET_INTMAX_SIZE;
     capacity = new_capacity;
     newData = janet_realloc(old, capacity * sizeof(Janet));
     if (NULL == newData) {
@@ -102,7 +102,7 @@ void janet_array_setcount(JanetArray *array, size_t count) {
 
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
-    if (array->count == JANET_INTMAX_INT64) {
+    if (array->count == JANET_INTMAX_SIZE) {
         janet_panic("array overflow");
     }
     size_t newcount = array->count + 1;
@@ -199,7 +199,7 @@ JANET_CORE_FN(cfun_array_push,
               "Push all the elements of xs to the end of an array. Modifies the input array and returns it.") {
     janet_arity(argc, 1, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    if ((size_t) JANET_INTMAX_INT64 - argc + 1 <= array->count) {
+    if ((size_t) JANET_INTMAX_SIZE - argc + 1 <= array->count) {
         janet_panic("array overflow");
     }
     size_t newcount = array->count - 1 + argc;
@@ -281,15 +281,15 @@ JANET_CORE_FN(cfun_array_insert,
     size_t chunksize, restsize;
     janet_arity(argc, 2, -1);
     JanetArray *array = janet_getarray(argv, 0);
-    int32_t at = janet_getinteger(argv, 1);
+    ssize_t at = janet_getssize(argv, 1);
     if (at < 0) {
         at = array->count + at + 1;
     }
     if (at < 0 || (size_t) at > array->count)
-        janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
+      janet_panicf("insertion index %d out of range [0,%d]", at, array->count);
     chunksize = (argc - 2) * sizeof(Janet);
     restsize = (array->count - at) * sizeof(Janet);
-    if ((size_t) JANET_INTMAX_INT64 - (argc - 2) < array->count) {
+    if ((size_t) JANET_INTMAX_SIZE - (argc - 2) < array->count) {
         janet_panic("array overflow");
     }
     janet_array_ensure(array, array->count + argc - 2, 2);
@@ -311,7 +311,7 @@ JANET_CORE_FN(cfun_array_remove,
               "Returns the array.") {
     janet_arity(argc, 2, 3);
     JanetArray *array = janet_getarray(argv, 0);
-    int32_t at = janet_getinteger(argv, 1);
+    ssize_t at = janet_getssize(argv, 1);
     size_t n = 1;
     if (at < 0) {
         at = array->count + at;

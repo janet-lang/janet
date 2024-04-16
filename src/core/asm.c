@@ -595,7 +595,7 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     x = janet_get1(s, janet_ckeywordv("constants"));
     if (janet_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
-        def->constants = janet_malloc(sizeof(Janet) * (size_t) count);
+        def->constants = janet_malloc(sizeof(Janet) * count);
         if (NULL == def->constants) {
             JANET_OUT_OF_MEMORY;
         }

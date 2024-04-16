@@ -667,7 +667,7 @@ size_t janet_length(Janet x) {
             const JanetAbstractType *type = janet_abstract_type(abst);
             if (type->length != NULL) {
                 size_t len = type->length(abst, janet_abstract_size(abst));
-                if (len > JANET_INTMAX_INT64) {
+                if (len > JANET_INTMAX_SIZE) {
                     janet_panicf("invalid integer length %u", len);
                 }
                 return len;
@@ -771,7 +771,7 @@ void janet_put(Janet ds, Janet key, Janet value) {
                          JANET_TFLAG_ARRAY | JANET_TFLAG_BUFFER | JANET_TFLAG_TABLE, ds);
         case JANET_ARRAY: {
             JanetArray *array = janet_unwrap_array(ds);
-            size_t index = getter_checksize(type, key, JANET_INTMAX_INT64 - 1);
+            size_t index = getter_checksize(type, key, JANET_INTMAX_SIZE - 1);
             if (index >= array->count) {
                 janet_array_setcount(array, index + 1);
             }
@@ -780,7 +780,7 @@ void janet_put(Janet ds, Janet key, Janet value) {
         }
         case JANET_BUFFER: {
             JanetBuffer *buffer = janet_unwrap_buffer(ds);
-            size_t index = getter_checksize(type, key, JANET_INTMAX_INT64 - 1);
+            size_t index = getter_checksize(type, key, JANET_INTMAX_SIZE - 1);
             if (!janet_checkint(value))
                 janet_panicf("can only put integers in buffers, got %v", value);
             if (index >= buffer->count) {

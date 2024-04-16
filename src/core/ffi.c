@@ -107,7 +107,7 @@ static const JanetFFIPrimInfo janet_ffi_type_info[] = {
 struct JanetFFIType {
     JanetFFIStruct *st;
     JanetFFIPrimType prim;
-    int32_t array_count;
+    ssize_t array_count;
 };
 
 typedef struct {
@@ -438,7 +438,7 @@ static JanetFFIType decode_ffi_type(Janet x) {
         if (janet_checktype(x, JANET_ARRAY)) {
             if (len != 2 && len != 1) janet_panicf("array type must be of form @[type count], got %v", x);
             ret = decode_ffi_type(els[0]);
-            int32_t array_count = len == 1 ? 0 : janet_getnat(els, 1);
+            ssize_t array_count = len == 1 ? 0 : janet_getssize(els, 1);
             ret.array_count = array_count;
         } else {
             ret.st = build_struct_type(len, els);
@@ -1308,7 +1308,7 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     JanetByteView bytes = janet_getbytes(argv, 0);
 
     /* Quick hack to align to page boundary, we should query OS. FIXME */
-    size_t alloc_size = ((size_t) bytes.len + FFI_PAGE_MASK) & ~FFI_PAGE_MASK;
+    size_t alloc_size = (bytes.len + FFI_PAGE_MASK) & ~FFI_PAGE_MASK;
 
 #ifdef JANET_FFI_JIT
 #ifdef JANET_EV
@@ -1408,14 +1408,14 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 3);
     JanetFFIType type = decode_ffi_type(argv[0]);
-    size_t offset = (size_t) janet_optnat(argv, argc, 2, 0);
+    size_t offset = janet_optsize(argv, argc, 2, 0);
     if (janet_checktype(argv[1], JANET_POINTER)) {
         uint8_t *ptr = janet_unwrap_pointer(argv[1]);
         return janet_ffi_read_one(ptr + offset, type, JANET_FFI_MAX_RECUR);
     } else {
         size_t el_size = type_size(type);
         JanetByteView bytes = janet_getbytes(argv, 1);
-        if ((size_t) bytes.len < offset + el_size) janet_panic("read out of range");
+        if (bytes.len < offset + el_size) janet_panic("read out of range");
         return janet_ffi_read_one(bytes.bytes + offset, type, JANET_FFI_MAX_RECUR);
     }
 }
@@ -1523,8 +1523,8 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     void *pointer = janet_getpointer(argv, 0);
-    int32_t capacity = janet_getnat(argv, 1);
-    int32_t count = janet_optnat(argv, argc, 2, 0);
+    size_t capacity = janet_getsize(argv, 1);
+    size_t count = janet_optsize(argv, argc, 2, 0);
     int64_t offset = janet_optinteger64(argv, argc, 3, 0);
     uint8_t *offset_pointer = ((uint8_t *) pointer) + offset;
     return janet_wrap_buffer(janet_pointer_buffer_unsafe(offset_pointer, capacity, count));

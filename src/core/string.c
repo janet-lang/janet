@@ -205,12 +205,11 @@ JANET_CORE_FN(cfun_string_repeat,
               "Returns a string that is `n` copies of `bytes` concatenated.") {
     janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
-    int32_t rep = janet_getinteger(argv, 1);
-    if (rep < 0) janet_panic("expected non-negative number of repetitions");
+    size_t rep = janet_getsize(argv, 1);
     if (rep == 0) return janet_cstringv("");
-    int64_t mulres = (int64_t) rep * view.len;
-    if (mulres > JANET_INTMAX_INT64) janet_panic("result string is too long");
-    uint8_t *newbuf = janet_string_begin((int32_t) mulres);
+    size_t mulres = rep * view.len;
+    if (mulres > JANET_INTMAX_SIZE) janet_panic("result string is too long");
+    uint8_t *newbuf = janet_string_begin(mulres);
     uint8_t *end = newbuf + mulres;
     for (uint8_t *p = newbuf; p < end; p += view.len) {
         safe_memcpy(p, view.bytes, view.len);
@@ -506,7 +505,7 @@ JANET_CORE_FN(cfun_string_join,
     }
     /* Check args */
     size_t i;
-    int64_t finallen = 0;
+    size_t finallen = 0;
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk;
         size_t chunklen = 0;
@@ -515,11 +514,11 @@ JANET_CORE_FN(cfun_string_join,
         }
         if (i) finallen += joiner.len;
         finallen += chunklen;
-        if (finallen > INT32_MAX)
+        if (finallen > JANET_INTMAX_SIZE)
             janet_panic("result string too long");
     }
     uint8_t *buf, *out;
-    out = buf = janet_string_begin((size_t) finallen);
+    out = buf = janet_string_begin(finallen);
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk = NULL;
         size_t chunklen = 0;

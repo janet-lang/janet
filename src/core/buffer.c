@@ -39,8 +39,8 @@ static void janet_buffer_can_realloc(JanetBuffer *buffer) {
 static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, size_t capacity) {
     uint8_t *data = NULL;
     if (capacity < 4) capacity = 4;
-    if (capacity > JANET_INTMAX_INT64)
-      capacity = JANET_INTMAX_INT64;
+    if (capacity > JANET_INTMAX_SIZE)
+      capacity = JANET_INTMAX_SIZE;
     janet_gcpressure(capacity);
     data = janet_malloc(sizeof(uint8_t) * capacity);
     if (NULL == data) {
@@ -91,7 +91,7 @@ void janet_buffer_ensure(JanetBuffer *buffer, size_t capacity, size_t growth) {
     if (capacity <= buffer->capacity) return;
     janet_buffer_can_realloc(buffer);
     size_t big_capacity = (capacity) * growth;
-    capacity = big_capacity > JANET_INTMAX_INT64 ? JANET_INTMAX_INT64 : big_capacity;
+    capacity = big_capacity > JANET_INTMAX_SIZE ? JANET_INTMAX_SIZE : big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
     new_data = janet_realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
@@ -115,13 +115,13 @@ void janet_buffer_setcount(JanetBuffer *buffer, size_t count) {
  * next n bytes pushed to the buffer will not cause a reallocation */
 void janet_buffer_extra(JanetBuffer *buffer, size_t n) {
     /* Check for buffer overflow */
-    if (n + buffer->count > JANET_INTMAX_INT64) {
+    if (n + buffer->count > JANET_INTMAX_SIZE) {
         janet_panic("buffer overflow");
     }
     size_t new_size = buffer->count + n;
     if (new_size > buffer->capacity) {
         janet_buffer_can_realloc(buffer);
-        size_t new_capacity = (new_size > (JANET_INTMAX_INT64 / 2)) ? JANET_INTMAX_INT64 : (new_size * 2);
+        size_t new_capacity = (new_size > (JANET_INTMAX_SIZE / 2)) ? JANET_INTMAX_SIZE : (new_size * 2);
         uint8_t *new_data = janet_realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
         if (NULL == new_data) {
@@ -618,8 +618,8 @@ JANET_CORE_FN(cfun_buffer_blit,
     } else {
         length_src = src.len - offset_src;
     }
-    int64_t last = (int64_t) offset_dest + length_src;
-    if (last > JANET_INTMAX_INT64)
+    size_t last = offset_dest + length_src;
+    if (last > JANET_INTMAX_SIZE)
         janet_panic("buffer blit out of range");
     size_t last32 = (size_t) last;
     janet_buffer_ensure(dest, last32, 2);
