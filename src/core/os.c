@@ -309,7 +309,7 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
     JanetDictView dict = janet_getdictionary(argv, 2);
 #ifdef JANET_WINDOWS
     JanetBuffer *temp = janet_buffer(10);
-    for (int32_t i = 0; i < dict.cap; i++) {
+    for (size_t i = 0; i < dict.cap; i++) {
         const JanetKV *kv = dict.kvs + i;
         if (!janet_checktype(kv->key, JANET_STRING)) continue;
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
@@ -380,7 +380,7 @@ static void os_execute_cleanup(EnvBlock envp, const char **child_argv) {
  * a single string of this format. Returns a buffer that can be cast into a c string. */
 static JanetBuffer *os_exec_escape(JanetView args) {
     JanetBuffer *b = janet_buffer(0);
-    for (int32_t i = 0; i < args.len; i++) {
+    for (size_t i = 0; i < args.len; i++) {
         const char *arg = janet_getcstring(args.items, i);
 
         /* Push leading space if not first */

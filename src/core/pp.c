@@ -895,13 +895,13 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 's':
                 case 'S': {
                     const char *str = va_arg(args, const char *);
-                    int32_t len = c[-1] == 's'
-                                  ? (int32_t) strlen(str)
+                    size_t len = c[-1] == 's'
+                                  ? strlen(str)
                                   : janet_string_length((JanetString) str);
                     if (form[2] == '\0')
                         janet_buffer_push_bytes(b, (const uint8_t *) str, len);
                     else {
-                        if (len != (int32_t) strlen((const char *) str))
+                        if (len != strlen((const char *) str))
                             janet_panic("string contains zeros");
                         if (!strchr(form, '.') && len >= 100) {
                             janet_panic("no precision and string is too long to be formatted");
