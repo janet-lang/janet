@@ -279,8 +279,16 @@ void janet_async_in_flight(JanetFiber *fiber) {
 void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state) {
     JanetFiber *fiber = janet_vm.root_fiber;
     janet_assert(!fiber->ev_callback, "double async on fiber");
-    if (mode & JANET_ASYNC_LISTEN_READ) stream->read_fiber = fiber;
-    if (mode & JANET_ASYNC_LISTEN_WRITE) stream->write_fiber = fiber;
+    if (mode & JANET_ASYNC_LISTEN_READ) {
+        stream->read_fiber = fiber;
+    } else {
+        stream->read_fiber = NULL;
+    }
+    if (mode & JANET_ASYNC_LISTEN_WRITE) {
+        stream->write_fiber = fiber;
+    } else {
+        stream->write_fiber = NULL;
+    }
     fiber->ev_callback = callback;
     fiber->ev_stream = stream;
     janet_ev_inc_refcount();
@@ -462,6 +470,12 @@ static Janet janet_stream_next(void *p, Janet key) {
     return janet_nextmethod(stream->methods, key);
 }
 
+static void janet_stream_tostring(void *p, JanetBuffer *buffer) {
+    JanetStream *stream = p;
+    /* Let user print the file descriptor for debugging */
+    janet_formatb(buffer, "<core/stream handle=%d>", stream->handle);
+}
+
 const JanetAbstractType janet_stream_type = {
     "core/stream",
     janet_stream_gc,
@@ -470,7 +484,7 @@ const JanetAbstractType janet_stream_type = {
     NULL,
     janet_stream_marshal,
     janet_stream_unmarshal,
-    NULL,
+    janet_stream_tostring,
     NULL,
     NULL,
     janet_stream_next,
@@ -1853,7 +1867,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     /* Undo negative hack */
     for (size_t i = 0; i < janet_vm.stream_count; i++) {
         struct pollfd *pfd = janet_vm.fds + i + 1;
-        if (!pfd->events) {
+        if (pfd->fd < 0) {
             pfd->fd = -pfd->fd;
         }
     }
