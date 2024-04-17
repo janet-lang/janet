@@ -67,12 +67,16 @@ jobs:
     name: Build release binaries for Cosmo
     runs-on: ubuntu-latest
     steps:
+      - name: create build folder
+        run: |
+          sudo mkdir -p /ahgamut
+          sudo chmod -R 0777 /ahgamut
       - name: Checkout superconfigure repo
+        working-directory: /ahgamut
         run: git clone https://github.com/ahgamut/superconfigure
       - name: support ape bins and SSL things
-        run: |
-          cd superconfigure
-          bash ./.github/scripts/setup
+        working-directory: /ahgamut/superconfigure
+        run: bash ./.github/scripts/setup
       - name: build Cosmo
         working-directory: /ahgamut/superconfigure
         run: bash ./.github/scripts/cosmo
