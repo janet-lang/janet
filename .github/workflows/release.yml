@@ -60,3 +60,38 @@ jobs:
             ./dist/*.zip
             ./*.zip
             ./*.msi
+
+  release-cosmo:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: Build release binaries for Cosmo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout superconfigure repo
+        run: git clone https://github.com/ahgamut/superconfigure
+      - name: support ape bins and SSL things
+        run: |
+          cd superconfigure
+          bash ./.github/scripts/setup
+      - name: build Cosmo
+        working-directory: /ahgamut/superconfigure
+        run: bash ./.github/scripts/cosmo
+      - name: clone Janet latest commit
+        working-directory: /ahgamut/superconfigure
+        run: |
+          make o/lang/janet/downloaded
+          cd o/lang/janet/janet
+          git pull origin master
+      - name: Set the version
+        run: echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+      - name: Set the platform
+        run: echo "platform=cosmo" >> $GITHUB_ENV
+      - name: build Janet APE binary
+        working-directory: /ahgamut/superconfigure
+        run: make o/lang/janet/built.fat
+      - name: push binary to github
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            results/bin/janet.com
