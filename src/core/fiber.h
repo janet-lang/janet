@@ -74,7 +74,7 @@ void janet_fiber_setcapacity(JanetFiber *fiber, size_t n);
 void janet_fiber_push(JanetFiber *fiber, Janet x);
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y);
 void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z);
-void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n);
+void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, size_t n);
 int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func);
 int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func);
 void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun);

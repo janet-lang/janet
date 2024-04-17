@@ -137,7 +137,7 @@ static void janet_fiber_grow(JanetFiber *fiber, size_t needed) {
 
 /* Push a value on the next stack frame */
 void janet_fiber_push(JanetFiber *fiber, Janet x) {
-    if (fiber->stacktop == INT32_MAX) janet_panic("stack overflow");
+    if (fiber->stacktop == JANET_INTMAX_SIZE) janet_panic("stack overflow");
     if (fiber->stacktop >= fiber->capacity) {
         janet_fiber_grow(fiber, fiber->stacktop);
     }
@@ -146,7 +146,7 @@ void janet_fiber_push(JanetFiber *fiber, Janet x) {
 
 /* Push 2 values on the next stack frame */
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
-    if (fiber->stacktop >= INT32_MAX - 1) janet_panic("stack overflow");
+    if (fiber->stacktop >= JANET_INTMAX_SIZE - 1) janet_panic("stack overflow");
     size_t newtop = fiber->stacktop + 2;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
@@ -158,7 +158,7 @@ void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
 
 /* Push 3 values on the next stack frame */
 void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
-    if (fiber->stacktop >= INT32_MAX - 2) janet_panic("stack overflow");
+    if (fiber->stacktop >= JANET_INTMAX_SIZE - 2) janet_panic("stack overflow");
     size_t newtop = fiber->stacktop + 3;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
@@ -170,8 +170,8 @@ void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
 }
 
 /* Push an array on the next stack frame */
-void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
-    if (fiber->stacktop > (size_t) JANET_INTMAX_SIZE - n) janet_panic("stack overflow");
+void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, size_t n) {
+    if (fiber->stacktop > JANET_INTMAX_SIZE - n) janet_panic("stack overflow");
     size_t newtop = fiber->stacktop + n;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
