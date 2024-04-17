@@ -94,9 +94,8 @@ jobs:
         working-directory: /ahgamut/superconfigure
         run: make o/lang/janet/built.fat
       - name: push binary to github
-        working-directory: /ahgamut/superconfigure
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           files: |
-            results/bin/janet.com
+            /ahgamut/superconfigure/results/bin/janet.com
