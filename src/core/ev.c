@@ -78,7 +78,7 @@ typedef struct {
     JanetQueue items;
     JanetQueue read_pending;
     JanetQueue write_pending;
-    int32_t limit;
+    size_t limit;
     int closed;
     int is_threaded;
 #ifdef JANET_WINDOWS
@@ -124,18 +124,18 @@ static void janet_q_deinit(JanetQueue *q) {
     janet_free(q->data);
 }
 
-static int32_t janet_q_count(JanetQueue *q) {
+static size_t janet_q_count(JanetQueue *q) {
     return (q->head > q->tail)
            ? (q->tail + q->capacity - q->head)
            : (q->tail - q->head);
 }
 
 static int janet_q_maybe_resize(JanetQueue *q, size_t itemsize) {
-    int32_t count = janet_q_count(q);
+    size_t count = janet_q_count(q);
     /* Resize if needed */
     if (count + 1 >= q->capacity) {
         if (count + 1 >= JANET_MAX_Q_CAPACITY) return 1;
-        int32_t newcap = (count + 2) * 2;
+        size_t newcap = (count + 2) * 2;
         if (newcap > JANET_MAX_Q_CAPACITY) newcap = JANET_MAX_Q_CAPACITY;
         q->data = janet_realloc(q->data, itemsize * newcap);
         if (NULL == q->data) {
@@ -143,7 +143,7 @@ static int janet_q_maybe_resize(JanetQueue *q, size_t itemsize) {
         }
         if (q->head > q->tail) {
             /* Two segments, fix 2nd seg. */
-            int32_t newhead = q->head + (newcap - q->capacity);
+            size_t newhead = q->head + (newcap - q->capacity);
             size_t seg1 = (size_t)(q->capacity - q->head);
             if (seg1 > 0) {
                 memmove((char *) q->data + (newhead * itemsize),
@@ -166,7 +166,7 @@ static int janet_q_push(JanetQueue *q, void *item, size_t itemsize) {
 
 static int janet_q_push_head(JanetQueue *q, void *item, size_t itemsize) {
     if (janet_q_maybe_resize(q, itemsize)) return 1;
-    int32_t newhead = q->head - 1;
+    ssize_t newhead = q->head - 1;
     if (newhead < 0) {
         newhead += q->capacity;
     }
@@ -530,16 +530,16 @@ void janet_ev_mark(void) {
     /* Pending tasks */
     JanetTask *tasks = janet_vm.spawn.data;
     if (janet_vm.spawn.head <= janet_vm.spawn.tail) {
-        for (int32_t i = janet_vm.spawn.head; i < janet_vm.spawn.tail; i++) {
+        for (size_t i = janet_vm.spawn.head; i < janet_vm.spawn.tail; i++) {
             janet_mark(janet_wrap_fiber(tasks[i].fiber));
             janet_mark(tasks[i].value);
         }
     } else {
-        for (int32_t i = janet_vm.spawn.head; i < janet_vm.spawn.capacity; i++) {
+        for (size_t i = janet_vm.spawn.head; i < janet_vm.spawn.capacity; i++) {
             janet_mark(janet_wrap_fiber(tasks[i].fiber));
             janet_mark(tasks[i].value);
         }
-        for (int32_t i = 0; i < janet_vm.spawn.tail; i++) {
+        for (size_t i = 0; i < janet_vm.spawn.tail; i++) {
             janet_mark(janet_wrap_fiber(tasks[i].fiber));
             janet_mark(tasks[i].value);
         }
@@ -732,12 +732,12 @@ static int janet_chanat_gc(void *p, size_t s) {
 static void janet_chanat_mark_fq(JanetQueue *fq) {
     JanetChannelPending *pending = fq->data;
     if (fq->head <= fq->tail) {
-        for (int32_t i = fq->head; i < fq->tail; i++)
+        for (size_t i = fq->head; i < fq->tail; i++)
             janet_mark(janet_wrap_fiber(pending[i].fiber));
     } else {
-        for (int32_t i = fq->head; i < fq->capacity; i++)
+        for (size_t i = fq->head; i < fq->capacity; i++)
             janet_mark(janet_wrap_fiber(pending[i].fiber));
-        for (int32_t i = 0; i < fq->tail; i++)
+        for (size_t i = 0; i < fq->tail; i++)
             janet_mark(janet_wrap_fiber(pending[i].fiber));
     }
 }
@@ -750,12 +750,12 @@ static int janet_chanat_mark(void *p, size_t s) {
     JanetQueue *items = &chan->items;
     Janet *data = chan->items.data;
     if (items->head <= items->tail) {
-        for (int32_t i = items->head; i < items->tail; i++)
+        for (size_t i = items->head; i < items->tail; i++)
             janet_mark(data[i]);
     } else {
-        for (int32_t i = items->head; i < items->capacity; i++)
+        for (size_t i = items->head; i < items->capacity; i++)
             janet_mark(data[i]);
-        for (int32_t i = 0; i < items->tail; i++)
+        for (size_t i = 0; i < items->tail; i++)
             janet_mark(data[i]);
     }
     return 0;
@@ -1252,12 +1252,12 @@ static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
     JanetQueue *items = &channel->items;
     Janet *data = channel->items.data;
     if (items->head <= items->tail) {
-        for (int32_t i = items->head; i < items->tail; i++)
+        for (size_t i = items->head; i < items->tail; i++)
             janet_marshal_janet(ctx, data[i]);
     } else {
-        for (int32_t i = items->head; i < items->capacity; i++)
+        for (size_t i = items->head; i < items->capacity; i++)
             janet_marshal_janet(ctx, data[i]);
-        for (int32_t i = 0; i < items->tail; i++)
+        for (size_t i = 0; i < items->tail; i++)
             janet_marshal_janet(ctx, data[i]);
     }
 }

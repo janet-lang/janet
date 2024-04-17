@@ -47,9 +47,9 @@ typedef struct {
 } JanetTraversalNode;
 
 typedef struct {
-    int32_t capacity;
-    int32_t head;
-    int32_t tail;
+    size_t capacity;
+    size_t head;
+    size_t tail;
     void *data;
 } JanetQueue;
 
