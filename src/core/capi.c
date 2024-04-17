@@ -348,36 +348,36 @@ ssize_t janet_getssize(const Janet *argv, int32_t n) {
     return janet_unwrap_ssize(x);
 }
 
-int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
-    int32_t raw = janet_getinteger(argv, n);
-    int32_t not_raw = raw;
+size_t janet_gethalfrange(const Janet *argv, int32_t n, size_t length, const char *which) {
+    ssize_t raw = janet_getssize(argv, n);
+    ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length + 1;
-    if (not_raw < 0 || not_raw > length)
-        janet_panicf("%s index %d out of range [%d,%d]", which, (int64_t) raw, -(int64_t)length - 1, (int64_t) length);
-    return not_raw;
+    if (not_raw < 0 || (size_t) not_raw > length)
+        janet_panicf("%s index %d out of range [%o,%o]", which, (int64_t) raw, -(uint64_t)length - 1, (uint64_t) length);
+    return (size_t) not_raw;
 }
 
-int32_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+size_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, size_t length) {
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
         return 0;
     }
     return janet_gethalfrange(argv, n, length, "start");
 }
 
-int32_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+size_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, size_t length) {
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
         return length;
     }
     return janet_gethalfrange(argv, n, length, "end");
 }
 
-int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which) {
-    int32_t raw = janet_getinteger(argv, n);
-    int32_t not_raw = raw;
+size_t janet_getargindex(const Janet *argv, int32_t n, size_t length, const char *which) {
+    ssize_t raw = janet_getssize(argv, n);
+    ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length;
-    if (not_raw < 0 || not_raw > length)
-        janet_panicf("%s index %d out of range [%d,%d)", which, (int64_t)raw, -(int64_t)length, (int64_t)length);
-    return not_raw;
+    if (not_raw < 0 || (size_t) not_raw > length)
+        janet_panicf("%s index %d out of range [%o,%o)", which, (int64_t)raw, -(uint64_t)length, (uint64_t)length);
+    return (size_t) not_raw;
 }
 
 JanetView janet_getindexed(const Janet *argv, int32_t n) {
@@ -422,7 +422,7 @@ void *janet_getabstract(const Janet *argv, int32_t n, const JanetAbstractType *a
 JanetRange janet_getslice(int32_t argc, const Janet *argv) {
     janet_arity(argc, 1, 3);
     JanetRange range;
-    int32_t length = janet_length(argv[0]);
+    size_t length = janet_length(argv[0]);
     range.start = janet_getstartrange(argv, argc, 1, length);
     range.end = janet_getendrange(argv, argc, 2, length);
     if (range.end < range.start)

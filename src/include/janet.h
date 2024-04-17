@@ -1237,8 +1237,8 @@ struct JanetDictView {
 };
 
 struct JanetRange {
-    int32_t start;
-    int32_t end;
+    size_t start;
+    size_t end;
 };
 
 struct JanetRNG {
@@ -2043,10 +2043,10 @@ JANET_API JanetByteView janet_getbytes(const Janet *argv, int32_t n);
 JANET_API JanetDictView janet_getdictionary(const Janet *argv, int32_t n);
 JANET_API void *janet_getabstract(const Janet *argv, int32_t n, const JanetAbstractType *at);
 JANET_API JanetRange janet_getslice(int32_t argc, const Janet *argv);
-JANET_API int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which);
-JANET_API int32_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, int32_t length);
-JANET_API int32_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, int32_t length);
-JANET_API int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which);
+JANET_API size_t janet_gethalfrange(const Janet *argv, int32_t n, size_t length, const char *which);
+JANET_API size_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, size_t length);
+JANET_API size_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, size_t length);
+JANET_API size_t janet_getargindex(const Janet *argv, int32_t n, size_t length, const char *which);
 JANET_API uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags);
 
 /* Optionals */
