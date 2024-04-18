@@ -690,7 +690,7 @@ static JanetByteView to_byte_view(Janet value) {
 JanetByteView janet_text_substitution(
     Janet *subst,
     const uint8_t *bytes,
-    uint32_t len,
+    size_t len,
     JanetArray *extra_argv) {
     int32_t extra_argc = extra_argv == NULL ? 0 : extra_argv->count;
     JanetType type = janet_type(*subst);

@@ -353,7 +353,7 @@ size_t janet_gethalfrange(const Janet *argv, int32_t n, size_t length, const cha
     ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length + 1;
     if (not_raw < 0 || (size_t) not_raw > length)
-        janet_panicf("%s index %d out of range [%o,%o]", which, (int64_t) raw, -(uint64_t)length - 1, (uint64_t) length);
+        janet_panicf("%s index %d out of range [%d,%d]", which, (int64_t) raw, -(int64_t)length - 1, (int64_t) length);
     return (size_t) not_raw;
 }
 
@@ -376,7 +376,7 @@ size_t janet_getargindex(const Janet *argv, int32_t n, size_t length, const char
     ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length;
     if (not_raw < 0 || (size_t) not_raw > length)
-        janet_panicf("%s index %d out of range [%o,%o)", which, (int64_t)raw, -(uint64_t)length, (uint64_t)length);
+        janet_panicf("%s index %d out of range [%d,%d)", which, (int64_t)raw, -(int64_t)length, (int64_t)length);
     return (size_t) not_raw;
 }
 
@@ -457,13 +457,13 @@ void janet_setdyn(const char *name, Janet value) {
 uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
     uint64_t ret = 0;
     const uint8_t *keyw = janet_getkeyword(argv, n);
-    int32_t klen = janet_string_length(keyw);
-    int32_t flen = (int32_t) strlen(flags);
+    size_t klen = janet_string_length(keyw);
+    size_t flen = strlen(flags);
     if (flen > 64) {
         flen = 64;
     }
-    for (int32_t j = 0; j < klen; j++) {
-        for (int32_t i = 0; i < flen; i++) {
+    for (size_t j = 0; j < klen; j++) {
+        for (size_t i = 0; i < flen; i++) {
             if (((uint8_t) flags[i]) == keyw[j]) {
                 ret |= 1ULL << i;
                 goto found;

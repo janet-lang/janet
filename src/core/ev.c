@@ -1246,9 +1246,9 @@ static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_byte(ctx, channel->is_threaded);
     janet_marshal_abstract(ctx, channel);
     janet_marshal_byte(ctx, channel->closed);
-    janet_marshal_int(ctx, channel->limit);
-    int32_t count = janet_q_count(&channel->items);
-    janet_marshal_int(ctx, count);
+    janet_marshal_size(ctx, channel->limit);
+    size_t count = janet_q_count(&channel->items);
+    janet_marshal_size(ctx, count);
     JanetQueue *items = &channel->items;
     Janet *data = channel->items.data;
     if (items->head <= items->tail) {
@@ -2475,7 +2475,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
         break;
         case JANET_ASYNC_EVENT_INIT: {
             /* Begin write */
-            int32_t len;
+            size_t len;
             const uint8_t *bytes;
             if (state->is_buffer) {
                 /* If buffer, convert to string. */

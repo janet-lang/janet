@@ -66,7 +66,7 @@ static const uint8_t JANET_SYMCACHE_DELETED[1] = {0};
  * where one would put it. */
 static const uint8_t **janet_symcache_findmem(
     const uint8_t *str,
-    int32_t len,
+    size_t len,
     int32_t hash,
     int *success) {
     uint32_t bounds[4];
@@ -116,10 +116,10 @@ notfound:
     janet_symcache_findmem((str), janet_string_length(str), janet_string_hash(str), (success))
 
 /* Resize the cache. */
-static void janet_cache_resize(uint32_t newCapacity) {
-    uint32_t i, oldCapacity;
+static void janet_cache_resize(size_t newCapacity) {
+    size_t i, oldCapacity;
     const uint8_t **oldCache = janet_vm.cache;
-    const uint8_t **newCache = janet_calloc(1, (size_t) newCapacity * sizeof(const uint8_t *));
+    const uint8_t **newCache = janet_calloc(1, newCapacity * sizeof(const uint8_t *));
     if (newCache == NULL) {
         JANET_OUT_OF_MEMORY;
     }

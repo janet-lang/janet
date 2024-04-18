@@ -58,8 +58,8 @@ const uint8_t *janet_string(const uint8_t *buf, size_t len) {
 
 /* Compare two strings */
 int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
-    int32_t xlen = janet_string_length(lhs);
-    int32_t ylen = janet_string_length(rhs);
+    size_t xlen = janet_string_length(lhs);
+    size_t ylen = janet_string_length(rhs);
     size_t len = xlen > ylen ? ylen : xlen;
     int res = memcmp(lhs, rhs, len);
     if (res) return res > 0 ? 1 : -1;
@@ -574,14 +574,14 @@ static int trim_help_checkset(JanetByteView set, uint8_t x) {
     return 0;
 }
 
-static int32_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
+static size_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
     for (size_t i = 0; i < str.len; i++)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i;
     return str.len;
 }
 
-static int32_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
+static size_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
     for (size_t i = str.len - 1; i > 0; i--)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i + 1;
@@ -605,8 +605,8 @@ JANET_CORE_FN(cfun_string_trim,
               "`set` is provided, consider only characters in `set` to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
-    int32_t left_edge = trim_help_leftedge(str, set);
-    int32_t right_edge = trim_help_rightedge(str, set);
+    size_t left_edge = trim_help_leftedge(str, set);
+    size_t right_edge = trim_help_rightedge(str, set);
     if (right_edge < left_edge)
         return janet_stringv(NULL, 0);
     return janet_stringv(str.bytes + left_edge, right_edge - left_edge);

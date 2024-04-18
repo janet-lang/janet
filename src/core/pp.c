@@ -134,9 +134,9 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
 #undef POINTSIZE
 }
 
-static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, int32_t len) {
+static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, size_t len) {
     janet_buffer_push_u8(buffer, '"');
-    for (int32_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         uint8_t c = str[i];
         switch (c) {
             case '"':

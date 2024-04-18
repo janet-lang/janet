@@ -434,8 +434,8 @@ static int stringchar(JanetParser *p, JanetParseState *state, uint8_t c) {
 }
 
 /* Check for string equality in the buffer */
-static int check_str_const(const char *cstr, const uint8_t *str, int32_t len) {
-    int32_t index;
+static int check_str_const(const char *cstr, const uint8_t *str, size_t len) {
+    size_t index;
     for (index = 0; index < len; index++) {
         uint8_t c = str[index];
         uint8_t k = ((const uint8_t *)cstr)[index];
@@ -974,7 +974,7 @@ JANET_CORE_FN(cfun_parse_insert,
         }
     } else if (s->flags & (PFLAG_STRING | PFLAG_LONGSTRING)) {
         const uint8_t *str = janet_to_string(argv[1]);
-        int32_t slen = janet_string_length(str);
+        size_t slen = janet_string_length(str);
         size_t newcount = p->bufcount + slen;
         if (p->bufcap < newcount) {
             size_t newcap = 2 * newcount;

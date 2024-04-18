@@ -122,7 +122,7 @@ static void janet_mark_abstract(void *adata) {
 }
 
 /* Mark a bunch of items in memory */
-static void janet_mark_many(const Janet *values, int32_t n) {
+static void janet_mark_many(const Janet *values, size_t n) {
     if (values == NULL)
         return;
     const Janet *end = values + n;
@@ -262,7 +262,7 @@ static void janet_mark_function(JanetFunction *func) {
 }
 
 static void janet_mark_fiber(JanetFiber *fiber) {
-    int32_t i, j;
+    size_t i, j;
     JanetStackFrame *frame;
 recur:
     if (janet_gc_reachable(fiber))

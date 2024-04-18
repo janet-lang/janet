@@ -96,7 +96,7 @@ JanetBinding janet_binding_from_entry(Janet entry);
 JanetByteView janet_text_substitution(
     Janet *subst,
     const uint8_t *bytes,
-    uint32_t len,
+    size_t len,
     JanetArray *extra_args);
 
 /* Registry functions */

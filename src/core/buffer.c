@@ -314,7 +314,7 @@ JANET_CORE_FN(cfun_buffer_chars,
     return argv[0];
 }
 
-static int should_reverse_bytes(const Janet *argv, size_t argc) {
+static int should_reverse_bytes(const Janet *argv, int32_t argc) {
     JanetKeyword order_kw = janet_getkeyword(argv, argc);
     if (!janet_cstrcmp(order_kw, "le")) {
 #if JANET_BIG_ENDIAN

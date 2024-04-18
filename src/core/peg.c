@@ -65,9 +65,9 @@ typedef struct {
  * to save state at branches, and then reload
  * if one branch fails and try a new branch. */
 typedef struct {
-    int32_t cap;
-    int32_t tcap;
-    int32_t scratch;
+    size_t cap;
+    size_t tcap;
+    size_t scratch;
 } CapState;
 
 /* Save the current capture state */

@@ -72,7 +72,7 @@ static JanetSlot quasiquote(JanetFopts opts, Janet x, int depth, int level) {
         default:
             return janetc_cslot(x);
         case JANET_TUPLE: {
-            int32_t i, len;
+            size_t i, len;
             const Janet *tup = janet_unwrap_tuple(x);
             len = janet_tuple_length(tup);
             if (len > 1 && janet_checktype(tup[0], JANET_SYMBOL)) {

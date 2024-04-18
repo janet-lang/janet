@@ -1670,9 +1670,8 @@ JANET_CORE_FN(os_cryptorand,
               "Get or append `n` bytes of good quality random data provided by the OS. Returns a new buffer or `buf`.") {
     JanetBuffer *buffer;
     janet_arity(argc, 1, 2);
-    int32_t offset;
-    int32_t n = janet_getinteger(argv, 0);
-    if (n < 0) janet_panic("expected positive integer");
+    size_t offset;
+    size_t n = janet_getsize(argv, 0);
     if (argc == 2) {
         buffer = janet_getbuffer(argv, 1);
         offset = buffer->count;
