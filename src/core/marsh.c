@@ -99,9 +99,9 @@ void janet_env_lookup_into(JanetTable *renv, JanetTable *env, const char *prefix
         for (size_t i = 0; i < env->capacity; i++) {
             if (janet_checktype(env->data[i].key, JANET_SYMBOL)) {
                 if (prefix) {
-                    int32_t prelen = (int32_t) strlen(prefix);
+                    size_t prelen = strlen(prefix);
                     const uint8_t *oldsym = janet_unwrap_symbol(env->data[i].key);
-                    int32_t oldlen = janet_string_length(oldsym);
+                    size_t oldlen = janet_string_length(oldsym);
                     uint8_t *symbuf = janet_smalloc(prelen + oldlen);
                     safe_memcpy(symbuf, prefix, prelen);
                     safe_memcpy(symbuf + prelen, oldsym, oldlen);
@@ -158,7 +158,7 @@ static void pushpointer(MarshalState *st, const void *ptr) {
     janet_buffer_push_bytes(st->buf, (const uint8_t *) &ptr, sizeof(ptr));
 }
 
-/* Marshal a size_t onto the buffer */
+/* Marshal a uint64_t onto the buffer */
 static void push64(MarshalState *st, uint64_t x) {
     if (x <= 0xF0) {
         /* Single byte */
@@ -176,6 +176,11 @@ static void push64(MarshalState *st, uint64_t x) {
     }
 }
 
+/* Marshal a size_t onto the buffer */
+static void pushsize(MarshalState *st, size_t x) {
+    push64(st, (uint64_t)x);
+}
+
 /* Forward declaration to enable mutual recursion. */
 static void marshal_one(MarshalState *st, Janet x, int flags);
 static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags);
@@ -189,7 +194,7 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags);
  * have no false positives, but may have false negatives. */
 static int fiber_cannot_be_marshalled(JanetFiber *fiber) {
     if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE) return 1;
-    int32_t i = fiber->frame;
+    size_t i = fiber->frame;
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (!frame->func) return 1; /* has cfunction on stack */
@@ -333,25 +338,25 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE)
         janet_panic("cannot marshal alive fiber");
     pushint(st, fflags);
-    pushint(st, fiber->frame);
-    pushint(st, fiber->stackstart);
-    pushint(st, fiber->stacktop);
-    pushint(st, fiber->maxstack);
+    pushsize(st, fiber->frame);
+    pushsize(st, fiber->stackstart);
+    pushsize(st, fiber->stacktop);
+    pushsize(st, fiber->maxstack);
     /* Do frames */
-    int32_t i = fiber->frame;
-    int32_t j = fiber->stackstart - JANET_FRAME_SIZE;
+    size_t i = fiber->frame;
+    size_t j = fiber->stackstart - JANET_FRAME_SIZE;
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
         if (!frame->func) janet_panicf("cannot marshal fiber with c stackframe (%v)", janet_wrap_cfunction((JanetCFunction) frame->pc));
         pushint(st, frame->flags);
-        pushint(st, frame->prevframe);
+        pushsize(st, frame->prevframe);
         int32_t pcdiff = (int32_t)(frame->pc - frame->func->def->bytecode);
         pushint(st, pcdiff);
         marshal_one(st, janet_wrap_function(frame->func), flags + 1);
         if (frame->env) marshal_one_env(st, frame->env, flags + 1);
         /* Marshal all values in the stack frame */
-        for (int32_t k = i; k < j; k++)
+        for (size_t k = i; k < j; k++)
             marshal_one(st, fiber->data[k], flags + 1);
         j = i - JANET_FRAME_SIZE;
         i = frame->prevframe;
@@ -761,6 +766,10 @@ static uint64_t read64(UnmarshalState *st, const uint8_t **atdata) {
     return ret;
 }
 
+static size_t readsize(UnmarshalState *st, const uint8_t **atdata) {
+    return (size_t)read64(st, atdata);
+}
+
 #ifdef JANET_MARSHAL_DEBUG
 static void dump_reference_table(UnmarshalState *st) {
     for (int32_t i = 0; i < janet_v_count(st->lookup); i++) {
@@ -1074,14 +1083,14 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* Read ints */
     int32_t fiber_flags = readint(st, &data);
-    int32_t frame = readnat(st, &data);
-    int32_t fiber_stackstart = readnat(st, &data);
-    int32_t fiber_stacktop = readnat(st, &data);
-    int32_t fiber_maxstack = readnat(st, &data);
+    size_t frame = readsize(st, &data);
+    size_t fiber_stackstart = readsize(st, &data);
+    size_t fiber_stacktop = readsize(st, &data);
+    size_t fiber_maxstack = readsize(st, &data);
     JanetTable *fiber_env = NULL;
 
     /* Check for bad flags and ints */
-    if ((int32_t)(frame + JANET_FRAME_SIZE) > fiber_stackstart ||
+    if ((frame + JANET_FRAME_SIZE) > fiber_stackstart ||
             fiber_stackstart > fiber_stacktop ||
             fiber_stacktop > fiber_maxstack) {
         janet_panic("fiber has incorrect stack setup");
@@ -1098,14 +1107,14 @@ static const uint8_t *unmarshal_one_fiber(
     }
 
     /* get frames */
-    int32_t stack = frame;
-    int32_t stacktop = fiber_stackstart - JANET_FRAME_SIZE;
+    ssize_t stack = frame;
+    size_t stacktop = fiber_stackstart - JANET_FRAME_SIZE;
     while (stack > 0) {
         JanetFunction *func = NULL;
         JanetFuncDef *def = NULL;
         JanetFuncEnv *env = NULL;
         int32_t frameflags = readint(st, &data);
-        int32_t prevframe = readnat(st, &data);
+        size_t prevframe = readsize(st, &data);
         int32_t pcdiff = readnat(st, &data);
 
         /* Get frame items */
@@ -1127,7 +1136,7 @@ static const uint8_t *unmarshal_one_fiber(
 
         /* Error checking */
         int32_t expected_framesize = def->slotcount;
-        if (expected_framesize != stacktop - stack) {
+        if (expected_framesize != (int32_t) stacktop - stack) {
             janet_panic("fiber stackframe size mismatch");
         }
         if (pcdiff >= def->bytecode_length) {
@@ -1138,7 +1147,7 @@ static const uint8_t *unmarshal_one_fiber(
         }
 
         /* Get stack items */
-        for (int32_t i = stack; i < stacktop; i++)
+        for (ssize_t i = stack; i < (ssize_t)stacktop; i++)
             data = unmarshal_one(st, data, fiber->data + i, flags + 1);
 
         /* Set frame */
