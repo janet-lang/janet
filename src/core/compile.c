@@ -418,12 +418,11 @@ JanetSlot janetc_gettarget(JanetFopts opts) {
 }
 
 /* Get a bunch of slots for function arguments */
-JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len) {
-    int32_t i;
+JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, size_t len) {
     JanetSlot *ret = NULL;
     JanetFopts subopts = janetc_fopts_default(c);
     subopts.flags |= JANET_FOPTS_ACCEPT_SPLICE;
-    for (i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         janet_v_push(ret, janetc_value(subopts, vals[i]));
     }
     return ret;
