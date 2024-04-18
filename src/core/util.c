@@ -341,8 +341,8 @@ const JanetKV *janet_dictionary_next(const JanetKV *kvs, size_t cap, const Janet
 /* Compare a janet string with a cstring. More efficient than loading
  * c string as a janet string. */
 int janet_cstrcmp(const uint8_t *str, const char *other) {
-    int32_t len = janet_string_length(str);
-    int32_t index;
+    size_t len = janet_string_length(str);
+    size_t index;
     for (index = 0; index < len; index++) {
         uint8_t c = str[index];
         uint8_t k = ((const uint8_t *)other)[index];
