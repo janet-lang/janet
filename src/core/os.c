@@ -1597,13 +1597,13 @@ JANET_CORE_FN(os_clock,
 
     JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, (const uint8_t *) "double");
     if (janet_cstrcmp(formatstr, "double") == 0) {
-        double dtime = tv.tv_sec + (tv.tv_nsec / 1E9);
+        double dtime = (double)(tv.tv_sec + (tv.tv_nsec / 1E9));
         return janet_wrap_number(dtime);
     } else if (janet_cstrcmp(formatstr, "int") == 0) {
-        return janet_wrap_number(tv.tv_sec);
+        return janet_wrap_number((double)(tv.tv_sec));
     } else if (janet_cstrcmp(formatstr, "tuple") == 0) {
-        Janet tup[2] = {janet_wrap_integer(tv.tv_sec),
-                        janet_wrap_integer(tv.tv_nsec)
+        Janet tup[2] = {janet_wrap_number((double)tv.tv_sec),
+                        janet_wrap_number((double)tv.tv_nsec)
                        };
         return janet_wrap_tuple(janet_tuple_n(tup, 2));
     } else {
