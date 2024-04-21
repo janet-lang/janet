@@ -7,15 +7,15 @@ COSMO_DIR="/sc/cosmocc"
 X86_64_CC="/sc/cosmocc/bin/x86_64-unknown-cosmo-cc"
 X86_64_AR="/sc/cosmocc/bin/x86_64-unknown-cosmo-ar"
 mkdir -p /sc/cosmocc/x86_64
-make CC="$X86_64_CC" AR="$X86_64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
+make -j CC="$X86_64_CC" AR="$X86_64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
 cp build/janet /sc/cosmocc/x86_64/janet
 make clean
 
 # build aarch64
 AARCH64_CC="/sc/cosmocc/bin/aarch64-unknown-cosmo-cc"
 AARCH64_AR="/sc/cosmocc/bin/aarch64-unknown-cosmo-ar"
-mkdir -p /sc/cosmocc/arch64
-make CC="$AARCH64_CC" AR="$AARCH64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
+mkdir -p /sc/cosmocc/aarch64
+make -j CC="$AARCH64_CC" AR="$AARCH64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
 cp build/janet /sc/cosmocc/aarch64/janet
 make clean
 
@@ -35,4 +35,4 @@ apefat () {
     cp "$3" "$TARG_FOLD/$OLDNAME_AARCH64.aarch64"
 }
 
-apefat ./janet.com /sc/cosmocc/x86_64/janet /sc/cosmocc/aarch64/janet
+apefat /sc/cosmocc/janet.com /sc/cosmocc/x86_64/janet /sc/cosmocc/aarch64/janet

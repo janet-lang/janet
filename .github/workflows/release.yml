@@ -86,4 +86,4 @@ jobs:
         with:
           draft: true
           files: |
-            /sc/superconfigure/results/bin/janet.com
+            /sc/cosmocc/janet.com
