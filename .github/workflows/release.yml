@@ -67,32 +67,20 @@ jobs:
     name: Build release binaries for Cosmo
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
       - name: create build folder
         run: |
           sudo mkdir -p /sc
           sudo chmod -R 0777 /sc
-      - name: Checkout superconfigure repo
-        working-directory: /sc
-        run: git clone https://github.com/ahgamut/superconfigure
-      - name: support ape bins and SSL things
-        working-directory: /sc/superconfigure
-        run: bash ./.github/scripts/setup
-      - name: build Cosmo
-        working-directory: /sc/superconfigure
-        run: bash ./.github/scripts/cosmo
-      - name: clone Janet latest commit
-        working-directory: /sc/superconfigure
-        run: |
-          make o/lang/janet/downloaded
-          cd o/lang/janet/janet
-          git pull origin master
+      - name: setup Cosmopolitan Libc
+        run: bash ./.github/cosmo/setup
       - name: Set the version
         run: echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
       - name: Set the platform
         run: echo "platform=cosmo" >> $GITHUB_ENV
       - name: build Janet APE binary
-        working-directory: /sc/superconfigure
-        run: make o/lang/janet/built.fat
+        run: bash ./.github/cosmo/build
       - name: push binary to github
         uses: softprops/action-gh-release@v1
         with:

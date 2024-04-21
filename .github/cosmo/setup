@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+
+sudo apt update
+sudo apt-get install -y ca-certificates libssl-dev\
+    qemu qemu-utils qemu-user-static\
+    texinfo groff\
+    cmake ninja-build bison zip\
+    pkg-config build-essential autoconf re2c
+
+# clone superconfigure
+cd /sc
+git clone https://github.com/ahgamut/superconfigure --depth=1 --branch=z0.0.39
+
+# the zip folder
+sudo mkdir -p /zip
+sudo chmod -R 0777 /zip
+
+# clone cosmo
+cd /sc/superconfigure
+git clone https://github.com/jart/cosmopolitan --depth=1 --branch=3.3.3 cosmopolitan
+sudo cp cosmopolitan/build/bootstrap/ape.elf /usr/bin/ape
+sudo sh -c "echo ':APE:M::MZqFpD::/usr/bin/ape:' >/proc/sys/fs/binfmt_misc/register"
+# ls /proc/sys/fs/binfmt_misc/
+
+# build cosmo
+cd /sc/superconfigure
+./.github/scripts/cosmo

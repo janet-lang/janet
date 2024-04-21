@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# copy janet recipe
+mkdir -p /sc/sueprconfigure/janet
+cp ./.github/cosmo/recipe.mk /sc/superconfigure/BUILD.mk
+cat 'include janet/BUILD.mk' >> /sc/superconfigure/custom.mk
+
+export SOURCE_DIR=$(realpath .)
+
+cd /sc/superconfigure
+make o/janet/built.fat
