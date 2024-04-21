@@ -90,8 +90,8 @@ void janet_buffer_ensure(JanetBuffer *buffer, size_t capacity, size_t growth) {
     uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
     janet_buffer_can_realloc(buffer);
-    size_t big_capacity = (capacity) * growth;
-    capacity = big_capacity > JANET_INTMAX_SIZE ? JANET_INTMAX_SIZE : big_capacity;
+    uint64_t big_capacity = (uint64_t) capacity*growth;
+    capacity = big_capacity > JANET_INTMAX_SIZE ? JANET_INTMAX_SIZE : (size_t) big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
     new_data = janet_realloc(old, capacity * sizeof(uint8_t));
     if (NULL == new_data) {
@@ -115,7 +115,7 @@ void janet_buffer_setcount(JanetBuffer *buffer, size_t count) {
  * next n bytes pushed to the buffer will not cause a reallocation */
 void janet_buffer_extra(JanetBuffer *buffer, size_t n) {
     /* Check for buffer overflow */
-    if (n + buffer->count > JANET_INTMAX_SIZE) {
+    if ((int64_t)n + buffer->count > JANET_INTMAX_SIZE) {
         janet_panic("buffer overflow");
     }
     size_t new_size = buffer->count + n;

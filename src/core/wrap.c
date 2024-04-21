@@ -88,6 +88,12 @@ int (janet_unwrap_boolean)(Janet x) {
 int32_t (janet_unwrap_integer)(Janet x) {
     return janet_unwrap_integer(x);
 }
+size_t (janet_unwrap_size)(Janet x) {
+    return janet_unwrap_size(x);
+}
+ssize_t (janet_unwrap_ssize)(Janet x) {
+    return janet_unwrap_ssize(x);
+}
 
 #if defined(JANET_NANBOX_32) || defined(JANET_NANBOX_64)
 Janet(janet_wrap_nil)(void) {
@@ -143,6 +149,12 @@ Janet(janet_wrap_pointer)(void *x) {
 }
 Janet(janet_wrap_integer)(int32_t x) {
     return janet_wrap_integer(x);
+}
+Janet(janet_wrap_size)(size_t x) {
+    return janet_wrap_size(x);
+}
+Janet(janet_wrap_ssize)(ssize_t x) {
+    return janet_wrap_ssize(x);
 }
 #endif
 

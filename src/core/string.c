@@ -207,7 +207,7 @@ JANET_CORE_FN(cfun_string_repeat,
     JanetByteView view = janet_getbytes(argv, 0);
     size_t rep = janet_getsize(argv, 1);
     if (rep == 0) return janet_cstringv("");
-    size_t mulres = rep * view.len;
+    uint64_t mulres = (uint64_t) rep * view.len;
     if (mulres > JANET_INTMAX_SIZE) janet_panic("result string is too long");
     uint8_t *newbuf = janet_string_begin(mulres);
     uint8_t *end = newbuf + mulres;

@@ -717,6 +717,8 @@ JANET_API JanetCFunction janet_unwrap_cfunction(Janet x);
 JANET_API int janet_unwrap_boolean(Janet x);
 JANET_API double janet_unwrap_number(Janet x);
 JANET_API int32_t janet_unwrap_integer(Janet x);
+JANET_API size_t janet_unwrap_size(Janet x);
+JANET_API ssize_t janet_unwrap_ssize(Janet x);
 
 JANET_API Janet janet_wrap_nil(void);
 JANET_API Janet janet_wrap_number(double x);
@@ -737,6 +739,8 @@ JANET_API Janet janet_wrap_table(JanetTable *x);
 JANET_API Janet janet_wrap_abstract(JanetAbstract x);
 JANET_API Janet janet_wrap_pointer(void *x);
 JANET_API Janet janet_wrap_integer(int32_t x);
+JANET_API Janet janet_wrap_size(size_t x);
+JANET_API Janet janet_wrap_ssize(ssize_t x);
 
 /***** END SECTION NON-C API *****/
 
@@ -942,11 +946,11 @@ struct JanetGCObject {
 struct JanetFiber {
     JanetGCObject gc; /* GC Object stuff */
     int32_t flags; /* More flags */
-    size_t frame; /* Index of the stack frame */
-    size_t stackstart; /* Beginning of next args */
-    size_t stacktop; /* Top of stack. Where values are pushed and popped from. */
-    size_t capacity; /* How big is the stack memory */
-    size_t maxstack; /* Arbitrary defined limit for stack overflow */
+    int32_t frame; /* Index of the stack frame */
+    int32_t stackstart; /* Beginning of next args */
+    int32_t stacktop; /* Top of stack. Where values are pushed and popped from. */
+    int32_t capacity; /* How big is the stack memory */
+    int32_t maxstack; /* Arbitrary defined limit for stack overflow */
     JanetTable *env; /* Dynamic bindings table (usually current environment). */
     Janet *data; /* Dynamically resized stack memory */
     JanetFiber *child; /* Keep linked list of fibers for restarting pending fibers */
@@ -1734,7 +1738,7 @@ JANET_API JanetTable *janet_table_clone(JanetTable *table);
 JANET_API void janet_table_clear(JanetTable *table);
 
 /* Fiber */
-JANET_API JanetFiber *janet_fiber(JanetFunction *callee, size_t capacity, int32_t argc, const Janet *argv);
+JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
 JANET_API JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv);
 JANET_API JanetFiberStatus janet_fiber_status(JanetFiber *fiber);
 JANET_API int janet_fiber_can_resume(JanetFiber *fiber);

@@ -54,11 +54,8 @@ static JanetFiber *fiber_alloc(size_t capacity) {
     if (capacity < 32) {
         capacity = 32;
     }
-    if (capacity > JANET_INTMAX_SIZE) {
-        capacity = JANET_INTMAX_SIZE;
-    }
     fiber->capacity = capacity;
-    data = janet_malloc(sizeof(Janet) * capacity);
+    data = janet_malloc(sizeof(Janet) * (size_t) capacity);
     if (NULL == data) {
         JANET_OUT_OF_MEMORY;
     }
@@ -69,7 +66,7 @@ static JanetFiber *fiber_alloc(size_t capacity) {
 
 /* Create a new fiber with argn values on the stack by reusing a fiber. */
 JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t argc, const Janet *argv) {
-    size_t newstacktop;
+    int32_t newstacktop;
     fiber_reset(fiber);
     if (argc) {
         newstacktop = fiber->stacktop + argc;
@@ -96,7 +93,7 @@ JanetFiber *janet_fiber_reset(JanetFiber *fiber, JanetFunction *callee, int32_t 
 }
 
 /* Create a new fiber with argn values on the stack. */
-JanetFiber *janet_fiber(JanetFunction *callee, size_t capacity, int32_t argc, const Janet *argv) {
+JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv) {
     return janet_fiber_reset(fiber_alloc(capacity), callee, argc, argv);
 }
 
@@ -117,9 +114,9 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
 #endif
 
 /* Ensure that the fiber has enough extra capacity */
-void janet_fiber_setcapacity(JanetFiber *fiber, size_t n) {
-    size_t old_size = fiber->capacity;
-    size_t diff = n - old_size;
+void janet_fiber_setcapacity(JanetFiber *fiber, int32_t n) {
+    int32_t old_size = fiber->capacity;
+    int32_t diff = n - old_size;
     Janet *newData = janet_realloc(fiber->data, sizeof(Janet) * n);
     if (NULL == newData) {
         JANET_OUT_OF_MEMORY;
@@ -130,14 +127,14 @@ void janet_fiber_setcapacity(JanetFiber *fiber, size_t n) {
 }
 
 /* Grow fiber if needed */
-static void janet_fiber_grow(JanetFiber *fiber, size_t needed) {
-    size_t cap = needed > (JANET_INTMAX_SIZE / 2) ? JANET_INTMAX_SIZE : 2 * needed;
+static void janet_fiber_grow(JanetFiber *fiber, int32_t needed) {
+    int32_t cap = needed > (INT32_MAX / 2) ? INT32_MAX : 2 * needed;
     janet_fiber_setcapacity(fiber, cap);
 }
 
 /* Push a value on the next stack frame */
 void janet_fiber_push(JanetFiber *fiber, Janet x) {
-    if (fiber->stacktop == JANET_INTMAX_SIZE) janet_panic("stack overflow");
+    if (fiber->stacktop == INT32_MAX) janet_panic("stack overflow");
     if (fiber->stacktop >= fiber->capacity) {
         janet_fiber_grow(fiber, fiber->stacktop);
     }
@@ -146,8 +143,8 @@ void janet_fiber_push(JanetFiber *fiber, Janet x) {
 
 /* Push 2 values on the next stack frame */
 void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
-    if (fiber->stacktop >= JANET_INTMAX_SIZE - 1) janet_panic("stack overflow");
-    size_t newtop = fiber->stacktop + 2;
+    if (fiber->stacktop >= INT32_MAX - 1) janet_panic("stack overflow");
+    int32_t newtop = fiber->stacktop + 2;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
     }
@@ -158,8 +155,8 @@ void janet_fiber_push2(JanetFiber *fiber, Janet x, Janet y) {
 
 /* Push 3 values on the next stack frame */
 void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
-    if (fiber->stacktop >= JANET_INTMAX_SIZE - 2) janet_panic("stack overflow");
-    size_t newtop = fiber->stacktop + 3;
+    if (fiber->stacktop >= INT32_MAX - 2) janet_panic("stack overflow");
+    int32_t newtop = fiber->stacktop + 3;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
     }
@@ -170,9 +167,9 @@ void janet_fiber_push3(JanetFiber *fiber, Janet x, Janet y, Janet z) {
 }
 
 /* Push an array on the next stack frame */
-void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, size_t n) {
-    if (fiber->stacktop > JANET_INTMAX_SIZE - n) janet_panic("stack overflow");
-    size_t newtop = fiber->stacktop + n;
+void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
+    if (fiber->stacktop > INT32_MAX - n) janet_panic("stack overflow");
+    int32_t newtop = fiber->stacktop + n;
     if (newtop > fiber->capacity) {
         janet_fiber_grow(fiber, newtop);
     }
@@ -181,8 +178,8 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, size_t n) {
 }
 
 /* Create a struct with n values. If n is odd, the last value is ignored. */
-static Janet make_struct_n(const Janet *args, size_t n) {
-    size_t i = 0;
+static Janet make_struct_n(const Janet *args, int32_t n) {
+    int32_t i = 0;
     JanetKV *st = janet_struct_begin(n & (~1));
     for (; i < n; i += 2) {
         janet_struct_put(st, args[i], args[i + 1]);
@@ -194,11 +191,11 @@ static Janet make_struct_n(const Janet *args, size_t n) {
 int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     JanetStackFrame *newframe;
 
-    size_t i;
-    size_t oldtop = fiber->stacktop;
-    size_t oldframe = fiber->frame;
-    size_t nextframe = fiber->stackstart;
-    size_t nextstacktop = nextframe + func->def->slotcount + JANET_FRAME_SIZE;
+    int32_t i;
+    int32_t oldtop = fiber->stacktop;
+    int32_t oldframe = fiber->frame;
+    int32_t nextframe = fiber->stackstart;
+    int32_t nextstacktop = nextframe + func->def->slotcount + JANET_FRAME_SIZE;
     int32_t next_arity = (int32_t) fiber->stacktop - fiber->stackstart;
 
     /* Check strict arity before messing with state */
@@ -230,7 +227,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
 
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
-        size_t tuplehead = fiber->frame + (size_t) func->def->arity;
+        int32_t tuplehead = fiber->frame + func->def->arity;
         int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= oldtop) {
             fiber->data[tuplehead] = st
@@ -331,11 +328,11 @@ void janet_env_maybe_detach(JanetFuncEnv *env) {
 
 /* Create a tail frame for a function */
 int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
-    size_t i;
-    size_t nextframetop = fiber->frame + func->def->slotcount;
-    size_t nextstacktop = nextframetop + JANET_FRAME_SIZE;
+    int32_t i;
+    int32_t nextframetop = fiber->frame + func->def->slotcount;
+    int32_t nextstacktop = nextframetop + JANET_FRAME_SIZE;
     int32_t next_arity = (int32_t) fiber->stacktop - fiber->stackstart;
-    size_t stacksize;
+    int32_t stacksize;
 
     /* Check strict arity before messing with state */
     if (next_arity < func->def->min_arity) return 1;
@@ -359,7 +356,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
-        size_t tuplehead = fiber->stackstart + (size_t) func->def->arity;
+        int32_t tuplehead = fiber->stackstart + func->def->arity;
         int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= fiber->stacktop) {
             if (tuplehead >= fiber->capacity) janet_fiber_setcapacity(fiber, 2 * (tuplehead + 1));
@@ -403,9 +400,9 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 void janet_fiber_cframe(JanetFiber *fiber, JanetCFunction cfun) {
     JanetStackFrame *newframe;
 
-    size_t oldframe = fiber->frame;
-    size_t nextframe = fiber->stackstart;
-    size_t nextstacktop = fiber->stacktop + JANET_FRAME_SIZE;
+    int32_t oldframe = fiber->frame;
+    int32_t nextframe = fiber->stackstart;
+    int32_t nextstacktop = fiber->stacktop + JANET_FRAME_SIZE;
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);

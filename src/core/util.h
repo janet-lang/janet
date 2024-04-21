@@ -72,7 +72,7 @@ extern const char janet_base64[65];
 int32_t janet_array_calchash(const Janet *array, size_t len);
 int32_t janet_kv_calchash(const JanetKV *kvs, size_t len);
 int32_t janet_string_calchash(const uint8_t *str, size_t len);
-size_t janet_tablen(size_t n);
+uint64_t janet_tablen(uint64_t n);
 void safe_memcpy(void *dest, const void *src, size_t len);
 void janet_buffer_push_types(JanetBuffer *buffer, int types);
 const JanetKV *janet_dict_find(const JanetKV *buckets, size_t cap, Janet key);

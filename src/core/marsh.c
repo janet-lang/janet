@@ -338,13 +338,13 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE)
         janet_panic("cannot marshal alive fiber");
     pushint(st, fflags);
-    pushsize(st, fiber->frame);
-    pushsize(st, fiber->stackstart);
-    pushsize(st, fiber->stacktop);
-    pushsize(st, fiber->maxstack);
+    pushint(st, fiber->frame);
+    pushint(st, fiber->stackstart);
+    pushint(st, fiber->stacktop);
+    pushint(st, fiber->maxstack);
     /* Do frames */
-    size_t i = fiber->frame;
-    size_t j = fiber->stackstart - JANET_FRAME_SIZE;
+    int32_t i = fiber->frame;
+    int32_t j = fiber->stackstart - JANET_FRAME_SIZE;
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
@@ -356,7 +356,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
         marshal_one(st, janet_wrap_function(frame->func), flags + 1);
         if (frame->env) marshal_one_env(st, frame->env, flags + 1);
         /* Marshal all values in the stack frame */
-        for (size_t k = i; k < j; k++)
+        for (int32_t k = i; k < j; k++)
             marshal_one(st, fiber->data[k], flags + 1);
         j = i - JANET_FRAME_SIZE;
         i = frame->prevframe;
@@ -1084,10 +1084,10 @@ static const uint8_t *unmarshal_one_fiber(
 
     /* Read ints */
     int32_t fiber_flags = readint(st, &data);
-    size_t frame = readsize(st, &data);
-    size_t fiber_stackstart = readsize(st, &data);
-    size_t fiber_stacktop = readsize(st, &data);
-    size_t fiber_maxstack = readsize(st, &data);
+    int32_t frame = readnat(st, &data);
+    int32_t fiber_stackstart = readnat(st, &data);
+    int32_t fiber_stacktop = readnat(st, &data);
+    int32_t fiber_maxstack = readnat(st, &data);
     JanetTable *fiber_env = NULL;
 
     /* Check for bad flags and ints */
@@ -1103,19 +1103,19 @@ static const uint8_t *unmarshal_one_fiber(
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
     }
-    for (size_t i = 0; i < fiber->capacity; i++) {
+    for (int32_t i = 0; i < fiber->capacity; i++) {
         fiber->data[i] = janet_wrap_nil();
     }
 
     /* get frames */
-    ssize_t stack = frame;
-    size_t stacktop = fiber_stackstart - JANET_FRAME_SIZE;
+    int32_t stack = frame;
+    int32_t stacktop = fiber_stackstart - JANET_FRAME_SIZE;
     while (stack > 0) {
         JanetFunction *func = NULL;
         JanetFuncDef *def = NULL;
         JanetFuncEnv *env = NULL;
         int32_t frameflags = readint(st, &data);
-        size_t prevframe = readsize(st, &data);
+        int32_t prevframe = readnat(st, &data);
         int32_t pcdiff = readnat(st, &data);
 
         /* Get frame items */
@@ -1148,7 +1148,7 @@ static const uint8_t *unmarshal_one_fiber(
         }
 
         /* Get stack items */
-        for (ssize_t i = stack; i < (ssize_t)stacktop; i++)
+        for (int32_t i = stack; i < stacktop; i++)
             data = unmarshal_one(st, data, fiber->data + i, flags + 1);
 
         /* Set frame */

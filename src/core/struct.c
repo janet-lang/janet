@@ -31,7 +31,12 @@
 /* Begin creation of a struct */
 JanetKV *janet_struct_begin(size_t count) {
     /* Calculate capacity as power of 2 after 2 * count. */
-    size_t capacity = janet_tablen(2 * count);
+
+    uint64_t double_count =
+        (count > JANET_INTMAX_SIZE / 2) ? JANET_INTMAX_SIZE : 2 * count;
+    uint64_t cap = janet_tablen(double_count);
+    size_t capacity =
+        (cap > JANET_INTMAX_SIZE) ? JANET_INTMAX_SIZE : (size_t)cap;
 
     size_t size = sizeof(JanetStructHead) + capacity * sizeof(JanetKV);
     JanetStructHead *head = janet_gcalloc(JANET_MEMORY_STRUCT, size);
