@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eux
+
+COSMO_DIR="/sc/cosmocc"
+
+# build x86_64
+X86_64_CC="/sc/cosmocc/bin/x86_64-unknown-cosmo-cc"
+X86_64_AR="/sc/cosmocc/bin/x86_64-unknown-cosmo-ar"
+mkdir -p /sc/cosmocc/x86_64
+make -j CC="$X86_64_CC" AR="$X86_64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
+cp build/janet /sc/cosmocc/x86_64/janet
+make clean
+
+# build aarch64
+AARCH64_CC="/sc/cosmocc/bin/aarch64-unknown-cosmo-cc"
+AARCH64_AR="/sc/cosmocc/bin/aarch64-unknown-cosmo-ar"
+mkdir -p /sc/cosmocc/aarch64
+make -j CC="$AARCH64_CC" AR="$AARCH64_AR" HAS_SHARED=0 JANET_NO_AMALG=1
+cp build/janet /sc/cosmocc/aarch64/janet
+make clean
+
+# fat binary
+apefat () {
+    OUTPUT="$1"
+    OLDNAME_X86_64="$(basename -- "$2")"
+    OLDNAME_AARCH64="$(basename -- "$3")"
+    TARG_FOLD="$(dirname "$OUTPUT")"
+    "$COSMO_DIR/bin/apelink" -l "$COSMO_DIR/bin/ape-x86_64.elf" \
+        -l "$COSMO_DIR/bin/ape-aarch64.elf" \
+        -M "$COSMO_DIR/bin/ape-m1.c" \
+        -o "$OUTPUT" \
+        "$2" \
+        "$3"
+    cp "$2" "$TARG_FOLD/$OLDNAME_X86_64.x86_64"
+    cp "$3" "$TARG_FOLD/$OLDNAME_AARCH64.aarch64"
+}
+
+apefat /sc/cosmocc/janet.com /sc/cosmocc/x86_64/janet /sc/cosmocc/aarch64/janet

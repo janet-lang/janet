@@ -60,3 +60,30 @@ jobs:
             ./dist/*.zip
             ./*.zip
             ./*.msi
+
+  release-cosmo:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: Build release binaries for Cosmo
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: create build folder
+        run: |
+          sudo mkdir -p /sc
+          sudo chmod -R 0777 /sc
+      - name: setup Cosmopolitan Libc
+        run: bash ./.github/cosmo/setup
+      - name: Set the version
+        run: echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+      - name: Set the platform
+        run: echo "platform=cosmo" >> $GITHUB_ENV
+      - name: build Janet APE binary
+        run: bash ./.github/cosmo/build
+      - name: push binary to github
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            /sc/cosmocc/janet.com
