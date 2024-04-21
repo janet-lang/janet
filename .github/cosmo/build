@@ -25,7 +25,7 @@ apefat () {
     OLDNAME_X86_64="$(basename -- "$2")"
     OLDNAME_AARCH64="$(basename -- "$3")"
     TARG_FOLD="$(dirname "$OUTPUT")"
-    "$APELINK" -l "$COSMO_DIR/bin/ape-x86_64.elf" \
+    "$COSMO_DIR/bin/apelink" -l "$COSMO_DIR/bin/ape-x86_64.elf" \
         -l "$COSMO_DIR/bin/ape-aarch64.elf" \
         -M "$COSMO_DIR/bin/ape-m1.c" \
         -o "$OUTPUT" \
