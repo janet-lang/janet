@@ -34,11 +34,13 @@ JanetKV *janet_struct_begin(size_t count) {
 
     uint64_t double_count =
         (count > JANET_INTMAX_SIZE / 2) ? JANET_INTMAX_SIZE : 2 * count;
-    uint64_t cap = janet_tablen(double_count);
-    size_t capacity =
-        (cap > JANET_INTMAX_SIZE) ? JANET_INTMAX_SIZE : (size_t)cap;
+    uint64_t capacity = janet_tablen(double_count);
 
-    size_t size = sizeof(JanetStructHead) + capacity * sizeof(JanetKV);
+    uint64_t part_size = capacity * sizeof(JanetKV);
+    if (part_size > JANET_INTMAX_SIZE){
+        part_size = JANET_INTMIN_SIZE;
+    }
+    size_t size = sizeof(JanetStructHead) + (uint64_t) part_size;
     JanetStructHead *head = janet_gcalloc(JANET_MEMORY_STRUCT, size);
     head->length = count;
     head->capacity = capacity;
