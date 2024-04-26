@@ -3444,9 +3444,9 @@
 (defn- print-special-form-entry
   [x]
   (print "\n\n"
-         (string "    special form\n\n")
-         (string "    (" x " ...)\n\n")
-         (string "    See https://janet-lang.org/docs/specials.html\n\n")))
+         "    special form\n\n"
+         "    (" x " ...)\n\n"
+         "    See https://janet-lang.org/docs/specials.html\n\n"))
 
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of `doc`."
