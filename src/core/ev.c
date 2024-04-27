@@ -1731,6 +1731,10 @@ void janet_register_stream_impl(JanetStream *stream, int edge_trigger) {
     }
 }
 
+void janet_register_stream(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1);
+}
+
 void janet_stream_edge_triggered(JanetStream *stream) {
     janet_register_stream_impl(stream, 1);
 }
