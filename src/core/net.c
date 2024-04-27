@@ -319,6 +319,7 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
     NetStateAccept *state = janet_malloc(sizeof(NetStateAccept));
     memset(state, 0, sizeof(NetStateAccept));
     state->function = fun;
+    if (fun) janet_stream_level_triggered(stream);
     janet_async_start(stream, JANET_ASYNC_LISTEN_READ, net_callback_accept, state);
 }
 

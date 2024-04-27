@@ -1530,6 +1530,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     }
 }
 
+void janet_stream_edge_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
 #elif defined(JANET_EV_EPOLL)
 
 static JanetTimestamp ts_now(void) {
@@ -1541,15 +1549,15 @@ static JanetTimestamp ts_now(void) {
 }
 
 /* Wait for the next event */
-static void janet_register_stream(JanetStream *stream) {
+static void janet_register_stream_impl(JanetStream *stream, int mod, int edge_trigger) {
     struct epoll_event ev;
-    ev.events = EPOLLET;
+    ev.events = edge_trigger ? EPOLLET : 0;
     if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) ev.events |= EPOLLIN;
     if (stream->flags & JANET_STREAM_WRITABLE) ev.events |= EPOLLOUT;
     ev.data.ptr = stream;
     int status;
     do {
-        status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_ADD, stream->handle, &ev);
+        status = epoll_ctl(janet_vm.epoll, mod ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, stream->handle, &ev);
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
         if (errno == EPERM) {
@@ -1561,6 +1569,18 @@ static void janet_register_stream(JanetStream *stream) {
             janet_panicv(janet_ev_lasterr());
         }
     }
+}
+
+static void janet_register_stream(JanetStream *stream) {
+    janet_register_stream_impl(stream, 0, 1);
+}
+
+void janet_stream_edge_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1, 1);
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1, 0);
 }
 
 #define JANET_EPOLL_MAX_EVENTS 64
@@ -1692,14 +1712,15 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
     t->tv_nsec = ts == 0 ? 0 : (ts % 1000) * 1000000;
 }
 
-void janet_register_stream(JanetStream *stream) {
+void janet_register_stream_impl(JanetStream *stream, int edge_trigger) {
     struct kevent kevs[2];
     int length = 0;
+    int clear = edge_trigger ? EV_CLEAR : 0;
     if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
-        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | clear, 0, 0, stream);
     }
     if (stream->flags & JANET_STREAM_WRITABLE) {
-        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | clear, 0, 0, stream);
     }
     int status;
     do {
@@ -1708,6 +1729,14 @@ void janet_register_stream(JanetStream *stream) {
     if (status == -1) {
         stream->flags |= JANET_STREAM_UNREGISTERED;
     }
+}
+
+void janet_stream_edge_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1);
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 0);
 }
 
 #define JANET_KQUEUE_MAX_EVENTS 64
@@ -1830,6 +1859,14 @@ void janet_register_stream(JanetStream *stream) {
     janet_vm.fds[janet_vm.stream_count + 1] = ev;
     janet_vm.streams[janet_vm.stream_count] = stream;
     janet_vm.stream_count = new_count;
+}
+
+void janet_stream_edge_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    (void) stream;
 }
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
