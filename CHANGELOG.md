@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add long form command line options for readable CLI usage
+- Fix bug with `net/accept-loop` that would sometimes miss connections.
+
 ## 1.34.0 - 2024-03-22
 - Add a new (split) PEG special by @ianthehenry
 - Add buffer/push-* sized int and float by @pnelson

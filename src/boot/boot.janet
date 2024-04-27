@@ -4020,6 +4020,28 @@
     (def x (in args (+ i 1)))
     (or (scan-number x) (keyword x)))
 
+  (def- long-to-short
+    "map long options to short options"
+    {"-help" "h"
+     "-version" "v"
+     "-stdin" "s"
+     "-eval" "e"
+     "-expression" "E"
+     "-debug" "d"
+     "-repl" "r"
+     "-noprofile" "R"
+     "-persistent" "p"
+     "-quiet" "q"
+     "-flycheck" "k"
+     "-syspath" "m"
+     "-compile" "c"
+     "-image" "i"
+     "-nocolor" "n"
+     "-color" "N"
+     "-library" "l"
+     "-lint-warn" "w"
+     "-lint-error" "x"})
+
   # Flag handlers
   (def handlers
     {"h" (fn [&]
@@ -4027,26 +4049,26 @@
            (print
              ```
              Options are:
-               -h : Show this help
-               -v : Print the version string
-               -s : Use raw stdin instead of getline like functionality
-               -e code : Execute a string of janet
-               -E code arguments... : Evaluate an expression as a short-fn with arguments
-               -d : Set the debug flag in the REPL
-               -r : Enter the REPL after running all scripts
-               -R : Disables loading profile.janet when JANET_PROFILE is present
-               -p : Keep on executing if there is a top-level error (persistent)
-               -q : Hide logo (quiet)
-               -k : Compile scripts but do not execute (flycheck)
-               -m syspath : Set system path for loading global modules
-               -c source output : Compile janet source code into an image
-               -i : Load the script argument as an image file instead of source code
-               -n : Disable ANSI color output in the REPL
-               -N : Enable ANSI color output in the REPL
-               -l lib : Use a module before processing more arguments
-               -w level : Set the lint warning level - default is "normal"
-               -x level : Set the lint error level - default is "none"
-               -- : Stop handling options
+               --help (-h)             : Show this help
+               --version (-v)          : Print the version string
+               --stdin (-s)            : Use raw stdin instead of getline like functionality
+               --eval (-e) code        : Execute a string of janet
+               --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
+               --debug (-d)            : Set the debug flag in the REPL
+               --repl (-r)             : Enter the REPL after running all scripts
+               --noprofile (-R)        : Disables loading profile.janet when JANET_PROFILE is present
+               --persistent (-p)       : Keep on executing if there is a top-level error (persistent)
+               --quiet (-q)            : Hide logo (quiet)
+               --flycheck (-k)         : Compile scripts but do not execute (flycheck)
+               --syspath (-m) syspath  : Set system path for loading global modules
+               --compile (-c) source output : Compile janet source code into an image
+               --image (-i)            : Load the script argument as an image file instead of source code
+               --nocolor (-n)          : Disable ANSI color output in the REPL
+               --color (-N)            : Enable ANSI color output in the REPL
+               --library (-l) lib      : Use a module before processing more arguments
+               --lint-warn (-w) level  : Set the lint warning level - default is "normal"
+               --lint-error (-x) level : Set the lint error level - default is "none"
+               --                      : Stop handling options
              ```)
            (os/exit 0)
            1)
@@ -4090,8 +4112,8 @@
      "R" (fn [&] (setdyn *profilepath* nil) 1)})
 
   (defn- dohandler [n i &]
-    (def h (in handlers n))
-    (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
+    (def h (in handlers (get long-to-short n n)))
+    (if h (h i handlers) (do (print "unknown flag -" n) ((in handlers "h")))))
 
   # Process arguments
   (var i 0)

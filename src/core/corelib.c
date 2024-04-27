@@ -69,15 +69,15 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
             host.minor < modconf.minor ||
             host.bits != modconf.bits) {
         char errbuf[128];
-        sprintf(errbuf, "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
-                host.major,
-                host.minor,
-                host.patch,
-                host.bits,
-                modconf.major,
-                modconf.minor,
-                modconf.patch,
-                modconf.bits);
+        snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
+                 host.major,
+                 host.minor,
+                 host.patch,
+                 host.bits,
+                 modconf.major,
+                 modconf.minor,
+                 modconf.patch,
+                 modconf.bits);
         *error = janet_cstring(errbuf);
         return NULL;
     }
