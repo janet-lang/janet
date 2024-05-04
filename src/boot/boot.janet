@@ -162,7 +162,7 @@
   ``Define a default value for an optional argument.
   Expands to `(def sym (if (= nil sym) val sym))`.``
   [sym val]
-  ~(def ,sym (if (= nil ,sym) ,val ,sym)))
+  ~(def ,sym (if (,= nil ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."
@@ -420,10 +420,14 @@
 
 (defn- range-template
   [binding object kind rest op comparison]
-  (let [[start stop step] (check-indexed object)]
-    (case kind
-      :range (for-template binding (if stop start 0) (or stop start) (or step 1) comparison op [rest])
-      :down (for-template binding start (or stop 0) (or step 1) comparison op [rest]))))
+  (check-indexed object)
+  (def [a b c] object)
+  (def [start stop step]
+    (case (length object)
+      1 (case kind :range [0 a 1] :down [a 0 1])
+      2 [a b 1]
+      [a b c]))
+  (for-template binding start stop step comparison op [rest]))
 
 (defn- each-template
   [binding inx kind body]
@@ -438,8 +442,8 @@
               :each ~(,in ,ds ,k)
               :keys k
               :pairs ~[,k (,in ,ds ,k)]))
-         (set ,k (,next ,ds ,k))
-         ,;body))))
+         ,;body
+         (set ,k (,next ,ds ,k))))))
 
 (defn- iterate-template
   [binding expr body]
@@ -661,6 +665,9 @@
   (each x xs (*= accum x))
   accum)
 
+# declare ahead of time
+(var- macexvar nil)
+
 (defmacro if-let
   ``Make multiple bindings, and if all are truthy,
   evaluate the `tru` form. If any are false or nil, evaluate
@@ -669,20 +676,19 @@
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
-  (def res (gensym))
+  (def fal2 (if macexvar (macexvar fal) fal))
   (defn aux [i]
     (if (>= i len)
-      ~(do (set ,res ,tru) true)
+      tru
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
         (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)))
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
           ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i))))))))
-  ~(do
-     (var ,res nil)
-     (if ,(aux 0) ,res ,fal)))
+             (do (def ,bl ,sym) ,(aux (+ 2 i)))
+             ,fal2)))))
+   (aux 0))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
@@ -2123,21 +2129,22 @@
      'upscope expandall})
 
   (defn dotup [t]
+    (if (= nil (next t)) (break ()))
     (def h (in t 0))
     (def s (in specs h))
     (def entry (or (dyn h) {}))
     (def m (do (def r (get entry :ref)) (if r (in r 0) (get entry :value))))
     (def m? (in entry :macro))
     (cond
-      s (s t)
+      s (keep-syntax t (s t))
       m? (do (setdyn *macro-form* t) (m ;(tuple/slice t 1)))
-      (tuple/slice (map recur t))))
+      (keep-syntax! t (map recur t))))
 
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-               (tuple/brackets ;(map recur x))
-               (dotup x))
+                 (tuple/brackets ;(map recur x))
+                 (dotup x))
       :array (map recur x)
       :struct (table/to-struct (dotable x recur))
       :table (dotable x recur)
@@ -2242,6 +2249,8 @@
     (set previous current)
     (set current (macex1 current on-binding)))
   current)
+
+(set macexvar macex)
 
 (defmacro varfn
   ``Create a function that can be rebound. `varfn` has the same signature
@@ -2758,6 +2767,11 @@
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "@" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
+(defdyn *module/cache* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/paths* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
+
 (def module/cache
   "A table, mapping loaded module identifiers to their environments."
   @{})
@@ -2786,24 +2800,25 @@
   keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
   ```
   [ext loader]
+  (def mp (dyn *module/paths* module/paths))
   (defn- find-prefix
     [pre]
-    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) module/paths) 0))
+    (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) mp) 0))
   (def dyn-index (find-prefix ":@all:"))
-  (array/insert module/paths dyn-index [(string ":@all:" ext) loader check-dyn-relative])
+  (array/insert mp dyn-index [(string ":@all:" ext) loader check-dyn-relative])
   (def all-index (find-prefix ".:all:"))
-  (array/insert module/paths all-index [(string ".:all:" ext) loader check-project-relative])
+  (array/insert mp all-index [(string ".:all:" ext) loader check-project-relative])
   (def sys-index (find-prefix ":sys:"))
-  (array/insert module/paths sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
+  (array/insert mp sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
-  (array/insert module/paths curall-index [(string ":cur:/:all:" ext) loader check-relative])
-  module/paths)
+  (array/insert mp curall-index [(string ":cur:/:all:" ext) loader check-relative])
+  mp)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in module/cache path) path)) :preload check-not-relative])
+(array/insert module/paths 0 [(fn is-cached [path] (if (in (dyn *module/cache* module/cache) path) path)) :preload check-not-relative])
 
 # Version of fexists that works even with a reduced OS
 (defn- fexists
@@ -2833,7 +2848,8 @@
   ```
   [path]
   (var ret nil)
-  (each [p mod-kind checker] module/paths
+  (def mp (dyn *module/paths* module/paths))
+  (each [p mod-kind checker] mp
     (when (mod-filter checker path)
       (if (function? p)
         (when-let [res (p path)]
@@ -2849,7 +2865,7 @@
                      (when (string? t)
                        (when (mod-filter chk path)
                          (module/expand-path path t))))
-          paths (filter identity (map expander module/paths))
+          paths (filter identity (map expander mp))
           str-parts (interpose "\n    " paths)]
       [nil (string "could not find module " path ":\n    " ;str-parts)])))
 
@@ -3004,13 +3020,15 @@
   of files as modules.``
   @{:native (fn native-loader [path &] (native path (make-env)))
     :source (fn source-loader [path args]
-              (put module/loading path true)
-              (defer (put module/loading path nil)
+              (def ml (dyn *module/loading* module/loading))
+              (put ml path true)
+              (defer (put ml path nil)
                 (dofile path ;args)))
     :preload (fn preload-loader [path & args]
-               (when-let [m (in module/cache path)]
+               (def mc (dyn *module/cache* module/cache))
+               (when-let [m (in mc path)]
                  (if (function? m)
-                   (set (module/cache path) (m path ;args))
+                   (set (mc path) (m path ;args))
                    m)))
     :image (fn image-loader [path &] (load-image (slurp path)))})
 
@@ -3018,15 +3036,18 @@
   [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
-  (if-let [check (if-not (kargs :fresh) (in module/cache fullpath))]
+  (def mc (dyn *module/cache* module/cache))
+  (def ml (dyn *module/loading* module/loading))
+  (def mls (dyn *module/loaders* module/loaders))
+  (if-let [check (if-not (kargs :fresh) (in mc fullpath))]
     check
-    (if (module/loading fullpath)
+    (if (ml fullpath)
       (error (string "circular dependency " fullpath " detected"))
       (do
-        (def loader (if (keyword? mod-kind) (module/loaders mod-kind) mod-kind))
+        (def loader (if (keyword? mod-kind) (mls mod-kind) mod-kind))
         (unless loader (error (string "module type " mod-kind " unknown")))
         (def env (loader fullpath args))
-        (put module/cache fullpath env)
+        (put mc fullpath env)
         env))))
 
 (defn require
@@ -3423,9 +3444,9 @@
 (defn- print-special-form-entry
   [x]
   (print "\n\n"
-         (string "    special form\n\n")
-         (string "    (" x " ...)\n\n")
-         (string "    See https://janet-lang.org/docs/specials.html\n\n")))
+         "    special form\n\n"
+         "    (" x " ...)\n\n"
+         "    See https://janet-lang.org/docs/specials.html\n\n"))
 
 (defn doc*
   "Get the documentation for a symbol in a given environment. Function form of `doc`."
@@ -3727,12 +3748,20 @@
     ~(,ev/thread (fn _spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
-    `Run a body of code with a deadline, such that if the code does not complete before
-    the deadline is up, it will be canceled.`
-    [deadline & body]
+    ``
+    Create a fiber to execute `body`, schedule the event loop to cancel
+    the task (root fiber) associated with `body`'s fiber, and start
+    `body`'s fiber by resuming it.
+
+    The event loop will try to cancel the root fiber if `body`'s fiber
+    has not completed after at least `sec` seconds.
+
+    `sec` is a number that can have a fractional part.
+    ``
+    [sec & body]
     (with-syms [f]
       ~(let [,f (coro ,;body)]
-         (,ev/deadline ,deadline nil ,f)
+         (,ev/deadline ,sec nil ,f)
          (,resume ,f))))
 
   (defn- cancel-all [chan fibers reason]
@@ -3991,6 +4020,28 @@
     (def x (in args (+ i 1)))
     (or (scan-number x) (keyword x)))
 
+  (def- long-to-short
+    "map long options to short options"
+    {"-help" "h"
+     "-version" "v"
+     "-stdin" "s"
+     "-eval" "e"
+     "-expression" "E"
+     "-debug" "d"
+     "-repl" "r"
+     "-noprofile" "R"
+     "-persistent" "p"
+     "-quiet" "q"
+     "-flycheck" "k"
+     "-syspath" "m"
+     "-compile" "c"
+     "-image" "i"
+     "-nocolor" "n"
+     "-color" "N"
+     "-library" "l"
+     "-lint-warn" "w"
+     "-lint-error" "x"})
+
   # Flag handlers
   (def handlers
     {"h" (fn [&]
@@ -3998,26 +4049,26 @@
            (print
              ```
              Options are:
-               -h : Show this help
-               -v : Print the version string
-               -s : Use raw stdin instead of getline like functionality
-               -e code : Execute a string of janet
-               -E code arguments... : Evaluate an expression as a short-fn with arguments
-               -d : Set the debug flag in the REPL
-               -r : Enter the REPL after running all scripts
-               -R : Disables loading profile.janet when JANET_PROFILE is present
-               -p : Keep on executing if there is a top-level error (persistent)
-               -q : Hide logo (quiet)
-               -k : Compile scripts but do not execute (flycheck)
-               -m syspath : Set system path for loading global modules
-               -c source output : Compile janet source code into an image
-               -i : Load the script argument as an image file instead of source code
-               -n : Disable ANSI color output in the REPL
-               -N : Enable ANSI color output in the REPL
-               -l lib : Use a module before processing more arguments
-               -w level : Set the lint warning level - default is "normal"
-               -x level : Set the lint error level - default is "none"
-               -- : Stop handling options
+               --help (-h)             : Show this help
+               --version (-v)          : Print the version string
+               --stdin (-s)            : Use raw stdin instead of getline like functionality
+               --eval (-e) code        : Execute a string of janet
+               --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
+               --debug (-d)            : Set the debug flag in the REPL
+               --repl (-r)             : Enter the REPL after running all scripts
+               --noprofile (-R)        : Disables loading profile.janet when JANET_PROFILE is present
+               --persistent (-p)       : Keep on executing if there is a top-level error (persistent)
+               --quiet (-q)            : Hide logo (quiet)
+               --flycheck (-k)         : Compile scripts but do not execute (flycheck)
+               --syspath (-m) syspath  : Set system path for loading global modules
+               --compile (-c) source output : Compile janet source code into an image
+               --image (-i)            : Load the script argument as an image file instead of source code
+               --nocolor (-n)          : Disable ANSI color output in the REPL
+               --color (-N)            : Enable ANSI color output in the REPL
+               --library (-l) lib      : Use a module before processing more arguments
+               --lint-warn (-w) level  : Set the lint warning level - default is "normal"
+               --lint-error (-x) level : Set the lint error level - default is "none"
+               --                      : Stop handling options
              ```)
            (os/exit 0)
            1)
@@ -4061,8 +4112,8 @@
      "R" (fn [&] (setdyn *profilepath* nil) 1)})
 
   (defn- dohandler [n i &]
-    (def h (in handlers n))
-    (if h (h i) (do (print "unknown flag -" n) ((in handlers "h")))))
+    (def h (in handlers (get long-to-short n n)))
+    (if h (h i handlers) (do (print "unknown flag -" n) ((in handlers "h")))))
 
   # Process arguments
   (var i 0)

@@ -636,6 +636,12 @@ JANET_API void janet_async_end(JanetFiber *fiber);
 /* Needed for windows to mark a fiber as waiting for an IOCP completion event. Noop on other platforms. */
 JANET_API void janet_async_in_flight(JanetFiber *fiber);
 
+/* On some platforms, it is important to be able to control if a stream is edge-trigger or level triggered.
+ * For example, a server that is accepting connections might want to be level triggered or edge-triggered
+ * depending on expected service. */
+JANET_API void janet_stream_edge_triggered(JanetStream *stream);
+JANET_API void janet_stream_level_triggered(JanetStream *stream);
+
 #endif
 
 /* Janet uses atomic integers in several places for synchronization between threads and
@@ -2140,7 +2146,9 @@ typedef enum {
     RULE_LINE,         /* [tag] */
     RULE_COLUMN,       /* [tag] */
     RULE_UNREF,        /* [rule, tag] */
-    RULE_CAPTURE_NUM   /* [rule, tag] */
+    RULE_CAPTURE_NUM,  /* [rule, tag] */
+    RULE_SUB,          /* [rule, rule] */
+    RULE_SPLIT         /* [rule, rule] */
 } JanetPegOpcod;
 
 typedef struct {

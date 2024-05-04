@@ -226,6 +226,7 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                 case JOP_LOAD_TRUE:
                 case JOP_LOAD_FALSE:
                 case JOP_LOAD_SELF:
+                    break;
                 case JOP_MAKE_ARRAY:
                 case JOP_MAKE_BUFFER:
                 case JOP_MAKE_STRING:
@@ -233,6 +234,8 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                 case JOP_MAKE_TABLE:
                 case JOP_MAKE_TUPLE:
                 case JOP_MAKE_BRACKET_TUPLE:
+                    /* Reads from the stack, don't remove */
+                    janetc_regalloc_touch(&ra, DD);
                     break;
 
                 /* Read A */

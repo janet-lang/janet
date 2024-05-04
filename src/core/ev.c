@@ -258,12 +258,12 @@ void janet_async_end(JanetFiber *fiber) {
         fiber->ev_callback(fiber, JANET_ASYNC_EVENT_DEINIT);
         janet_gcunroot(janet_wrap_abstract(fiber->ev_stream));
         fiber->ev_callback = NULL;
-        if (fiber->ev_state) {
-            if (!(fiber->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
+        if (!(fiber->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
+            if (fiber->ev_state) {
                 janet_free(fiber->ev_state);
-                janet_ev_dec_refcount();
+                fiber->ev_state = NULL;
             }
-            fiber->ev_state = NULL;
+            janet_ev_dec_refcount();
         }
     }
 }
@@ -279,8 +279,16 @@ void janet_async_in_flight(JanetFiber *fiber) {
 void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state) {
     JanetFiber *fiber = janet_vm.root_fiber;
     janet_assert(!fiber->ev_callback, "double async on fiber");
-    if (mode & JANET_ASYNC_LISTEN_READ) stream->read_fiber = fiber;
-    if (mode & JANET_ASYNC_LISTEN_WRITE) stream->write_fiber = fiber;
+    if (mode & JANET_ASYNC_LISTEN_READ) {
+        stream->read_fiber = fiber;
+    } else {
+        stream->read_fiber = NULL;
+    }
+    if (mode & JANET_ASYNC_LISTEN_WRITE) {
+        stream->write_fiber = fiber;
+    } else {
+        stream->write_fiber = NULL;
+    }
     fiber->ev_callback = callback;
     fiber->ev_stream = stream;
     janet_ev_inc_refcount();
@@ -451,12 +459,21 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
 #else
     p->handle = (JanetHandle) janet_unmarshal_int(ctx);
 #endif
+#ifdef JANET_EV_POLL
+    janet_register_stream(p);
+#endif
     return p;
 }
 
 static Janet janet_stream_next(void *p, Janet key) {
     JanetStream *stream = (JanetStream *)p;
     return janet_nextmethod(stream->methods, key);
+}
+
+static void janet_stream_tostring(void *p, JanetBuffer *buffer) {
+    JanetStream *stream = p;
+    /* Let user print the file descriptor for debugging */
+    janet_formatb(buffer, "<core/stream handle=%d>", stream->handle);
 }
 
 const JanetAbstractType janet_stream_type = {
@@ -467,7 +484,7 @@ const JanetAbstractType janet_stream_type = {
     NULL,
     janet_stream_marshal,
     janet_stream_unmarshal,
-    NULL,
+    janet_stream_tostring,
     NULL,
     NULL,
     janet_stream_next,
@@ -1166,10 +1183,12 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
-                if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
-                    janet_schedule(writer.fiber, make_close_result(channel));
-                } else {
-                    janet_schedule(writer.fiber, janet_wrap_nil());
+                if (janet_fiber_can_resume(writer.fiber)) {
+                    if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
+                        janet_schedule(writer.fiber, make_close_result(channel));
+                    } else {
+                        janet_schedule(writer.fiber, janet_wrap_nil());
+                    }
                 }
             }
         }
@@ -1185,10 +1204,12 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
             } else {
-                if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
-                    janet_schedule(reader.fiber, make_close_result(channel));
-                } else {
-                    janet_schedule(reader.fiber, janet_wrap_nil());
+                if (janet_fiber_can_resume(reader.fiber)) {
+                    if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
+                        janet_schedule(reader.fiber, make_close_result(channel));
+                    } else {
+                        janet_schedule(reader.fiber, janet_wrap_nil());
+                    }
                 }
             }
         }
@@ -1452,7 +1473,7 @@ void janet_ev_deinit(void) {
     CloseHandle(janet_vm.iocp);
 }
 
-void janet_register_stream(JanetStream *stream) {
+static void janet_register_stream(JanetStream *stream) {
     if (NULL == CreateIoCompletionPort(stream->handle, janet_vm.iocp, (ULONG_PTR) stream, 0)) {
         janet_panicf("failed to listen for events: %V", janet_ev_lasterr());
     }
@@ -1509,6 +1530,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     }
 }
 
+void janet_stream_edge_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
 #elif defined(JANET_EV_EPOLL)
 
 static JanetTimestamp ts_now(void) {
@@ -1520,15 +1549,15 @@ static JanetTimestamp ts_now(void) {
 }
 
 /* Wait for the next event */
-static void janet_register_stream(JanetStream *stream) {
+static void janet_register_stream_impl(JanetStream *stream, int mod, int edge_trigger) {
     struct epoll_event ev;
-    ev.events = EPOLLET;
+    ev.events = edge_trigger ? EPOLLET : 0;
     if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) ev.events |= EPOLLIN;
     if (stream->flags & JANET_STREAM_WRITABLE) ev.events |= EPOLLOUT;
     ev.data.ptr = stream;
     int status;
     do {
-        status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_ADD, stream->handle, &ev);
+        status = epoll_ctl(janet_vm.epoll, mod ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, stream->handle, &ev);
     } while (status == -1 && errno == EINTR);
     if (status == -1) {
         if (errno == EPERM) {
@@ -1540,6 +1569,18 @@ static void janet_register_stream(JanetStream *stream) {
             janet_panicv(janet_ev_lasterr());
         }
     }
+}
+
+static void janet_register_stream(JanetStream *stream) {
+    janet_register_stream_impl(stream, 0, 1);
+}
+
+void janet_stream_edge_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1, 1);
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1, 0);
 }
 
 #define JANET_EPOLL_MAX_EVENTS 64
@@ -1671,14 +1712,15 @@ static void timestamp2timespec(struct timespec *t, JanetTimestamp ts) {
     t->tv_nsec = ts == 0 ? 0 : (ts % 1000) * 1000000;
 }
 
-void janet_register_stream(JanetStream *stream) {
+void janet_register_stream_impl(JanetStream *stream, int edge_trigger) {
     struct kevent kevs[2];
     int length = 0;
+    int clear = edge_trigger ? EV_CLEAR : 0;
     if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
-        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_ADD | EV_ENABLE | clear, 0, 0, stream);
     }
     if (stream->flags & JANET_STREAM_WRITABLE) {
-        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, stream);
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_ADD | EV_ENABLE | clear, 0, 0, stream);
     }
     int status;
     do {
@@ -1687,6 +1729,18 @@ void janet_register_stream(JanetStream *stream) {
     if (status == -1) {
         stream->flags |= JANET_STREAM_UNREGISTERED;
     }
+}
+
+void janet_register_stream(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1);
+}
+
+void janet_stream_edge_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 1);
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    janet_register_stream_impl(stream, 0);
 }
 
 #define JANET_KQUEUE_MAX_EVENTS 64
@@ -1811,15 +1865,30 @@ void janet_register_stream(JanetStream *stream) {
     janet_vm.stream_count = new_count;
 }
 
+void janet_stream_edge_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
+void janet_stream_level_triggered(JanetStream *stream) {
+    (void) stream;
+}
+
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
     /* set event flags */
     for (size_t i = 0; i < janet_vm.stream_count; i++) {
         JanetStream *stream = janet_vm.streams[i];
-        janet_vm.fds[i + 1].events = 0;
-        janet_vm.fds[i + 1].revents = 0;
-        if (stream->read_fiber && stream->read_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLIN;
-        if (stream->write_fiber && stream->write_fiber->ev_callback) janet_vm.fds[i + 1].events |= POLLOUT;
+        struct pollfd *pfd = janet_vm.fds + i + 1;
+        pfd->events = 0;
+        pfd->revents = 0;
+        JanetFiber *rf = stream->read_fiber;
+        JanetFiber *wf = stream->write_fiber;
+        if (rf && rf->ev_callback) pfd->events |= POLLIN;
+        if (wf && wf->ev_callback) pfd->events |= POLLOUT;
+        /* Hack to ignore a file descriptor - make file descriptor negative if we want to ignore */
+        if (!pfd->events) {
+            pfd->fd = -pfd->fd;
+        }
     }
 
     /* Poll for events */
@@ -1834,6 +1903,14 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     } while (ready == -1 && errno == EINTR);
     if (ready == -1) {
         JANET_EXIT("failed to poll events");
+    }
+
+    /* Undo negative hack */
+    for (size_t i = 0; i < janet_vm.stream_count; i++) {
+        struct pollfd *pfd = janet_vm.fds + i + 1;
+        if (pfd->fd < 0) {
+            pfd->fd = -pfd->fd;
+        }
     }
 
     /* Check selfpipe */
@@ -2031,33 +2108,35 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
     if (return_value.fiber == NULL) {
         return;
     }
-    switch (return_value.tag) {
-        default:
-        case JANET_EV_TCTAG_NIL:
-            janet_schedule(return_value.fiber, janet_wrap_nil());
-            break;
-        case JANET_EV_TCTAG_INTEGER:
-            janet_schedule(return_value.fiber, janet_wrap_integer(return_value.argi));
-            break;
-        case JANET_EV_TCTAG_STRING:
-        case JANET_EV_TCTAG_STRINGF:
-            janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
-            break;
-        case JANET_EV_TCTAG_KEYWORD:
-            janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
-            break;
-        case JANET_EV_TCTAG_ERR_STRING:
-        case JANET_EV_TCTAG_ERR_STRINGF:
-            janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
-            if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
-            break;
-        case JANET_EV_TCTAG_ERR_KEYWORD:
-            janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
-            break;
-        case JANET_EV_TCTAG_BOOLEAN:
-            janet_schedule(return_value.fiber, janet_wrap_boolean(return_value.argi));
-            break;
+    if (janet_fiber_can_resume(return_value.fiber)) {
+        switch (return_value.tag) {
+            default:
+            case JANET_EV_TCTAG_NIL:
+                janet_schedule(return_value.fiber, janet_wrap_nil());
+                break;
+            case JANET_EV_TCTAG_INTEGER:
+                janet_schedule(return_value.fiber, janet_wrap_integer(return_value.argi));
+                break;
+            case JANET_EV_TCTAG_STRING:
+            case JANET_EV_TCTAG_STRINGF:
+                janet_schedule(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+                if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
+                break;
+            case JANET_EV_TCTAG_KEYWORD:
+                janet_schedule(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+                break;
+            case JANET_EV_TCTAG_ERR_STRING:
+            case JANET_EV_TCTAG_ERR_STRINGF:
+                janet_cancel(return_value.fiber, janet_cstringv((const char *) return_value.argp));
+                if (return_value.tag == JANET_EV_TCTAG_STRINGF) janet_free(return_value.argp);
+                break;
+            case JANET_EV_TCTAG_ERR_KEYWORD:
+                janet_cancel(return_value.fiber, janet_ckeywordv((const char *) return_value.argp));
+                break;
+            case JANET_EV_TCTAG_BOOLEAN:
+                janet_schedule(return_value.fiber, janet_wrap_boolean(return_value.argi));
+                break;
+        }
     }
     janet_gcunroot(janet_wrap_fiber(return_value.fiber));
 }
@@ -2943,10 +3022,15 @@ JANET_CORE_FN(cfun_ev_sleep,
 
 JANET_CORE_FN(cfun_ev_deadline,
               "(ev/deadline sec &opt tocancel tocheck)",
-              "Set a deadline for a fiber `tocheck`. If `tocheck` is not finished after `sec` seconds, "
-              "`tocancel` will be canceled as with `ev/cancel`. "
-              "If `tocancel` and `tocheck` are not given, they default to `(fiber/root)` and "
-              "`(fiber/current)` respectively. Returns `tocancel`.") {
+              "Schedules the event loop to try to cancel the `tocancel` "
+              "task as with `ev/cancel`. After `sec` seconds, the event "
+              "loop will attempt cancellation of `tocancel` if the "
+              "`tocheck` fiber is resumable. `sec` is a number that can "
+              "have a fractional part. `tocancel` defaults to "
+              "`(fiber/root)`, but if specified, must be a task (root "
+              "fiber). `tocheck` defaults to `(fiber/current)`, but if "
+              "specified, should be a fiber. Returns `tocancel` "
+              "immediately.") {
     janet_arity(argc, 1, 3);
     double sec = janet_getnumber(argv, 0);
     JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm.root_fiber);

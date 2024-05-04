@@ -35,6 +35,13 @@
 #endif
 #endif
 
+#ifdef JANET_USE_STDATOMIC
+#include <stdatomic.h>
+/* We don't need stdatomic on most compilers since we use compiler builtins for atomic operations.
+ * Some (TCC), explicitly require using stdatomic.h and don't have any exposed builtins (that I know of).
+ * For TCC and similar compilers, one would need -std=c11 or similar then to get access. */
+#endif
+
 JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
 #ifdef JANET_TOP_LEVEL_SIGNAL
     JANET_TOP_LEVEL_SIGNAL(msg);
@@ -496,6 +503,8 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
 JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
 #ifdef JANET_WINDOWS
     return InterlockedIncrement(x);
+#elif defined(JANET_USE_STDATOMIC)
+    return atomic_fetch_add_explicit(x, 1, memory_order_relaxed) + 1;
 #else
     return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
 #endif
@@ -504,6 +513,8 @@ JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 #ifdef JANET_WINDOWS
     return InterlockedDecrement(x);
+#elif defined(JANET_USE_STDATOMIC)
+    return atomic_fetch_add_explicit(x, -1, memory_order_acq_rel) - 1;
 #else
     return __atomic_add_fetch(x, -1, __ATOMIC_ACQ_REL);
 #endif
@@ -512,6 +523,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 #ifdef JANET_WINDOWS
     return InterlockedOr(x, 0);
+#elif defined(JANET_USE_STDATOMIC)
+    return atomic_load_explicit(x, memory_order_acquire);
 #else
     return __atomic_load_n(x, __ATOMIC_ACQUIRE);
 #endif

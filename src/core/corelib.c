@@ -69,15 +69,15 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
             host.minor < modconf.minor ||
             host.bits != modconf.bits) {
         char errbuf[128];
-        sprintf(errbuf, "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
-                host.major,
-                host.minor,
-                host.patch,
-                host.bits,
-                modconf.major,
-                modconf.minor,
-                modconf.patch,
-                modconf.bits);
+        snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
+                 host.major,
+                 host.minor,
+                 host.patch,
+                 host.bits,
+                 modconf.major,
+                 modconf.minor,
+                 modconf.patch,
+                 modconf.bits);
         *error = janet_cstring(errbuf);
         return NULL;
     }
@@ -110,14 +110,14 @@ JANET_CORE_FN(janet_core_expand_path,
               "(module/expand-path path template)",
               "Expands a path template as found in `module/paths` for `module/find`. "
               "This takes in a path (the argument to require) and a template string, "
-              "to expand the path to a path that can be "
-              "used for importing files. The replacements are as follows:\n\n"
+              "to expand the path to a path that can be used for importing files. "
+              "The replacements are as follows:\n\n"
               "* :all: -- the value of path verbatim.\n\n"
-              "* :@all: -- Same as :all:, but if `path` starts with the @ character,\n"
-              "           the first path segment is replaced with a dynamic binding\n"
-              "           `(dyn <first path segment as keyword>)`.\n\n"
-              "* :cur: -- the current file, or (dyn :current-file)\n\n"
-              "* :dir: -- the directory containing the current file\n\n"
+              "* :@all: -- Same as :all:, but if `path` starts with the @ character, "
+              "the first path segment is replaced with a dynamic binding "
+              "`(dyn <first path segment as keyword>)`.\n\n"
+              "* :cur: -- the directory portion, if any, of (dyn :current-file)\n\n"
+              "* :dir: -- the directory portion, if any, of the path argument\n\n"
               "* :name: -- the name component of path, with extension if given\n\n"
               "* :native: -- the extension used to load natives, .so or .dll\n\n"
               "* :sys: -- the system path, or (dyn :syspath)") {
@@ -1144,17 +1144,20 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                     JDOC("(next ds &opt key)\n\n"
                          "Gets the next key in a data structure. Can be used to iterate through "
                          "the keys of a data structure in an unspecified order. Keys are guaranteed "
-                         "to be seen only once per iteration if they data structure is not mutated "
+                         "to be seen only once per iteration if the data structure is not mutated "
                          "during iteration. If key is nil, next returns the first key. If next "
                          "returns nil, there are no more keys to iterate through."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"
-                         "Propagate a signal from a fiber to the current fiber. The resulting "
-                         "stack trace from the current fiber will include frames from fiber. If "
-                         "fiber is in a state that can be resumed, resuming the current fiber will "
-                         "first resume fiber. This function can be used to re-raise an error without "
-                         "losing the original stack trace."));
+                         "Propagate a signal from a fiber to the current fiber and "
+                         "set the last value of the current fiber to `x`.  The signal "
+                         "value is then available as the status of the current fiber. "
+                         "The resulting stack trace from the current fiber will include "
+                         "frames from fiber. If fiber is in a state that can be resumed, "
+                         "resuming the current fiber will first resume `fiber`. "
+                         "This function can be used to re-raise an error without losing "
+                         "the original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"

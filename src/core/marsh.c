@@ -185,6 +185,19 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags);
 /* Prevent stack overflows */
 #define MARSH_STACKCHECK if ((flags & 0xFFFF) > JANET_RECURSION_GUARD) janet_panic("stack overflow")
 
+/* Quick check if a fiber cannot be marshalled. This is will
+ * have no false positives, but may have false negatives. */
+static int fiber_cannot_be_marshalled(JanetFiber *fiber) {
+    if (janet_fiber_status(fiber) == JANET_STATUS_ALIVE) return 1;
+    int32_t i = fiber->frame;
+    while (i > 0) {
+        JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
+        if (!frame->func) return 1; /* has cfunction on stack */
+        i = frame->prevframe;
+    }
+    return 0;
+}
+
 /* Marshal a function env */
 static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
     MARSH_STACKCHECK;
@@ -197,7 +210,9 @@ static void marshal_one_env(MarshalState *st, JanetFuncEnv *env, int flags) {
     }
     janet_env_valid(env);
     janet_v_push(st->seen_envs, env);
-    if (env->offset > 0 && (JANET_STATUS_ALIVE == janet_fiber_status(env->as.fiber))) {
+
+    /* Special case for early detachment */
+    if (env->offset > 0 && fiber_cannot_be_marshalled(env->as.fiber)) {
         pushint(st, 0);
         pushint(st, env->length);
         Janet *values = env->as.fiber->data + env->offset;
@@ -328,7 +343,7 @@ static void marshal_one_fiber(MarshalState *st, JanetFiber *fiber, int flags) {
     while (i > 0) {
         JanetStackFrame *frame = (JanetStackFrame *)(fiber->data + i - JANET_FRAME_SIZE);
         if (frame->env) frame->flags |= JANET_STACKFRAME_HASENV;
-        if (!frame->func) janet_panic("cannot marshal fiber with c stackframe");
+        if (!frame->func) janet_panicf("cannot marshal fiber with c stackframe (%v)", janet_wrap_cfunction((JanetCFunction) frame->pc));
         pushint(st, frame->flags);
         pushint(st, frame->prevframe);
         int32_t pcdiff = (int32_t)(frame->pc - frame->func->def->bytecode);

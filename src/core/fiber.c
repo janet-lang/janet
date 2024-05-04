@@ -662,7 +662,7 @@ JANET_CORE_FN(cfun_fiber_can_resume,
 }
 
 JANET_CORE_FN(cfun_fiber_last_value,
-              "(fiber/last-value)",
+              "(fiber/last-value fiber)",
               "Get the last value returned or signaled from the fiber.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);

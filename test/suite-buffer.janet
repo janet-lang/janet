@@ -77,6 +77,46 @@
 (buffer/push-string b5 "456" @"789")
 (assert (= "123456789" (string b5)) "buffer/push-buffer 2")
 
+(def buffer-uint16-be @"")
+(buffer/push-uint16 buffer-uint16-be :be 0x0102)
+(assert (= "\x01\x02" (string buffer-uint16-be)) "buffer/push-uint16 big endian")
+
+(def buffer-uint16-le @"")
+(buffer/push-uint16 buffer-uint16-le :le 0x0102)
+(assert (= "\x02\x01" (string buffer-uint16-le)) "buffer/push-uint16 little endian")
+
+(def buffer-uint16-negative @"")
+(buffer/push-uint16 buffer-uint16-negative :be -1)
+(assert (= "\xff\xff" (string buffer-uint16-negative)) "buffer/push-uint16 negative")
+
+(def buffer-uint32-be @"")
+(buffer/push-uint32 buffer-uint32-be :be 0x01020304)
+(assert (= "\x01\x02\x03\x04" (string buffer-uint32-be)) "buffer/push-uint32 big endian")
+
+(def buffer-uint32-le @"")
+(buffer/push-uint32 buffer-uint32-le :le 0x01020304)
+(assert (= "\x04\x03\x02\x01" (string buffer-uint32-le)) "buffer/push-uint32 little endian")
+
+(def buffer-uint32-negative @"")
+(buffer/push-uint32 buffer-uint32-negative :be -1)
+(assert (= "\xff\xff\xff\xff" (string buffer-uint32-negative)) "buffer/push-uint32 negative")
+
+(def buffer-float32-be @"")
+(buffer/push-float32 buffer-float32-be :be 1.234)
+(assert (= "\x3f\x9d\xf3\xb6" (string buffer-float32-be)) "buffer/push-float32 big endian")
+
+(def buffer-float32-le @"")
+(buffer/push-float32 buffer-float32-le :le 1.234)
+(assert (= "\xb6\xf3\x9d\x3f" (string buffer-float32-le)) "buffer/push-float32 little endian")
+
+(def buffer-float64-be @"")
+(buffer/push-float64 buffer-float64-be :be 1.234)
+(assert (= "\x3f\xf3\xbe\x76\xc8\xb4\x39\x58" (string buffer-float64-be)) "buffer/push-float64 big endian")
+
+(def buffer-float64-le @"")
+(buffer/push-float64 buffer-float64-le :le 1.234)
+(assert (= "\x58\x39\xb4\xc8\x76\xbe\xf3\x3f" (string buffer-float64-le)) "buffer/push-float64 little endian")
+
 # Buffer from bytes
 (assert (deep= @"" (buffer/from-bytes)) "buffer/from-bytes 1")
 (assert (deep= @"ABC" (buffer/from-bytes 65 66 67)) "buffer/from-bytes 2")

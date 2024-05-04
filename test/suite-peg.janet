@@ -263,6 +263,9 @@
 (marshpeg '(if-not "abcdf" 123))
 (marshpeg ~(cmt "abcdf" ,identity))
 (marshpeg '(group "abc"))
+(marshpeg '(sub "abcdf" "abc"))
+(marshpeg '(* (sub 1 1)))
+(marshpeg '(split "," (+ "a" "b" "c")))
 
 # Peg swallowing errors
 # 159651117
@@ -659,6 +662,99 @@
 (assert (deep=
   (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
   @[]) "peg if not")
+
+(defn test [name peg input expected]
+  (assert (deep= (peg/match peg input) expected) name))
+
+(test "sub: matches the same input twice"
+  ~(sub "abcd" "abc")
+  "abcdef"
+  @[])
+
+(test "sub: second pattern cannot match more than the first pattern"
+  ~(sub "abcd" "abcde")
+  "abcdef"
+  nil)
+
+(test "sub: fails if first pattern fails"
+  ~(sub "x" "abc")
+  "abcdef"
+  nil)
+
+(test "sub: fails if second pattern fails"
+  ~(sub "abc" "x")
+  "abcdef"
+  nil)
+
+(test "sub: keeps captures from both patterns"
+  ~(sub '"abcd" '"abc")
+  "abcdef"
+  @["abcd" "abc"])
+
+(test "sub: second pattern can reference captures from first"
+  ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
+  "abcdef"
+  @[5 "abc" "abc"])
+
+(test "sub: second pattern can't see past what the first pattern matches"
+  ~(sub "abc" (* "abc" -1))
+  "abcdef"
+  @[])
+
+(test "sub: positions inside second match are still relative to the entire input"
+  ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
+  "one\ntwo\nthree\n"
+  @[6 2 3])
+
+(test "sub: advances to the end of the first pattern's match"
+  ~(* (sub "abc" "ab") "d")
+  "abcdef"
+  @[])
+
+(test "split: basic functionality"
+  ~(split "," '1)
+  "a,b,c"
+  @["a" "b" "c"])
+
+(test "split: drops captures from separator pattern"
+  ~(split '"," '1)
+  "a,b,c"
+  @["a" "b" "c"])
+
+(test "split: can match empty subpatterns"
+  ~(split "," ':w*)
+  ",a,,bar,,,c,,"
+  @["" "a" "" "bar" "" "" "c" "" ""])
+
+(test "split: subpattern is limited to only text before the separator"
+  ~(split "," '(to -1))
+  "a,,bar,c"
+  @["a" "" "bar" "c"])
+
+(test "split: fails if any subpattern fails"
+  ~(split "," '"a")
+  "a,a,b"
+  nil)
+
+(test "split: separator does not have to match anything"
+  ~(split "x" '(to -1))
+  "a,a,b"
+  @["a,a,b"])
+
+(test "split: always consumes entire input"
+  ~(split 1 '"")
+  "abc"
+  @["" "" "" ""])
+
+(test "split: separator can be an arbitrary PEG"
+  ~(split :s+ '(to -1))
+  "a   b      c"
+  @["a" "b" "c"])
+
+(test "split: does not advance past the end of the input"
+  ~(* (split "," ':w+) 0)
+  "a,b,c"
+  @["a" "b" "c"])
 
 (end-suite)
 

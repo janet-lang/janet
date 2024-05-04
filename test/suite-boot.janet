@@ -241,6 +241,16 @@
   (assert (pos? (% x 4)) "generate in loop"))
 (assert (= gencount 75) "generate loop count")
 
+# more loop checks
+(assert (deep= (seq [i :range [0 10]] i) @[0 1 2 3 4 5 6 7 8 9]) "seq 1")
+(assert (deep= (seq [i :range [0 10 2]] i) @[0 2 4 6 8]) "seq 2")
+(assert (deep= (seq [i :range [10]] i) @[0 1 2 3 4 5 6 7 8 9]) "seq 3")
+(assert (deep= (seq [i :range-to [10]] i) @[0 1 2 3 4 5 6 7 8 9 10]) "seq 4")
+(def gen (generate [x :range-to [0 nil 2]] x))
+(assert (deep= (take 5 gen) @[0 2 4 6 8]) "generate nil limit")
+(def gen (generate [x :range [0 nil 2]] x))
+(assert (deep= (take 5 gen) @[0 2 4 6 8]) "generate nil limit 2")
+
 # Even and odd
 # ff163a5ae
 (assert (odd? 9) "odd? 1")
@@ -354,7 +364,7 @@
         "sort 5")
 (assert (<= ;(sort (map (fn [x] (math/random)) (range 1000)))) "sort 6")
 
-# #1283  
+# #1283
 (assert (deep=
           (partition 2 (generate [ i :in [:a :b :c :d :e]] i))
           '@[(:a :b) (:c :d) (:e)]))
@@ -945,10 +955,37 @@
 (defn case-4 [&]
   (def x (break (break (break)))))
 (bytecode-roundtrip case-4)
+(defn case-5 []
+  (def foo (fn [one two] one))
+  (foo 100 200))
+(bytecode-roundtrip case-5)
 
 # Debug bytecode of these functions
 # (pp (disasm case-1))
 # (pp (disasm case-2))
 # (pp (disasm case-3))
+
+# Regression #1330
+(defn regress-1330 [&]
+  (def a [1 2 3])
+  (def b [;a])
+  (identity a))
+(assert (= [1 2 3] (regress-1330)) "regression 1330")
+
+# Issue 1341
+(assert (= () '() (macex '())) "macex ()")
+(assert (= '[] (macex '[])) "macex []")
+
+# Knuth man or boy test
+(var a nil)
+(defn man-or-boy [x] (a x |1 |-1 |-1 |1 |0))
+(varfn a [k x1 x2 x3 x4 x5]
+  (var k k)
+  (defn b [] (-- k) (a k b x1 x2 x3 x4))
+  (if (<= k 0)
+    (+ (x4) (x5))
+    (b)))
+(assert (= -2 (man-or-boy 2)))
+(assert (= -67 (man-or-boy 10)))
 
 (end-suite)

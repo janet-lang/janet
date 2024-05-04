@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+sudo apt update
+sudo apt-get install -y ca-certificates libssl-dev\
+    qemu qemu-utils qemu-user-static\
+    texinfo groff\
+    cmake ninja-build bison zip\
+    pkg-config build-essential autoconf re2c
+
+# download cosmocc
+cd /sc
+wget https://github.com/jart/cosmopolitan/releases/download/3.3.3/cosmocc-3.3.3.zip
+mkdir -p cosmocc
+cd cosmocc
+unzip ../cosmocc-3.3.3.zip
+
+# register
+cd /sc/cosmocc
+sudo cp ./bin/ape-x86_64.elf /usr/bin/ape
+sudo sh -c "echo ':APE:M::MZqFpD::/usr/bin/ape:' >/proc/sys/fs/binfmt_misc/register"

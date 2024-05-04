@@ -315,8 +315,7 @@ See the [Embedding Section](https://janet-lang.org/capi/embedding.html) on the w
 
 ## Discussion
 
-Feel free to ask questions and join the discussion on the [Janet Gitter channel](https://gitter.im/janet-language/community).
-Gitter provides Matrix and IRC bridges as well.
+Feel free to ask questions and join the discussion on the [Janet Zulip Instance](https://janet.zulipchat.com/)
 
 ## FAQ
 

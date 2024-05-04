@@ -33,6 +33,7 @@ CLIBS=-lm -lpthread
 JANET_TARGET=build/janet
 JANET_BOOT=build/janet_boot
 JANET_IMPORT_LIB=build/janet.lib
+JANET_LIBRARY_IMPORT_LIB=build/libjanet.lib
 JANET_LIBRARY=build/libjanet.so
 JANET_STATIC_LIBRARY=build/libjanet.a
 JANET_PATH?=$(LIBDIR)/janet
@@ -52,6 +53,7 @@ HOSTAR?=$(AR)
 # Symbols are (optionally) removed later, keep -g as default!
 CFLAGS?=-O2 -g
 LDFLAGS?=-rdynamic
+LIBJANET_LDFLAGS?=$(LD_FLAGS)
 RUN:=$(RUN)
 
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
@@ -94,9 +96,11 @@ endif
 ifeq ($(findstring MINGW,$(UNAME)), MINGW)
 	CLIBS:=-lws2_32 -lpsapi -lwsock32
 	LDFLAGS:=-Wl,--out-implib,$(JANET_IMPORT_LIB)
+	LIBJANET_LDFLAGS:=-Wl,--out-implib,$(JANET_LIBRARY_IMPORT_LIB)
 	JANET_TARGET:=$(JANET_TARGET).exe
 	JANET_BOOT:=$(JANET_BOOT).exe
 endif
+
 
 $(shell mkdir -p build/core build/c build/boot build/mainclient)
 all: $(JANET_TARGET) $(JANET_STATIC_LIBRARY) build/janet.h
@@ -201,9 +205,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.32.dylib
+SONAME=libjanet.1.34.dylib
 else
-SONAME=libjanet.so.1.32
+SONAME=libjanet.so.1.34
 endif
 
 build/c/shell.c: src/mainclient/shell.c
@@ -225,7 +229,7 @@ $(JANET_TARGET): $(JANET_TARGET_OBJECTS)
 	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) -o $@ $^ $(CLIBS)
 
 $(JANET_LIBRARY): $(JANET_TARGET_OBJECTS)
-	$(HOSTCC) $(LDFLAGS) $(BUILD_CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
+	$(HOSTCC) $(LIBJANET_LDFLAGS) $(BUILD_CFLAGS) $(SONAME_SETTER)$(SONAME) -shared -o $@ $^ $(CLIBS)
 
 $(JANET_STATIC_LIBRARY): $(JANET_TARGET_OBJECTS)
 	$(HOSTAR) rcs $@ $^
@@ -340,6 +344,7 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	mkdir -p '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)'
 	cp build/janet.pc '$(DESTDIR)$(JANET_PKG_CONFIG_PATH)/janet.pc'
 	cp '$(JANET_IMPORT_LIB)' '$(DESTDIR)$(LIBDIR)' || echo 'no import lib to install (mingw only)'
+	cp '$(JANET_LIBRARY_IMPORT_LIB)' '$(DESTDIR)$(LIBDIR)' || echo 'no import lib to install (mingw only)'
 	[ -z '$(DESTDIR)' ] && $(LDCONFIG) || echo "You can ignore this error for non-Linux systems or local installs"
 
 install-jpm-git: $(JANET_TARGET)

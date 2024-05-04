@@ -51,5 +51,13 @@
 (def f (asm (disasm (fn [x] (fn [y] (+ x y))))))
 (assert (= ((f 10) 37) 47) "asm environment tables")
 
+# issue #1424
+(assert-no-error "arity > used slots (issue #1424)"
+                 (asm
+                   (disasm
+                     (fn []
+                       (def foo (fn [one two] one))
+                       (foo 100 200)))))
+
 (end-suite)
 
