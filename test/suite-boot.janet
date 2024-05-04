@@ -976,4 +976,16 @@
 (assert (= () '() (macex '())) "macex ()")
 (assert (= '[] (macex '[])) "macex []")
 
+# Knuth man or boy test
+(var a nil)
+(defn man-or-boy [x] (a x |1 |-1 |-1 |1 |0))
+(varfn a [k x1 x2 x3 x4 x5]
+  (var k k)
+  (defn b [] (-- k) (a k b x1 x2 x3 x4))
+  (if (<= k 0)
+    (+ (x4) (x5))
+    (b)))
+(assert (= -2 (man-or-boy 2)))
+(assert (= -67 (man-or-boy 10)))
+
 (end-suite)
