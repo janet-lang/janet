@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2023 Calvin Rose
+* Copyright (c) 2024 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -30,8 +30,10 @@
  * [ ] named fields (for debugging mostly)
  * [x] named registers and types
  * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
+ * [ ] switch internal use of uint32_t everywhere to type struct wrappers for safety
  * [ ] support for switch-case
  * [ ] x86/x64 machine code target
+ * [ ] LLVM target
  * [ ] target specific extensions - custom instructions and custom primitives
  * [ ] better casting semantics
  * [x] separate pointer arithmetic from generalized arithmetic (easier to instrument code for safety)?
@@ -950,11 +952,59 @@ static void tcheck_equal(JanetSysIR *sysir, uint32_t reg1, uint32_t reg2) {
     }
 }
 
+static int tcheck_cast_type(JanetSysIR *sysir, uint32_t td, uint32_t ts) {
+    JanetSysIRLinkage *linkage = sysir->linkage;
+    if (td == ts) return 0; /* trivial case */
+    JanetPrim primd = linkage->type_defs[td].prim;
+    JanetPrim prims = linkage->type_defs[ts].prim;
+    if (primd == prims) {
+        /* Pointer casting should be stricter than in C - for now, we
+         * allow casts as long as size and aligment are identical. Also
+         * no casting between arrays and pointers
+         *
+         * TODO - check array and pointer types have same alignment
+        
+        switch (primd) {
+            default:
+                return -1;
+            case JANET_PRIM_ARRAY:
+                return tcheck_cast_type(sysir, linkage->type_defs[td].array.type, linkage->type_defs[ts].array.type);
+            case JANET_PRIM_POINTER:
+                return tcheck_cast_type(sysir, linkage->type_defs[td].pointer.type, linkage->type_defs[ts].pointer.type);
+        }
+        return 0;
+        */
+        return -1; /* TODO */
+    }
+    /* Check that both src and dest are primitive numerics */
+    for (int i = 0; i < 2; i++) {
+        JanetPrim p = i ? prims : primd;
+        switch (p) {
+            default:
+                break;
+            case JANET_PRIM_STRUCT:
+            case JANET_PRIM_UNION:
+            case JANET_PRIM_UNKNOWN:
+            case JANET_PRIM_ARRAY:
+            case JANET_PRIM_POINTER:
+                return -1;
+        }
+    }
+    return 0;
+}
+
 static void tcheck_cast(JanetSysIR *sysir, uint32_t dest, uint32_t src) {
     (void) sysir;
     (void) dest;
     (void) src;
-    /* TODO - casting rules */
+    uint32_t td = sysir->types[dest];
+    uint32_t ts = sysir->types[src];
+    int notok = tcheck_cast_type(sysir, td, ts);
+    if (notok) {
+        janet_panicf("type failure, %V cannot be cast to %V",
+                     tname(sysir, ts),
+                     tname(sysir, td));
+    }
 }
 
 static void tcheck_constant(JanetSysIR *sysir, uint32_t dest, Janet c) {
@@ -1239,7 +1289,6 @@ static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf
 
     /* Add nested for loops for any dimensionality of array */
     while (linkage->type_defs[operand_type].prim == JANET_PRIM_ARRAY) {
-        /* TODO - handle fixed_count == SIZE_MAX */
         janet_formatb(buffer, "for (size_t _j%u = 0; _j%u < %u; _j%u++) ",
                       index_index, index_index,
                       linkage->type_defs[operand_type].array.fixed_count,
@@ -1277,7 +1326,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 #define EMITBINOP(OP) emit_binop(ir, buffer, tempbuf, instruction, OP)
 
     /* Prelude */
-    janet_formatb(buffer, "#include <stdint.h>\n\n");
+    janet_formatb(buffer, "#include <stddef.h>\n\n");
 
     /* Emit type defs */
     for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {
@@ -1457,9 +1506,11 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
                     }
                     janet_formatb(buffer, ");\n");
                     break;
-                case JANET_SYSOP_CAST:
-                    janet_formatb(buffer, "_r%u = (_t%u) _r%u;\n", instruction.two.dest, ir->types[instruction.two.dest], instruction.two.src);
+                case JANET_SYSOP_CAST: {
+                    uint32_t to = ir->types[instruction.two.dest];
+                    janet_formatb(buffer, "_r%u = (_t%u) (_r%u);\n", instruction.two.dest, to, instruction.two.src);
                     break;
+                }
                 case JANET_SYSOP_MOVE:
                     janet_formatb(buffer, "_r%u = _r%u;\n", instruction.two.dest, instruction.two.src);
                     break;
@@ -1516,7 +1567,6 @@ static int sysir_gcmark(void *p, size_t s) {
     }
     return 0;
 }
-
 
 static int sysir_context_gc(void *p, size_t s) {
     JanetSysIRLinkage *linkage = (JanetSysIRLinkage *)p;
