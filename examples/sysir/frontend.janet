@@ -51,16 +51,18 @@
     (array/push into ~(type-prim ,name ,native-name))
     (make-type name))
   (add-prim-type 'float 'f32)
-  (add-prim-type 'double 'f64))
+  (add-prim-type 'double 'f64)
+  (add-prim-type 'boolean 'boolean))
 
 (defn type-extract
   "Given a symbol:type combination, extract the proper name and the type separately"
   [combined-name &opt default-type]
-  (def parts (string/split ":" combined-name 0 1))
+  (def parts (string/split ":" combined-name 0 2))
   (def [name tp] parts)
   [(symbol name) (symbol (or tp default-type))])
 
 (var do-binop nil)
+(var do-comp nil)
 
 (defn visit1
   "Take in a form and compile code and put it into `into`. Return result slot."
@@ -92,6 +94,14 @@
         '* (do-binop 'multiply args into)
         '/ (do-binop 'divide args into)
 
+        # Comparison
+        '= (do-comp 'eq args into)
+        'not= (do-comp 'neq args into)
+        '< (do-comp 'lt args into)
+        '<= (do-comp 'lte args into)
+        '> (do-comp 'gt args into)
+        '>= (do-comp 'gte args into)
+
         # Type hinting
         'the
         (do
@@ -111,7 +121,8 @@
           (def [name tp] (type-extract full-name 'double))
           (def result (visit1 value into))
           (def slot (get-slot name))
-          (array/push into ~(bind ,slot ,tp))
+          (when tp
+            (array/push into ~(bind ,slot ,tp)))
           (array/push into ~(move ,slot ,result))
           slot)
 
@@ -146,6 +157,8 @@
     (errorf "cannot compile %V" code)))
 
 (varfn do-binop
+  "Emit a 'binary' op succh as (+ x y). 
+  Extended to support any number of arguments such as (+ x y z ...)"
   [opcode args into]
   (var final nil)
   (each arg args
@@ -161,14 +174,38 @@
            right)))
   (assert final))
 
+(varfn do-comp
+  "Emit a comparison form such as (= x y z ...)"
+  [opcode args into]
+  (def result (get-slot))
+  (def needs-temp (> 2 (length args)))
+  (def temp-result (if needs-temp (get-slot) nil))
+  (array/push into ~(bind ,result boolean))
+  (when needs-temp
+    (array/push into ~(bind ,temp-result boolean)))
+  (var left nil)
+  (var first-compare true)
+  (each arg args
+    (def right (visit1 arg into))
+    (when left
+      (if first-compare
+        (array/push into ~(,opcode ,result ,left ,right))
+        (do
+          (array/push into ~(,opcode ,temp-result ,left ,right))
+          (array/push into ~(and ,result ,temp-result ,result))))
+      (set first-compare false))
+    (set left right))
+  result)
+
 ###
 ###
 ###
 
 (def myprog
   '(do
-     (def xyz (+ 1 2 3))
-     (def abc (* 4 5 6))
+     (def xyz:double (+ 1 2 3))
+     (def abc:double (* 4 5 6))
+     (def x:boolean (= 5 7))
      (return (/ abc xyz))))
 
 (defn dotest

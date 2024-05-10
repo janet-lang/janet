@@ -132,7 +132,7 @@ static void janet_mark_many(const Janet *values, int32_t n) {
     }
 }
 
-/* Mark a bunch of key values items in memory */
+/* Mark only the keys from a sequence of key-value pairs */
 static void janet_mark_keys(const JanetKV *kvs, int32_t n) {
     const JanetKV *end = kvs + n;
     while (kvs < end) {
@@ -141,7 +141,7 @@ static void janet_mark_keys(const JanetKV *kvs, int32_t n) {
     }
 }
 
-/* Mark a bunch of key values items in memory */
+/* Mark only the values from a sequence of key-value pairs */
 static void janet_mark_values(const JanetKV *kvs, int32_t n) {
     const JanetKV *end = kvs + n;
     while (kvs < end) {
@@ -150,7 +150,7 @@ static void janet_mark_values(const JanetKV *kvs, int32_t n) {
     }
 }
 
-/* Mark a bunch of key values items in memory */
+/* Mark key-value pairs */
 static void janet_mark_kvs(const JanetKV *kvs, int32_t n) {
     const JanetKV *end = kvs + n;
     while (kvs < end) {

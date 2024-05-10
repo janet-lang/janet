@@ -120,6 +120,18 @@ static void janet_net_socknoblock(JSock s) {
 #endif
 }
 
+static void janet_net_nodelay(JanetStream *stream) {
+    int flag = 1;
+    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    stream->flags |= JANET_STREAM_BUFFERED;
+}
+
+static void janet_net_delay(JanetStream *stream) {
+    int flag = 0;
+    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    stream->flags &= ~JANET_STREAM_BUFFERED;
+}
+
 /* State machine for async connect */
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -953,6 +965,7 @@ struct sockopt_type {
 /* List of supported socket options; The type JANET_POINTER is used
  * for options that require special handling depending on the type. */
 static const struct sockopt_type sockopt_type_list[] = {
+    { "tcp-nodelay",  IPPROTO_TCP, TCP_NODELAY, JANET_BOOLEAN },
     { "so-broadcast", SOL_SOCKET, SO_BROADCAST, JANET_BOOLEAN },
     { "so-reuseaddr", SOL_SOCKET, SO_REUSEADDR, JANET_BOOLEAN },
     { "so-keepalive", SOL_SOCKET, SO_KEEPALIVE, JANET_BOOLEAN },
@@ -974,6 +987,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
               "- :so-broadcast boolean\n"
               "- :so-reuseaddr boolean\n"
               "- :so-keepalive boolean\n"
+              "- :tcp-nodelay boolean\n"
               "- :ip-multicast-ttl number\n"
               "- :ip-add-membership string\n"
               "- :ip-drop-membership string\n"

@@ -31,7 +31,6 @@
  * [x] named registers and types
  * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
  * [ ] switch internal use of uint32_t everywhere to type struct wrappers for safety
- * [ ] support for switch-case
  * [ ] x86/x64 machine code target
  * [ ] LLVM target
  * [ ] target specific extensions - custom instructions and custom primitives
@@ -1075,9 +1074,112 @@ static JanetString rname(JanetSysIR *sysir, uint32_t regid) {
     return name;
 }
 
+static int reg_is_unknown_type(JanetSysIR *sysir, uint32_t reg) {
+    JanetSysIRLinkage *linkage = sysir->linkage;
+    uint32_t t = sysir->types[reg];
+    return (linkage->type_defs[t].prim == JANET_PRIM_UNKNOWN);
+}
+
 static void janet_sysir_type_check(JanetSysIR *sysir) {
 
-    /* TODO: Simple forward type inference */
+    /* Simple forward type inference */
+    for (uint32_t i = 0; i < sysir->instruction_count; i++) {
+        JanetSysInstruction instruction = sysir->instructions[i];
+        switch (instruction.opcode) {
+            default:
+                break;
+            case JANET_SYSOP_MOVE:
+                if (reg_is_unknown_type(sysir, instruction.two.dest)) {
+                    sysir->types[instruction.two.dest] = sysir->types[instruction.two.src];
+                }
+                if (reg_is_unknown_type(sysir, instruction.two.src)) {
+                    sysir->types[instruction.two.src] = sysir->types[instruction.two.dest];
+                }
+                break;
+            case JANET_SYSOP_CAST:
+                tcheck_cast(sysir, instruction.two.dest, instruction.two.src);
+                break;
+            case JANET_SYSOP_POINTER_ADD:
+            case JANET_SYSOP_POINTER_SUBTRACT:
+                tcheck_pointer_math(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.rhs);
+                break;
+            case JANET_SYSOP_ADD:
+            case JANET_SYSOP_SUBTRACT:
+            case JANET_SYSOP_MULTIPLY:
+            case JANET_SYSOP_DIVIDE:
+                tcheck_number(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.dest]));
+                tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
+                tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
+                break;
+            case JANET_SYSOP_BAND:
+            case JANET_SYSOP_BOR:
+            case JANET_SYSOP_BXOR:
+                tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.dest]));
+                tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
+                tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
+                break;
+            case JANET_SYSOP_BNOT:
+                tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.two.src]));
+                tcheck_equal(sysir, instruction.two.dest, instruction.two.src);
+                break;
+            case JANET_SYSOP_SHL:
+            case JANET_SYSOP_SHR:
+                tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.lhs]));
+                tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
+                tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
+                break;
+            case JANET_SYSOP_LOAD:
+                tcheck_pointer_equals(sysir, instruction.two.src, instruction.two.dest);
+                break;
+            case JANET_SYSOP_STORE:
+                tcheck_pointer_equals(sysir, instruction.two.dest, instruction.two.src);
+                break;
+            case JANET_SYSOP_GT:
+            case JANET_SYSOP_LT:
+            case JANET_SYSOP_EQ:
+            case JANET_SYSOP_NEQ:
+            case JANET_SYSOP_GTE:
+            case JANET_SYSOP_LTE:
+                /* TODO - allow arrays */
+                tcheck_number_or_pointer(sysir, sysir->types[instruction.three.lhs]);
+                tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
+                //tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
+                tcheck_boolean(sysir, sysir->types[instruction.three.dest]);
+                break;
+            case JANET_SYSOP_ADDRESS:
+                tcheck_pointer(sysir, sysir->types[instruction.two.dest]);
+                break;
+            case JANET_SYSOP_BRANCH:
+                tcheck_boolean(sysir, sysir->types[instruction.branch.cond]);
+                if (instruction.branch.to >= sysir->instruction_count) {
+                    janet_panicf("label outside of range [0, %u), got %u", sysir->instruction_count, instruction.branch.to);
+                }
+                break;
+            case JANET_SYSOP_CONSTANT:
+                tcheck_constant(sysir, instruction.constant.dest, sysir->constants[instruction.constant.constant]);
+                break;
+            case JANET_SYSOP_CALL:
+                tcheck_pointer(sysir, sysir->types[instruction.call.callee]);
+                break;
+            case JANET_SYSOP_ARRAY_GETP:
+                tcheck_array_getp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.lhs);
+                break;
+            case JANET_SYSOP_ARRAY_PGETP:
+                tcheck_array_pgetp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.lhs);
+                break;
+            case JANET_SYSOP_FIELD_GETP:
+                tcheck_fgetp(sysir, instruction.field.r, instruction.field.st, instruction.field.field);
+                break;
+            case JANET_SYSOP_CALLK:
+                /* TODO - check function return type */
+                break;
+        }
+        /* Write back possibly modified instruction */
+        sysir->instructions[i] = instruction;
+    }
+}
+
+
 
     /* Assert no unknown types */
     JanetSysIRLinkage *linkage = sysir->linkage;
@@ -1173,7 +1275,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 /* TODO - allow arrays */
                 tcheck_number_or_pointer(sysir, sysir->types[instruction.three.lhs]);
                 tcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
-                tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
+                //tcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
                 tcheck_boolean(sysir, sysir->types[instruction.three.dest]);
                 break;
             case JANET_SYSOP_ADDRESS:
