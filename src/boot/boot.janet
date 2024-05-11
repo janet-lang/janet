@@ -3853,9 +3853,11 @@
               :lazy lazy
               :map-symbols map-symbols}))
 
-  (defmacro ffi/defbind
-    "Generate bindings for native functions in a convenient manner."
-    [name ret-type & body]
+  (defmacro ffi/defbind-alias
+    "Generate bindings for native functions in a convenient manner.
+     Similar to defbind but allows for the janet function name to be
+     different than the FFI function."
+    [name alias ret-type & body]
     (def real-ret-type (eval ret-type))
     (def meta (slice body 0 -2))
     (def arg-pairs (partition 2 (last body)))
@@ -3872,10 +3874,15 @@
     (defn make-ptr []
       (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
     (if lazy
-      ~(defn ,name ,;meta [,;formal-args]
+      ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-      ~(defn ,name ,;meta [,;formal-args]
+      ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+
+  (defmacro ffi/defbind
+    "Generate bindings for native functions in a convenient manner."
+    [name ret-type & body]
+    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body))
 
 ###
 ###

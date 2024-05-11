@@ -55,6 +55,7 @@
 (ffi/defbind sixints-fn six-ints [])
 (ffi/defbind sixints-fn-2 :int [x :int s six-ints])
 (ffi/defbind sixints-fn-3 :int [s six-ints x :int])
+(ffi/defbind-alias int-fn int-fn-aliased :int [a :int b :int])
 
 #
 # Struct reading and writing
@@ -119,6 +120,7 @@
 (tracev (return-struct 42))
 (tracev (double-lots 1 2 3 4 5 6 700 800 9 10))
 (tracev (struct-big 11 99.5))
+(tracev (int-fn-aliased 10 20))
 
 (assert (= [10 10 12 12] (split-ret-fn 10 12)))
 (assert (= [12 12 10 10] (split-flip-ret-fn 10 12)))
