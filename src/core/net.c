@@ -120,18 +120,6 @@ static void janet_net_socknoblock(JSock s) {
 #endif
 }
 
-static void janet_net_nodelay(JanetStream *stream) {
-    int flag = 1;
-    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
-    stream->flags |= JANET_STREAM_BUFFERED;
-}
-
-static void janet_net_delay(JanetStream *stream) {
-    int flag = 0;
-    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
-    stream->flags &= ~JANET_STREAM_BUFFERED;
-}
-
 /* State machine for async connect */
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
