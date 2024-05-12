@@ -688,7 +688,7 @@
           ~(if (def ,(def sym (gensym)) ,br)
              (do (def ,bl ,sym) ,(aux (+ 2 i)))
              ,fal2)))))
-   (aux 0))
+  (aux 0))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
@@ -2143,8 +2143,8 @@
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-                 (tuple/brackets ;(map recur x))
-                 (dotup x))
+               (tuple/brackets ;(map recur x))
+               (dotup x))
       :array (map recur x)
       :struct (table/to-struct (dotable x recur))
       :table (dotable x recur)
@@ -2958,7 +2958,7 @@
            :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
-  (default env (make-env))
+  (default env (make-env (curenv)))
   (def spath (string path))
   (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
@@ -3879,10 +3879,10 @@
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
 
-  (defmacro ffi/defbind
-    "Generate bindings for native functions in a convenient manner."
-    [name ret-type & body]
-    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body))
+(defmacro ffi/defbind
+  "Generate bindings for native functions in a convenient manner."
+  [name ret-type & body]
+  ~(ffi/defbind-alias ,name ,name ,ret-type ,;body))
 
 ###
 ###
@@ -3959,6 +3959,151 @@
   (merge-into module/cache old-modcache)
   nil)
 
+###
+###
+### Bundle tools
+###
+###
+
+(compwhen (dyn 'os/stat)
+
+  (defdyn *bundle-manifest* "Current manifest table of an installed package. Bound when executing hooks.")
+
+  (defn- get-manifest-filename
+    [&opt bundle-name]
+    (string (dyn *syspath*) "/.manifests/" bundle-name (when bundle-name ".jdn")))
+
+  (defn- get-hook-filename
+    [&opt bundle-name hook]
+    (string (dyn *syspath*) "/.hooks/" bundle-name (when bundle-name (string "/" hook))))
+
+  (defn- prime-bundle-paths
+    []
+    (def mf (get-manifest-filename))
+    (def hf (get-hook-filename))
+    (os/mkdir mf)
+    (os/mkdir hf)
+    nil)
+
+  (defn- copy-hooks
+    [hooks-src bundle-name]
+    (os/mkdir (get-hook-filename bundle-name))
+    (when (os/stat hooks-src :mode)
+      (each hook (os/dir hooks-src)
+        (def hookpath (string hooks-src "/" hook))
+        (def source (slurp hookpath))
+        (spit (get-hook-filename bundle-name hook) source))))
+
+  (defn- get-files []
+    (def manifest (dyn *bundle-manifest*))
+    (assert manifest "nothing bound to (dyn *bundle-manifest*)")
+    (def files (get manifest :files @[]))
+    (put manifest :files files)
+    files)
+
+  (defn bundle/manifest
+    "Get the manifest for a give installed bundle"
+    [bundle-name]
+    (def name (get-manifest-filename bundle-name))
+    (assert (fexists name) (string "no bundle " bundle-name " found"))
+    (parse (slurp name)))
+
+  (defn bundle/do-hook
+    "Run a given hook for an installed bundle"
+    [bundle-name hook]
+    (bundle/manifest bundle-name) # assert good bundle-name
+    (def filename (get-hook-filename bundle-name hook))
+    (when (os/stat filename :mode)
+      (def dir (os/cwd))
+      (def real-syspath (os/realpath (dyn *syspath*))) # if syspath is a relative path
+      (def env (make-env))
+      (def manifest-name (get-manifest-filename bundle-name))
+      (def manifest (bundle/manifest bundle-name))
+      (def srcdir (get manifest :local-source))
+      (def filename-real (os/realpath filename))
+      (put env *bundle-manifest* manifest)
+      (merge-into env manifest)
+      (put env *syspath* real-syspath)
+      # After install, srcdir does not always exist
+      (when (os/stat srcdir :mode) (os/cd srcdir))
+      (defer (os/cd dir)
+        (print "running " filename-real " for bundle " bundle-name)
+        (dofile filename-real :env env)
+        (spit manifest-name (string/format "%j\n" manifest)))))
+
+  (defn bundle/uninstall
+    "Remove a bundle from the current syspath"
+    [bundle-name]
+    (bundle/do-hook bundle-name "uninstall.janet")
+    (def man (bundle/manifest bundle-name))
+    (def files (get man :files []))
+    (each file (reverse files)
+      (print "removing " file)
+      (case (os/stat file :mode)
+        :file (os/rm file)
+        :directory (os/rmdir file)))
+    (os/rm (get-manifest-filename bundle-name))
+    (def hf (get-hook-filename bundle-name))
+    (each hook (os/dir hf)
+      (os/rm (string hf "/" hook)))
+    (os/rmdir hf)
+    nil)
+
+  (defn bundle/install
+    "Install a bundle from the local filesystem with a name `bundle-name`."
+    [path &opt bundle-name &keys config]
+    (default bundle-name (last (string/split "/" path)))
+    (assert (next bundle-name) "cannot use empty bundle-name")
+    (assert (not (fexists (get-manifest-filename bundle-name)))
+            "bundle is already installed")
+    (prime-bundle-paths)
+    (def src-hooks (string path "/hooks/"))
+    (copy-hooks src-hooks bundle-name)
+    (def man @{:bundle-name bundle-name :local-source path})
+    (when config (merge-into man config))
+    (spit (get-manifest-filename bundle-name) (string/format "%j\n" man))
+    (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
+      (bundle/do-hook bundle-name "deps.janet")
+      (bundle/do-hook bundle-name "build.janet")
+      (bundle/do-hook bundle-name "install.janet"))
+    nil)
+
+  (defn bundle/add-directory
+    "Add a directory during the install process relative to `(dyn *syspath*)`"
+    [dest &opt chmod-mode]
+    (def files (get-files))
+    (def absdest (string (dyn *syspath*) "/" dest))
+    (unless (os/mkdir absdest)
+      (errorf "collision at %s, directory already exists" absdest))
+    (when chmod-mode
+      (os/chmod absdest chmod-mode))
+    (array/push files absdest)
+    (print "adding " absdest)
+    absdest)
+
+  (defn bundle/add-file
+    "Add files during an install relative to `(dyn *syspath*)`"
+    [src &opt dest chmod-mode]
+    (default dest src)
+    (def files (get-files))
+    (def absdest (string (dyn *syspath*) "/" dest))
+    (when (os/stat absdest :mode)
+      (errorf "collision at %s, file already exists" absdest))
+    (spit absdest (slurp src))
+    (when chmod-mode
+      (os/chmod dest chmod-mode))
+    (array/push files absdest)
+    (print "adding " absdest)
+    absdest)
+
+  (defn bundle/list
+    "Get a list of all installed bundles in lexical order."
+    []
+    (def d (get-manifest-filename))
+    (if (os/stat d :mode)
+      (sort (seq [x :in (os/dir (get-manifest-filename))]
+              (string/slice x 0 -5)))
+      @[])))
 
 ###
 ###
