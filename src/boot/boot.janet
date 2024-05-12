@@ -4001,6 +4001,13 @@
     (put manifest :files files)
     files)
 
+  (defn- sync-manifest
+    [&opt manifest]
+    (default manifest (dyn *bundle-manifest*))
+    (def bn (get manifest :bundle-name))
+    (def manifest-name (get-manifest-filename bn))
+    (spit manifest-name (string/format "%j\n" manifest)))
+
   (defn bundle/manifest
     "Get the manifest for a give installed bundle"
     [bundle-name]
@@ -4029,7 +4036,7 @@
       (defer (os/cd dir)
         (print "running " filename-real " for bundle " bundle-name)
         (dofile filename-real :env env)
-        (spit manifest-name (string/format "%j\n" manifest)))))
+        (sync-manifest manifest))))
 
   (defn bundle/uninstall
     "Remove a bundle from the current syspath"
@@ -4071,30 +4078,32 @@
   (defn bundle/add-directory
     "Add a directory during the install process relative to `(dyn *syspath*)`"
     [dest &opt chmod-mode]
-    (def files (get-files))
-    (def absdest (string (dyn *syspath*) "/" dest))
-    (unless (os/mkdir absdest)
-      (errorf "collision at %s, directory already exists" absdest))
-    (when chmod-mode
-      (os/chmod absdest chmod-mode))
-    (array/push files absdest)
-    (print "adding " absdest)
-    absdest)
+    (edefer (sync-manifest)
+      (def files (get-files))
+      (def absdest (string (dyn *syspath*) "/" dest))
+      (unless (os/mkdir absdest)
+        (errorf "collision at %s, directory already exists" absdest))
+      (array/push files absdest)
+      (when chmod-mode
+        (os/chmod absdest chmod-mode))
+      (print "adding " absdest)
+      absdest))
 
   (defn bundle/add-file
     "Add files during an install relative to `(dyn *syspath*)`"
     [src &opt dest chmod-mode]
     (default dest src)
-    (def files (get-files))
-    (def absdest (string (dyn *syspath*) "/" dest))
-    (when (os/stat absdest :mode)
-      (errorf "collision at %s, file already exists" absdest))
-    (spit absdest (slurp src))
-    (when chmod-mode
-      (os/chmod dest chmod-mode))
-    (array/push files absdest)
-    (print "adding " absdest)
-    absdest)
+    (edefer (sync-manifest)
+      (def files (get-files))
+      (def absdest (string (dyn *syspath*) "/" dest))
+      (when (os/stat absdest :mode)
+        (errorf "collision at %s, file already exists" absdest))
+      (spit absdest (slurp src))
+      (array/push files absdest)
+      (when chmod-mode
+        (os/chmod dest chmod-mode))
+      (print "adding " absdest)
+      absdest))
 
   (defn bundle/list
     "Get a list of all installed bundles in lexical order."
