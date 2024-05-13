@@ -4001,6 +4001,16 @@
     (put manifest :files files)
     files)
 
+  (defn- rmrf
+    "rm -rf in janet"
+    [x]
+    (case (os/stat x :mode)
+      :file (os/rm x)
+      :directory (do
+                   (each y (os/dir x) (rmrf (string x "/" y)))
+                   (os/rmdir x)))
+    nil)
+
   (defn- sync-manifest
     [&opt manifest]
     (default manifest (dyn *bundle-manifest*))
@@ -4050,10 +4060,7 @@
         :file (os/rm file)
         :directory (os/rmdir file)))
     (os/rm (get-manifest-filename bundle-name))
-    (def hf (get-hook-filename bundle-name))
-    (each hook (os/dir hf)
-      (os/rm (string hf "/" hook)))
-    (os/rmdir hf)
+    (rmrf (get-hook-filename bundle-name))
     nil)
 
   (defn bundle/install
@@ -4066,14 +4073,62 @@
     (prime-bundle-paths)
     (def src-hooks (string path "/hooks/"))
     (copy-hooks src-hooks bundle-name)
-    (def man @{:bundle-name bundle-name :local-source path})
-    (when config (merge-into man config))
+    (def man @{:bundle-name bundle-name :local-source path :config config})
+    (merge-into man config)
     (spit (get-manifest-filename bundle-name) (string/format "%j\n" man))
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
       (bundle/do-hook bundle-name "deps.janet")
       (bundle/do-hook bundle-name "build.janet")
       (bundle/do-hook bundle-name "install.janet"))
     nil)
+
+  (defn bundle/backup
+    "Take an installed bundle and create a bundle source directory that can be used to
+     reinstall this bundle on a compatible system. This is used to create backups for installed
+     bundles without rebuilding."
+    [bundle-name dest-dir]
+    (def man (bundle/manifest bundle-name))
+    (def files (get man :files @[]))
+    (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
+    (def hooks-dir (string dest-dir "/hooks"))
+    (def install-hook (string dest-dir "/hooks/install.janet"))
+    (edefer (rmrf dest-dir) # don't leave garbage on failure
+      (var i 0)
+      (def install-source @[])
+      (def syspath (os/realpath (dyn *syspath*)))
+      (os/mkdir hooks-dir)
+      (each file files
+        (def {:mode mode :permissions perm} (os/stat file))
+        (def relpath (string/triml (slice file (length syspath) -1) "/"))
+        (case mode
+          :directory (array/push install-source ~(bundle/add-directory ,relpath ,perm))
+          :file (do
+                  (def filename (string/format "file_%04d" (++ i)))
+                  (spit (string dest-dir "/" filename) (slurp file))
+                  (array/push install-source ~(bundle/add-file ,filename ,relpath ,perm)))
+          (errorf "unexpected file %v" file)))
+      (def b @"")
+      (each form install-source (buffer/format b "%j\n" form))
+      (spit install-hook b))
+    dest-dir)
+
+  (defn bundle/reinstall
+    "Reinstall an existing bundle from the local source code. Should not break installation in reinstallation fails."
+    [bundle-name]
+    (def manifest (bundle/manifest bundle-name))
+    (def path (get manifest :local-source))
+    (def config (get manifest :config @{}))
+    (assert (= :directory (os/stat path :mode)) "local source not available")
+
+    (def backup-dir (string (dyn *syspath*) "/.temp_" bundle-name))
+    (def backup-bundle-source (bundle/backup bundle-name backup-dir))
+    (edefer (do
+              (bundle/install bundle-name backup-bundle-source)
+              (rmrf backup-bundle-source))
+      (bundle/uninstall bundle-name)
+      (bundle/install path bundle-name ;(kvs config)))
+    (rmrf backup-bundle-source)
+    bundle-name)
 
   (defn bundle/add-directory
     "Add a directory during the install process relative to `(dyn *syspath*)`"
@@ -4101,7 +4156,7 @@
       (spit absdest (slurp src))
       (array/push files absdest)
       (when chmod-mode
-        (os/chmod dest chmod-mode))
+        (os/chmod absdest chmod-mode))
       (print "adding " absdest)
       absdest))
 
@@ -4112,7 +4167,13 @@
     (if (os/stat d :mode)
       (sort (seq [x :in (os/dir (get-manifest-filename))]
               (string/slice x 0 -5)))
-      @[])))
+      @[]))
+
+  (defn bundle/update-all
+    "Reinstall all bundles"
+    []
+    (each bundle (bundle/list)
+      (bundle/reinstall bundle))))
 
 ###
 ###

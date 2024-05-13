@@ -655,6 +655,27 @@ JANET_CORE_FN(cfun_buffer_format,
     return argv[0];
 }
 
+JANET_CORE_FN(cfun_buffer_format_at,
+              "(buffer/format-at buffer at format & args)",
+              "Snprintf like functionality for printing values into a buffer. Returns "
+              "the modified buffer.") {
+    janet_arity(argc, 2, -1);
+    JanetBuffer *buffer = janet_getbuffer(argv, 0);
+    int32_t at = janet_getinteger(argv, 1);
+    if (at < 0) {
+        at += buffer->count + 1;
+    }
+    if (at > buffer->count) janet_panicf("expected index at to be in range [0, %d), got %d", buffer->count, at);
+    int32_t oldcount = buffer->count;
+    buffer->count = at;
+    const char *strfrmt = (const char *) janet_getstring(argv, 2);
+    janet_buffer_format(buffer, strfrmt, 2, argc, argv);
+    if (buffer->count < oldcount) {
+        buffer->count = oldcount;
+    }
+    return argv[0];
+}
+
 void janet_lib_buffer(JanetTable *env) {
     JanetRegExt buffer_cfuns[] = {
         JANET_CORE_REG("buffer/new", cfun_buffer_new),
@@ -681,6 +702,7 @@ void janet_lib_buffer(JanetTable *env) {
         JANET_CORE_REG("buffer/bit-toggle", cfun_buffer_bittoggle),
         JANET_CORE_REG("buffer/blit", cfun_buffer_blit),
         JANET_CORE_REG("buffer/format", cfun_buffer_format),
+        JANET_CORE_REG("buffer/format-at", cfun_buffer_format_at),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, buffer_cfuns);
