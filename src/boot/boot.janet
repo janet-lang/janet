@@ -4036,9 +4036,8 @@
     (assert (fexists name) (string "no bundle " bundle-name " found"))
     (parse (slurp name)))
 
-  (defn bundle/do-hook
-    "Run a given hook for an installed bundle"
-    [bundle-name hook]
+  (defn- do-hook
+    [bundle-name hook from-source]
     (bundle/manifest bundle-name) # assert good bundle-name
     (def filename (get-hook-filename bundle-name hook))
     (when (os/stat filename :mode)
@@ -4053,7 +4052,7 @@
       (merge-into env manifest)
       (put env *syspath* real-syspath)
       # After install, srcdir does not always exist
-      (when (os/stat srcdir :mode) (os/cd srcdir))
+      (when (and from-source (os/stat srcdir :mode)) (os/cd srcdir))
       (defer (os/cd dir)
         (print "running " filename-real " for bundle " bundle-name)
         (dofile filename-real :env env)
@@ -4062,7 +4061,7 @@
   (defn bundle/uninstall
     "Remove a bundle from the current syspath"
     [bundle-name]
-    (bundle/do-hook bundle-name "uninstall.janet")
+    (do-hook bundle-name "uninstall.janet" false)
     (def man (bundle/manifest bundle-name))
     (def files (get man :files []))
     (each file (reverse files)
@@ -4089,9 +4088,9 @@
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (bundle/do-hook bundle-name "deps.janet")
-      (bundle/do-hook bundle-name "build.janet")
-      (bundle/do-hook bundle-name "install.janet"))
+      (do-hook bundle-name "deps.janet" true)
+      (do-hook bundle-name "build.janet" true)
+      (do-hook bundle-name "install.janet" true))
     nil)
 
   (defn bundle/backup
