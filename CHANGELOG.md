@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `bundle/` module for managing packages within Janet. This should replace the jpm packaging
+  format eventually and is much simpler and amenable to more complicated builds.
+- Add `buffer/format-at`
 - Add long form command line options for readable CLI usage
 - Fix bug with `net/accept-loop` that would sometimes miss connections.
 
