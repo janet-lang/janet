@@ -4011,6 +4011,17 @@
                    (os/rmdir x)))
     nil)
 
+  (defn- copyfile
+    [from to]
+    (def b (buffer/new 0x10000))
+    (with [ffrom (file/open from :rb)]
+      (with [fto (file/open to :wb)]
+        (forever
+          (file/read ffrom 0x10000 b)
+          (when (empty? b) (buffer/trim b) (break))
+          (file/write fto b)
+          (buffer/clear b)))))
+
   (defn- sync-manifest
     [&opt manifest]
     (default manifest (dyn *bundle-manifest*))
@@ -4066,6 +4077,7 @@
   (defn bundle/install
     "Install a bundle from the local filesystem with a name `bundle-name`."
     [path &opt bundle-name &keys config]
+    (def path (os/realpath path))
     (default bundle-name (last (string/split "/" path)))
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
@@ -4075,7 +4087,7 @@
     (copy-hooks src-hooks bundle-name)
     (def man @{:bundle-name bundle-name :local-source path :config config})
     (merge-into man config)
-    (spit (get-manifest-filename bundle-name) (string/format "%j\n" man))
+    (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
       (bundle/do-hook bundle-name "deps.janet")
       (bundle/do-hook bundle-name "build.janet")
@@ -4104,7 +4116,7 @@
           :directory (array/push install-source ~(bundle/add-directory ,relpath ,perm))
           :file (do
                   (def filename (string/format "file_%04d" (++ i)))
-                  (spit (string dest-dir "/" filename) (slurp file))
+                  (copyfile file (string dest-dir "/" filename))
                   (array/push install-source ~(bundle/add-file ,filename ,relpath ,perm)))
           (errorf "unexpected file %v" file)))
       (def b @"")
@@ -4113,7 +4125,7 @@
     dest-dir)
 
   (defn bundle/reinstall
-    "Reinstall an existing bundle from the local source code. Should not break installation in reinstallation fails."
+    "Reinstall an existing bundle from the local source code."
     [bundle-name]
     (def manifest (bundle/manifest bundle-name))
     (def path (get manifest :local-source))
@@ -4153,7 +4165,7 @@
       (def absdest (string (dyn *syspath*) "/" dest))
       (when (os/stat absdest :mode)
         (errorf "collision at %s, file already exists" absdest))
-      (spit absdest (slurp src))
+      (copyfile src absdest)
       (array/push files absdest)
       (when chmod-mode
         (os/chmod absdest chmod-mode))
