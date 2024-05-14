@@ -4097,7 +4097,7 @@
     "Take an installed bundle and create a bundle source directory that can be used to
      reinstall this bundle on a compatible system. This is used to create backups for installed
      bundles without rebuilding."
-    [bundle-name dest-dir]
+    [bundle-name dest-dir &opt is-backup]
     (def man (bundle/manifest bundle-name))
     (def files (get man :files @[]))
     (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
@@ -4109,18 +4109,20 @@
       (def install-source @[])
       (def syspath (os/realpath (dyn *syspath*)))
       (os/mkdir hooks-dir)
-      (os/mkdir old-hooks-dir)
-      (def current-hooks (get-hook-filename bundle-name))
-      (each file (os/dir current-hooks)
-        (def from (string current-hooks "/" file))
-        (copyfile from (string old-hooks-dir "/" file)))
+      (when is-backup
+        (os/mkdir old-hooks-dir)
+        (spit (string dest-dir "/old-manifest.jdn") (string/format "%j\n" man))
+        (def current-hooks (get-hook-filename bundle-name))
+        (each file (os/dir current-hooks)
+          (def from (string current-hooks "/" file))
+          (copyfile from (string old-hooks-dir "/" file))))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
         (def relpath (string/triml (slice file (length syspath) -1) "/"))
         (case mode
           :directory (array/push install-source ~(bundle/add-directory ,relpath ,perm))
           :file (do
-                  (def filename (string/format "file_%04d" (++ i)))
+                  (def filename (string/format "file_%06d" (++ i)))
                   (copyfile file (string dest-dir "/" filename))
                   (array/push install-source ~(bundle/add-file ,filename ,relpath ,perm)))
           (errorf "unexpected file %v" file)))
@@ -4136,9 +4138,8 @@
     (def path (get manifest :local-source))
     (def config (get manifest :config @{}))
     (assert (= :directory (os/stat path :mode)) "local source not available")
-
     (def backup-dir (string (dyn *syspath*) "/" bundle-name ".backup"))
-    (def backup-bundle-source (bundle/pack bundle-name backup-dir))
+    (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
     (edefer (do
               (bundle/install backup-bundle-source bundle-name)
               # Restore old manifest and hooks that point to local source instead of backup source
