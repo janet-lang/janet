@@ -3969,21 +3969,21 @@
 
   (defdyn *bundle-manifest* "Current manifest table of an installed package. Bound when executing hooks.")
 
-  (defn- get-manifest-filename
+  (defn- bundle-dir
     [&opt bundle-name]
-    (string (dyn *syspath*) "/.manifests/" bundle-name (when bundle-name ".jdn")))
+    (string (dyn *syspath*) "/.bundles/" bundle-name))
 
-  (defn- get-hook-filename
-    [&opt bundle-name hook]
-    (string (dyn *syspath*) "/.hooks/" bundle-name (when bundle-name (string "/" hook))))
+  (defn- bundle-file
+    [bundle-name filename]
+    (string (dyn *syspath*) "/.bundles/" bundle-name "/" filename))
+
+  (defn- get-manifest-filename
+    [bundle-name]
+    (bundle-file bundle-name "manifest.jdn"))
 
   (defn- prime-bundle-paths
     []
-    (def mf (get-manifest-filename))
-    (def hf (get-hook-filename))
-    (os/mkdir mf)
-    (os/mkdir hf)
-    nil)
+    (os/mkdir (bundle-dir)))
 
   (defn- get-files []
     (def manifest (dyn *bundle-manifest*))
@@ -4015,11 +4015,11 @@
 
   (defn- copy-hooks
     [hooks-src bundle-name]
-    (os/mkdir (get-hook-filename bundle-name))
     (when (os/stat hooks-src :mode)
       (each hook (os/dir hooks-src)
-        (def hookpath (string hooks-src "/" hook))
-        (copyfile hookpath (get-hook-filename bundle-name hook)))))
+        (when (string/has-suffix? ".janet" hook)
+          (def hookpath (string hooks-src "/" hook))
+          (copyfile hookpath (bundle-file bundle-name hook))))))
 
   (defn- sync-manifest
     [&opt manifest]
@@ -4038,7 +4038,7 @@
   (defn- do-hook
     [bundle-name hook from-source]
     (bundle/manifest bundle-name) # assert good bundle-name
-    (def filename (get-hook-filename bundle-name hook))
+    (def filename (bundle-file bundle-name hook))
     (when (os/stat filename :mode)
       (def dir (os/cwd))
       (def real-syspath (os/realpath (dyn *syspath*))) # if syspath is a relative path
@@ -4068,8 +4068,7 @@
       (case (os/stat file :mode)
         :file (os/rm file)
         :directory (os/rmdir file)))
-    (os/rm (get-manifest-filename bundle-name))
-    (rmrf (get-hook-filename bundle-name))
+    (rmrf (bundle-dir bundle-name))
     nil)
 
   (defn bundle/install
@@ -4082,6 +4081,7 @@
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
     (prime-bundle-paths)
+    (os/mkdir (bundle-dir bundle-name))
     (def src-hooks (string path "/hooks/"))
     (copy-hooks src-hooks bundle-name)
     (def man @{:bundle-name bundle-name :local-source path :config config})
@@ -4091,7 +4091,8 @@
       (do-hook bundle-name "deps.janet" true)
       (do-hook bundle-name "build.janet" true)
       (do-hook bundle-name "install.janet" true))
-    nil)
+    (print "installed " bundle-name)
+    bundle-name)
 
   (defn bundle/pack
     "Take an installed bundle and create a bundle source directory that can be used to
@@ -4112,7 +4113,7 @@
       (when is-backup
         (os/mkdir old-hooks-dir)
         (spit (string dest-dir "/old-manifest.jdn") (string/format "%j\n" man))
-        (def current-hooks (get-hook-filename bundle-name))
+        (def current-hooks (bundle-dir bundle-name))
         (each file (os/dir current-hooks)
           (def from (string current-hooks "/" file))
           (copyfile from (string old-hooks-dir "/" file))))
@@ -4184,10 +4185,9 @@
   (defn bundle/list
     "Get a list of all installed bundles in lexical order."
     []
-    (def d (get-manifest-filename))
+    (def d (bundle-dir))
     (if (os/stat d :mode)
-      (sort (seq [x :in (os/dir (get-manifest-filename))]
-              (string/slice x 0 -5)))
+      (sort (os/dir d))
       @[]))
 
   (defn bundle/update-all
