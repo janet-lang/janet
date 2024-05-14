@@ -2677,8 +2677,8 @@
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
   environment is needed, use `run-context`.``
-  [form]
-  (def res (compile form nil :eval))
+  [form &opt env]
+  (def res (compile form env :eval))
   (if (= (type res) :function)
     (res)
     (error (get res :error))))
@@ -2717,9 +2717,9 @@
 (defn eval-string
   ``Evaluates a string in the current environment. If more control over the
   environment is needed, use `run-context`.``
-  [str]
+  [str &opt env]
   (var ret nil)
-  (each x (parse-all str) (set ret (eval x)))
+  (each x (parse-all str) (set ret (eval x env)))
   ret)
 
 (def load-image-dict
@@ -2768,8 +2768,8 @@
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (defdyn *module/cache* "Dynamic binding for overriding `module/cache`")
-(defdyn *module/paths* "Dynamic binding for overriding `module/cache`")
-(defdyn *module/loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module/paths* "Dynamic binding for overriding `module/paths`")
+(defdyn *module/loading* "Dynamic binding for overriding `module/loading`")
 (defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
 
 (def module/cache
@@ -2947,6 +2947,32 @@
 
 (set debugger-on-status-var debugger-on-status)
 
+(defn- env-walk
+  [pred &opt env local]
+  (default env (fiber/getenv (fiber/current)))
+  (def envs @[])
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
+  (def ret-set @{})
+  (loop [envi :in envs
+         k :keys envi
+         :when (pred k)]
+    (put ret-set k true))
+  (sort (keys ret-set)))
+
+(defn all-bindings
+  ``Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
+  [&opt env local]
+  (env-walk symbol? env local))
+
+(defn all-dynamics
+  ``Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
+  [&opt env local]
+  (env-walk keyword? env local))
+
 (defn dofile
   ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
   :source, :evaluator, :read, and :parser are passed through to the underlying
@@ -3109,32 +3135,6 @@
 ### Documentation
 ###
 ###
-
-(defn- env-walk
-  [pred &opt env local]
-  (default env (fiber/getenv (fiber/current)))
-  (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
-  (def ret-set @{})
-  (loop [envi :in envs
-         k :keys envi
-         :when (pred k)]
-    (put ret-set k true))
-  (sort (keys ret-set)))
-
-(defn all-bindings
-  ``Get all symbols available in an environment. Defaults to the current
-  fiber's environment. If `local` is truthy, will not show inherited bindings
-  (from prototype tables).``
-  [&opt env local]
-  (env-walk symbol? env local))
-
-(defn all-dynamics
-  ``Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment. If `local` is truthy, will not show inherited bindings
-  (from prototype tables).``
-  [&opt env local]
-  (env-walk keyword? env local))
 
 (defdyn *doc-width*
   "Width in columns to print documentation printed with `doc-format`.")
@@ -3967,15 +3967,13 @@
 
 (compwhen (dyn 'os/stat)
 
-  (defdyn *bundle-manifest* "Current manifest table of an installed package. Bound when executing hooks.")
-
   (defn- bundle-dir
     [&opt bundle-name]
-    (string (dyn *syspath*) "/.bundles/" bundle-name))
+    (string (os/realpath (dyn *syspath*)) "/_bundles/" bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
-    (string (dyn *syspath*) "/.bundles/" bundle-name "/" filename))
+    (string (os/realpath (dyn *syspath*)) "/_bundles/" bundle-name "/" filename))
 
   (defn- get-manifest-filename
     [bundle-name]
@@ -3985,9 +3983,7 @@
     []
     (os/mkdir (bundle-dir)))
 
-  (defn- get-files []
-    (def manifest (dyn *bundle-manifest*))
-    (assert manifest "nothing bound to (dyn *bundle-manifest*)")
+  (defn- get-files [manifest]
     (def files (get manifest :files @[]))
     (put manifest :files files)
     files)
@@ -4013,17 +4009,18 @@
           (file/write fto b)
           (buffer/clear b)))))
 
-  (defn- copy-hooks
-    [hooks-src bundle-name]
-    (when (os/stat hooks-src :mode)
-      (each hook (os/dir hooks-src)
-        (when (string/has-suffix? ".janet" hook)
-          (def hookpath (string hooks-src "/" hook))
-          (copyfile hookpath (bundle-file bundle-name hook))))))
+  (defn- copyrf
+    [from to]
+    (case (os/stat from :mode)
+      :file (copyfile from to)
+      :directory (do
+                   (os/mkdir to)
+                   (each y (os/dir from)
+                     (copyrf (string from "/" y) (string to "/" y)))))
+    nil)
 
   (defn- sync-manifest
-    [&opt manifest]
-    (default manifest (dyn *bundle-manifest*))
+    [manifest]
     (def bn (get manifest :bundle-name))
     (def manifest-name (get-manifest-filename bn))
     (spit manifest-name (string/format "%j\n" manifest)))
@@ -4035,32 +4032,31 @@
     (assert (fexists name) (string "no bundle " bundle-name " found"))
     (parse (slurp name)))
 
+  (defn- get-bundle-module
+    [bundle-name]
+    (def manifest (bundle/manifest bundle-name))
+    (def dir (os/cwd))
+    (os/cd (get manifest :local-source "."))
+    (defer (os/cd dir)
+      # like :fresh true, but recursive
+      (with-dyns [*module/cache* @{}
+                  *module/loading* @{}]
+        (require (string "_bundles/" bundle-name)))))
+
   (defn- do-hook
-    [bundle-name hook from-source]
-    (bundle/manifest bundle-name) # assert good bundle-name
-    (def filename (bundle-file bundle-name hook))
-    (when (os/stat filename :mode)
-      (def dir (os/cwd))
-      (def real-syspath (os/realpath (dyn *syspath*))) # if syspath is a relative path
-      (def env (make-env))
-      (def manifest-name (get-manifest-filename bundle-name))
-      (def manifest (bundle/manifest bundle-name))
-      (def srcdir (get manifest :local-source))
-      (def filename-real (os/realpath filename))
-      (put env *bundle-manifest* manifest)
-      (merge-into env manifest)
-      (put env *syspath* real-syspath)
-      # After install, srcdir does not always exist
-      (when (and from-source (os/stat srcdir :mode)) (os/cd srcdir))
-      (defer (os/cd dir)
-        (print "running " filename-real " for bundle " bundle-name)
-        (dofile filename-real :env env)
-        (sync-manifest manifest))))
+    [module bundle-name hook & args]
+    (def hookf (module/value module (symbol hook)))
+    (unless hookf (break))
+    (def manifest (bundle/manifest bundle-name))
+    (def dir (os/cwd))
+    (os/cd (get manifest :local-source "."))
+    (defer (os/cd dir)
+      (print "running hook " hook " for bundle " bundle-name)
+      (hookf ;args)))
 
   (defn bundle/uninstall
     "Remove a bundle from the current syspath"
     [bundle-name]
-    (do-hook bundle-name "uninstall.janet" false)
     (def man (bundle/manifest bundle-name))
     (def files (get man :files []))
     (each file (reverse files)
@@ -4082,53 +4078,50 @@
             "bundle is already installed")
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
-    (def src-hooks (string path "/hooks/"))
-    (copy-hooks src-hooks bundle-name)
-    (def man @{:bundle-name bundle-name :local-source path :config config})
+    # Copy some files into the new location unconditionally
+    (def implicit-sources (string path "/bundle"))
+    (when (= :directory (os/stat implicit-sources :mode))
+      (copyrf implicit-sources (bundle-dir bundle-name)))
+    (def man @{:bundle-name bundle-name :local-source path :files @[]})
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (do-hook bundle-name "deps.janet" true)
-      (do-hook bundle-name "build.janet" true)
-      (do-hook bundle-name "install.janet" true))
+      (def module (get-bundle-module bundle-name))
+      (do-hook module bundle-name :build man)
+      (do-hook module bundle-name :install man)
+      (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
+      (sync-manifest man))
     (print "installed " bundle-name)
     bundle-name)
 
   (defn bundle/pack
     "Take an installed bundle and create a bundle source directory that can be used to
-     reinstall this bundle on a compatible system. This is used to create backups for installed
-     bundles without rebuilding."
+     reinstall the bundle on a compatible system. This is used to create backups for installed
+     bundles without rebuilding, or make a prebuilt bundle for other systems."
     [bundle-name dest-dir &opt is-backup]
+    (var i 0)
     (def man (bundle/manifest bundle-name))
     (def files (get man :files @[]))
     (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
-    (def hooks-dir (string dest-dir "/hooks"))
-    (def old-hooks-dir (string dest-dir "/old-hooks"))
-    (def install-hook (string dest-dir "/hooks/install.janet"))
+    (os/mkdir (string dest-dir "/bundle"))
+    (def install-hook (string dest-dir "/bundle/init.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
-      (var i 0)
       (def install-source @[])
       (def syspath (os/realpath (dyn *syspath*)))
-      (os/mkdir hooks-dir)
-      (when is-backup
-        (os/mkdir old-hooks-dir)
-        (spit (string dest-dir "/old-manifest.jdn") (string/format "%j\n" man))
-        (def current-hooks (bundle-dir bundle-name))
-        (each file (os/dir current-hooks)
-          (def from (string current-hooks "/" file))
-          (copyfile from (string old-hooks-dir "/" file))))
+      (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir "/old-bundle")))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
         (def relpath (string/triml (slice file (length syspath) -1) "/"))
         (case mode
-          :directory (array/push install-source ~(bundle/add-directory ,relpath ,perm))
+          :directory (array/push install-source ~(bundle/add-directory manifest ,relpath ,perm))
           :file (do
                   (def filename (string/format "file_%06d" (++ i)))
                   (copyfile file (string dest-dir "/" filename))
-                  (array/push install-source ~(bundle/add-file ,filename ,relpath ,perm)))
+                  (array/push install-source ~(bundle/add-file manifest ,filename ,relpath ,perm)))
           (errorf "unexpected file %v" file)))
-      (def b @"")
-      (each form install-source (buffer/format b "%j\n" form))
+      (def b @"(defn install [manifest]\n")
+      (each form install-source (buffer/format b "  %j\n" form))
+      (buffer/push b ")")
       (spit install-hook b))
     dest-dir)
 
@@ -4143,9 +4136,7 @@
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
     (edefer (do
               (bundle/install backup-bundle-source bundle-name)
-              # Restore old manifest and hooks that point to local source instead of backup source
-              (copy-hooks (string backup-bundle-source "/old-hooks") bundle-name)
-              (sync-manifest manifest)
+              (copyrf (string backup-bundle-source "/old-bundle") (bundle-dir bundle-name))
               (rmrf backup-bundle-source))
       (bundle/uninstall bundle-name)
       (bundle/install path bundle-name ;(kvs config)))
@@ -4154,33 +4145,31 @@
 
   (defn bundle/add-directory
     "Add a directory during the install process relative to `(dyn *syspath*)`"
-    [dest &opt chmod-mode]
-    (edefer (sync-manifest)
-      (def files (get-files))
-      (def absdest (string (dyn *syspath*) "/" dest))
-      (unless (os/mkdir absdest)
-        (errorf "collision at %s, directory already exists" absdest))
-      (array/push files absdest)
-      (when chmod-mode
-        (os/chmod absdest chmod-mode))
-      (print "+ " absdest)
-      absdest))
+    [manifest dest &opt chmod-mode]
+    (def files (get-files manifest))
+    (def absdest (string (dyn *syspath*) "/" dest))
+    (unless (os/mkdir absdest)
+      (errorf "collision at %s, directory already exists" absdest))
+    (array/push files absdest)
+    (when chmod-mode
+      (os/chmod absdest chmod-mode))
+    (print "+ " absdest)
+    absdest)
 
   (defn bundle/add-file
     "Add files during an install relative to `(dyn *syspath*)`"
-    [src &opt dest chmod-mode]
+    [manifest src &opt dest chmod-mode]
     (default dest src)
-    (edefer (sync-manifest)
-      (def files (get-files))
-      (def absdest (string (dyn *syspath*) "/" dest))
-      (when (os/stat absdest :mode)
-        (errorf "collision at %s, file already exists" absdest))
-      (copyfile src absdest)
-      (array/push files absdest)
-      (when chmod-mode
-        (os/chmod absdest chmod-mode))
-      (print "+ " absdest)
-      absdest))
+    (def files (get-files manifest))
+    (def absdest (string (dyn *syspath*) "/" dest))
+    (when (os/stat absdest :mode)
+      (errorf "collision at %s, file already exists" absdest))
+    (copyfile src absdest)
+    (array/push files absdest)
+    (when chmod-mode
+      (os/chmod absdest chmod-mode))
+    (print "+ " absdest)
+    absdest)
 
   (defn bundle/list
     "Get a list of all installed bundles in lexical order."
@@ -4232,6 +4221,28 @@
 (compwhen (not (dyn 'os/isatty))
   (defmacro os/isatty [&] true))
 
+(def- long-to-short
+  "map long options to short options"
+  {"-help" "h"
+   "-version" "v"
+   "-stdin" "s"
+   "-eval" "e"
+   "-expression" "E"
+   "-debug" "d"
+   "-repl" "r"
+   "-noprofile" "R"
+   "-persistent" "p"
+   "-quiet" "q"
+   "-flycheck" "k"
+   "-syspath" "m"
+   "-compile" "c"
+   "-image" "i"
+   "-nocolor" "n"
+   "-color" "N"
+   "-library" "l"
+   "-lint-warn" "w"
+   "-lint-error" "x"})
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -4262,28 +4273,6 @@
     [i]
     (def x (in args (+ i 1)))
     (or (scan-number x) (keyword x)))
-
-  (def- long-to-short
-    "map long options to short options"
-    {"-help" "h"
-     "-version" "v"
-     "-stdin" "s"
-     "-eval" "e"
-     "-expression" "E"
-     "-debug" "d"
-     "-repl" "r"
-     "-noprofile" "R"
-     "-persistent" "p"
-     "-quiet" "q"
-     "-flycheck" "k"
-     "-syspath" "m"
-     "-compile" "c"
-     "-image" "i"
-     "-nocolor" "n"
-     "-color" "N"
-     "-library" "l"
-     "-lint-warn" "w"
-     "-lint-error" "x"})
 
   # Flag handlers
   (def handlers
