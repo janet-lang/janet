@@ -3985,15 +3985,6 @@
     (os/mkdir hf)
     nil)
 
-  (defn- copy-hooks
-    [hooks-src bundle-name]
-    (os/mkdir (get-hook-filename bundle-name))
-    (when (os/stat hooks-src :mode)
-      (each hook (os/dir hooks-src)
-        (def hookpath (string hooks-src "/" hook))
-        (def source (slurp hookpath))
-        (spit (get-hook-filename bundle-name hook) source))))
-
   (defn- get-files []
     (def manifest (dyn *bundle-manifest*))
     (assert manifest "nothing bound to (dyn *bundle-manifest*)")
@@ -4021,6 +4012,14 @@
           (when (empty? b) (buffer/trim b) (break))
           (file/write fto b)
           (buffer/clear b)))))
+
+  (defn- copy-hooks
+    [hooks-src bundle-name]
+    (os/mkdir (get-hook-filename bundle-name))
+    (when (os/stat hooks-src :mode)
+      (each hook (os/dir hooks-src)
+        (def hookpath (string hooks-src "/" hook))
+        (copyfile hookpath (get-hook-filename bundle-name hook)))))
 
   (defn- sync-manifest
     [&opt manifest]
@@ -4065,7 +4064,7 @@
     (def man (bundle/manifest bundle-name))
     (def files (get man :files []))
     (each file (reverse files)
-      (print "removing " file)
+      (print "- " file)
       (case (os/stat file :mode)
         :file (os/rm file)
         :directory (os/rmdir file)))
@@ -4075,7 +4074,8 @@
 
   (defn bundle/install
     "Install a bundle from the local filesystem with a name `bundle-name`."
-    [path &opt bundle-name &keys config]
+    [&opt path bundle-name &keys config]
+    (default path ".")
     (def path (os/realpath path))
     (default bundle-name (last (string/split "/" path)))
     (assert (next bundle-name) "cannot use empty bundle-name")
@@ -4093,7 +4093,7 @@
       (do-hook bundle-name "install.janet" true))
     nil)
 
-  (defn bundle/backup
+  (defn bundle/pack
     "Take an installed bundle and create a bundle source directory that can be used to
      reinstall this bundle on a compatible system. This is used to create backups for installed
      bundles without rebuilding."
@@ -4102,12 +4102,18 @@
     (def files (get man :files @[]))
     (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
     (def hooks-dir (string dest-dir "/hooks"))
+    (def old-hooks-dir (string dest-dir "/old-hooks"))
     (def install-hook (string dest-dir "/hooks/install.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
       (var i 0)
       (def install-source @[])
       (def syspath (os/realpath (dyn *syspath*)))
       (os/mkdir hooks-dir)
+      (os/mkdir old-hooks-dir)
+      (def current-hooks (get-hook-filename bundle-name))
+      (each file (os/dir current-hooks)
+        (def from (string current-hooks "/" file))
+        (copyfile from (string old-hooks-dir "/" file)))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
         (def relpath (string/triml (slice file (length syspath) -1) "/"))
@@ -4131,10 +4137,13 @@
     (def config (get manifest :config @{}))
     (assert (= :directory (os/stat path :mode)) "local source not available")
 
-    (def backup-dir (string (dyn *syspath*) "/.temp_" bundle-name))
-    (def backup-bundle-source (bundle/backup bundle-name backup-dir))
+    (def backup-dir (string (dyn *syspath*) "/" bundle-name ".backup"))
+    (def backup-bundle-source (bundle/pack bundle-name backup-dir))
     (edefer (do
-              (bundle/install bundle-name backup-bundle-source)
+              (bundle/install backup-bundle-source bundle-name)
+              # Restore old manifest and hooks that point to local source instead of backup source
+              (copy-hooks (string backup-bundle-source "/old-hooks") bundle-name)
+              (sync-manifest manifest)
               (rmrf backup-bundle-source))
       (bundle/uninstall bundle-name)
       (bundle/install path bundle-name ;(kvs config)))
@@ -4152,7 +4161,7 @@
       (array/push files absdest)
       (when chmod-mode
         (os/chmod absdest chmod-mode))
-      (print "adding " absdest)
+      (print "+ " absdest)
       absdest))
 
   (defn bundle/add-file
@@ -4168,7 +4177,7 @@
       (array/push files absdest)
       (when chmod-mode
         (os/chmod absdest chmod-mode))
-      (print "adding " absdest)
+      (print "+ " absdest)
       absdest))
 
   (defn bundle/list
