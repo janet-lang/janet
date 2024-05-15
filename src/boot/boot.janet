@@ -3969,11 +3969,11 @@
 
   (defn- bundle-dir
     [&opt bundle-name]
-    (string (os/realpath (dyn *syspath*)) "/_bundles/" bundle-name))
+    (string (os/realpath (dyn *syspath*)) "/bundle/" bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
-    (string (os/realpath (dyn *syspath*)) "/_bundles/" bundle-name "/" filename))
+    (string (os/realpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename))
 
   (defn- get-manifest-filename
     [bundle-name]
@@ -4041,7 +4041,7 @@
       # like :fresh true, but recursive
       (with-dyns [*module/cache* @{}
                   *module/loading* @{}]
-        (require (string "_bundles/" bundle-name)))))
+        (require (string "bundle/" bundle-name)))))
 
   (defn- do-hook
     [module bundle-name hook & args]
@@ -4089,6 +4089,7 @@
       (def module (get-bundle-module bundle-name))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
+      (do-hook module bundle-name :check man)
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
       (sync-manifest man))
     (print "installed " bundle-name)
