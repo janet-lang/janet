@@ -73,13 +73,13 @@ static void *int64_unmarshal(JanetMarshalContext *ctx) {
 
 static void it_s64_tostring(void *p, JanetBuffer *buffer) {
     char str[32];
-    sprintf(str, "%" PRId64, *((int64_t *)p));
+    snprintf(str, sizeof(str), "%" PRId64, *((int64_t *)p));
     janet_buffer_push_cstring(buffer, str);
 }
 
 static void it_u64_tostring(void *p, JanetBuffer *buffer) {
     char str[32];
-    sprintf(str, "%" PRIu64, *((uint64_t *)p));
+    snprintf(str, sizeof(str), "%" PRIu64, *((uint64_t *)p));
     janet_buffer_push_cstring(buffer, str);
 }
 
