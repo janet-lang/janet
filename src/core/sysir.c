@@ -962,7 +962,7 @@ static int tcheck_cast_type(JanetSysIR *sysir, uint32_t td, uint32_t ts) {
          * no casting between arrays and pointers
          *
          * TODO - check array and pointer types have same alignment
-        
+
         switch (primd) {
             default:
                 return -1;
@@ -1177,9 +1177,6 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
         /* Write back possibly modified instruction */
         sysir->instructions[i] = instruction;
     }
-}
-
-
 
     /* Assert no unknown types */
     JanetSysIRLinkage *linkage = sysir->linkage;
@@ -1428,7 +1425,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 #define EMITBINOP(OP) emit_binop(ir, buffer, tempbuf, instruction, OP)
 
     /* Prelude */
-    janet_formatb(buffer, "#include <stddef.h>\n\n");
+    janet_formatb(buffer, "#include <stddef.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n\n");
 
     /* Emit type defs */
     for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {
@@ -1503,7 +1500,6 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
                 case JANET_SYSOP_TYPE_UNION:
                 case JANET_SYSOP_TYPE_POINTER:
                 case JANET_SYSOP_TYPE_ARRAY:
-                case JANET_SYSOP_ARG:
                     continue;
                 default:
                     break;

@@ -52,6 +52,8 @@
     (make-type name))
   (add-prim-type 'float 'f32)
   (add-prim-type 'double 'f64)
+  (add-prim-type 'int 's32)
+  (add-prim-type 'pointer 'pointer)
   (add-prim-type 'boolean 'boolean))
 
 (defn type-extract
@@ -72,7 +74,7 @@
     # Compile a constant
     (number? code)
     (let [slot (get-slot)
-          slottype 'double]
+          slottype 'int]
       (array/push into ~(bind ,slot ,slottype))
       (array/push into ~(constant ,slot ,code))
       slot)
@@ -80,6 +82,14 @@
     # Binding
     (symbol? code)
     (named-slot code)
+
+    # String literals
+    (string? code)
+    (let [slot (get-slot)
+          slottype 'pointer]
+      (array/push into ~(bind ,slot ,slottype))
+      (array/push into ~(constant ,slot ,code))
+      slot)
 
     # Compile forms
     (and (tuple? code) (= :parens (tuple/type code)))
@@ -118,7 +128,7 @@
           (assert (= 2 (length args)))
           (def [full-name value] args)
           (assert (symbol? full-name))
-          (def [name tp] (type-extract full-name 'double))
+          (def [name tp] (type-extract full-name 'int))
           (def result (visit1 value into))
           (def slot (get-slot name))
           (when tp
@@ -153,11 +163,39 @@
           (var ret nil)
           (each form args (set ret (visit1 form into)))
           ret)
-        (errorf "unknown form %V" code)))
-    (errorf "cannot compile %V" code)))
+
+        # Branch
+        'if
+        (do
+          (def lab (keyword (gensym)))
+          (def lab-end (keyword (gensym)))
+          (assert (< 2 (length args) 4))
+          (def [cnd tru fal] args)
+          (def condition-slot (visit1 cnd into))
+          (def ret (get-slot))
+          (array/push into ~(branch ,condition-slot ,lab))
+          # false path
+          (array/push into ~(move ,ret ,(visit1 tru into)))
+          (array/push into ~(jump ,lab-end))
+          (array/push into lab)
+          # true path
+          (array/push into ~(move ,ret ,(visit1 fal into)))
+          (array/push into lab-end)
+          ret)
+
+        # Assume function call
+        (do
+          (def slots @[])
+          (def ret (get-slot))
+          (each arg args
+            (array/push slots (visit1 arg into)))
+          (array/push into ~(call ,ret ,op ,;slots))
+          ret)))
+
+    (errorf "cannot compile %q" code)))
 
 (varfn do-binop
-  "Emit a 'binary' op succh as (+ x y). 
+  "Emit an operation such as (+ x y).
   Extended to support any number of arguments such as (+ x y z ...)"
   [opcode args into]
   (var final nil)
@@ -168,7 +206,7 @@
            (let [result (get-slot)]
              # TODO - finish type inference - we should be able to omit the bind
              # call and sysir should be able to infer the type
-             (array/push into ~(bind ,result double))
+             (array/push into ~(bind ,result int))
              (array/push into ~(,opcode ,result ,final ,right))
              result)
            right)))
@@ -203,20 +241,21 @@
 
 (def myprog
   '(do
-     (def xyz:double (+ 1 2 3))
-     (def abc:double (* 4 5 6))
+     (def xyz:int (+ 1 2 3))
+     (def abc:int (* 4 5 6))
      (def x:boolean (= 5 7))
+     (the int (printf "hello, world!\n%d\n" (the int (if x abc xyz))))
      (return (/ abc xyz))))
 
 (defn dotest
   []
   (def ctx (sysir/context))
   (def ir-asm
-    @['(link-name "entry")
+    @['(link-name "main")
       '(parameter-count 0)])
   (setup-default-types ir-asm)
   (visit1 myprog ir-asm)
-  (printf "%.99M" ir-asm)
+  (eprintf "%.99M" ir-asm)
   (sysir/asm ctx ir-asm)
   (print (sysir/to-c ctx)))
 
