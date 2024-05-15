@@ -4046,7 +4046,9 @@
   (defn- do-hook
     [module bundle-name hook & args]
     (def hookf (module/value module (symbol hook)))
-    (unless hookf (break))
+    (unless hookf
+      (print "no hook " hook " found for bundle " bundle-name)
+      (break))
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (os/cd (get manifest :local-source "."))
