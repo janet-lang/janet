@@ -2958,7 +2958,7 @@
            :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
-  (default env (make-env))
+  (default env (make-env (curenv)))
   (def spath (string path))
   (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
