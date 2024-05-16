@@ -2771,6 +2771,7 @@
 (defdyn *module/paths* "Dynamic binding for overriding `module/cache`")
 (defdyn *module/loading* "Dynamic binding for overriding `module/cache`")
 (defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
+(defdyn *module/make-env* "Dynamic binding for creating new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
 
 (def module/cache
   "A table, mapping loaded module identifiers to their environments."
@@ -2958,7 +2959,7 @@
            :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
-  (default env (make-env (curenv)))
+  (default env ((dyn *module/make-env* make-env)))
   (def spath (string path))
   (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
