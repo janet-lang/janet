@@ -830,7 +830,7 @@ static const char *scanformat(
         if (loc != NULL && *loc != '\0') {
             const char *mapping = get_fmt_mapping(*p2++);
             size_t len = strlen(mapping);
-            strcpy(form, mapping);
+            memcpy(form, mapping, len);
             form += len;
         } else {
             *(form++) = *(p2++);

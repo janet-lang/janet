@@ -665,7 +665,7 @@ JANET_CORE_FN(cfun_buffer_format_at,
     if (at < 0) {
         at += buffer->count + 1;
     }
-    if (at > buffer->count) janet_panicf("expected index at to be in range [0, %d), got %d", buffer->count, at);
+    if (at > buffer->count || at < 0) janet_panicf("expected index at to be in range [0, %d), got %d", buffer->count, at);
     int32_t oldcount = buffer->count;
     buffer->count = at;
     const char *strfrmt = (const char *) janet_getstring(argv, 2);
