@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
-- Add *module/make-env* dynamic binding
+- Add *module-make-env* dynamic binding
 - Add buffer/format-at
 - Add long form command line options for readable CLI usage
 - Fix bug with `net/accept-loop` that would sometimes miss connections.
