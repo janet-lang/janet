@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `with-env`
 - Add *module-make-env* dynamic binding
 - Add buffer/format-at
 - Add long form command line options for readable CLI usage

@@ -1423,6 +1423,11 @@
       ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
   ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
+(defmacro with-env
+  `Run a block of code with a given environment table`
+  [env & body]
+  ~(,resume (,fiber/new (fn [] ,;body) : ,env)))
+
 (defmacro with-vars
   ``Evaluates `body` with each var in `vars` temporarily bound. Similar signature to
   `let`, but each binding must be a var.``
