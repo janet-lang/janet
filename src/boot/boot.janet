@@ -1423,6 +1423,11 @@
       ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
   ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
 
+(defmacro with-env
+  `Run a block of code with a given environment table`
+  [env & body]
+  ~(,resume (,fiber/new (fn [] ,;body) : ,env)))
+
 (defmacro with-vars
   ``Evaluates `body` with each var in `vars` temporarily bound. Similar signature to
   `let`, but each binding must be a var.``
@@ -2771,6 +2776,7 @@
 (defdyn *module/paths* "Dynamic binding for overriding `module/paths`")
 (defdyn *module/loading* "Dynamic binding for overriding `module/loading`")
 (defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
+(defdyn *module/make-env* "Dynamic binding for create new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
 
 (def module/cache
   "A table, mapping loaded module identifiers to their environments."
@@ -2984,7 +2990,7 @@
            :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
-  (default env (make-env (curenv)))
+  (default env ((dyn *module/make-env* make-env)))
   (def spath (string path))
   (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
@@ -4036,12 +4042,20 @@
     [bundle-name]
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
-    (os/cd (get manifest :local-source "."))
+    (def workdir (get manifest :local-source "."))
+    (try
+      (os/cd workdir)
+      ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
     (defer (os/cd dir)
-      # like :fresh true, but recursive
-      (with-dyns [*module/cache* @{}
-                  *module/loading* @{}]
-        (require (string "bundle/" bundle-name)))))
+      (def new-env (make-env))
+      (put new-env *module/cache* @{})
+      (put new-env *module/loading* @{})
+      (put new-env *module/make-env* (fn make-bundle-env [&] (make-env new-env)))
+      (put new-env :workdir workdir)
+      (put new-env :bundle-name bundle-name)
+      (put new-env :bundle-dir (bundle-dir bundle-name))
+      (with-env new-env
+        (require (string "@syspath/bundle/" bundle-name)))))
 
   (defn- do-hook
     [module bundle-name hook & args]
@@ -4051,7 +4065,7 @@
       (break))
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
-    (os/cd (get manifest :local-source "."))
+    (os/cd (get module :workdir "."))
     (defer (os/cd dir)
       (print "running hook " hook " for bundle " bundle-name)
       (hookf ;args)))
@@ -4074,6 +4088,7 @@
     [&opt path bundle-name &keys config]
     (default path ".")
     (def path (os/realpath path))
+    (def clean (get config :clean))
     (default bundle-name (last (string/split "/" path)))
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
@@ -4089,6 +4104,8 @@
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
       (def module (get-bundle-module bundle-name))
+      (when clean
+        (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
       (do-hook module bundle-name :check man)
@@ -4130,19 +4147,20 @@
 
   (defn bundle/reinstall
     "Reinstall an existing bundle from the local source code."
-    [bundle-name]
+    [bundle-name &keys new-config]
     (def manifest (bundle/manifest bundle-name))
     (def path (get manifest :local-source))
     (def config (get manifest :config @{}))
     (assert (= :directory (os/stat path :mode)) "local source not available")
     (def backup-dir (string (dyn *syspath*) "/" bundle-name ".backup"))
+    (rmrf backup-dir)
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
     (edefer (do
               (bundle/install backup-bundle-source bundle-name)
               (copyrf (string backup-bundle-source "/old-bundle") (bundle-dir bundle-name))
               (rmrf backup-bundle-source))
       (bundle/uninstall bundle-name)
-      (bundle/install path bundle-name ;(kvs config)))
+      (bundle/install path bundle-name ;(kvs config) ;(kvs new-config)))
     (rmrf backup-bundle-source)
     bundle-name)
 
@@ -4181,6 +4199,11 @@
     (if (os/stat d :mode)
       (sort (os/dir d))
       @[]))
+
+  (defn bundle/installed?
+    "Check if a bundle is installed."
+    [bundle-name]
+    (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/update-all
     "Reinstall all bundles"
