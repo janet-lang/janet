@@ -2772,11 +2772,11 @@
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "@" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
-(defdyn *module/cache* "Dynamic binding for overriding `module/cache`")
-(defdyn *module/paths* "Dynamic binding for overriding `module/paths`")
-(defdyn *module/loading* "Dynamic binding for overriding `module/loading`")
-(defdyn *module/loaders* "Dynamic binding for overriding `module/loaders`")
-(defdyn *module/make-env* "Dynamic binding for create new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
+(defdyn *module-cache* "Dynamic binding for overriding `module/cache`")
+(defdyn *module-paths* "Dynamic binding for overriding `module/cache`")
+(defdyn *module-loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module-loaders* "Dynamic binding for overriding `module/loaders`")
+(defdyn *module-make-env* "Dynamic binding for creating new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
 
 (def module/cache
   "A table, mapping loaded module identifiers to their environments."
@@ -2806,7 +2806,7 @@
   keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
   ```
   [ext loader]
-  (def mp (dyn *module/paths* module/paths))
+  (def mp (dyn *module-paths* module/paths))
   (defn- find-prefix
     [pre]
     (or (find-index |(and (string? ($ 0)) (string/has-prefix? pre ($ 0))) mp) 0))
@@ -2824,7 +2824,7 @@
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in (dyn *module/cache* module/cache) path) path)) :preload check-not-relative])
+(array/insert module/paths 0 [(fn is-cached [path] (if (in (dyn *module-cache* module/cache) path) path)) :preload check-not-relative])
 
 # Version of fexists that works even with a reduced OS
 (defn- fexists
@@ -2854,7 +2854,7 @@
   ```
   [path]
   (var ret nil)
-  (def mp (dyn *module/paths* module/paths))
+  (def mp (dyn *module-paths* module/paths))
   (each [p mod-kind checker] mp
     (when (mod-filter checker path)
       (if (function? p)
@@ -2990,7 +2990,7 @@
            :core/stream path
            (file/open path :rb)))
   (def path-is-file (= f path))
-  (default env ((dyn *module/make-env* make-env)))
+  (default env ((dyn *module-make-env* make-env)))
   (def spath (string path))
   (put env :source (or source (if-not path-is-file spath path)))
   (var exit-error nil)
@@ -3052,12 +3052,12 @@
   of files as modules.``
   @{:native (fn native-loader [path &] (native path (make-env)))
     :source (fn source-loader [path args]
-              (def ml (dyn *module/loading* module/loading))
+              (def ml (dyn *module-loading* module/loading))
               (put ml path true)
               (defer (put ml path nil)
                 (dofile path ;args)))
     :preload (fn preload-loader [path & args]
-               (def mc (dyn *module/cache* module/cache))
+               (def mc (dyn *module-cache* module/cache))
                (when-let [m (in mc path)]
                  (if (function? m)
                    (set (mc path) (m path ;args))
@@ -3068,9 +3068,9 @@
   [path args kargs]
   (def [fullpath mod-kind] (module/find path))
   (unless fullpath (error mod-kind))
-  (def mc (dyn *module/cache* module/cache))
-  (def ml (dyn *module/loading* module/loading))
-  (def mls (dyn *module/loaders* module/loaders))
+  (def mc (dyn *module-cache* module/cache))
+  (def ml (dyn *module-loading* module/loading))
+  (def mls (dyn *module-loaders* module/loaders))
   (if-let [check (if-not (kargs :fresh) (in mc fullpath))]
     check
     (if (ml fullpath)
@@ -4048,9 +4048,9 @@
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
     (defer (os/cd dir)
       (def new-env (make-env))
-      (put new-env *module/cache* @{})
-      (put new-env *module/loading* @{})
-      (put new-env *module/make-env* (fn make-bundle-env [&] (make-env new-env)))
+      (put new-env *module-cache* @{})
+      (put new-env *module-loading* @{})
+      (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
       (put new-env :workdir workdir)
       (put new-env :bundle-name bundle-name)
       (put new-env :bundle-dir (bundle-dir bundle-name))
