@@ -380,6 +380,13 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
         case JANET_NUMBER:
             janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
             int count = snprintf((char *) S->buffer->data + S->buffer->count, BUFSIZE, "%.17g", janet_unwrap_number(x));
+            /* fix locale issues with commas */
+            for (int i = 0; i < count; i++) {
+                char c = S->buffer->data[S->buffer->count + i];
+                if (c == ',' || c == '\'') {
+                    S->buffer->data[S->buffer->count + i] = '.';
+                }
+            }
             S->buffer->count += count;
             break;
         case JANET_SYMBOL:

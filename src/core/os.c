@@ -38,6 +38,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <locale.h>
 
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
@@ -1891,6 +1892,42 @@ JANET_CORE_FN(os_mktime,
 #define j_symlink symlink
 #endif
 
+JANET_CORE_FN(os_setlocale,
+        "(os/setlocale category &opt locale)",
+        "Set the system locale, which affects how dates, currencies, and numbers are formatted. "
+        "Passing nil to locale will return the current locale.") {
+    janet_arity(argc, 1, 2);
+    const char *locale = janet_optcstring(argv, argc, 1, NULL);
+    int category_int = 0;
+    if (janet_keyeq(argv[0], "all")) {
+        category_int |= LC_ALL_MASK;
+    } else if (janet_keyeq(argv[0], "collate")) {
+        category_int |= LC_COLLATE_MASK;
+    } else if (janet_keyeq(argv[0], "ctype")) {
+        category_int |= LC_CTYPE_MASK;
+    } else if (janet_keyeq(argv[0], "monetary")) {
+        category_int |= LC_MONETARY_MASK;
+    } else if (janet_keyeq(argv[0], "numeric")) {
+        category_int |= LC_NUMERIC_MASK;
+    } else if (janet_keyeq(argv[0], "time")) {
+        category_int |= LC_TIME_MASK;
+    } else {
+        janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[0]);
+    }
+    if (locale == NULL) {
+        const char *old = setlocale(category_int, NULL);
+        if (old == NULL) return janet_wrap_nil();
+        return janet_cstringv(old);
+    }
+    locale_t loc = newlocale(category_int, locale, 0);
+    if (loc == 0) {
+        janet_panicf("failed to set locale - %s", strerror(errno));
+    }
+    uselocale(loc);
+    freelocale(loc);
+    return janet_wrap_nil();
+}
+
 JANET_CORE_FN(os_link,
               "(os/link oldpath newpath &opt symlink)",
               "Create a link at newpath that points to oldpath and returns nil. "
@@ -2688,6 +2725,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
         JANET_CORE_REG("os/isatty", os_isatty),
+        JANET_CORE_REG("os/setlocale", os_setlocale),
 
         /* env functions */
         JANET_CORE_REG("os/environ", os_environ),
