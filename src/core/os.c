@@ -1906,9 +1906,9 @@ JANET_CORE_FN(os_mktime,
 #endif
 
 JANET_CORE_FN(os_setlocale,
-        "(os/setlocale category &opt locale)",
-        "Set the system locale, which affects how dates, currencies, and numbers are formatted. "
-        "Passing nil to locale will return the current locale.") {
+              "(os/setlocale category &opt locale)",
+              "Set the system locale, which affects how dates and numbers are formatted. "
+              "Passing nil to locale will return the current locale.") {
     janet_arity(argc, 1, 2);
     const char *locale_name = janet_optcstring(argv, argc, 1, NULL);
     int category_int = 0;
