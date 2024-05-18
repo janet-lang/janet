@@ -57,11 +57,6 @@
 #define JANET_EXTENDED_LOCALE
 #endif
 
-/* OpenBSD works here with extended locale support, just in the usual headers */
-#if defined(__OpenBSD__)
-#define JANET_EXTENDED_LOCALE
-#endif
-
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
