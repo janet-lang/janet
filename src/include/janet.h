@@ -112,7 +112,8 @@ extern "C" {
     || defined(__s390x__) /* S390 64-bit (BE) */ \
     || (defined(__ppc64__) || defined(__PPC64__)) \
     || defined(__aarch64__) /* ARM 64-bit */ \
-    || (defined(__riscv) && (__riscv_xlen == 64)) /* RISC-V 64-bit */
+    || (defined(__riscv) && (__riscv_xlen == 64)) /* RISC-V 64-bit */ \
+    || defined(__loongarch64) /* LoongArch64 64-bit */
 #define JANET_64 1
 #else
 #define JANET_32 1
