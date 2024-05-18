@@ -43,14 +43,22 @@
 #include <sys/sysctl.h>
 #endif
 
-#if defined(JANET_BSD) || defined(JANET_APPLE)
+#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(JANET_APPLE)
+/* It seems only some bsds use this header for xlocale */
 #include <xlocale.h>
+#define JANET_EXTENDED_LOCALE
 #else
 #include <locale.h>
 #endif
 
 #ifdef JANET_LINUX
 #include <sched.h>
+#define JANET_EXTENDED_LOCALE
+#endif
+
+/* OpenBSD works here with extended locale support, just in the usual headers */
+#if defined(__OpenBSD__)
+#define JANET_EXTENDED_LOCALE
 #endif
 
 #ifdef JANET_WINDOWS
@@ -1904,28 +1912,7 @@ JANET_CORE_FN(os_setlocale,
     janet_arity(argc, 1, 2);
     const char *locale_name = janet_optcstring(argv, argc, 1, NULL);
     int category_int = 0;
-#ifdef JANET_WINDOWS
-    if (janet_keyeq(argv[0], "all")) {
-        category_int = LC_ALL;
-    } else if (janet_keyeq(argv[0], "collate")) {
-        category_int = LC_COLLATE;
-    } else if (janet_keyeq(argv[0], "ctype")) {
-        category_int = LC_CTYPE;
-    } else if (janet_keyeq(argv[0], "monetary")) {
-        category_int = LC_MONETARY;
-    } else if (janet_keyeq(argv[0], "numeric")) {
-        category_int = LC_NUMERIC;
-    } else if (janet_keyeq(argv[0], "time")) {
-        category_int = LC_TIME;
-    } else {
-        janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[0]);
-    }
-    const char *old = setlocale(category_int, locale_name);
-    if (old == NULL) {
-        janet_panicf("failed to set locale - %s", strerror(errno));
-    }
-    return janet_wrap_nil();
-#else
+#ifdef JANET_EXTENDED_LOCALE
     if (janet_keyeq(argv[0], "all")) {
         category_int = LC_ALL_MASK;
     } else if (janet_keyeq(argv[0], "collate")) {
@@ -1957,6 +1944,27 @@ JANET_CORE_FN(os_setlocale,
     }
     if (old_locale != LC_GLOBAL_LOCALE) {
         freelocale(old_locale);
+    }
+    return janet_wrap_nil();
+#else
+    if (janet_keyeq(argv[0], "all")) {
+        category_int = LC_ALL;
+    } else if (janet_keyeq(argv[0], "collate")) {
+        category_int = LC_COLLATE;
+    } else if (janet_keyeq(argv[0], "ctype")) {
+        category_int = LC_CTYPE;
+    } else if (janet_keyeq(argv[0], "monetary")) {
+        category_int = LC_MONETARY;
+    } else if (janet_keyeq(argv[0], "numeric")) {
+        category_int = LC_NUMERIC;
+    } else if (janet_keyeq(argv[0], "time")) {
+        category_int = LC_TIME;
+    } else {
+        janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[0]);
+    }
+    const char *old = setlocale(category_int, locale_name);
+    if (old == NULL) {
+        janet_panicf("failed to set locale - %s", strerror(errno));
     }
     return janet_wrap_nil();
 #endif
@@ -2816,7 +2824,7 @@ void janet_lib_os(JanetTable *env) {
 #endif
         JANET_REG_END
     };
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) && !defined(JANET_REDUCED_OS)
     _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
 #endif
     janet_core_cfuns_ext(env, NULL, os_cfuns);
