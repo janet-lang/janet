@@ -33,7 +33,6 @@
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -42,6 +41,9 @@
 
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
+#endif
+
+#if defined(JANET_BSD) || defined(JANET_APPLE)
 #include <xlocale.h>
 #else
 #include <locale.h>
