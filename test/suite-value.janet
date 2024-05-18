@@ -42,7 +42,7 @@
 
 (defn buffer-factory
   []
-  @"im am a buffer")
+  @"i am a buffer")
 
 (assert (not= (buffer-factory) (buffer-factory)) "buffer instantiation")
 

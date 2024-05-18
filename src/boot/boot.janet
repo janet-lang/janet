@@ -4047,7 +4047,7 @@
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
     (defer (os/cd dir)
-      (def new-env (make-env))
+      (def new-env (make-env (curenv)))
       (put new-env *module-cache* @{})
       (put new-env *module-loading* @{})
       (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
@@ -4074,6 +4074,10 @@
     "Remove a bundle from the current syspath"
     [bundle-name]
     (def man (bundle/manifest bundle-name))
+    (def all-hooks (get man :hooks @[]))
+    (when (index-of :uninstall all-hooks)
+      (def module (get-bundle-module bundle-name))
+      (do-hook module bundle-name :uninstall man))
     (def files (get man :files []))
     (each file (reverse files)
       (print "- " file)
@@ -4083,12 +4087,18 @@
     (rmrf (bundle-dir bundle-name))
     nil)
 
+  (defn bundle/installed?
+    "Check if a bundle is installed."
+    [bundle-name]
+    (not (not (os/stat (bundle-dir bundle-name) :mode))))
+
   (defn bundle/install
     "Install a bundle from the local filesystem with a name `bundle-name`."
     [&opt path bundle-name &keys config]
     (default path ".")
     (def path (os/realpath path))
     (def clean (get config :clean))
+    (def check (get config :check))
     (default bundle-name (last (string/split "/" path)))
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
@@ -4101,14 +4111,25 @@
       (copyrf implicit-sources (bundle-dir bundle-name)))
     (def man @{:bundle-name bundle-name :local-source path :files @[]})
     (merge-into man config)
+    (def infofile (bundle-file bundle-name "info.jdn"))
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
+      (when (os/stat infofile :mode)
+        (def info (-> infofile slurp parse))
+        (def deps (get info :dependencies @[]))
+        (def missing (filter (complement bundle/installed?) deps))
+        (when (next missing)
+          (error (string "missing dependencies " (string/join missing ", "))))
+        (put man :info info))
       (def module (get-bundle-module bundle-name))
+      (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
+      (put man :hooks all-hooks)
       (when clean
         (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
-      (do-hook module bundle-name :check man)
+      (when check
+        (do-hook module bundle-name :check man))
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
       (sync-manifest man))
     (print "installed " bundle-name)
@@ -4199,11 +4220,6 @@
     (if (os/stat d :mode)
       (sort (os/dir d))
       @[]))
-
-  (defn bundle/installed?
-    "Check if a bundle is installed."
-    [bundle-name]
-    (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/update-all
     "Reinstall all bundles"
