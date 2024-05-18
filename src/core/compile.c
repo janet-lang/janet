@@ -934,7 +934,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         int32_t slotchunks = (def->slotcount + 31) >> 5;
         /* numchunks is min of slotchunks and scope->ua.count */
         int32_t numchunks = slotchunks > scope->ua.count ? scope->ua.count : slotchunks;
-        uint32_t *chunks = janet_calloc(sizeof(uint32_t), slotchunks);
+        uint32_t *chunks = janet_calloc(1, slotchunks * sizeof(uint32_t));
         if (NULL == chunks) {
             JANET_OUT_OF_MEMORY;
         }

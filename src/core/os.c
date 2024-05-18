@@ -1897,35 +1897,64 @@ JANET_CORE_FN(os_setlocale,
         "Set the system locale, which affects how dates, currencies, and numbers are formatted. "
         "Passing nil to locale will return the current locale.") {
     janet_arity(argc, 1, 2);
-    const char *locale = janet_optcstring(argv, argc, 1, NULL);
+    const char *locale_name = janet_optcstring(argv, argc, 1, NULL);
     int category_int = 0;
+#ifdef JANET_WINDOWS
     if (janet_keyeq(argv[0], "all")) {
-        category_int |= LC_ALL_MASK;
+        category_int = LC_ALL;
     } else if (janet_keyeq(argv[0], "collate")) {
-        category_int |= LC_COLLATE_MASK;
+        category_int = LC_COLLATE;
     } else if (janet_keyeq(argv[0], "ctype")) {
-        category_int |= LC_CTYPE_MASK;
+        category_int = LC_CTYPE;
     } else if (janet_keyeq(argv[0], "monetary")) {
-        category_int |= LC_MONETARY_MASK;
+        category_int = LC_MONETARY;
     } else if (janet_keyeq(argv[0], "numeric")) {
-        category_int |= LC_NUMERIC_MASK;
+        category_int = LC_NUMERIC;
     } else if (janet_keyeq(argv[0], "time")) {
-        category_int |= LC_TIME_MASK;
+        category_int = LC_TIME;
     } else {
         janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[0]);
     }
-    if (locale == NULL) {
+    const char *old = setlocale(category_int, locale_name);
+    if (old == NULL) {
+        janet_panicf("failed to set locale - %s", strerror(errno));
+    }
+    return janet_wrap_nil();
+#else
+    if (janet_keyeq(argv[0], "all")) {
+        category_int = LC_ALL_MASK;
+    } else if (janet_keyeq(argv[0], "collate")) {
+        category_int = LC_COLLATE_MASK;
+    } else if (janet_keyeq(argv[0], "ctype")) {
+        category_int = LC_CTYPE_MASK;
+    } else if (janet_keyeq(argv[0], "monetary")) {
+        category_int = LC_MONETARY_MASK;
+    } else if (janet_keyeq(argv[0], "numeric")) {
+        category_int = LC_NUMERIC_MASK;
+    } else if (janet_keyeq(argv[0], "time")) {
+        category_int = LC_TIME_MASK;
+    } else {
+        janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[0]);
+    }
+    if (locale_name == NULL) {
         const char *old = setlocale(category_int, NULL);
         if (old == NULL) return janet_wrap_nil();
         return janet_cstringv(old);
     }
-    locale_t loc = newlocale(category_int, locale, 0);
+    /* Use newlocale instead of setlocale for per-thread behavior */
+    locale_t loc = newlocale(category_int, locale_name, 0);
     if (loc == 0) {
+        janet_panicf("failed to make locale - %s", strerror(errno));
+    }
+    locale_t old_locale = uselocale(loc);
+    if (old_locale == 0) {
         janet_panicf("failed to set locale - %s", strerror(errno));
     }
-    uselocale(loc);
-    freelocale(loc);
+    if (old_locale != LC_GLOBAL_LOCALE) {
+        freelocale(old_locale);
+    }
     return janet_wrap_nil();
+#endif
 }
 
 JANET_CORE_FN(os_link,
@@ -2782,5 +2811,8 @@ void janet_lib_os(JanetTable *env) {
 #endif
         JANET_REG_END
     };
+#ifdef JANET_WINDOWS
+    _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+#endif
     janet_core_cfuns_ext(env, NULL, os_cfuns);
 }
