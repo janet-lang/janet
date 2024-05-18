@@ -38,10 +38,13 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <signal.h>
-#include <locale.h>
+
 
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
+#include <xlocale.h>
+#else
+#include <locale.h>
 #endif
 
 #ifdef JANET_LINUX
