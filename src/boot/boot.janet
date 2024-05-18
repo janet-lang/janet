@@ -3748,6 +3748,30 @@
     [& body]
     ~(,ev/thread (fn _do-thread [&] ,;body)))
 
+  (defn- acquire-release
+    [acq rel lock body]
+    (def l (gensym))
+    ~(do
+       (def ,l ,lock)
+       (,acq ,l)
+       (defer (,rel ,l)
+         ,;body)))
+
+  (defmacro ev/with-lock
+    ``Run a body of code after acquiring a lock. Will automatically release the lock when done.``
+    [lock & body]
+    (acquire-release ev/acquire-lock ev/release-lock lock body))
+
+  (defmacro ev/with-rlock
+    ``Run a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
+    [lock & body]
+    (acquire-release ev/acquire-rlock ev/release-rlock lock body))
+
+  (defmacro ev/with-wlock
+    ``Run a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
+    [lock & body]
+    (acquire-release ev/acquire-wlock ev/release-wlock lock body))
+
   (defmacro ev/spawn-thread
     ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
     [& body]

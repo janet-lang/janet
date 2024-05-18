@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add macros `ev/with-lock`, `ev/with-rlock`, and `ev/with-wlock` for using mutexes and rwlocks.
 - Add `with-env`
 - Add *module-make-env* dynamic binding
 - Add buffer/format-at
