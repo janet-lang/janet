@@ -976,4 +976,7 @@
 (assert (= () '() (macex '())) "macex ()")
 (assert (= '[] (macex '[])) "macex []")
 
+(assert (= :a (with-env @{:b :a} (dyn :b))) "with-env dyn")
+(assert-error "unknown symbol +" (with-env @{} (eval '(+ 1 2))))
+
 (end-suite)

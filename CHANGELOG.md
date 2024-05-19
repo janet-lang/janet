@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## Unreleased - ???
 - Add `bundle/` module for managing packages within Janet. This should replace the jpm packaging
   format eventually and is much simpler and amenable to more complicated builds.
+- Add macros `ev/with-lock`, `ev/with-rlock`, and `ev/with-wlock` for using mutexes and rwlocks.
+- Add `with-env`
 - Add *module-make-env* dynamic binding
 - Add buffer/format-at
 - Add long form command line options for readable CLI usage
