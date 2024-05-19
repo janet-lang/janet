@@ -489,6 +489,8 @@ int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
     return 0;
 }
 
+#endif
+
 void janet_buffer_dtostr(JanetBuffer *buffer, double x) {
 #define BUFSIZE 32
     janet_buffer_extra(buffer, BUFSIZE);
@@ -503,5 +505,3 @@ void janet_buffer_dtostr(JanetBuffer *buffer, double x) {
     }
     buffer->count += count;
 }
-
-#endif
