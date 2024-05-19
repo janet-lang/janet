@@ -46,6 +46,7 @@
 
 #if defined(__FreeBSD__) || defined(__DragonFly__) || defined(JANET_APPLE)
 /* It seems only some bsds use this header for xlocale */
+#include <locale.h>
 #include <xlocale.h>
 #define JANET_EXTENDED_LOCALE
 #else
