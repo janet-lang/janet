@@ -126,7 +126,7 @@ JANET_CORE_FN(cfun_io_temp,
     // XXX use mkostemp when we can to avoid CLOEXEC race.
     FILE *tmp = tmpfile();
     if (!tmp)
-        janet_panicf("unable to create temporary file - %s", strerror(errno));
+        janet_panicf("unable to create temporary file - %s", janet_strerror(errno));
     return janet_makefile(tmp, JANET_FILE_WRITE | JANET_FILE_READ | JANET_FILE_BINARY);
 }
 
@@ -168,7 +168,7 @@ JANET_CORE_FN(cfun_io_fopen,
         }
     }
     return f ? janet_makefile(f, flags)
-           : (flags & JANET_FILE_NONIL) ? (janet_panicf("failed to open file %s: %s", fname, strerror(errno)), janet_wrap_nil())
+           : (flags & JANET_FILE_NONIL) ? (janet_panicf("failed to open file %s: %s", fname, janet_strerror(errno)), janet_wrap_nil())
            : janet_wrap_nil();
 }
 

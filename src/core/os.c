@@ -39,12 +39,22 @@
 #include <sys/stat.h>
 #include <signal.h>
 
+
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
 #endif
 
+#if defined(__FreeBSD__) || defined(__DragonFly__) || defined(JANET_APPLE)
+/* It seems only some bsds use this header for xlocale */
+#include <xlocale.h>
+#define JANET_EXTENDED_LOCALE
+#else
+#include <locale.h>
+#endif
+
 #ifdef JANET_LINUX
 #include <sched.h>
+#define JANET_EXTENDED_LOCALE
 #endif
 
 #ifdef JANET_WINDOWS
@@ -761,7 +771,7 @@ JANET_CORE_FN(os_proc_kill,
     }
     int status = kill(proc->pid, signal == -1 ? SIGKILL : signal);
     if (status) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
 #endif
     /* After killing process we wait on it. */
@@ -1274,7 +1284,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                 status = execv(cargv[0], cargv);
             }
         } while (status == -1 && errno == EINTR);
-        janet_panicf("%p: %s", cargv[0], strerror(errno ? errno : ENOENT));
+        janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
 #endif
     }
 
@@ -1331,7 +1341,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     os_execute_cleanup(envp, child_argv);
     if (status) {
         /* correct for macos bug where errno is not set */
-        janet_panicf("%p: %s", argv[0], strerror(errno ? errno : ENOENT));
+        janet_panicf("%p: %s", argv[0], janet_strerror(errno ? errno : ENOENT));
     }
 
 #endif
@@ -1432,7 +1442,7 @@ JANET_CORE_FN(os_posix_fork,
         result = fork();
     } while (result == -1 && errno == EINTR);
     if (result == -1) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
     if (result) {
         JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
@@ -1644,7 +1654,7 @@ JANET_CORE_FN(os_isatty,
     return janet_wrap_boolean(_isatty(fd));
 #else
     int fd = fileno(f);
-    if (fd == -1) janet_panic(strerror(errno));
+    if (fd == -1) janet_panic(janet_strerror(errno));
     return janet_wrap_boolean(isatty(fd));
 #endif
 }
@@ -1879,7 +1889,7 @@ JANET_CORE_FN(os_mktime,
     }
 
     if (t == (time_t) -1) {
-        janet_panicf("%s", strerror(errno));
+        janet_panicf("%s", janet_strerror(errno));
     }
 
     return janet_wrap_number((double)t);
@@ -1890,6 +1900,84 @@ JANET_CORE_FN(os_mktime,
 #else
 #define j_symlink symlink
 #endif
+
+JANET_CORE_FN(os_setlocale,
+              "(os/setlocale &opt locale category)",
+              "Set the system locale, which affects how dates and numbers are formatted. "
+              "Passing nil to locale will return the current locale.") {
+    janet_arity(argc, 0, 2);
+    const char *locale_name = janet_optcstring(argv, argc, 0, NULL);
+#ifdef JANET_EXTENDED_LOCALE
+    int category_int = LC_ALL;
+    int category_mask = LC_ALL_MASK;
+    if (argc > 1 && !janet_checktype(argv[1], JANET_NIL)) {
+        if (janet_keyeq(argv[1], "all")) {
+            category_mask = LC_ALL_MASK;
+            category_int = LC_ALL;
+        } else if (janet_keyeq(argv[1], "collate")) {
+            category_mask = LC_COLLATE_MASK;
+            category_int = LC_COLLATE;
+        } else if (janet_keyeq(argv[1], "ctype")) {
+            category_mask = LC_CTYPE_MASK;
+            category_int = LC_CTYPE;
+        } else if (janet_keyeq(argv[1], "monetary")) {
+            category_mask = LC_MONETARY_MASK;
+            category_int = LC_MONETARY;
+        } else if (janet_keyeq(argv[1], "numeric")) {
+            category_mask = LC_NUMERIC_MASK;
+            category_int = LC_NUMERIC;
+        } else if (janet_keyeq(argv[1], "time")) {
+            category_mask = LC_TIME_MASK;
+            category_int = LC_TIME;
+        } else {
+            janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[1]);
+        }
+    }
+    if (locale_name == NULL) {
+        /* Now return new locale */
+        const char *old = setlocale(category_int, NULL);
+        if (old == NULL) return janet_wrap_nil();
+        return janet_cstringv(old);
+    }
+    /* Use newlocale instead of setlocale for per-thread behavior */
+    locale_t loc = newlocale(category_mask, locale_name, 0);
+    if (loc == 0) {
+        janet_panicf("failed to make locale - %s", janet_strerror(errno));
+    }
+    locale_t old_locale = uselocale(loc);
+    if (old_locale == 0) {
+        janet_panicf("failed to set locale - %s", janet_strerror(errno));
+    }
+    if (old_locale != LC_GLOBAL_LOCALE) {
+        freelocale(old_locale);
+    }
+    return janet_wrap_nil();
+#else
+    int category_int = LC_ALL;
+    if (argc > 1 && !janet_checktype(argv[1], JANET_NIL)) {
+        if (janet_keyeq(argv[1], "all")) {
+            category_int = LC_ALL;
+        } else if (janet_keyeq(argv[1], "collate")) {
+            category_int = LC_COLLATE;
+        } else if (janet_keyeq(argv[1], "ctype")) {
+            category_int = LC_CTYPE;
+        } else if (janet_keyeq(argv[1], "monetary")) {
+            category_int = LC_MONETARY;
+        } else if (janet_keyeq(argv[1], "numeric")) {
+            category_int = LC_NUMERIC;
+        } else if (janet_keyeq(argv[1], "time")) {
+            category_int = LC_TIME;
+        } else {
+            janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[1]);
+        }
+    }
+    const char *old = setlocale(category_int, locale_name);
+    if (old == NULL) {
+        janet_panicf("failed to set locale - %s", janet_strerror(errno));
+    }
+    return janet_cstringv(old);
+#endif
+}
 
 JANET_CORE_FN(os_link,
               "(os/link oldpath newpath &opt symlink)",
@@ -1908,7 +1996,7 @@ JANET_CORE_FN(os_link,
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = ((argc == 3 && janet_truthy(argv[2])) ? j_symlink : link)(oldpath, newpath);
-    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
+    if (-1 == res) janet_panicf("%s: %s -> %s", janet_strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
 }
@@ -1927,7 +2015,7 @@ JANET_CORE_FN(os_symlink,
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = j_symlink(oldpath, newpath);
-    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
+    if (-1 == res) janet_panicf("%s: %s -> %s", janet_strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
 }
@@ -1949,7 +2037,7 @@ JANET_CORE_FN(os_mkdir,
 #endif
     if (res == 0) return janet_wrap_true();
     if (errno == EEXIST) return janet_wrap_false();
-    janet_panicf("%s: %s", strerror(errno), path);
+    janet_panicf("%s: %s", janet_strerror(errno), path);
 }
 
 JANET_CORE_FN(os_rmdir,
@@ -1963,7 +2051,7 @@ JANET_CORE_FN(os_rmdir,
 #else
     int res = rmdir(path);
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -1978,7 +2066,7 @@ JANET_CORE_FN(os_cd,
 #else
     int res = chdir(path);
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2002,7 +2090,7 @@ JANET_CORE_FN(os_touch,
         bufp = NULL;
     }
     int res = utime(path, bufp);
-    if (-1 == res) janet_panic(strerror(errno));
+    if (-1 == res) janet_panic(janet_strerror(errno));
     return janet_wrap_nil();
 }
 
@@ -2012,7 +2100,7 @@ JANET_CORE_FN(os_remove,
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
     int status = remove(path);
-    if (-1 == status) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == status) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2031,7 +2119,7 @@ JANET_CORE_FN(os_readlink,
     const char *path = janet_getcstring(argv, 0);
     ssize_t len = readlink(path, buffer, sizeof buffer);
     if (len < 0 || (size_t)len >= sizeof buffer)
-        janet_panicf("%s: %s", strerror(errno), path);
+        janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_stringv((const uint8_t *)buffer, len);
 #endif
 }
@@ -2326,7 +2414,7 @@ JANET_CORE_FN(os_chmod,
 #else
     int res = chmod(path, os_getmode(argv, 1));
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2362,7 +2450,7 @@ JANET_CORE_FN(os_dir,
         janet_panicf("path too long: %s", dir);
     sprintf(pattern, "%s/*", dir);
     intptr_t res = _findfirst(pattern, &afile);
-    if (-1 == res) janet_panicv(janet_cstringv(strerror(errno)));
+    if (-1 == res) janet_panicv(janet_cstringv(janet_strerror(errno)));
     do {
         if (strcmp(".", afile.name) && strcmp("..", afile.name)) {
             janet_array_push(paths, janet_cstringv(afile.name));
@@ -2394,7 +2482,7 @@ JANET_CORE_FN(os_rename,
     const char *dest = janet_getcstring(argv, 1);
     int status = rename(src, dest);
     if (status) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
     return janet_wrap_nil();
 }
@@ -2414,7 +2502,7 @@ JANET_CORE_FN(os_realpath,
 #else
     char *dest = realpath(src, NULL);
 #endif
-    if (NULL == dest) janet_panicf("%s: %s", strerror(errno), src);
+    if (NULL == dest) janet_panicf("%s: %s", janet_strerror(errno), src);
     Janet ret = janet_cstringv(dest);
     janet_free(dest);
     return ret;
@@ -2688,6 +2776,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
         JANET_CORE_REG("os/isatty", os_isatty),
+        JANET_CORE_REG("os/setlocale", os_setlocale),
 
         /* env functions */
         JANET_CORE_REG("os/environ", os_environ),
@@ -2744,5 +2833,8 @@ void janet_lib_os(JanetTable *env) {
 #endif
         JANET_REG_END
     };
+#if defined(JANET_WINDOWS) && !defined(JANET_REDUCED_OS)
+    _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+#endif
     janet_core_cfuns_ext(env, NULL, os_cfuns);
 }

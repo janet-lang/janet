@@ -349,6 +349,26 @@ JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
     return janet_wrap_number(janet_lcm(x, y));
 }
 
+JANET_CORE_FN(janet_cfun_frexp, "(math/frexp x)",
+              "Returns a tuple of (mantissa, exponent) from number.") {
+    janet_fixarity(argc, 1);
+    double x = janet_getnumber(argv, 0);
+    int exp;
+    x = frexp(x, &exp);
+    Janet *result = janet_tuple_begin(2);
+    result[0] = janet_wrap_number(x);
+    result[1] = janet_wrap_number((double) exp);
+    return janet_wrap_tuple(janet_tuple_end(result));
+}
+
+JANET_CORE_FN(janet_cfun_ldexp, "(math/ldexp m e)",
+              "Creates a new number from a mantissa and an exponent.") {
+    janet_fixarity(argc, 2);
+    double x = janet_getnumber(argv, 0);
+    int32_t y = janet_getinteger(argv, 1);
+    return janet_wrap_number(ldexp(x, y));
+}
+
 /* Module entry point */
 void janet_lib_math(JanetTable *env) {
     JanetRegExt math_cfuns[] = {
@@ -395,6 +415,8 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/next", janet_nextafter),
         JANET_CORE_REG("math/gcd", janet_cfun_gcd),
         JANET_CORE_REG("math/lcm", janet_cfun_lcm),
+        JANET_CORE_REG("math/frexp", janet_cfun_frexp),
+        JANET_CORE_REG("math/ldexp", janet_cfun_ldexp),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, math_cfuns);
