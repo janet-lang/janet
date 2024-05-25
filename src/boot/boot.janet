@@ -4191,7 +4191,13 @@
     (def path (os/realpath path))
     (def clean (get config :clean))
     (def check (get config :check))
-    (default bundle-name (last (string/split "/" path)))
+    (default bundle-name
+      (let [sep (if (string/find "\\" path) "\\" "/")]
+        (last (string/split sep path))))
+    (assert (not (string/check-set "\\/" bundle-name))
+            (string "bundle-name "
+                    bundle-name
+                    " cannot contain path separators"))
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
