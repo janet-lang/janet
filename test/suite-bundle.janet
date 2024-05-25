@@ -40,7 +40,6 @@
 (def syspath (string "." sep (string (math/random)) "_jpm_tree.tmp"))
 (rmrf syspath)
 (assert (os/mkdir syspath))
-(print (os/
 (put root-env *syspath* (os/realpath syspath))
 (setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
