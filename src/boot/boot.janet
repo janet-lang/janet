@@ -4171,7 +4171,11 @@
           (each d (get m :dependencies []) (put exempt d true)))
         (array/push to-drop b)))
     (print "pruning " (length to-drop) " bundles")
-    (each b to-drop (bundle-uninstall-unchecked b)))
+    (each b to-drop
+      (print "- " b))
+    (each b to-drop
+      (print "uninstalling " b)
+      (bundle-uninstall-unchecked b)))
 
   (defn bundle/installed?
     "Check if a bundle is installed."
