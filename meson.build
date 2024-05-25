@@ -249,6 +249,7 @@ test_files = [
   'test/suite-asm.janet',
   'test/suite-boot.janet',
   'test/suite-buffer.janet',
+  'test/suite-bundle.janet',
   'test/suite-capi.janet',
   'test/suite-cfuns.janet',
   'test/suite-compile.janet',

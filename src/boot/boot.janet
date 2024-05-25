@@ -3999,11 +3999,11 @@
 
   (defn- bundle-dir
     [&opt bundle-name]
-    (string (os/realpath (dyn *syspath*)) "/bundle/" bundle-name))
+    (string (dyn *syspath*) "/bundle/" bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
-    (string (os/realpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename))
+    (string (dyn *syspath*) "/bundle/" bundle-name "/" filename))
 
   (defn- get-manifest-filename
     [bundle-name]
