@@ -4094,8 +4094,15 @@
       (print "running hook " hook " for bundle " bundle-name)
       (hookf ;args)))
 
-  (defn bundle/uninstall
-    "Remove a bundle from the current syspath"
+  (defn bundle/list
+    "Get a list of all installed bundles in lexical order."
+    []
+    (def d (bundle-dir))
+    (if (os/stat d :mode)
+      (sort (os/dir d))
+      @[]))
+
+  (defn- bundle-uninstall-unchecked
     [bundle-name]
     (def man (bundle/manifest bundle-name))
     (def all-hooks (get man :hooks @[]))
@@ -4110,6 +4117,61 @@
         :directory (os/rmdir file)))
     (rmrf (bundle-dir bundle-name))
     nil)
+
+  (defn bundle/uninstall
+    "Remove a bundle from the current syspath"
+    [bundle-name]
+    (def breakage @{})
+    (each b (bundle/list)
+      (unless (= b bundle-name)
+        (def m (bundle/manifest b))
+        (def deps (get m :dependencies []))
+        (each d deps
+          (if (= d bundle-name) (put breakage b true)))))
+    (when (next breakage)
+      (def breakage-list (sorted (keys breakage)))
+      (errorf "cannot uninstall %s, breaks dependent bundles %n" bundle-name breakage-list))
+    (bundle-uninstall-unchecked bundle-name))
+
+  (defn bundle/topolist
+    "Get topological order of all bundles, such that each bundle is listed after its dependencies.
+    DFS (tarjan)"
+    []
+    (def visited @{})
+    (def cycle-detect @{})
+    (def order @[])
+    (defn visit
+      [b]
+      (if (get visited b) (break))
+      (if (get cycle-detect b) (errorf "cycle detected in bundle dependencies: %s" b))
+      (put cycle-detect b true)
+      (each d (get (bundle/manifest b) :dependencies []) (visit d))
+      (put cycle-detect b nil)
+      (put visited b true)
+      (array/push order b))
+    (each b (bundle/list) (visit b))
+    order)
+
+  (defn bundle/prune
+    "Remove all orphaned bundles from the syspath. An orphaned bundle is a bundle that is
+     marked for :auto-remove and is not depended on by any other bundle."
+    []
+    (def topo (bundle/topolist))
+    (def rtopo (reverse topo))
+    # Check which auto-remove packages can be dropped
+    # Iterate in (reverse) topological order, and if we see an auto-remove package and have not already seen
+    # something that depends on it, then it is a root package and can be pruned.
+    (def exempt @{})
+    (def to-drop @[])
+    (each b rtopo
+      (def m (bundle/manifest b))
+      (if (or (get exempt b) (not (get m :auto-remove)))
+        (do
+          (put exempt b true)
+          (each d (get m :dependencies []) (put exempt d true)))
+        (array/push to-drop b)))
+    (print "pruning " (length to-drop) " bundles")
+    (each b to-drop (bundle-uninstall-unchecked b)))
 
   (defn bundle/installed?
     "Check if a bundle is installed."
@@ -4127,6 +4189,14 @@
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
+    # Check meta file for dependencies
+    (def infofile-pre (string path "/bundle/info.jdn"))
+    (when (os/stat infofile-pre :mode)
+      (def info (-> infofile-pre slurp parse))
+      (def deps (get info :deps @[]))
+      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
+      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
+    # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
     # Copy some files into the new location unconditionally
@@ -4136,6 +4206,7 @@
     (def man @{:bundle-name bundle-name :local-source path :files @[]})
     (merge-into man config)
     (def infofile (bundle-file bundle-name "info.jdn"))
+    (put man :auto-remove (get config :auto-remove))
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
       (when (os/stat infofile :mode)
@@ -4144,10 +4215,12 @@
         (def missing (filter (complement bundle/installed?) deps))
         (when (next missing)
           (error (string "missing dependencies " (string/join missing ", "))))
+        (put man :dependencies deps)
         (put man :info info))
       (def module (get-bundle-module bundle-name))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
+      (do-hook module bundle-name :dependencies man)
       (when clean
         (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
@@ -4204,7 +4277,7 @@
               (bundle/install backup-bundle-source bundle-name)
               (copyrf (string backup-bundle-source "/old-bundle") (bundle-dir bundle-name))
               (rmrf backup-bundle-source))
-      (bundle/uninstall bundle-name)
+      (bundle-uninstall-unchecked bundle-name)
       (bundle/install path bundle-name ;(kvs config) ;(kvs new-config)))
     (rmrf backup-bundle-source)
     bundle-name)
@@ -4236,14 +4309,6 @@
       (os/chmod absdest chmod-mode))
     (print "+ " absdest)
     absdest)
-
-  (defn bundle/list
-    "Get a list of all installed bundles in lexical order."
-    []
-    (def d (bundle-dir))
-    (if (os/stat d :mode)
-      (sort (os/dir d))
-      @[]))
 
   (defn bundle/update-all
     "Reinstall all bundles"
