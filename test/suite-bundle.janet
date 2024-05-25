@@ -24,6 +24,9 @@
 (assert true) # smoke test
 
 # Copy since not exposed in boot.janet
+(defn- bundle-rpath
+  [path]
+  (string/replace-all "\\" "/" (os/realpath path)))
 (def- sep (if (= :windows (os/which)) "\\" "/"))
 (defn- rmrf
   "rm -rf in janet"
@@ -40,8 +43,10 @@
 (def syspath (string "." sep (string (math/random)) "_jpm_tree.tmp"))
 (rmrf syspath)
 (assert (os/mkdir syspath))
-(put root-env *syspath* (os/realpath syspath))
+(put root-env *syspath* (bundle-rpath syspath))
 #(setdyn *out* @"")
+(pp (bundle/list))
+(pp (bundle/topolist))
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 

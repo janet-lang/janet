@@ -4004,6 +4004,10 @@
     [bundle-name filename]
     (string (dyn *syspath*) "/bundle/" bundle-name "/" filename))
 
+  (defn- bundle-rpath
+    [path]
+    (string/replace-all "\\" "/" (os/realpath path)))
+
   (defn- get-manifest-filename
     [bundle-name]
     (bundle-file bundle-name "manifest.jdn"))
@@ -4066,7 +4070,7 @@
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (def workdir (get manifest :local-source "."))
-    (def fixed-syspath (os/realpath (dyn *syspath*)))
+    (def fixed-syspath (bundle-rpath (dyn *syspath*)))
     (try
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
@@ -4187,12 +4191,10 @@
     "Install a bundle from the local filesystem with a name `bundle-name`."
     [&opt path bundle-name &keys config]
     (default path ".")
-    (def path (os/realpath path))
+    (def path (bundle-rpath path))
     (def clean (get config :clean))
     (def check (get config :check))
-    (default bundle-name
-      (let [sep (if (string/find "\\" path) "\\" "/")]
-        (last (string/split sep path))))
+    (default bundle-name (last (string/split sep path)))
     (assert (not (string/check-set "\\/" bundle-name))
             (string "bundle-name "
                     bundle-name
@@ -4256,7 +4258,7 @@
     (def install-hook (string dest-dir "/bundle/init.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
       (def install-source @[])
-      (def syspath (os/realpath (dyn *syspath*)))
+      (def syspath (bundle-rpath (dyn *syspath*))
       (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir "/old-bundle")))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
