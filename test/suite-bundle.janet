@@ -39,7 +39,7 @@
 (rmrf syspath)
 (os/mkdir syspath)
 (put root-env *syspath* (os/realpath syspath))
-#(setdyn *out* @"")
+(setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 
@@ -59,6 +59,8 @@
 
 # Now install sample-bundle
 (assert-no-error "sample-bundle install" (bundle/install "./examples/sample-bundle"))
+
+(assert-error "" (bundle/install "./examples/sample-dep11111"))
 
 (assert (= 3 (length (bundle/list))) "bundles are listed correctly 3")
 (assert (= 3 (length (bundle/topolist))) "bundles are listed correctly 4")
