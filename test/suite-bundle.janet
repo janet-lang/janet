@@ -35,9 +35,10 @@
   nil)
 
 # Setup a temporary syspath for manipultation
-(def syspath (string "./" (gensym) "_jpm_tree.tmp"))
+(def syspath (string "./" (string (math/random)) "_jpm_tree.tmp"))
+(rmrf syspath)
 (os/mkdir syspath)
-(setdyn *syspath* (os/realpath syspath))
+(put root-env *syspath* (os/realpath syspath))
 (setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
@@ -73,6 +74,10 @@
 (assert-no-error "first prune" (bundle/prune))
 (assert (= 3 (length (bundle/list))) "bundles are listed correctly 3")
 (assert (= 3 (length (bundle/topolist))) "bundles are listed correctly 4")
+
+# Check that we can import the main dependency
+(import mymod)
+(assert (= 288 (mymod/myfn 12)) "using sample-bundle")
 
 # Manual uninstall of dep1 and dep2 shouldn't work either since that would break dependencies
 (assert-error "cannot uninstall sample-dep1, breaks dependent bundles @[\"sample-bundle\"]"
