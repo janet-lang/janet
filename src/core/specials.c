@@ -925,6 +925,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     int structarg = 0;
     int allow_extra = 0;
     int selfref = 0;
+    int hasname = 0;
     int seenamp = 0;
     int seenopt = 0;
     int namedargs = 0;
@@ -943,6 +944,10 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     head = argv[0];
     if (janet_checktype(head, JANET_SYMBOL)) {
         selfref = 1;
+        hasname = 1;
+        parami = 1;
+    } else if (janet_checktype(head, JANET_KEYWORD)) {
+        hasname = 1;
         parami = 1;
     }
     if (parami >= argn || !janet_checktype(argv[parami], JANET_TUPLE)) {
@@ -1103,7 +1108,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
     if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
 
-    if (selfref) def->name = janet_unwrap_symbol(head);
+    if (hasname) def->name = janet_unwrap_symbol(head); /* Also correctly unwraps keyword */
     janet_def_addflags(def);
     defindex = janetc_addfuncdef(c, def);
 
