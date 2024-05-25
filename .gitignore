@@ -126,6 +126,9 @@ vgcore.*
 *.idb
 *.pdb
 
+# GGov
+*.gcov
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd
