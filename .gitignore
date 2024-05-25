@@ -48,6 +48,7 @@ janet.wasm
 # Generated files
 *.gen.h
 *.gen.c
+*.tmp
 
 # Generate test files
 *.out
