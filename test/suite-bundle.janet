@@ -41,7 +41,7 @@
 (rmrf syspath)
 (assert (os/mkdir syspath))
 (put root-env *syspath* (os/realpath syspath))
-(setdyn *out* @"")
+#(setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 
@@ -56,6 +56,7 @@
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
 (assert-no-error "sample-dep1 reinstall" (bundle/reinstall "sample-dep1" :auto-remove true))
 
+(eprintf "%.99M" (bundle/list))
 (assert (= 2 (length (bundle/list))) "bundles are listed correctly 1")
 (assert (= 2 (length (bundle/topolist))) "bundles are listed correctly 2")
 
