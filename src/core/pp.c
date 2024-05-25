@@ -382,8 +382,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             double num = janet_unwrap_number(x);
             if (isnan(num)) return 1;
             if (isinf(num)) return 1;
-            int count = snprintf((char *) S->buffer->data + S->buffer->count, BUFSIZE, "%.17g", num);
-            S->buffer->count += count;
+            janet_buffer_dtostr(S->buffer, num);
             break;
         case JANET_SYMBOL:
         case JANET_KEYWORD:

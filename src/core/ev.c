@@ -2095,7 +2095,7 @@ void janet_ev_threaded_call(JanetThreadedSubroutine fp, JanetEVGenericMessage ar
     int err = pthread_create(&waiter_thread, &janet_vm.new_thread_attr, janet_thread_body, init);
     if (err) {
         janet_free(init);
-        janet_panicf("%s", strerror(err));
+        janet_panicf("%s", janet_strerror(err));
     }
 #endif
 
@@ -2204,7 +2204,7 @@ Janet janet_ev_lasterr(void) {
 }
 #else
 Janet janet_ev_lasterr(void) {
-    return janet_cstringv(strerror(errno));
+    return janet_cstringv(janet_strerror(errno));
 }
 #endif
 

@@ -38,6 +38,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <locale.h>
 
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
@@ -761,7 +762,7 @@ JANET_CORE_FN(os_proc_kill,
     }
     int status = kill(proc->pid, signal == -1 ? SIGKILL : signal);
     if (status) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
 #endif
     /* After killing process we wait on it. */
@@ -1274,7 +1275,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                 status = execv(cargv[0], cargv);
             }
         } while (status == -1 && errno == EINTR);
-        janet_panicf("%p: %s", cargv[0], strerror(errno ? errno : ENOENT));
+        janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
 #endif
     }
 
@@ -1331,7 +1332,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     os_execute_cleanup(envp, child_argv);
     if (status) {
         /* correct for macos bug where errno is not set */
-        janet_panicf("%p: %s", argv[0], strerror(errno ? errno : ENOENT));
+        janet_panicf("%p: %s", argv[0], janet_strerror(errno ? errno : ENOENT));
     }
 
 #endif
@@ -1432,7 +1433,7 @@ JANET_CORE_FN(os_posix_fork,
         result = fork();
     } while (result == -1 && errno == EINTR);
     if (result == -1) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
     if (result) {
         JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
@@ -1644,7 +1645,7 @@ JANET_CORE_FN(os_isatty,
     return janet_wrap_boolean(_isatty(fd));
 #else
     int fd = fileno(f);
-    if (fd == -1) janet_panic(strerror(errno));
+    if (fd == -1) janet_panic(janet_strerror(errno));
     return janet_wrap_boolean(isatty(fd));
 #endif
 }
@@ -1879,7 +1880,7 @@ JANET_CORE_FN(os_mktime,
     }
 
     if (t == (time_t) -1) {
-        janet_panicf("%s", strerror(errno));
+        janet_panicf("%s", janet_strerror(errno));
     }
 
     return janet_wrap_number((double)t);
@@ -1890,6 +1891,43 @@ JANET_CORE_FN(os_mktime,
 #else
 #define j_symlink symlink
 #endif
+
+JANET_CORE_FN(os_setlocale,
+              "(os/setlocale &opt locale category)",
+              "Set the system locale, which affects how dates and numbers are formatted. "
+              "Passing nil to locale will return the current locale. Category can be one of:\n\n"
+              " * :all (default)\n"
+              " * :collate\n"
+              " * :ctype\n"
+              " * :monetary\n"
+              " * :numeric\n"
+              " * :time\n\n"
+              "Returns the new locale if set successfully, otherwise nil. Note that this will affect "
+              "other functions such as `os/strftime` and even `printf`.") {
+    janet_arity(argc, 0, 2);
+    const char *locale_name = janet_optcstring(argv, argc, 0, NULL);
+    int category_int = LC_ALL;
+    if (argc > 1 && !janet_checktype(argv[1], JANET_NIL)) {
+        if (janet_keyeq(argv[1], "all")) {
+            category_int = LC_ALL;
+        } else if (janet_keyeq(argv[1], "collate")) {
+            category_int = LC_COLLATE;
+        } else if (janet_keyeq(argv[1], "ctype")) {
+            category_int = LC_CTYPE;
+        } else if (janet_keyeq(argv[1], "monetary")) {
+            category_int = LC_MONETARY;
+        } else if (janet_keyeq(argv[1], "numeric")) {
+            category_int = LC_NUMERIC;
+        } else if (janet_keyeq(argv[1], "time")) {
+            category_int = LC_TIME;
+        } else {
+            janet_panicf("expected one of :all, :collate, :ctype, :monetary, :numeric, or :time, got %v", argv[1]);
+        }
+    }
+    const char *old = setlocale(category_int, locale_name);
+    if (old == NULL) return janet_wrap_nil();
+    return janet_cstringv(old);
+}
 
 JANET_CORE_FN(os_link,
               "(os/link oldpath newpath &opt symlink)",
@@ -1908,7 +1946,7 @@ JANET_CORE_FN(os_link,
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = ((argc == 3 && janet_truthy(argv[2])) ? j_symlink : link)(oldpath, newpath);
-    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
+    if (-1 == res) janet_panicf("%s: %s -> %s", janet_strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
 }
@@ -1927,7 +1965,7 @@ JANET_CORE_FN(os_symlink,
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
     int res = j_symlink(oldpath, newpath);
-    if (-1 == res) janet_panicf("%s: %s -> %s", strerror(errno), oldpath, newpath);
+    if (-1 == res) janet_panicf("%s: %s -> %s", janet_strerror(errno), oldpath, newpath);
     return janet_wrap_nil();
 #endif
 }
@@ -1949,7 +1987,7 @@ JANET_CORE_FN(os_mkdir,
 #endif
     if (res == 0) return janet_wrap_true();
     if (errno == EEXIST) return janet_wrap_false();
-    janet_panicf("%s: %s", strerror(errno), path);
+    janet_panicf("%s: %s", janet_strerror(errno), path);
 }
 
 JANET_CORE_FN(os_rmdir,
@@ -1963,7 +2001,7 @@ JANET_CORE_FN(os_rmdir,
 #else
     int res = rmdir(path);
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -1978,7 +2016,7 @@ JANET_CORE_FN(os_cd,
 #else
     int res = chdir(path);
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2002,7 +2040,7 @@ JANET_CORE_FN(os_touch,
         bufp = NULL;
     }
     int res = utime(path, bufp);
-    if (-1 == res) janet_panic(strerror(errno));
+    if (-1 == res) janet_panic(janet_strerror(errno));
     return janet_wrap_nil();
 }
 
@@ -2012,7 +2050,7 @@ JANET_CORE_FN(os_remove,
     janet_fixarity(argc, 1);
     const char *path = janet_getcstring(argv, 0);
     int status = remove(path);
-    if (-1 == status) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == status) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2031,7 +2069,7 @@ JANET_CORE_FN(os_readlink,
     const char *path = janet_getcstring(argv, 0);
     ssize_t len = readlink(path, buffer, sizeof buffer);
     if (len < 0 || (size_t)len >= sizeof buffer)
-        janet_panicf("%s: %s", strerror(errno), path);
+        janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_stringv((const uint8_t *)buffer, len);
 #endif
 }
@@ -2326,7 +2364,7 @@ JANET_CORE_FN(os_chmod,
 #else
     int res = chmod(path, os_getmode(argv, 1));
 #endif
-    if (-1 == res) janet_panicf("%s: %s", strerror(errno), path);
+    if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
 }
 
@@ -2362,7 +2400,7 @@ JANET_CORE_FN(os_dir,
         janet_panicf("path too long: %s", dir);
     sprintf(pattern, "%s/*", dir);
     intptr_t res = _findfirst(pattern, &afile);
-    if (-1 == res) janet_panicv(janet_cstringv(strerror(errno)));
+    if (-1 == res) janet_panicv(janet_cstringv(janet_strerror(errno)));
     do {
         if (strcmp(".", afile.name) && strcmp("..", afile.name)) {
             janet_array_push(paths, janet_cstringv(afile.name));
@@ -2394,7 +2432,7 @@ JANET_CORE_FN(os_rename,
     const char *dest = janet_getcstring(argv, 1);
     int status = rename(src, dest);
     if (status) {
-        janet_panic(strerror(errno));
+        janet_panic(janet_strerror(errno));
     }
     return janet_wrap_nil();
 }
@@ -2414,7 +2452,7 @@ JANET_CORE_FN(os_realpath,
 #else
     char *dest = realpath(src, NULL);
 #endif
-    if (NULL == dest) janet_panicf("%s: %s", strerror(errno), src);
+    if (NULL == dest) janet_panicf("%s: %s", janet_strerror(errno), src);
     Janet ret = janet_cstringv(dest);
     janet_free(dest);
     return ret;
@@ -2688,6 +2726,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
         JANET_CORE_REG("os/isatty", os_isatty),
+        JANET_CORE_REG("os/setlocale", os_setlocale),
 
         /* env functions */
         JANET_CORE_REG("os/environ", os_environ),

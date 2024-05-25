@@ -80,6 +80,8 @@ void janet_memempty(JanetKV *mem, int32_t count);
 void *janet_memalloc_empty(int32_t count);
 JanetTable *janet_get_core_table(const char *name);
 void janet_def_addflags(JanetFuncDef *def);
+void janet_buffer_dtostr(JanetBuffer *buffer, double x);
+const char *janet_strerror(int e);
 const void *janet_strbinsearch(
     const void *tab,
     size_t tabcount,

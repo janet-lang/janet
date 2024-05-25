@@ -149,6 +149,11 @@ struct JanetVM {
     JanetTraversalNode *traversal_top;
     JanetTraversalNode *traversal_base;
 
+    /* Thread safe strerror error buffer - for janet_strerror */
+#ifndef JANET_WINDOWS
+    char strerror_buf[256];
+#endif
+
     /* Event loop and scheduler globals */
 #ifdef JANET_EV
     size_t tq_count;
