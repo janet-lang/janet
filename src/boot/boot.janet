@@ -4067,6 +4067,7 @@
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (def workdir (get manifest :local-source "."))
+    (def fixed-syspath (os/realpath (dyn *syspath*)))
     (try
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
@@ -4077,8 +4078,9 @@
       (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
       (put new-env :workdir workdir)
       (put new-env :bundle-name bundle-name)
-      (put new-env :bundle-dir (bundle-dir bundle-name))
+      (put new-env *syspath* fixed-syspath)
       (with-env new-env
+        (put new-env :bundle-dir (bundle-dir bundle-name)) # get the syspath right
         (require (string "@syspath/bundle/" bundle-name)))))
 
   (defn- do-hook

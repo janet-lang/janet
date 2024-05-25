@@ -39,7 +39,7 @@
 (rmrf syspath)
 (os/mkdir syspath)
 (put root-env *syspath* (os/realpath syspath))
-(setdyn *out* @"")
+#(setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 
@@ -49,7 +49,6 @@
 
 # Install deps (dep1 as :auto-remove)
 (assert-no-error "sample-dep2" 
-                 (print (dyn *syspath*))
                  (bundle/install "./examples/sample-dep2"))
 (assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1"))
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
