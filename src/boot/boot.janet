@@ -4258,7 +4258,7 @@
     (def install-hook (string dest-dir "/bundle/init.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
       (def install-source @[])
-      (def syspath (bundle-rpath (dyn *syspath*))
+      (def syspath (bundle-rpath (dyn *syspath*)))
       (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir "/old-bundle")))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
