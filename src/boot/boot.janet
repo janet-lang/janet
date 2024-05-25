@@ -4194,7 +4194,7 @@
     (def path (bundle-rpath path))
     (def clean (get config :clean))
     (def check (get config :check))
-    (default bundle-name (last (string/split sep path)))
+    (default bundle-name (last (string/split "/" path)))
     (assert (not (string/check-set "\\/" bundle-name))
             (string "bundle-name "
                     bundle-name
