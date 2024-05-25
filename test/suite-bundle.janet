@@ -24,20 +24,23 @@
 (assert true) # smoke test
 
 # Copy since not exposed in boot.janet
+(def- sep (if (= :windows (os/which)) "\\" "/"))
 (defn- rmrf
   "rm -rf in janet"
   [x]
   (case (os/stat x :mode)
     :file (os/rm x)
     :directory (do
-                 (each y (os/dir x) (rmrf (string x "/" y)))
+                 (each y (os/dir x) (rmrf (string x sep y)))
                  (os/rmdir x)))
   nil)
 
 # Setup a temporary syspath for manipultation
-(def syspath (string "./" (string (math/random)) "_jpm_tree.tmp"))
+(math/seedrandom (os/cryptorand 16))
+(def syspath (string "." sep (string (math/random)) "_jpm_tree.tmp"))
 (rmrf syspath)
-(os/mkdir syspath)
+(assert (os/mkdir syspath))
+(print (os/
 (put root-env *syspath* (os/realpath syspath))
 (setdyn *out* @"")
 (assert (empty? (bundle/list)) "initial bundle/list")
