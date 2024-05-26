@@ -4038,7 +4038,10 @@
                    (def s (sep))
                    (each y (os/dir x)
                      (rmrf (string x s y)))
-                   (os/rmdir x))
+                   (try
+                     (os/rmdir x)
+                     ([e f] (debug/stacktrace f e)
+                      (each y (os/dir x) (eprint " - " y)))))
       (os/rm x))
     nil)
 
