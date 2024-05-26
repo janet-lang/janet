@@ -2926,32 +2926,6 @@
 
 (set debugger-on-status-var debugger-on-status)
 
-(defn- env-walk
-  [pred &opt env local]
-  (default env (fiber/getenv (fiber/current)))
-  (def envs @[])
-  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
-  (def ret-set @{})
-  (loop [envi :in envs
-         k :keys envi
-         :when (pred k)]
-    (put ret-set k true))
-  (sort (keys ret-set)))
-
-(defn all-bindings
-  ``Get all symbols available in an environment. Defaults to the current
-  fiber's environment. If `local` is truthy, will not show inherited bindings
-  (from prototype tables).``
-  [&opt env local]
-  (env-walk symbol? env local))
-
-(defn all-dynamics
-  ``Get all dynamic bindings in an environment. Defaults to the current
-  fiber's environment. If `local` is truthy, will not show inherited bindings
-  (from prototype tables).``
-  [&opt env local]
-  (env-walk keyword? env local))
-
 (defn dofile
   ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
   :source, :evaluator, :read, and :parser are passed through to the underlying
@@ -3114,6 +3088,33 @@
 ### Documentation
 ###
 ###
+
+(defn- env-walk
+  [pred &opt env local]
+  (default env (fiber/getenv (fiber/current)))
+  (def envs @[])
+  (do (var e env) (while e (array/push envs e) (set e (table/getproto e)) (if local (break))))
+  (def ret-set @{})
+  (loop [envi :in envs
+         k :keys envi
+         :when (pred k)]
+    (put ret-set k true))
+  (sort (keys ret-set)))
+
+(defn all-bindings
+  ``Get all symbols available in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
+  [&opt env local]
+  (env-walk symbol? env local))
+
+(defn all-dynamics
+  ``Get all dynamic bindings in an environment. Defaults to the current
+  fiber's environment. If `local` is truthy, will not show inherited bindings
+  (from prototype tables).``
+  [&opt env local]
+  (env-walk keyword? env local))
+
 
 (defdyn *doc-width*
   "Width in columns to print documentation printed with `doc-format`.")
@@ -3880,12 +3881,12 @@
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
       ~(defn ,alias ,;meta [,;formal-args]
-         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
-(defmacro ffi/defbind
-  "Generate bindings for native functions in a convenient manner."
-  [name ret-type & body]
-  ~(ffi/defbind-alias ,name ,name ,ret-type ,;body))
+  (defmacro ffi/defbind
+    "Generate bindings for native functions in a convenient manner."
+    [name ret-type & body]
+    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
 
 ###
 ###
