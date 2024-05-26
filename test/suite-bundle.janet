@@ -57,7 +57,7 @@
 
 # Try (and fail) to install sample-bundle (missing deps)
 (assert-error "missing dependencies sample-dep1, sample-dep2"
-              (bundle/install "./examples/sample-bundle" "sample-bundle"))
+              (bundle/install "./examples/sample-bundle"))
 (assert (empty? (bundle/list)))
 
 # Install deps (dep1 as :auto-remove)

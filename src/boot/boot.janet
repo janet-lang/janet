@@ -4041,7 +4041,7 @@
 
   (defn- sync-manifest
     [manifest]
-    (def bn (get manifest :bundle-name))
+    (def bn (get manifest :name))
     (def manifest-name (get-manifest-filename bn))
     (spit manifest-name (string/format "%j\n" manifest)))
 
@@ -4067,7 +4067,7 @@
       (put new-env *module-loading* @{})
       (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
       (put new-env :workdir workdir)
-      (put new-env :bundle-name bundle-name)
+      (put new-env :name bundle-name)
       (put new-env *syspath* fixed-syspath)
       (with-env new-env
         (put new-env :bundle-dir (bundle-dir bundle-name)) # get the syspath right
@@ -4076,9 +4076,7 @@
   (defn- do-hook
     [module bundle-name hook & args]
     (def hookf (module/value module (symbol hook)))
-    (unless hookf
-      (print "no hook " hook " found for bundle " bundle-name)
-      (break))
+    (unless hookf (break))
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (os/cd (get module :workdir "."))
@@ -4176,15 +4174,24 @@
 
   (defn bundle/install
     "Install a bundle from the local filesystem with a name `bundle-name`."
-    [&opt path bundle-name &keys config]
-    (default path ".")
+    [path &keys config]
     (def path (bundle-rpath path))
     (def clean (get config :clean))
     (def check (get config :check))
     (def s (sep))
-    (default bundle-name (last (string/split "/" (string/replace-all "\\" "/" path))))
+    # Check meta file for dependencies and default name
+    (def infofile-pre (string path s "bundle" s "info.jdn"))
+    (var default-bundle-name nil)
+    (when (os/stat infofile-pre :mode)
+      (def info (-> infofile-pre slurp parse))
+      (def deps (get info :dependencies @[]))
+      (set default-bundle-name (get info :name))
+      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
+      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
+    (def bundle-name (get config :name default-bundle-name))
+    (assert bundle-name (errorf "unable to infer bundle name for %v, use :name argument" path))
     (assert (not (string/check-set "\\/" bundle-name))
-            (string "bundle-name "
+            (string "bundle name "
                     bundle-name
                     " cannot contain path separators"))
     (assert (next bundle-name) "cannot use empty bundle-name")
@@ -4192,19 +4199,12 @@
             "bundle is already installed")
     # Setup installed paths
     (prime-bundle-paths)
-    # Check meta file for dependencies
-    (def infofile-pre (string path s "bundle" s "info.jdn"))
-    (when (os/stat infofile-pre :mode)
-      (def info (-> infofile-pre slurp parse))
-      (def deps (get info :deps @[]))
-      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
-      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
     (os/mkdir (bundle-dir bundle-name))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
-    (def man @{:bundle-name bundle-name :local-source path :files @[]})
+    (def man @{:name bundle-name :local-source path :files @[]})
     (merge-into man config)
     (def infofile (bundle-file bundle-name "info.jdn"))
     (put man :auto-remove (get config :auto-remove))
@@ -4277,11 +4277,11 @@
     (rmrf backup-dir)
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
     (edefer (do
-              (bundle/install backup-bundle-source bundle-name)
+              (bundle/install backup-bundle-source :name bundle-name)
               (copyrf (string backup-bundle-source s "old-bundle") (bundle-dir bundle-name))
               (rmrf backup-bundle-source))
       (bundle-uninstall-unchecked bundle-name)
-      (bundle/install path bundle-name ;(kvs config) ;(kvs new-config)))
+      (bundle/install path :name bundle-name ;(kvs config) ;(kvs new-config)))
     (rmrf backup-bundle-source)
     bundle-name)
 
