@@ -4030,10 +4030,11 @@
     "rm -rf in janet"
     [x]
     (case (os/stat x :mode)
-      :file (os/rm x)
+      nil nil
       :directory (do
                    (each y (os/dir x) (rmrf (string x "/" y)))
-                   (os/rmdir x)))
+                   (os/rmdir x))
+      (os/rm x))
     nil)
 
   (defn- copyfile
