@@ -2405,6 +2405,33 @@
 (defdyn *err-color*
   "Whether or not to turn on error coloring in stacktraces and other error messages.")
 
+(defdyn *err-line-col*
+  "Whether or not to print the line of source code that caused an error.")
+
+(defn- print-line-col
+  ``Print the source code at a line, column in a source file. If unable to open
+  the file, prints nothing.``
+  [where line col]
+  (if-not line (break))
+  (unless (string? where) (break))
+  (unless (dyn *err-line-col*) (break))
+  (def ec (dyn *err-color*))
+  (when-with [f (file/open where :r)]
+    (def source-code (file/read f :all))
+    (var index 0)
+    (repeat (dec line)
+      (if-not index (break))
+      (set index (string/find "\n" source-code index))
+      (if index (++ index)))
+    (when index
+      (def line-end (string/find "\n" source-code index))
+      (def s (if ec "\e[31m"))
+      (def e (if ec "\e[0m"))
+      (eprint s "  " (string/slice source-code index line-end) e)
+      (when col
+        (+= index col)
+        (eprint s (string/repeat " " (inc col)) "^" e)))))
+
 (defn bad-parse
   "Default handler for a parse error."
   [p where]
@@ -2419,28 +2446,9 @@
     col
     ": parse error: "
     (:error p)
-    (if ec "\e[0m" ""))
+    (if ec "\e[0m"))
+  (print-line-col where line col)
   (eflush))
-
-(defn- print-line-col
-  ``Print the source code at a line, column in a source file. If unable to open
-  the file, prints nothing.``
-  [where line col]
-  (if-not line (break))
-  (unless (string? where) (break))
-  (when-with [f (file/open where :r)]
-    (def source-code (file/read f :all))
-    (var index 0)
-    (repeat (dec line)
-      (if-not index (break))
-      (set index (string/find "\n" source-code index))
-      (if index (++ index)))
-    (when index
-      (def line-end (string/find "\n" source-code index))
-      (eprint "  " (string/slice source-code index line-end))
-      (when col
-        (+= index col)
-        (eprint (string/repeat " " (inc col)) "^")))))
 
 (defn warn-compile
   "Default handler for a compile warning."
@@ -2454,10 +2462,8 @@
     ":"
     col
     ": compile warning (" level "): ")
-  (eprint msg)
-  (when ec
-    (print-line-col where line col)
-    (eprin "\e[0m"))
+  (eprint msg (if ec "\e[0m"))
+  (print-line-col where line col)
   (eflush))
 
 (defn bad-compile
@@ -2474,10 +2480,8 @@
     ": compile error: ")
   (if macrof
     (debug/stacktrace macrof msg "")
-    (eprint msg))
-  (when ec
-    (print-line-col where line col)
-    (eprin "\e[0m"))
+    (eprint msg (if ec "\e[0m")))
+  (print-line-col where line col)
   (eflush))
 
 (defn curenv
@@ -3049,7 +3053,7 @@
   ``A table of loading method names to loading functions.
   This table lets `require` and `import` load many different kinds
   of files as modules.``
-  @{:native (fn native-loader [path &] (native path (make-env)))
+  @{:native (fn native-loader [path &] (native path ((dyn *module-make-env* make-env))))
     :source (fn source-loader [path args]
               (def ml (dyn *module-loading* module/loading))
               (put ml path true)
@@ -3996,17 +4000,18 @@
 
 (compwhen (dyn 'os/stat)
 
-  (defn- bundle-dir
-    [&opt bundle-name]
-    (string (dyn *syspath*) "/bundle/" bundle-name))
-
-  (defn- bundle-file
-    [bundle-name filename]
-    (string (dyn *syspath*) "/bundle/" bundle-name "/" filename))
 
   (defn- bundle-rpath
     [path]
     (string/replace-all "\\" "/" (os/realpath path)))
+
+  (defn- bundle-dir
+    [&opt bundle-name]
+    (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name))
+
+  (defn- bundle-file
+    [bundle-name filename]
+    (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename))
 
   (defn- get-manifest-filename
     [bundle-name]

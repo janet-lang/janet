@@ -318,7 +318,7 @@ static Janet janet_binop_call(const char *lmethod, const char *rmethod, Janet lh
         Janet lr = janet_method_lookup(rhs, rmethod);
         Janet argv[2] = { rhs, lhs };
         if (janet_checktype(lr, JANET_NIL)) {
-            janet_panicf("could not find method :%s for %v, or :%s for %v",
+            janet_panicf("could not find method :%s for %v or :%s for %v",
                          lmethod, lhs,
                          rmethod, rhs);
         }
