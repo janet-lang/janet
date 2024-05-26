@@ -41,6 +41,11 @@ static void io_file_marshal(void *p, JanetMarshalContext *ctx);
 static void *io_file_unmarshal(JanetMarshalContext *ctx);
 static Janet io_file_next(void *p, Janet key);
 
+#ifdef JANET_WINDOWS
+#define ftell _ftelli64
+#define fseek _fseeki64
+#endif
+
 const JanetAbstractType janet_file_type = {
     "core/file",
     cfun_io_gc,
@@ -337,7 +342,7 @@ JANET_CORE_FN(cfun_io_fseek,
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
         janet_panic("file is closed");
-    long int offset = 0;
+    int64_t offset = 0;
     int whence = SEEK_CUR;
     if (argc >= 2) {
         const uint8_t *whence_sym = janet_getkeyword(argv, 1);
@@ -351,7 +356,7 @@ JANET_CORE_FN(cfun_io_fseek,
             janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
         }
         if (argc == 3) {
-            offset = (long) janet_getinteger64(argv, 2);
+            offset = (int64_t) janet_getinteger64(argv, 2);
         }
     }
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");
@@ -365,7 +370,7 @@ JANET_CORE_FN(cfun_io_ftell,
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
         janet_panic("file is closed");
-    long pos = ftell(iof->file);
+    int64_t pos = ftell(iof->file);
     if (pos == -1) janet_panic("error getting position in file");
     return janet_wrap_number((double)pos);
 }

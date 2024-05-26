@@ -50,7 +50,8 @@
 (rmrf syspath)
 (assert (os/mkdir syspath))
 (put root-env *syspath* (bundle-rpath syspath))
-#(setdyn *out* @"")
+(unless (os/getenv "VERBOSE")
+  (setdyn *out* @""))
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 

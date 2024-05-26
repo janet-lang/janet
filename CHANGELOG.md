@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add extra optional `env` argument to `eval` and `eval-string`.
+- Allow naming function literals with a keyword. This allows better stacktraces for macros without
+  accidentally adding new bindings.
 - Add `bundle/` module for managing packages within Janet. This should replace the jpm packaging
   format eventually and is much simpler and amenable to more complicated builds.
 - Add macros `ev/with-lock`, `ev/with-rlock`, and `ev/with-wlock` for using mutexes and rwlocks.
