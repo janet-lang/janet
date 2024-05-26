@@ -4323,7 +4323,8 @@
     (def absdest (string (dyn *syspath*) s dest))
     (unless (os/mkdir absdest)
       (errorf "collision at %s, directory already exists" absdest))
-    (array/push files (os/realpath absdest))
+    (def absdest (os/realpath absdest))
+    (array/push files absdest)
     (when chmod-mode
       (os/chmod absdest chmod-mode))
     (print "add " absdest)
@@ -4339,7 +4340,8 @@
     (when (os/stat absdest :mode)
       (errorf "collision at %s, file already exists" absdest))
     (copyfile src absdest)
-    (array/push files (os/realpath absdest))
+    (def absdest (os/realpath absdest))
+    (array/push files absdest)
     (when chmod-mode
       (os/chmod absdest chmod-mode))
     (print "add " absdest)

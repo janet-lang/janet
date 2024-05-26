@@ -62,6 +62,9 @@
 (assert-no-error "sample-dep2" 
                  (bundle/install "./examples/sample-dep2"))
 (assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1"))
+ 
+(assert (= 2 (length (bundle/list))) "bundles are listed correctly 0")
+
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
 (assert-no-error "sample-dep1 reinstall" (bundle/reinstall "sample-dep1" :auto-remove true))
 
