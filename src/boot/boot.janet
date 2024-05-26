@@ -4023,7 +4023,10 @@
 
   (defn- prime-bundle-paths
     []
-    (os/mkdir (bundle-dir)))
+    (def s (sep))
+    (def path (string (dyn *syspath*) s "bundle"))
+    (os/mkdir path)
+    (assert (os/stat path :mode)))
 
   (defn- get-files [manifest]
     (def files (get manifest :files @[]))
@@ -4223,6 +4226,8 @@
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
+    # Setup installed paths
+    (prime-bundle-paths)
     # Check meta file for dependencies
     (def infofile-pre (string path s "bundle" s "info.jdn"))
     (when (os/stat infofile-pre :mode)
@@ -4230,8 +4235,6 @@
       (def deps (get info :deps @[]))
       (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
       (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
-    # Setup installed paths
-    (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))

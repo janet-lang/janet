@@ -2417,8 +2417,9 @@ JANET_CORE_FN(os_dir,
         dp = readdir(dfd);
         if (dp == NULL) {
             if (errno) {
+                int olderr = errno;
                 closedir(dfd);
-                janet_panicf("failed to read directory %s: %s", dir, janet_strerror(errno));
+                janet_panicf("failed to read directory %s: %s", dir, janet_strerror(olderr));
             }
             break;
         }
