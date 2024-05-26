@@ -4040,8 +4040,9 @@
                      (rmrf (string x s y)))
                    (try
                      (os/rmdir x)
-                     ([e f] (debug/stacktrace f e)
-                      (each y (os/dir x) (eprint " - " y)))))
+                     ([e f]
+                      (each y (os/dir x) (eprint " - " y))
+                      (propagate e f))))
       (os/rm x))
     nil)
 
