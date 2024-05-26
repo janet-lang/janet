@@ -61,7 +61,7 @@
 (assert (empty? (bundle/list)))
 
 # Install deps (dep1 as :auto-remove)
-(assert-no-error "sample-dep2" 
+(assert-no-error "sample-dep2"
                  (bundle/install "./examples/sample-dep2"))
 (assert (= 1 (length (bundle/list))))
 (assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1"))
