@@ -4000,7 +4000,8 @@
 
 (compwhen (dyn 'os/stat)
 
-  (defn- sep [] (if (= :windows (os/which)) "\\" "/"))
+  (def- seps {:windows "\\" :mingw "\\" :cygwin "\\"})
+  (defn- sep [] (get seps (os/which) "/"))
 
   (defn- bundle-rpath
     [path]
