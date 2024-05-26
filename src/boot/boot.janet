@@ -4041,6 +4041,7 @@
                    (try
                      (os/rmdir x)
                      ([e f]
+                      (eprint "printing files in " x "...")
                       (each y (os/dir x) (eprint " - " y))
                       (propagate e f))))
       (os/rm x))
