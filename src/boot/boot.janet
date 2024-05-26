@@ -4007,11 +4007,11 @@
 
   (defn- bundle-dir
     [&opt bundle-name]
-    (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name))
+    (tracev (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name)))
 
   (defn- bundle-file
     [bundle-name filename]
-    (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename))
+    (tracev (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename)))
 
   (defn- get-manifest-filename
     [bundle-name]
