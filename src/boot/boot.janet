@@ -4122,7 +4122,9 @@
     (def d (bundle-dir))
     (if (os/stat d :mode)
       (sort (os/dir d))
-      @[]))
+      (do
+        (eprint "bundle dir does not exists: " d)
+        @[])))
 
   (defn- bundle-uninstall-unchecked
     [bundle-name]

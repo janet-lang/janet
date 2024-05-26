@@ -57,13 +57,14 @@
 # Try (and fail) to install sample-bundle (missing deps)
 (assert-error "missing dependencies sample-dep1, sample-dep2"
               (bundle/install "./examples/sample-bundle" "sample-bundle"))
+(assert (empty? (bundle/list)))
 
 # Install deps (dep1 as :auto-remove)
 (assert-no-error "sample-dep2" 
                  (bundle/install "./examples/sample-dep2"))
+(assert (= 1 (length (bundle/list))))
 (assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1"))
- 
-(assert (= 2 (length (bundle/list))) "bundles are listed correctly 0")
+(assert (= 2 (length (bundle/list))))
 
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
 (assert-no-error "sample-dep1 reinstall" (bundle/reinstall "sample-dep1" :auto-remove true))
