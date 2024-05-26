@@ -4000,18 +4000,21 @@
 
 (compwhen (dyn 'os/stat)
 
+  (defn- sep [] (if (= :windows (os/which)) "\\" "/"))
 
   (defn- bundle-rpath
     [path]
-    (string/replace-all "\\" "/" (os/realpath path)))
+    (os/realpath path))
 
   (defn- bundle-dir
     [&opt bundle-name]
-    (tracev (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name)))
+    (def s (sep))
+    (string (bundle-rpath (dyn *syspath*)) s "bundle" s bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
-    (tracev (string (bundle-rpath (dyn *syspath*)) "/bundle/" bundle-name "/" filename)))
+    (def s (sep))
+    (string (bundle-rpath (dyn *syspath*)) s "bundle" s bundle-name s filename))
 
   (defn- get-manifest-filename
     [bundle-name]
@@ -4032,7 +4035,9 @@
     (case (os/lstat x :mode)
       nil nil
       :directory (do
-                   (each y (os/dir x) (rmrf (string x "/" y)))
+                   (def s (sep))
+                   (each y (os/dir x)
+                     (rmrf (string x s y)))
                    (os/rmdir x))
       (os/rm x))
     nil)
@@ -4053,9 +4058,10 @@
     (case (os/stat from :mode)
       :file (copyfile from to)
       :directory (do
+                   (def s (sep))
                    (os/mkdir to)
                    (each y (os/dir from)
-                     (copyrf (string from "/" y) (string to "/" y)))))
+                     (copyrf (string from s y) (string to s y)))))
     nil)
 
   (defn- sync-manifest
@@ -4122,7 +4128,7 @@
       (do-hook module bundle-name :uninstall man))
     (def files (get man :files []))
     (each file (reverse files)
-      (print "- " file)
+      (print "remove " file)
       (case (os/stat file :mode)
         :file (os/rm file)
         :directory (os/rmdir file)))
@@ -4183,7 +4189,7 @@
         (array/push to-drop b)))
     (print "pruning " (length to-drop) " bundles")
     (each b to-drop
-      (print "- " b))
+      (print "uninstall " b))
     (each b to-drop
       (print "uninstalling " b)
       (bundle-uninstall-unchecked b)))
@@ -4200,7 +4206,8 @@
     (def path (bundle-rpath path))
     (def clean (get config :clean))
     (def check (get config :check))
-    (default bundle-name (last (string/split "/" path)))
+    (def s (sep))
+    (default bundle-name (last (string/split "/" (string/replace-all "\\" "/" path))))
     (assert (not (string/check-set "\\/" bundle-name))
             (string "bundle-name "
                     bundle-name
@@ -4209,7 +4216,7 @@
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
     # Check meta file for dependencies
-    (def infofile-pre (string path "/bundle/info.jdn"))
+    (def infofile-pre (string path s "bundle" s "info.jdn"))
     (when (os/stat infofile-pre :mode)
       (def info (-> infofile-pre slurp parse))
       (def deps (get info :deps @[]))
@@ -4219,7 +4226,7 @@
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
     # Copy some files into the new location unconditionally
-    (def implicit-sources (string path "/bundle"))
+    (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
     (def man @{:bundle-name bundle-name :local-source path :files @[]})
@@ -4260,20 +4267,21 @@
     (def man (bundle/manifest bundle-name))
     (def files (get man :files @[]))
     (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
-    (os/mkdir (string dest-dir "/bundle"))
-    (def install-hook (string dest-dir "/bundle/init.janet"))
+    (def s (sep))
+    (os/mkdir (string dest-dir s "bundle"))
+    (def install-hook (string dest-dir s "bundle" s "init.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
       (def install-source @[])
       (def syspath (bundle-rpath (dyn *syspath*)))
-      (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir "/old-bundle")))
+      (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir s "old-bundle")))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
-        (def relpath (string/triml (slice file (length syspath) -1) "/"))
+        (def relpath (string/triml (slice file (length syspath) -1) s))
         (case mode
           :directory (array/push install-source ~(bundle/add-directory manifest ,relpath ,perm))
           :file (do
                   (def filename (string/format "file_%06d" (++ i)))
-                  (copyfile file (string dest-dir "/" filename))
+                  (copyfile file (string dest-dir s filename))
                   (array/push install-source ~(bundle/add-file manifest ,filename ,relpath ,perm)))
           (errorf "unexpected file %v" file)))
       (def b @"(defn install [manifest]\n")
@@ -4288,13 +4296,14 @@
     (def manifest (bundle/manifest bundle-name))
     (def path (get manifest :local-source))
     (def config (get manifest :config @{}))
+    (def s (sep))
     (assert (= :directory (os/stat path :mode)) "local source not available")
-    (def backup-dir (string (dyn *syspath*) "/" bundle-name ".backup"))
+    (def backup-dir (string (dyn *syspath*) s bundle-name ".backup"))
     (rmrf backup-dir)
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
     (edefer (do
               (bundle/install backup-bundle-source bundle-name)
-              (copyrf (string backup-bundle-source "/old-bundle") (bundle-dir bundle-name))
+              (copyrf (string backup-bundle-source s "old-bundle") (bundle-dir bundle-name))
               (rmrf backup-bundle-source))
       (bundle-uninstall-unchecked bundle-name)
       (bundle/install path bundle-name ;(kvs config) ;(kvs new-config)))
@@ -4305,13 +4314,14 @@
     "Add a directory during the install process relative to `(dyn *syspath*)`"
     [manifest dest &opt chmod-mode]
     (def files (get-files manifest))
-    (def absdest (string (dyn *syspath*) "/" dest))
+    (def s (sep))
+    (def absdest (string (dyn *syspath*) s dest))
     (unless (os/mkdir absdest)
       (errorf "collision at %s, directory already exists" absdest))
-    (array/push files absdest)
+    (array/push files (os/realpath absdest))
     (when chmod-mode
       (os/chmod absdest chmod-mode))
-    (print "+ " absdest)
+    (print "add " absdest)
     absdest)
 
   (defn bundle/add-file
@@ -4319,14 +4329,15 @@
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def files (get-files manifest))
-    (def absdest (string (dyn *syspath*) "/" dest))
+    (def s (sep))
+    (def absdest (string (dyn *syspath*) s dest))
     (when (os/stat absdest :mode)
       (errorf "collision at %s, file already exists" absdest))
     (copyfile src absdest)
-    (array/push files absdest)
+    (array/push files (os/realpath absdest))
     (when chmod-mode
       (os/chmod absdest chmod-mode))
-    (print "+ " absdest)
+    (print "add " absdest)
     absdest)
 
   (defn bundle/update-all

@@ -27,26 +27,27 @@
 (defn- bundle-rpath
   [path]
   (string/replace-all "\\" "/" (os/realpath path)))
-(def- sep (if (= :windows (os/which)) "\\" "/"))
+
 (defn- rmrf
   "rm -rf in janet"
   [x]
-  (case (os/stat x :mode)
-    :file (os/rm x)
+  (case (os/lstat x :mode)
+    nil nil
     :directory (do
-                 (each y (os/dir x) (rmrf (string x sep y)))
-                 (os/rmdir x)))
+                 (each y (os/dir x)
+                   (rmrf (string x "/" y)))
+                 (os/rmdir x))
+    (os/rm x))
   nil)
+
 
 # Setup a temporary syspath for manipultation
 (math/seedrandom (os/cryptorand 16))
-(def syspath (string "." sep (string (math/random)) "_jpm_tree.tmp"))
+(def syspath (string (math/random) "_jpm_tree.tmp"))
 (rmrf syspath)
 (assert (os/mkdir syspath))
 (put root-env *syspath* (bundle-rpath syspath))
 #(setdyn *out* @"")
-(pp (bundle/list))
-(pp (bundle/topolist))
 (assert (empty? (bundle/list)) "initial bundle/list")
 (assert (empty? (bundle/topolist)) "initial bundle/topolist")
 
@@ -61,7 +62,6 @@
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
 (assert-no-error "sample-dep1 reinstall" (bundle/reinstall "sample-dep1" :auto-remove true))
 
-(eprintf "%.99M" (bundle/list))
 (assert (= 2 (length (bundle/list))) "bundles are listed correctly 1")
 (assert (= 2 (length (bundle/topolist))) "bundles are listed correctly 2")
 
