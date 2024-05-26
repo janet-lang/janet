@@ -180,9 +180,11 @@ void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
                 }
             }
             janet_eprintf("\n");
-            if (i <= 0 && fi > 0) { /* no next frame, first stack frame in fiber. First fiber is trivial. */
+            /* Print fiber points optionally. Clutters traces but provides info
+            if (i <= 0 && fi > 0) { 
                 janet_eprintf("  in parent fiber\n");
             }
+            */
         }
     }
 
