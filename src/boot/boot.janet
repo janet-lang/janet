@@ -4010,7 +4010,7 @@
   (defn- bundle-dir
     [&opt bundle-name]
     (def s (sep))
-    (string (bundle-rpath (dyn *syspath*)) s "bundle" s bundle-name))
+    (string (bundle-rpath (dyn *syspath*)) s "bundle" (if bundle-name s) bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
@@ -4024,7 +4024,7 @@
   (defn- prime-bundle-paths
     []
     (def s (sep))
-    (def path (string (dyn *syspath*) s "bundle"))
+    (def path (bundle-dir))
     (os/mkdir path)
     (assert (os/stat path :mode)))
 
@@ -4042,12 +4042,7 @@
                    (def s (sep))
                    (each y (os/dir x)
                      (rmrf (string x s y)))
-                   (try
-                     (os/rmdir x)
-                     ([e f]
-                      (eprint "printing files in " x "...")
-                      (each y (os/dir x) (eprint " - " y))
-                      (propagate e f))))
+                   (os/rmdir x))
       (os/rm x))
     nil)
 
