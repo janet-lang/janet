@@ -2405,33 +2405,6 @@
 (defdyn *err-color*
   "Whether or not to turn on error coloring in stacktraces and other error messages.")
 
-(defdyn *err-line-col*
-  "Whether or not to print the line of source code that caused an error.")
-
-(defn- print-line-col
-  ``Print the source code at a line, column in a source file. If unable to open
-  the file, prints nothing.``
-  [where line col]
-  (if-not line (break))
-  (unless (string? where) (break))
-  (unless (dyn *err-line-col*) (break))
-  (def ec (dyn *err-color*))
-  (when-with [f (file/open where :r)]
-    (def source-code (file/read f :all))
-    (var index 0)
-    (repeat (dec line)
-      (if-not index (break))
-      (set index (string/find "\n" source-code index))
-      (if index (++ index)))
-    (when index
-      (def line-end (string/find "\n" source-code index))
-      (def s (if ec "\e[31m"))
-      (def e (if ec "\e[0m"))
-      (eprint s "  " (string/slice source-code index line-end) e)
-      (when col
-        (+= index col)
-        (eprint s (string/repeat " " (inc col)) "^" e)))))
-
 (defn bad-parse
   "Default handler for a parse error."
   [p where]
@@ -2447,7 +2420,6 @@
     ": parse error: "
     (:error p)
     (if ec "\e[0m"))
-  (print-line-col where line col)
   (eflush))
 
 (defn warn-compile
@@ -2463,7 +2435,6 @@
     col
     ": compile warning (" level "): ")
   (eprint msg (if ec "\e[0m"))
-  (print-line-col where line col)
   (eflush))
 
 (defn bad-compile
@@ -2481,7 +2452,6 @@
   (if macrof
     (debug/stacktrace macrof msg "")
     (eprint msg (if ec "\e[0m")))
-  (print-line-col where line col)
   (eflush))
 
 (defn curenv
