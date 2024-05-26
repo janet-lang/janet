@@ -1056,7 +1056,7 @@ JanetCompileResult janet_compile_lint(Janet source,
 
     if (c.result.status == JANET_COMPILE_OK) {
         JanetFuncDef *def = janetc_pop_funcdef(&c);
-        def->name = janet_cstring("_thunk");
+        def->name = janet_cstring("thunk");
         janet_def_addflags(def);
         c.result.funcdef = def;
     } else {

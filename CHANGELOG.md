@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add extra optional `env` argument to `eval` and `eval-string`.
+- Allow naming function literals with a keyword. This allows better stacktraces for macros without
+  accidentally adding new bindings.
 - Add macros `ev/with-lock`, `ev/with-rlock`, and `ev/with-wlock` for using mutexes and rwlocks.
 - Add `with-env`
 - Add *module-make-env* dynamic binding

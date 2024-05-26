@@ -2411,8 +2411,18 @@ JANET_CORE_FN(os_dir,
     /* Read directory items with opendir / readdir / closedir */
     struct dirent *dp;
     DIR *dfd = opendir(dir);
-    if (dfd == NULL) janet_panicf("cannot open directory %s", dir);
-    while ((dp = readdir(dfd)) != NULL) {
+    if (dfd == NULL) janet_panicf("cannot open directory %s: %s", dir, janet_strerror(errno));
+    for (;;) {
+        errno = 0;
+        dp = readdir(dfd);
+        if (dp == NULL) {
+            if (errno) {
+                int olderr = errno;
+                closedir(dfd);
+                janet_panicf("failed to read directory %s: %s", dir, janet_strerror(olderr));
+            }
+            break;
+        }
         if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
             continue;
         }

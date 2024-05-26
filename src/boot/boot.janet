@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2023 © Calvin Rose
+# Copyright 2024 © Calvin Rose
 
 ###
 ###
@@ -244,7 +244,7 @@
   (let [[[err fib]] catch
         f (gensym)
         r (gensym)]
-    ~(let [,f (,fiber/new (fn [] ,body) :ie)
+    ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
            ,r (,resume ,f)]
        (if (,= (,fiber/status ,f) :error)
          (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
@@ -256,7 +256,7 @@
   error, and the second is the return value or error.`
   [& body]
   (let [f (gensym) r (gensym)]
-    ~(let [,f (,fiber/new (fn [] ,;body) :ie)
+    ~(let [,f (,fiber/new (fn :protect [] ,;body) :ie)
            ,r (,resume ,f)]
        [(,not= :error (,fiber/status ,f)) ,r])))
 
@@ -313,7 +313,7 @@
   [form & body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn [] ,;body) :ti))
+       (def ,f (,fiber/new (fn :defer [] ,;body) :ti))
        (def ,r (,resume ,f))
        ,form
        (if (= (,fiber/status ,f) :dead)
@@ -326,7 +326,7 @@
   [form & body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn [] ,;body) :ti))
+       (def ,f (,fiber/new (fn :edefer [] ,;body) :ti))
        (def ,r (,resume ,f))
        (if (= (,fiber/status ,f) :dead)
          ,r
@@ -338,7 +338,7 @@
   [tag & body]
   (with-syms [res target payload fib]
     ~(do
-       (def ,fib (,fiber/new (fn [] [,tag (do ,;body)]) :i0))
+       (def ,fib (,fiber/new (fn :prompt [] [,tag (do ,;body)]) :i0))
        (def ,res (,resume ,fib))
        (def [,target ,payload] ,res)
        (if (,= ,tag ,target)
@@ -629,17 +629,17 @@
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
-  ~(,fiber/new (fn [] (loop ,head (yield (do ,;body)))) :yi))
+  ~(,fiber/new (fn :generate [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
   "A wrapper for making fibers that may yield multiple values (coroutine). Same as `(fiber/new (fn [] ;body) :yi)`."
   [& body]
-  (tuple fiber/new (tuple 'fn '[] ;body) :yi))
+  (tuple fiber/new (tuple 'fn :coro '[] ;body) :yi))
 
 (defmacro fiber-fn
   "A wrapper for making fibers. Same as `(fiber/new (fn [] ;body) flags)`."
   [flags & body]
-  (tuple fiber/new (tuple 'fn '[] ;body) flags))
+  (tuple fiber/new (tuple 'fn :fiber-fn '[] ;body) flags))
 
 (defn sum
   "Returns the sum of xs. If xs is empty, returns 0."
@@ -688,7 +688,7 @@
           ~(if (def ,(def sym (gensym)) ,br)
              (do (def ,bl ,sym) ,(aux (+ 2 i)))
              ,fal2)))))
-   (aux 0))
+  (aux 0))
 
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
@@ -702,11 +702,11 @@
   (case (length functions)
     0 nil
     1 (in functions 0)
-    2 (let [[f g] functions] (fn [& x] (f (g ;x))))
-    3 (let [[f g h] functions] (fn [& x] (f (g (h ;x)))))
-    4 (let [[f g h i] functions] (fn [& x] (f (g (h (i ;x))))))
+    2 (let [[f g] functions] (fn :comp [& x] (f (g ;x))))
+    3 (let [[f g h] functions] (fn :comp [& x] (f (g (h ;x)))))
+    4 (let [[f g h i] functions] (fn :comp [& x] (f (g (h (i ;x))))))
     (let [[f g h i] functions]
-      (comp (fn [x] (f (g (h (i x)))))
+      (comp (fn :comp [x] (f (g (h (i x)))))
             ;(tuple/slice functions 4 -1)))))
 
 (defn identity
@@ -717,7 +717,7 @@
 (defn complement
   "Returns a function that is the complement to the argument."
   [f]
-  (fn [x] (not (f x))))
+  (fn :complement [x] (not (f x))))
 
 (defmacro- do-extreme
   [order args]
@@ -880,7 +880,7 @@
   ``Sorts `ind` in-place by calling a function `f` on each element and
   comparing the result with `<`.``
   [f ind]
-  (sort ind (fn [x y] (< (f x) (f y)))))
+  (sort ind (fn :sort-by-comp [x y] (< (f x) (f y)))))
 
 (defn sorted
   ``Returns a new sorted array without modifying the old one.
@@ -893,7 +893,7 @@
   ``Returns a new sorted array that compares elements by invoking
   a function `f` on each element and comparing the result with `<`.``
   [f ind]
-  (sorted ind (fn [x y] (< (f x) (f y)))))
+  (sorted ind (fn :sorted-by-comp [x y] (< (f x) (f y)))))
 
 (defn reduce
   ``Reduce, also know as fold-left in many languages, transforms
@@ -1192,7 +1192,7 @@
   ``Returns the juxtaposition of functions. In other words,
   `((juxt* a b c) x)` evaluates to `[(a x) (b x) (c x)]`.``
   [& funs]
-  (fn [& args]
+  (fn :juxt* [& args]
     (def ret @[])
     (each f funs
       (array/push ret (f ;args)))
@@ -1205,7 +1205,7 @@
   (def $args (gensym))
   (each f funs
     (array/push parts (tuple apply f $args)))
-  (tuple 'fn (tuple '& $args) (tuple/slice parts 0)))
+  (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
 (defmacro defdyn
   ``Define an alias for a keyword that is used as a dynamic binding. The
@@ -1421,12 +1421,12 @@
   (def dyn-forms
     (seq [i :range [0 (length bindings) 2]]
       ~(setdyn ,(bindings i) ,(bindings (+ i 1)))))
-  ~(,resume (,fiber/new (fn [] ,;dyn-forms ,;body) :p)))
+  ~(,resume (,fiber/new (fn :with-dyns [] ,;dyn-forms ,;body) :p)))
 
 (defmacro with-env
   `Run a block of code with a given environment table`
   [env & body]
-  ~(,resume (,fiber/new (fn [] ,;body) : ,env)))
+  ~(,resume (,fiber/new (fn :with-env [] ,;body) : ,env)))
 
 (defmacro with-vars
   ``Evaluates `body` with each var in `vars` temporarily bound. Similar signature to
@@ -1441,7 +1441,7 @@
   (with-syms [ret f s]
     ~(do
        ,;saveold
-       (def ,f (,fiber/new (fn [] ,;setnew ,;body) :ti))
+       (def ,f (,fiber/new (fn :with-vars [] ,;setnew ,;body) :ti))
        (def ,ret (,resume ,f))
        ,;restoreold
        (if (= (,fiber/status ,f) :dead) ,ret (,propagate ,ret ,f)))))
@@ -1450,7 +1450,7 @@
   "Partial function application."
   [f & more]
   (if (zero? (length more)) f
-    (fn [& r] (f ;more ;r))))
+    (fn :partial [& r] (f ;more ;r))))
 
 (defn every?
   ``Evaluates to the last element of `ind` if all preceding elements are truthy,
@@ -1807,7 +1807,6 @@
   (printf (dyn *pretty-format* "%q") x)
   (flush))
 
-
 (defn file/lines
   "Return an iterator over the lines of a file."
   [file]
@@ -2148,8 +2147,8 @@
   (def ret
     (case (type x)
       :tuple (if (= (tuple/type x) :brackets)
-                 (tuple/brackets ;(map recur x))
-                 (dotup x))
+               (tuple/brackets ;(map recur x))
+               (dotup x))
       :array (map recur x)
       :struct (table/to-struct (dotable x recur))
       :table (dotable x recur)
@@ -2330,7 +2329,7 @@
             x)))
       x))
   (def expanded (macex arg on-binding))
-  (def name-splice (if name [name] []))
+  (def name-splice (if name [name] [:short-fn]))
   (def fn-args (seq [i :range [0 (+ 1 max-param-seen)]] (symbol prefix '$ i)))
   ~(fn ,;name-splice [,;fn-args ,;(if vararg ['& (symbol prefix '$&)] [])] ,expanded))
 
@@ -2420,28 +2419,8 @@
     col
     ": parse error: "
     (:error p)
-    (if ec "\e[0m" ""))
+    (if ec "\e[0m"))
   (eflush))
-
-(defn- print-line-col
-  ``Print the source code at a line, column in a source file. If unable to open
-  the file, prints nothing.``
-  [where line col]
-  (if-not line (break))
-  (unless (string? where) (break))
-  (when-with [f (file/open where :r)]
-    (def source-code (file/read f :all))
-    (var index 0)
-    (repeat (dec line)
-      (if-not index (break))
-      (set index (string/find "\n" source-code index))
-      (if index (++ index)))
-    (when index
-      (def line-end (string/find "\n" source-code index))
-      (eprint "  " (string/slice source-code index line-end))
-      (when col
-        (+= index col)
-        (eprint (string/repeat " " (inc col)) "^")))))
 
 (defn warn-compile
   "Default handler for a compile warning."
@@ -2455,10 +2434,7 @@
     ":"
     col
     ": compile warning (" level "): ")
-  (eprint msg)
-  (when ec
-    (print-line-col where line col)
-    (eprin "\e[0m"))
+  (eprint msg (if ec "\e[0m"))
   (eflush))
 
 (defn bad-compile
@@ -2475,10 +2451,7 @@
     ": compile error: ")
   (if macrof
     (debug/stacktrace macrof msg "")
-    (eprint msg))
-  (when ec
-    (print-line-col where line col)
-    (eprin "\e[0m"))
+    (eprint msg (if ec "\e[0m")))
   (eflush))
 
 (defn curenv
@@ -2547,7 +2520,7 @@
         :read read
         :expander expand} opts)
   (default env (or (fiber/getenv (fiber/current)) @{}))
-  (default chunks (fn [buf p] (getline "" buf env)))
+  (default chunks (fn chunks [buf p] (getline "" buf env)))
   (default onstatus debug/stacktrace)
   (default on-compile-error bad-compile)
   (default on-compile-warning warn-compile)
@@ -2682,8 +2655,8 @@
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
   environment is needed, use `run-context`.``
-  [form]
-  (def res (compile form nil :eval))
+  [form &opt env]
+  (def res (compile form env :eval))
   (if (= (type res) :function)
     (res)
     (error (get res :error))))
@@ -2722,9 +2695,9 @@
 (defn eval-string
   ``Evaluates a string in the current environment. If more control over the
   environment is needed, use `run-context`.``
-  [str]
+  [str &opt env]
   (var ret nil)
-  (each x (parse-all str) (set ret (eval x)))
+  (each x (parse-all str) (set ret (eval x env)))
   ret)
 
 (def load-image-dict
@@ -2867,7 +2840,7 @@
             (set ret [fullpath mod-kind])
             (break))))))
   (if ret ret
-    (let [expander (fn [[t _ chk]]
+    (let [expander (fn :expander [[t _ chk]]
                      (when (string? t)
                        (when (mod-filter chk path)
                          (module/expand-path path t))))
@@ -2934,7 +2907,7 @@
   set to a truthy value."
   [env &opt level is-repl]
   (default level 1)
-  (fn [f x]
+  (fn :debugger [f x]
     (def fs (fiber/status f))
     (if (= :dead fs)
       (when is-repl
@@ -3024,7 +2997,7 @@
   ``A table of loading method names to loading functions.
   This table lets `require` and `import` load many different kinds
   of files as modules.``
-  @{:native (fn native-loader [path &] (native path (make-env)))
+  @{:native (fn native-loader [path &] (native path ((dyn *module-make-env* make-env))))
     :source (fn source-loader [path args]
               (def ml (dyn *module-loading* module/loading))
               (put ml path true)
@@ -3141,6 +3114,7 @@
   (from prototype tables).``
   [&opt env local]
   (env-walk keyword? env local))
+
 
 (defdyn *doc-width*
   "Width in columns to print documentation printed with `doc-format`.")
@@ -3704,7 +3678,7 @@
   [&opt chunks onsignal env parser read]
   (default env (make-env))
   (default chunks
-    (fn [buf p]
+    (fn :chunks [buf p]
       (getline
         (string
           "repl:"
@@ -3735,18 +3709,18 @@
     Returns a fiber that is scheduled to run the function.
     ```
     [f & args]
-    (ev/go (fn _call [&] (f ;args))))
+    (ev/go (fn :call [&] (f ;args))))
 
   (defmacro ev/spawn
     "Run some code in a new fiber. This is shorthand for `(ev/go (fn [] ;body))`."
     [& body]
-    ~(,ev/go (fn _spawn [&] ,;body)))
+    ~(,ev/go (fn :spawn [&] ,;body)))
 
   (defmacro ev/do-thread
     ``Run some code in a new thread. Suspends the current fiber until the thread is complete, and
     evaluates to nil.``
     [& body]
-    ~(,ev/thread (fn _do-thread [&] ,;body)))
+    ~(,ev/thread (fn :do-thread [&] ,;body)))
 
   (defn- acquire-release
     [acq rel lock body]
@@ -3775,7 +3749,7 @@
   (defmacro ev/spawn-thread
     ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
     [& body]
-    ~(,ev/thread (fn _spawn-thread [&] ,;body) nil :n))
+    ~(,ev/thread (fn :spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
     ``
@@ -3824,7 +3798,7 @@
          (def ,res @[])
          ,;(seq [[i body] :pairs bodies]
              ~(do
-                (def ,ftemp (,ev/go (fn [] (put ,res ,i ,body)) nil ,chan))
+                (def ,ftemp (,ev/go (fn :ev/gather [] (put ,res ,i ,body)) nil ,chan))
                 (,put ,fset ,ftemp ,ftemp)))
          (,wait-for-fibers ,chan ,fset)
          ,res))))
@@ -3907,12 +3881,12 @@
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
       ~(defn ,alias ,;meta [,;formal-args]
-         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args)))))
+         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
   (defmacro ffi/defbind
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
-    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body))
+    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
 
 ###
 ###
@@ -3989,7 +3963,6 @@
   (merge-into module/cache old-modcache)
   nil)
 
-
 ###
 ###
 ### CLI Tool Main
@@ -4026,6 +3999,28 @@
 (compwhen (not (dyn 'os/isatty))
   (defmacro os/isatty [&] true))
 
+(def- long-to-short
+  "map long options to short options"
+  {"-help" "h"
+   "-version" "v"
+   "-stdin" "s"
+   "-eval" "e"
+   "-expression" "E"
+   "-debug" "d"
+   "-repl" "r"
+   "-noprofile" "R"
+   "-persistent" "p"
+   "-quiet" "q"
+   "-flycheck" "k"
+   "-syspath" "m"
+   "-compile" "c"
+   "-image" "i"
+   "-nocolor" "n"
+   "-color" "N"
+   "-library" "l"
+   "-lint-warn" "w"
+   "-lint-error" "x"})
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -4056,28 +4051,6 @@
     [i]
     (def x (in args (+ i 1)))
     (or (scan-number x) (keyword x)))
-
-  (def- long-to-short
-    "map long options to short options"
-    {"-help" "h"
-     "-version" "v"
-     "-stdin" "s"
-     "-eval" "e"
-     "-expression" "E"
-     "-debug" "d"
-     "-repl" "r"
-     "-noprofile" "R"
-     "-persistent" "p"
-     "-quiet" "q"
-     "-flycheck" "k"
-     "-syspath" "m"
-     "-compile" "c"
-     "-image" "i"
-     "-nocolor" "n"
-     "-color" "N"
-     "-library" "l"
-     "-lint-warn" "w"
-     "-lint-error" "x"})
 
   # Flag handlers
   (def handlers

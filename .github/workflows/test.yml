@@ -73,7 +73,7 @@ jobs:
       - name: Compile the project
         run: make clean && make CC=x86_64-w64-mingw32-gcc LD=x86_64-w64-mingw32-gcc UNAME=MINGW RUN=wine
       - name: Test the project
-        run: make test UNAME=MINGW RUN=wine
+        run: make test UNAME=MINGW RUN=wine VERBOSE=1
 
   test-arm-linux:
     name: Build and test ARM32 cross compilation
@@ -88,4 +88,4 @@ jobs:
       - name: Compile the project
         run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" CC=arm-linux-gnueabi-gcc LD=arm-linux-gnueabi-gcc 
       - name: Test the project
-        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" SUBRUN="qemu-arm -L /usr/arm-linux-gnueabi/" test
+        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" SUBRUN="qemu-arm -L /usr/arm-linux-gnueabi/" test VERBOSE=1
