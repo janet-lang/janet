@@ -40,6 +40,9 @@
     (os/rm x))
   nil)
 
+# Test mkdir -> rmdir
+(assert (os/mkdir "./tempdir123"))
+(rmrf "./tempdir123")
 
 # Setup a temporary syspath for manipultation
 (math/seedrandom (os/cryptorand 16))
