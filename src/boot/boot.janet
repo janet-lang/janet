@@ -4029,7 +4029,7 @@
   (defn- rmrf
     "rm -rf in janet"
     [x]
-    (case (os/stat x :mode)
+    (case (os/lstat x :mode)
       nil nil
       :directory (do
                    (each y (os/dir x) (rmrf (string x "/" y)))
