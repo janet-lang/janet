@@ -4124,20 +4124,22 @@
     (bundle-uninstall-unchecked bundle-name))
 
   (defn bundle/topolist
-    "Get topological order of all bundles, such that each bundle is listed after its dependencies.
-    DFS (tarjan)"
+    "Get topological order of all bundles, such that each bundle is listed after its dependencies."
     []
     (def visited @{})
     (def cycle-detect @{})
     (def order @[])
+    (def stack @[])
     (defn visit
       [b]
+      (array/push stack b)
       (if (get visited b) (break))
-      (if (get cycle-detect b) (errorf "cycle detected in bundle dependencies: %s" b))
+      (if (get cycle-detect b) (errorf "cycle detected in bundle dependencies: %s" (string/join stack " -> ")))
       (put cycle-detect b true)
       (each d (get (bundle/manifest b) :dependencies []) (visit d))
       (put cycle-detect b nil)
       (put visited b true)
+      (array/pop stack)
       (array/push order b))
     (each b (bundle/list) (visit b))
     order)
@@ -4233,7 +4235,7 @@
     (print "installed " bundle-name)
     bundle-name)
 
-  (defn bundle/pack
+  (defn- bundle/pack
     "Take an installed bundle and create a bundle source directory that can be used to
      reinstall the bundle on a compatible system. This is used to create backups for installed
      bundles without rebuilding, or make a prebuilt bundle for other systems."
@@ -4259,9 +4261,9 @@
                   (copyfile file (string dest-dir s filename))
                   (array/push install-source ~(bundle/add-file manifest ,filename ,relpath ,perm)))
           (errorf "unexpected file %v" file)))
-      (def b @"(defn install [manifest]\n")
-      (each form install-source (buffer/format b "  %j\n" form))
-      (buffer/push b ")")
+      (def b @"(defn install [manifest]")
+      (each form install-source (buffer/format b "\n  %j" form))
+      (buffer/push b ")\n")
       (spit install-hook b))
     dest-dir)
 
@@ -4316,6 +4318,20 @@
       (os/chmod absdest chmod-mode))
     (print "add " absdest)
     absdest)
+
+  (defn bundle/add
+    "Add files and directories during a bundle install relative to `(dyn *syspath*)`.
+     Added paths will be recorded in the bundle manifest such that they are properly tracked
+     and removed during an upgrade or uninstall."
+    [manifest src &opt dest chmod-mode]
+    (default dest src)
+    (def s (sep))
+    (case (os/stat src :mode)
+      :directory
+      (let [absdest (bundle/add-directory manifest dest chmod-mode)]
+        (each d (os/dir src) (bundle/add manifest (string src s d) (string dest s d) chmod-mode))
+        absdest)
+      :file (bundle/add-file manifest src dest chmod-mode)))
 
   (defn bundle/update-all
     "Reinstall all bundles"
