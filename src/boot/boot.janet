@@ -4019,12 +4019,13 @@
 
   (defn- copyfile
     [from to]
+    (def mode (os/stat from :permissions))
     (def b (buffer/new 0x10000))
     (with [ffrom (file/open from :rb)]
       (with [fto (file/open to :wb)]
         (forever
           (file/read ffrom 0x10000 b)
-          (when (empty? b) (buffer/trim b) (break))
+          (when (empty? b) (buffer/trim b) (os/chmod to mode) (break))
           (file/write fto b)
           (buffer/clear b)))))
 
