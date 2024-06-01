@@ -4336,9 +4336,9 @@
 
   (defn bundle/update-all
     "Reinstall all bundles"
-    []
-    (each bundle (bundle/list)
-      (bundle/reinstall bundle))))
+    [&keys configs]
+    (each bundle (bundle/topolist)
+      (bundle/reinstall bundle ;(kvs configs)))))
 
 ###
 ###
@@ -4700,9 +4700,8 @@
   (each s core-sources
     (do-one-file s))
 
-  # Create C source file that contains images a uint8_t buffer. This
-  # can be compiled and linked statically into the main janet library
-  # and example client.
+  # Create C source file that contains the boot image in a uint8_t buffer. This
+  # can be compiled and linked statically into the main janet library and client
   (print "static const unsigned char janet_core_image_bytes[] = {")
   (loop [line :in (partition 16 image)]
     (prin "  ")
