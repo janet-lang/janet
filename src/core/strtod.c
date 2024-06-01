@@ -490,3 +490,18 @@ int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
 }
 
 #endif
+
+void janet_buffer_dtostr(JanetBuffer *buffer, double x) {
+#define BUFSIZE 32
+    janet_buffer_extra(buffer, BUFSIZE);
+    int count = snprintf((char *) buffer->data + buffer->count, BUFSIZE, "%.17g", x);
+#undef BUFSIZE
+    /* fix locale issues with commas */
+    for (int i = 0; i < count; i++) {
+        char c = buffer->data[buffer->count + i];
+        if (c == ',') {
+            buffer->data[buffer->count + i] = '.';
+        }
+    }
+    buffer->count += count;
+}

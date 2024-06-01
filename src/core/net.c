@@ -152,7 +152,7 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
         if (res == 0) {
             janet_schedule(fiber, janet_wrap_abstract(stream));
         } else {
-            janet_cancel(fiber, janet_cstringv(strerror(res)));
+            janet_cancel(fiber, janet_cstringv(janet_strerror(res)));
             stream->flags |= JANET_STREAM_TOCLOSE;
         }
     } else {
@@ -1037,7 +1037,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
 
     int r = setsockopt((JSock) stream->handle, st->level, st->optname, optval, optlen);
     if (r == -1) {
-        janet_panicf("setsockopt(%q): %s", argv[1], strerror(errno));
+        janet_panicf("setsockopt(%q): %s", argv[1], janet_strerror(errno));
     }
 
     return janet_wrap_nil();

@@ -379,8 +379,10 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             break;
         case JANET_NUMBER:
             janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
-            int count = snprintf((char *) S->buffer->data + S->buffer->count, BUFSIZE, "%.17g", janet_unwrap_number(x));
-            S->buffer->count += count;
+            double num = janet_unwrap_number(x);
+            if (isnan(num)) return 1;
+            if (isinf(num)) return 1;
+            janet_buffer_dtostr(S->buffer, num);
             break;
         case JANET_SYMBOL:
         case JANET_KEYWORD:
@@ -830,7 +832,7 @@ static const char *scanformat(
         if (loc != NULL && *loc != '\0') {
             const char *mapping = get_fmt_mapping(*p2++);
             size_t len = strlen(mapping);
-            strcpy(form, mapping);
+            memcpy(form, mapping, len);
             form += len;
         } else {
             *(form++) = *(p2++);

@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose
+# Copyright (c) 2024 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -161,6 +161,21 @@
         "buffer/push-at 2")
 (assert (deep= @"abc423" (buffer/push-at @"abc123" 3 "4"))
         "buffer/push-at 3")
+
+# buffer/format-at
+(def start-buf (buffer/new-filled 100 (chr "x")))
+(buffer/format-at start-buf 50 "aa%dbb" 32)
+(assert (= (string start-buf) (string (string/repeat "x" 50) "aa32bb"  (string/repeat "x" 44)))
+        "buffer/format-at 1")
+(assert
+  (deep=
+    (buffer/format @"" "%j" [1 2 3 :a :b :c])
+    (buffer/format-at @"" 0 "%j" [1 2 3 :a :b :c]))
+  "buffer/format-at empty buffer")
+(def buf @"xxxyyy")
+(buffer/format-at buf -4 "xxx")
+(assert (= (string buf) "xxxxxx") "buffer/format-at negative index")
+(assert-error "expected index at to be in range [0, 0), got 1" (buffer/format-at @"" 1 "abc"))
 
 (end-suite)
 

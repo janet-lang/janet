@@ -987,5 +987,7 @@
     (b)))
 (assert (= -2 (man-or-boy 2)))
 (assert (= -67 (man-or-boy 10)))
+(assert (= :a (with-env @{:b :a} (dyn :b))) "with-env dyn")
+(assert-error "unknown symbol +" (with-env @{} (eval '(+ 1 2))))
 
 (end-suite)

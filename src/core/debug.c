@@ -164,7 +164,7 @@ void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
                 }
             }
             if (frame->flags & JANET_STACKFRAME_TAILCALL)
-                janet_eprintf(" (tailcall)");
+                janet_eprintf(" (tail call)");
             if (frame->func && frame->pc) {
                 int32_t off = (int32_t)(frame->pc - def->bytecode);
                 if (def->sourcemap) {
@@ -180,6 +180,11 @@ void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
                 }
             }
             janet_eprintf("\n");
+            /* Print fiber points optionally. Clutters traces but provides info
+            if (i <= 0 && fi > 0) {
+                janet_eprintf("  in parent fiber\n");
+            }
+            */
         }
     }
 

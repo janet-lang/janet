@@ -48,6 +48,7 @@ janet.wasm
 # Generated files
 *.gen.h
 *.gen.c
+*.tmp
 
 # Generate test files
 *.out
@@ -125,6 +126,9 @@ vgcore.*
 *.su
 *.idb
 *.pdb
+
+# GGov
+*.gcov
 
 # Kernel Module Compile Results
 *.mod*

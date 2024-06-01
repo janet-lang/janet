@@ -76,4 +76,6 @@
 #define __BSD_VISIBLE 1
 #endif
 
+#define _FILE_OFFSET_BITS 64
+
 #endif

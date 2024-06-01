@@ -953,6 +953,20 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
 #endif
 #endif
 
+/* Better strerror (thread-safe if available) */
+const char *janet_strerror(int e) {
+#ifdef JANET_WINDOWS
+    /* Microsoft strerror seems sane here and is thread safe by default */
+    return strerror(e);
+#elif defined(_GNU_SOURCE)
+    /* See https://linux.die.net/man/3/strerror_r */
+    return strerror_r(e, janet_vm.strerror_buf, sizeof(janet_vm.strerror_buf));
+#else
+    strerror_r(e, janet_vm.strerror_buf, sizeof(janet_vm.strerror_buf));
+    return janet_vm.strerror_buf;
+#endif
+}
+
 /* Setting C99 standard makes this not available, but it should
  * work/link properly if we detect a BSD */
 #if defined(JANET_BSD) || defined(MAC_OS_X_VERSION_10_7)
