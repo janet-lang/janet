@@ -45,7 +45,8 @@
   t)
 
 (defn setup-default-types
-  [into]
+  [ctx]
+  (def into @[])
   (defn add-prim-type
     [name native-name]
     (array/push into ~(type-prim ,name ,native-name))
@@ -54,7 +55,9 @@
   (add-prim-type 'double 'f64)
   (add-prim-type 'int 's32)
   (add-prim-type 'pointer 'pointer)
-  (add-prim-type 'boolean 'boolean))
+  (add-prim-type 'boolean 'boolean)
+  (sysir/asm ctx into)
+  ctx)
 
 (defn type-extract
   "Given a symbol:type combination, extract the proper name and the type separately"
@@ -66,9 +69,13 @@
 (var do-binop nil)
 (var do-comp nil)
 
+###
+### Inside functions
+###
+
 (defn visit1
   "Take in a form and compile code and put it into `into`. Return result slot."
-  [code into]
+  [code into &opt no-return]
   (cond
 
     # Compile a constant
@@ -77,6 +84,14 @@
           slottype 'int]
       (array/push into ~(bind ,slot ,slottype))
       (array/push into ~(constant ,slot ,code))
+      slot)
+
+    # Booleans
+    (boolean? code)
+    (let [slot (get-slot)
+          slottype 'boolean]
+      (array/push into ~(bind ,slot ,slottype))
+      (array/push into ~(constant ,slot ,(if code -1 0)))
       slot)
 
     # Binding
@@ -136,13 +151,27 @@
           (array/push into ~(move ,slot ,result))
           slot)
 
+        # Named variables
+        'var
+        (do
+          (assert (= 2 (length args)))
+          (def [full-name value] args)
+          (assert (symbol? full-name))
+          (def [name tp] (type-extract full-name 'int))
+          (def result (visit1 value into))
+          (def slot (get-slot name))
+          (when tp
+            (array/push into ~(bind ,slot ,tp)))
+          (array/push into ~(move ,slot ,result))
+          slot)
+
         # Assignment
         'set
         (do
           (assert (= 2 (length args)))
           (def [to x] args)
           (def result (visit1 x into))
-          (def toslot (get-slot to))
+          (def toslot (named-slot to))
           (array/push into ~(move ,toslot ,result))
           toslot)
 
@@ -160,9 +189,24 @@
         # Sequence of operations
         'do
         (do
-          (var ret nil)
-          (each form args (set ret (visit1 form into)))
-          ret)
+          (each form (slice args 0 -2) (visit1 form into true))
+          (visit1 (last args) into))
+
+        # While loop
+        'while
+        (do
+          (def lab-test (keyword (gensym)))
+          (def lab-exit (keyword (gensym)))
+          (assert (< 1 (length args)))
+          (def [cnd & body] args)
+          (array/push into lab-test)
+          (def condition-slot (visit1 cnd into))
+          (array/push into ~(branch-not ,condition-slot ,lab-exit))
+          (each code body
+            (visit1 code into true))
+          (array/push into ~(jump ,lab-test))
+          (array/push into lab-exit)
+          nil)
 
         # Branch
         'if
@@ -186,7 +230,7 @@
         # Assume function call
         (do
           (def slots @[])
-          (def ret (get-slot))
+          (def ret (if no-return nil (get-slot)))
           (each arg args
             (array/push slots (visit1 arg into)))
           (array/push into ~(call ,ret ,op ,;slots))
@@ -236,27 +280,78 @@
   result)
 
 ###
+### Top level
+###
+
+(defn top
+  "Visit and emit code for a top level form."
+  [ctx form]
+  (assert (tuple? form))
+  (def [head & rest] form)
+  (case head
+
+    # Top level function definition
+    'defn
+    (do
+      # TODO doc strings
+      (table/clear name-to-slot)
+      (array/clear slot-to-name)
+      (def [name args & body] rest)
+      (assert (tuple? args))
+      (def [fn-name fn-tp] (type-extract name 'int))
+      (def pcount (length args)) #TODO - more complicated signatures
+      (def ir-asm
+        @[~(link-name ,(string fn-name))
+          ~(parameter-count ,pcount)])
+      (each arg args
+        (def [name tp] (type-extract arg 'int))
+        (def slot (get-slot name))
+        (array/push ir-asm ~(bind ,slot ,tp)))
+      (each part body
+        (visit1 part ir-asm true))
+      (eprintf "%.99M\n" ir-asm)
+      (sysir/asm ctx ir-asm))
+
+    (errorf "unknown form %v" form)))
+
+###
 ###
 ###
 
 (def myprog
-  '(do
+  '(defn myprog []
      (def xyz:int (+ 1 2 3))
      (def abc:int (* 4 5 6))
      (def x:boolean (= 5 7))
-     (the int (printf "hello, world!\n%d\n" (the int (if x abc xyz))))
+     (var i:int 0)
+     (while (< i 10)
+       (set i (+ 1 i))
+       (printf "i = %d\n" (the int i)))
+     (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
      (return (/ abc xyz))))
+
+(def doloop
+  '(defn doloop [x:int y:int]
+     (var i:int x)
+     (while (< i y)
+       (set i (+ 1 i))
+       (printf "i = %d\n" (the int i)))
+     (return x)))
+
+(def main-fn
+  '(defn main:int []
+     (var x:int 10)
+     (doloop 10 20)
+     (printf "done!\n")
+     (return (the int 0))))
 
 (defn dotest
   []
   (def ctx (sysir/context))
-  (def ir-asm
-    @['(link-name "main")
-      '(parameter-count 0)])
-  (setup-default-types ir-asm)
-  (visit1 myprog ir-asm)
-  (eprintf "%.99M" ir-asm)
-  (sysir/asm ctx ir-asm)
+  (setup-default-types ctx)
+  #(top ctx myprog)
+  (top ctx doloop)
+  (top ctx main-fn)
   (print (sysir/to-c ctx)))
 
 (dotest)
