@@ -4248,7 +4248,8 @@
      "src/core/regalloc.h"
      "src/core/compile.h"
      "src/core/emit.h"
-     "src/core/symcache.h"])
+     "src/core/symcache.h"
+     "src/core/sysir.h"])
 
   (def core-sources
     ["src/core/abstract.c"
@@ -4284,6 +4285,7 @@
      "src/core/struct.c"
      "src/core/symcache.c"
      "src/core/sysir.c"
+     "src/core/sysir_x86.c"
      "src/core/table.c"
      "src/core/tuple.c"
      "src/core/util.c"

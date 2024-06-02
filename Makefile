@@ -123,7 +123,8 @@ JANET_LOCAL_HEADERS=src/core/features.h \
 					src/core/regalloc.h \
 					src/core/compile.h \
 					src/core/emit.h \
-					src/core/symcache.h
+					src/core/symcache.h \
+					src/core/sysir.h
 
 JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/array.c \

@@ -30,7 +30,6 @@
  * [ ] named fields (for debugging mostly)
  * [x] named registers and types
  * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
- * [ ] switch internal use of uint32_t everywhere to type struct wrappers for safety
  * [ ] x86/x64 machine code target
  * [ ] LLVM target
  * [ ] target specific extensions - custom instructions and custom primitives
@@ -64,34 +63,10 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "sysir.h"
 #include "util.h"
 #include "vector.h"
 #endif
-
-typedef enum {
-    JANET_PRIM_U8,
-    JANET_PRIM_S8,
-    JANET_PRIM_U16,
-    JANET_PRIM_S16,
-    JANET_PRIM_U32,
-    JANET_PRIM_S32,
-    JANET_PRIM_U64,
-    JANET_PRIM_S64,
-    JANET_PRIM_F32,
-    JANET_PRIM_F64,
-    JANET_PRIM_POINTER,
-    JANET_PRIM_BOOLEAN,
-    JANET_PRIM_STRUCT,
-    JANET_PRIM_UNION,
-    JANET_PRIM_ARRAY,
-    JANET_PRIM_VOID,
-    JANET_PRIM_UNKNOWN
-} JanetPrim;
-
-typedef struct {
-    const char *name;
-    JanetPrim prim;
-} JanetPrimName;
 
 static const JanetPrimName prim_names[] = {
     {"array", JANET_PRIM_ARRAY},
@@ -112,51 +87,72 @@ static const JanetPrimName prim_names[] = {
     {"void", JANET_PRIM_VOID},
 };
 
-typedef enum {
-    JANET_SYSOP_LINK_NAME,
-    JANET_SYSOP_PARAMETER_COUNT,
-    JANET_SYSOP_MOVE,
-    JANET_SYSOP_CAST,
-    JANET_SYSOP_ADD,
-    JANET_SYSOP_SUBTRACT,
-    JANET_SYSOP_MULTIPLY,
-    JANET_SYSOP_DIVIDE,
-    JANET_SYSOP_BAND,
-    JANET_SYSOP_BOR,
-    JANET_SYSOP_BXOR,
-    JANET_SYSOP_BNOT,
-    JANET_SYSOP_SHL,
-    JANET_SYSOP_SHR,
-    JANET_SYSOP_LOAD,
-    JANET_SYSOP_STORE,
-    JANET_SYSOP_GT,
-    JANET_SYSOP_LT,
-    JANET_SYSOP_EQ,
-    JANET_SYSOP_NEQ,
-    JANET_SYSOP_GTE,
-    JANET_SYSOP_LTE,
-    JANET_SYSOP_CONSTANT,
-    JANET_SYSOP_CALL,
-    JANET_SYSOP_RETURN,
-    JANET_SYSOP_JUMP,
-    JANET_SYSOP_BRANCH,
-    JANET_SYSOP_BRANCH_NOT,
-    JANET_SYSOP_ADDRESS,
-    JANET_SYSOP_CALLK,
-    JANET_SYSOP_TYPE_PRIMITIVE,
-    JANET_SYSOP_TYPE_STRUCT,
-    JANET_SYSOP_TYPE_BIND,
-    JANET_SYSOP_ARG,
-    JANET_SYSOP_FIELD_GETP,
-    JANET_SYSOP_ARRAY_GETP,
-    JANET_SYSOP_ARRAY_PGETP,
-    JANET_SYSOP_TYPE_POINTER,
-    JANET_SYSOP_TYPE_ARRAY,
-    JANET_SYSOP_TYPE_UNION,
-    JANET_SYSOP_POINTER_ADD,
-    JANET_SYSOP_POINTER_SUBTRACT,
-    JANET_SYSOP_LABEL
-} JanetSysOp;
+static const char *prim_to_prim_name[] = {
+    "u8",
+    "s8",
+    "u16",
+    "s16",
+    "u32",
+    "s32",
+    "u64",
+    "s64",
+    "f32",
+    "f64",
+    "pointer",
+    "boolean",
+    "struct",
+    "union",
+    "array",
+    "void",
+    "unknown"
+};
+
+/* Map sysops to names */
+const char *janet_sysop_names[] = {
+    "link-name", /* JANET_SYSOP_LINK_NAME */
+    "parameter-count", /* JANET_SYSOP_PARAMETER_COUNT */
+    "move", /* JANET_SYSOP_MOVE */
+    "cast", /* JANET_SYSOP_CAST */
+    "add", /* JANET_SYSOP_ADD */
+    "subtract", /* JANET_SYSOP_SUBTRACT */
+    "multiply", /* JANET_SYSOP_MULTIPLY */
+    "divide", /* JANET_SYSOP_DIVIDE */
+    "band", /* JANET_SYSOP_BAND */
+    "bor", /* JANET_SYSOP_BOR */
+    "bxor", /* JANET_SYSOP_BXOR */
+    "bnot", /* JANET_SYSOP_BNOT */
+    "shl", /* JANET_SYSOP_SHL */
+    "shr", /* JANET_SYSOP_SHR */
+    "load", /* JANET_SYSOP_LOAD */
+    "store", /* JANET_SYSOP_STORE */
+    "gt", /* JANET_SYSOP_GT */
+    "lt", /* JANET_SYSOP_LT */
+    "eq", /* JANET_SYSOP_EQ */
+    "neq", /* JANET_SYSOP_NEQ */
+    "gte", /* JANET_SYSOP_GTE */
+    "lte", /* JANET_SYSOP_LTE */
+    "constant", /* JANET_SYSOP_CONSTANT */
+    "call", /* JANET_SYSOP_CALL */
+    "return", /* JANET_SYSOP_RETURN */
+    "jump", /* JANET_SYSOP_JUMP */
+    "branch", /* JANET_SYSOP_BRANCH */
+    "branch_not", /* JANET_SYSOP_BRANCH_NOT */
+    "address", /* JANET_SYSOP_ADDRESS */
+    "callk", /* JANET_SYSOP_CALLK */
+    "type-primitive", /* JANET_SYSOP_TYPE_PRIMITIVE */
+    "type-struct", /* JANET_SYSOP_TYPE_STRUCT */
+    "type-bind", /* JANET_SYSOP_TYPE_BIND */
+    "arg", /* JANET_SYSOP_ARG */
+    "field-getp", /* JANET_SYSOP_FIELD_GETP */
+    "array-getp", /* JANET_SYSOP_ARRAY_GETP */
+    "array-pgetp", /* JANET_SYSOP_ARRAY_PGETP */
+    "type-pointer", /* JANET_SYSOP_TYPE_POINTER */
+    "type-array", /* JANET_SYSOP_TYPE_ARRAY */
+    "type-union", /* JANET_SYSOP_TYPE_UNION */
+    "pointer-add", /* JANET_SYSOP_POINTER_ADD */
+    "pointer-subtract", /* JANET_SYSOP_POINTER_SUBTRACT */
+    "label", /* JANET_SYSOP_LABEL */
+};
 
 typedef struct {
     const char *name;
@@ -206,140 +202,6 @@ static const JanetSysInstrName sys_op_names[] = {
     {"type-struct", JANET_SYSOP_TYPE_STRUCT},
     {"type-union", JANET_SYSOP_TYPE_UNION},
 };
-
-typedef struct {
-    JanetPrim prim;
-    union {
-        struct {
-            uint32_t field_count;
-            uint32_t field_start;
-        } st;
-        struct {
-            uint32_t type;
-        } pointer;
-        struct {
-            uint32_t type;
-            uint64_t fixed_count;
-        } array;
-    };
-} JanetSysTypeInfo;
-
-typedef struct {
-    uint32_t type;
-} JanetSysTypeField;
-
-typedef struct {
-    JanetSysOp opcode;
-    union {
-        struct {
-            uint32_t dest;
-            uint32_t lhs;
-            uint32_t rhs;
-        } three;
-        struct {
-            uint32_t dest;
-            uint32_t callee;
-            uint32_t arg_count;
-            uint32_t has_dest;
-        } call;
-        struct {
-            uint32_t dest;
-            uint32_t constant;
-            uint32_t arg_count;
-            uint32_t has_dest;
-        } callk;
-        struct {
-            uint32_t dest;
-            uint32_t src;
-        } two;
-        struct {
-            uint32_t src;
-        } one;
-        struct {
-            uint32_t to;
-        } jump;
-        struct {
-            uint32_t cond;
-            uint32_t to;
-        } branch;
-        struct {
-            uint32_t dest;
-            uint32_t constant;
-        } constant;
-        struct {
-            uint32_t dest_type;
-            uint32_t prim;
-        } type_prim;
-        struct {
-            uint32_t dest_type;
-            uint32_t arg_count;
-        } type_types;
-        struct {
-            uint32_t dest;
-            uint32_t type;
-        } type_bind;
-        struct {
-            uint32_t args[3];
-        } arg;
-        struct {
-            uint32_t r;
-            uint32_t st;
-            uint32_t field;
-        } field;
-        struct {
-            uint32_t dest_type;
-            uint32_t type;
-        } pointer;
-        struct {
-            uint32_t dest_type;
-            uint32_t type;
-            uint64_t fixed_count;
-        } array;
-        struct {
-            uint32_t id;
-        } label;
-    };
-    int32_t line;
-    int32_t column;
-} JanetSysInstruction;
-
-/* Shared data between multiple
- * IR Function bodies. Used to link
- * multiple functions together in a
- * single executable or shared object with
- * multiple entry points. Contains shared
- * type declarations, as well as a table of linked
- * functions. */
-typedef struct {
-    uint32_t old_type_def_count;
-    uint32_t type_def_count;
-    uint32_t field_def_count;
-    JanetSysTypeInfo *type_defs;
-    JanetString *type_names;
-    JanetSysTypeField *field_defs;
-    JanetTable *irs;
-    JanetArray *ir_ordered;
-    JanetTable *type_name_lookup;
-} JanetSysIRLinkage;
-
-/* IR representation for a single function.
- * Allow for incremental compilation and linking. */
-typedef struct {
-    JanetSysIRLinkage *linkage;
-    JanetString link_name;
-    uint32_t instruction_count;
-    uint32_t register_count;
-    uint32_t constant_count;
-    uint32_t return_type;
-    uint32_t parameter_count;
-    uint32_t label_count;
-    uint32_t *types;
-    JanetSysInstruction *instructions;
-    JanetString *register_names;
-    Janet *constants;
-    JanetTable *register_name_lookup;
-    JanetTable *labels;
-} JanetSysIR;
 
 /* Utilities */
 
@@ -482,7 +344,7 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
             Janet label_id = janet_wrap_number(instruction.label.id);
             Janet check_defined = janet_table_get(labels, label_id);
             if (janet_checktype(check_defined, JANET_NIL)) {
-                janet_table_put(labels, label_id, janet_wrap_number(janet_v_count(ir)));
+                janet_table_put(labels, label_id, x);
             } else {
                 janet_panicf("label %v already defined", x);
             }
@@ -1663,6 +1525,214 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 
 }
 
+/* Convert IR linkage back to Janet ASM */
+
+void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into) {
+
+    /* Emit type defs */
+    JanetArray *typedefs = janet_array(0);
+    for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {
+        JanetSysIR *ir = janet_unwrap_abstract(linkage->ir_ordered->data[j]);
+        for (uint32_t i = 0; i < ir->instruction_count; i++) {
+            JanetSysInstruction instruction = ir->instructions[i];
+            Janet *build_tuple = NULL;
+            switch (instruction.opcode) {
+                default:
+                    continue;
+                case JANET_SYSOP_TYPE_PRIMITIVE:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv("type-prim");
+                    build_tuple[1] = janet_wrap_number(instruction.type_prim.dest_type);
+                    build_tuple[2] = janet_csymbolv(prim_to_prim_name[instruction.type_prim.prim]);
+                    break;
+                case JANET_SYSOP_TYPE_STRUCT:
+                case JANET_SYSOP_TYPE_UNION:
+                    build_tuple = janet_tuple_begin(2 + instruction.type_types.arg_count);
+                    build_tuple[0] = janet_csymbolv(instruction.opcode == JANET_SYSOP_TYPE_STRUCT ? "type-struct" : "type-union");
+                    build_tuple[1] = janet_wrap_number(instruction.type_types.dest_type);
+                    for (uint32_t j = 0; j < instruction.type_types.arg_count; j++) {
+                        uint32_t offset = j / 3 + 1;
+                        uint32_t index = j % 3;
+                        JanetSysInstruction arg_instruction = ir->instructions[i + offset];
+                        build_tuple[j + 2] = janet_wrap_number(arg_instruction.arg.args[index]);
+                    }
+                    break;
+                case JANET_SYSOP_TYPE_POINTER:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv("type-pointer");
+                    build_tuple[1] = janet_wrap_number(instruction.pointer.dest_type);
+                    build_tuple[2] = janet_wrap_number(instruction.pointer.type);
+                    break;
+                case JANET_SYSOP_TYPE_ARRAY:
+                    build_tuple = janet_tuple_begin(4);
+                    build_tuple[0] = janet_csymbolv("type-array");
+                    build_tuple[1] = janet_wrap_number(instruction.array.dest_type);
+                    build_tuple[2] = janet_wrap_number(instruction.array.type);
+                    build_tuple[4] = janet_wrap_number(instruction.array.fixed_count);
+                    break;
+            }
+            const Janet *tuple = janet_tuple_end(build_tuple);
+            if (instruction.line > 0) {
+                janet_tuple_sm_line(tuple) = instruction.line;
+                janet_tuple_sm_column(tuple) = instruction.column;
+            }
+            janet_array_push(typedefs, janet_wrap_tuple(tuple));
+        }
+    }
+    janet_array_push(into, janet_wrap_array(typedefs));
+
+    for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {
+        JanetSysIR *ir = janet_unwrap_abstract(linkage->ir_ordered->data[j]);
+        JanetArray *linkage_ir = janet_array(0);
+
+        /* Linkage header */
+        if (ir->link_name) {
+            Janet *build_tuple = janet_tuple_begin(2);
+            build_tuple[0] = janet_csymbolv("link-name");
+            build_tuple[1] = janet_wrap_string(ir->link_name);
+            janet_array_push(linkage_ir, janet_wrap_tuple(janet_tuple_end(build_tuple)));
+        }
+        if (ir->parameter_count > 0) {
+            Janet *build_tuple = janet_tuple_begin(2);
+            build_tuple[0] = janet_csymbolv("parameter-count");
+            build_tuple[1] = janet_wrap_number(ir->parameter_count);
+            janet_array_push(linkage_ir, janet_wrap_tuple(janet_tuple_end(build_tuple)));
+        }
+
+        /* Lift type bindings to top of IR */
+        for (uint32_t i = 0; i < ir->instruction_count; i++) {
+            JanetSysInstruction instruction = ir->instructions[i];
+            Janet *build_tuple = NULL;
+            switch (instruction.opcode) {
+                default:
+                    continue;
+                case JANET_SYSOP_TYPE_BIND:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_wrap_number(instruction.two.dest);
+                    build_tuple[2] = janet_wrap_number(instruction.two.src);
+                    /* TODO - use named types if possible */
+                    break;
+            }
+            if (instruction.line > 0) {
+                janet_tuple_sm_line(build_tuple) = instruction.line;
+                janet_tuple_sm_column(build_tuple) = instruction.column;
+            }
+            const Janet *tuple = janet_tuple_end(build_tuple);
+            janet_array_push(linkage_ir, janet_wrap_tuple(tuple));
+        }
+
+        /* Emit other instructions */
+        for (uint32_t i = 0; i < ir->instruction_count; i++) {
+            JanetSysInstruction instruction = ir->instructions[i];
+            Janet *build_tuple = NULL;
+            switch (instruction.opcode) {
+                default:
+                    continue;
+                case JANET_SYSOP_MOVE:
+                case JANET_SYSOP_CAST:
+                case JANET_SYSOP_BNOT:
+                case JANET_SYSOP_LOAD:
+                case JANET_SYSOP_STORE:
+                case JANET_SYSOP_ADDRESS:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_wrap_number(instruction.two.dest);
+                    build_tuple[2] = janet_wrap_number(instruction.two.src);
+                    break;
+                case JANET_SYSOP_ADD:
+                case JANET_SYSOP_SUBTRACT:
+                case JANET_SYSOP_MULTIPLY:
+                case JANET_SYSOP_DIVIDE:
+                case JANET_SYSOP_BAND:
+                case JANET_SYSOP_BOR:
+                case JANET_SYSOP_BXOR:
+                case JANET_SYSOP_GT:
+                case JANET_SYSOP_GTE:
+                case JANET_SYSOP_LT:
+                case JANET_SYSOP_LTE:
+                case JANET_SYSOP_EQ:
+                case JANET_SYSOP_NEQ:
+                case JANET_SYSOP_POINTER_ADD:
+                case JANET_SYSOP_POINTER_SUBTRACT:
+                case JANET_SYSOP_SHL:
+                case JANET_SYSOP_SHR:
+                case JANET_SYSOP_ARRAY_GETP:
+                case JANET_SYSOP_ARRAY_PGETP:
+                    build_tuple = janet_tuple_begin(4);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_wrap_number(instruction.three.dest);
+                    build_tuple[2] = janet_wrap_number(instruction.three.lhs);
+                    build_tuple[3] = janet_wrap_number(instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_CALLK:
+                    build_tuple = janet_tuple_begin(3 + instruction.callk.arg_count);
+                    build_tuple[0] = janet_csymbolv("call");
+                    if (instruction.callk.has_dest) {
+                        build_tuple[1] = janet_wrap_number(instruction.callk.dest);
+                    } else {
+                        build_tuple[1] = janet_wrap_nil();
+                    }
+                    build_tuple[2] = ir->constants[instruction.callk.constant];
+                    for (uint32_t j = 0; j < instruction.callk.arg_count; j++) {
+                        uint32_t offset = j / 3 + 1;
+                        uint32_t index = j % 3;
+                        JanetSysInstruction arg_instruction = ir->instructions[i + offset];
+                        build_tuple[j + 3] = janet_wrap_number(arg_instruction.arg.args[index]);
+                    }
+                    break;
+                case JANET_SYSOP_LABEL:
+                    build_tuple = janet_tuple_begin(2);
+                    build_tuple[0] = janet_csymbolv("label");
+                    build_tuple[1] = janet_table_get(ir->labels, janet_wrap_number(instruction.label.id));
+                    break;
+                case JANET_SYSOP_CONSTANT:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv("constant");
+                    build_tuple[1] = janet_wrap_number(instruction.constant.dest);
+                    build_tuple[2] = ir->constants[instruction.constant.constant];
+                    break;
+                case JANET_SYSOP_RETURN:
+                    build_tuple = janet_tuple_begin(2);
+                    build_tuple[0] = janet_csymbolv("return");
+                    build_tuple[1] = janet_wrap_number(instruction.one.src);
+                    break;
+                case JANET_SYSOP_BRANCH:
+                case JANET_SYSOP_BRANCH_NOT:
+                    build_tuple = janet_tuple_begin(3);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_wrap_number(instruction.branch.cond);
+                    build_tuple[2] = janet_table_get(ir->labels, janet_wrap_number(instruction.branch.to));
+                    break;
+                case JANET_SYSOP_JUMP:
+                    build_tuple = janet_tuple_begin(2);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_table_get(ir->labels, janet_wrap_number(instruction.jump.to));
+                    break;
+                case JANET_SYSOP_FIELD_GETP:
+                    build_tuple = janet_tuple_begin(4);
+                    build_tuple[0] = janet_csymbolv(janet_sysop_names[instruction.opcode]);
+                    build_tuple[1] = janet_wrap_number(instruction.field.r);
+                    build_tuple[2] = janet_wrap_number(instruction.field.st);
+                    build_tuple[3] = janet_wrap_number(instruction.field.field);
+                    break;
+            }
+            if (instruction.line > 0) {
+                janet_tuple_sm_line(build_tuple) = instruction.line;
+                janet_tuple_sm_column(build_tuple) = instruction.column;
+            }
+            const Janet *tuple = janet_tuple_end(build_tuple);
+            janet_array_push(linkage_ir, janet_wrap_tuple(tuple));
+        }
+        /* Can get empty linkage after lifting type defs */
+        if (linkage_ir->count > 0) {
+            janet_array_push(into, janet_wrap_array(linkage_ir));
+        }
+    }
+}
+
+/* Bindings */
+
 static int sysir_gc(void *p, size_t s) {
     JanetSysIR *ir = (JanetSysIR *)p;
     (void) s;
@@ -1759,11 +1829,22 @@ JANET_CORE_FN(cfun_sysir_toc,
     return janet_wrap_buffer(buffer);
 }
 
+JANET_CORE_FN(cfun_sysir_toir,
+        "(sysir/to-ir context &opt array)",
+        "Raise IR back to IR after running other optimizations on it. Returns an array with various linkages.") {
+    janet_arity(argc, 1, 2);
+    JanetSysIRLinkage *ir = janet_getabstract(argv, 0, &janet_sysir_context_type);
+    JanetArray *array = janet_optarray(argv, argc, 1, 0);
+    janet_sys_ir_lower_to_ir(ir, array);
+    return janet_wrap_array(array);
+}
+
 void janet_lib_sysir(JanetTable *env) {
     JanetRegExt cfuns[] = {
         JANET_CORE_REG("sysir/context", cfun_sysir_context),
         JANET_CORE_REG("sysir/asm", cfun_sysir_asm),
         JANET_CORE_REG("sysir/to-c", cfun_sysir_toc),
+        JANET_CORE_REG("sysir/to-ir", cfun_sysir_toir),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);

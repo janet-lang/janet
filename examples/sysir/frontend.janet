@@ -118,6 +118,8 @@
         '- (do-binop 'subtract args into)
         '* (do-binop 'multiply args into)
         '/ (do-binop 'divide args into)
+        '<< (do-binop 'shl args into)
+        '>> (do-binop 'shl args into)
 
         # Comparison
         '= (do-comp 'eq args into)
@@ -309,7 +311,6 @@
         (array/push ir-asm ~(bind ,slot ,tp)))
       (each part body
         (visit1 part ir-asm true))
-      (eprintf "%.99M\n" ir-asm)
       (sysir/asm ctx ir-asm))
 
     (errorf "unknown form %v" form)))
@@ -340,18 +341,21 @@
 
 (def main-fn
   '(defn main:int []
-     (var x:int 10)
      (doloop 10 20)
      (printf "done!\n")
      (return (the int 0))))
 
-(defn dotest
-  []
-  (def ctx (sysir/context))
-  (setup-default-types ctx)
-  #(top ctx myprog)
-  (top ctx doloop)
-  (top ctx main-fn)
-  (print (sysir/to-c ctx)))
+(def ctx (sysir/context))
+(setup-default-types ctx)
 
-(dotest)
+(defn compile1
+  [x]
+  (top ctx x))
+
+(defn dump
+  []
+  (eprintf "%.99M\n" (sysir/to-ir ctx)))
+
+(defn dumpc
+  []
+  (print (sysir/to-c ctx)))

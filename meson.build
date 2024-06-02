@@ -104,7 +104,8 @@ core_headers = [
   'src/core/regalloc.h',
   'src/core/compile.h',
   'src/core/emit.h',
-  'src/core/symcache.h'
+  'src/core/symcache.h',
+  'src/core/sysir.h',
 ]
 
 core_src = [
