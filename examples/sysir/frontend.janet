@@ -356,6 +356,16 @@
   []
   (eprintf "%.99M\n" (sysir/to-ir ctx)))
 
+(defn dumpx64
+  []
+  (print (sysir/to-x64 ctx)))
+
 (defn dumpc
   []
   (print (sysir/to-c ctx)))
+
+####
+
+(compile1 myprog)
+#(dump)
+(dumpx64)

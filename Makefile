@@ -159,6 +159,7 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/struct.c \
 				   src/core/symcache.c \
 				   src/core/sysir.c \
+				   src/core/sysir_x86.c \
 				   src/core/table.c \
 				   src/core/tuple.c \
 				   src/core/util.c \

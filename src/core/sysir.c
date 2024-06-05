@@ -1839,12 +1839,23 @@ JANET_CORE_FN(cfun_sysir_toir,
     return janet_wrap_array(array);
 }
 
+JANET_CORE_FN(cfun_sysir_tox64,
+        "(sysir/to-x64 context &opt buffer options)",
+        "Lower IR to x64 machine code.") {
+    janet_arity(argc, 1, 3);
+    JanetSysIRLinkage *ir = janet_getabstract(argv, 0, &janet_sysir_context_type);
+    JanetBuffer *buffer = janet_optbuffer(argv, argc, 1, 0);
+    janet_sys_ir_lower_to_x64(ir, buffer);
+    return janet_wrap_buffer(buffer);
+}
+        
 void janet_lib_sysir(JanetTable *env) {
     JanetRegExt cfuns[] = {
         JANET_CORE_REG("sysir/context", cfun_sysir_context),
         JANET_CORE_REG("sysir/asm", cfun_sysir_asm),
         JANET_CORE_REG("sysir/to-c", cfun_sysir_toc),
         JANET_CORE_REG("sysir/to-ir", cfun_sysir_toir),
+        JANET_CORE_REG("sysir/to-x64", cfun_sysir_tox64),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);
