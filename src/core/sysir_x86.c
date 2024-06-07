@@ -27,6 +27,10 @@
 #include "vector.h"
 #endif
 
+/*
+ * Wrap stuff up in a context struct
+ */
+
 static uint32_t v2reg(JanetTable *assignments, uint32_t var) {
     return (uint32_t) janet_unwrap_number(janet_table_get(assignments, janet_wrap_number(var)));
 }
@@ -167,13 +171,32 @@ JanetSysSpill *assign_registers(JanetSysIR *ir, JanetTable *assignments,
     return spills;
 }
 
+static void do_spills(JanetBuffer *buffer, JanetSysSpill *spills, uint32_t index) {
+    JanetSysSpill spill = spills[index];
+    for (int spi = 0; spi < 3; spi++) {
+        if (spill.spills[spi] == JANET_SYS_SPILL_READ || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
+            // emit load
+            uint32_t reg = spill.regs[spi];
+            void *x = (void *) 0x123456;
+            janet_formatb(buffer, "load r%u from %v ; SPILL\n", reg, janet_wrap_pointer(x));
+        }
+        if (spill.spills[spi] == JANET_SYS_SPILL_WRITE || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
+            // emit store
+            uint32_t reg = spill.regs[spi];
+            void *x = (void *) 0x123456;
+            janet_formatb(buffer, "store r%u to %v ; SPILL\n", reg, janet_wrap_pointer(x));
+        }
+    }
+}
+
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 
     /* Do register allocation  */
     for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
         JanetTable *assignments = janet_table(0);
-        JanetSysSpill *spills = assign_registers(ir, assignments, 15);
+        /* 16 total 64 bit registers - 3 temp */
+        JanetSysSpill *spills = assign_registers(ir, assignments, 13);
 
         /* Emit prelude */
         if (ir->link_name != NULL) {
@@ -183,21 +206,6 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         }
         for (uint32_t j = 0; j < ir->instruction_count; j++) {
             JanetSysInstruction instruction = ir->instructions[j];
-            JanetSysSpill spill = spills[j];
-            for (int spi = 0; spi < 3; spi++) {
-                if (spill.spills[spi] == JANET_SYS_SPILL_READ || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
-                    // emit load
-                    uint32_t reg = spill.regs[spi];
-                    void *x = (void *) 0x123456;
-                    janet_formatb(buffer, "load r%u from %v ; SPILL\n", reg, janet_wrap_pointer(x));
-                }
-                if (spill.spills[spi] == JANET_SYS_SPILL_WRITE || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
-                    // emit store
-                    uint32_t reg = spill.regs[spi];
-                    void *x = (void *) 0x123456;
-                    janet_formatb(buffer, "store r%u to %v ; SPILL\n", reg, janet_wrap_pointer(x));
-                }
-            }
             switch (instruction.opcode) {
                 default:
                     janet_formatb(buffer, "; nyi: %s\n", janet_sysop_names[instruction.opcode]);
@@ -216,6 +224,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                 case JANET_SYSOP_SUBTRACT:
                 case JANET_SYSOP_MULTIPLY:
                 case JANET_SYSOP_DIVIDE:
+                    do_spills(buffer, spills, j);
                     janet_formatb(buffer, "r%u = %s r%u, r%u\n",
                             v2reg(assignments, instruction.three.dest),
                             janet_sysop_names[instruction.opcode],
@@ -223,24 +232,50 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                             v2reg(assignments, instruction.three.rhs));
                     break;
                 case JANET_SYSOP_MOVE:
+                    do_spills(buffer, spills, j);
                     janet_formatb(buffer, "r%u = r%u\n",
                             v2reg(assignments, instruction.two.dest),
                             v2reg(assignments, instruction.two.src));
                     break;
                 case JANET_SYSOP_RETURN:
+                    do_spills(buffer, spills, j);
                     janet_formatb(buffer, "return r%u\n",
                             v2reg(assignments, instruction.one.src));
                     break;
                 case JANET_SYSOP_CONSTANT:
+                    do_spills(buffer, spills, j);
                     janet_formatb(buffer, "r%u = constant $%v\n",
                             v2reg(assignments, instruction.constant.dest),
                             ir->constants[instruction.constant.constant]);
                     break;
                 case JANET_SYSOP_LABEL:
-                    janet_formatb(buffer, ":label_%u\n",
+                    do_spills(buffer, spills, j);
+                    janet_formatb(buffer, "label_%u:\n",
                             v2reg(assignments, instruction.label.id));
                     break;
-
+                case JANET_SYSOP_EQ:
+                case JANET_SYSOP_NEQ:
+                case JANET_SYSOP_LT:
+                case JANET_SYSOP_LTE:
+                case JANET_SYSOP_GT:
+                case JANET_SYSOP_GTE:
+                    do_spills(buffer, spills, j);
+                    janet_formatb(buffer, "r%u = %s r%u, r%u\n",
+                            v2reg(assignments, instruction.three.dest),
+                            janet_sysop_names[instruction.opcode],
+                            v2reg(assignments, instruction.three.lhs),
+                            v2reg(assignments, instruction.three.rhs));
+                    break;
+                case JANET_SYSOP_BRANCH:
+                case JANET_SYSOP_BRANCH_NOT:
+                    do_spills(buffer, spills, j);
+                    janet_formatb(buffer, "branch label_%u if r%u\n",
+                            instruction.branch.to,
+                            v2reg(assignments, instruction.branch.cond));
+                    break;
+                case JANET_SYSOP_CALLK:
+                    do_spills(buffer, spills, j);
+                    break;
                 // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
             }
         }
