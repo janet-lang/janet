@@ -2226,8 +2226,8 @@
 
 (defn thaw
   `Thaw an object (make it mutable) and do a deep copy, making
-  child value also mutable. Closures, fibers, and abstract
-  types will not be recursively thawed, but all other types will`
+  child values also mutable. Closures, fibers, and abstract
+  types will not be recursively thawed, but all other types will.`
   [ds]
   (case (type ds)
     :array (walk-ind thaw ds)

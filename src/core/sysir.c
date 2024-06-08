@@ -27,7 +27,7 @@
  */
 
 /* TODO
- * [ ] named fields (for debugging mostly)
+ * [ ] encode constants directly in 3 address codes - makes codegen easier
  * [x] named registers and types
  * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
  * [ ] x86/x64 machine code target
@@ -87,7 +87,7 @@ static const JanetPrimName prim_names[] = {
     {"void", JANET_PRIM_VOID},
 };
 
-static const char *prim_to_prim_name[] = {
+const char *prim_to_prim_name[] = {
     "u8",
     "s8",
     "u16",
@@ -1757,6 +1757,9 @@ static int sysir_gcmark(void *p, size_t s) {
     if (ir->link_name != NULL) {
         janet_mark(janet_wrap_string(ir->link_name));
     }
+    janet_mark(janet_wrap_table(ir->labels));
+    janet_mark(janet_wrap_table(ir->register_name_lookup));
+    janet_mark(janet_wrap_abstract(ir->linkage));
     return 0;
 }
 

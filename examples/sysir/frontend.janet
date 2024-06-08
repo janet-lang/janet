@@ -367,5 +367,5 @@
 ####
 
 (compile1 myprog)
-#(dump)
+(dump)
 (dumpx64)

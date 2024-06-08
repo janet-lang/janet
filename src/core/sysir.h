@@ -126,6 +126,11 @@ typedef struct {
     uint32_t type;
 } JanetSysTypeField;
 
+/* Allow read arguments to be constants to allow
+ * encoding immediates. This makes codegen easier. */
+#define JANET_SYS_MAX_OPERAND      0x7FFFFFFFU
+#define JANET_SYS_CONSTANT_PREFIX  0x80000000U
+
 typedef struct {
     JanetSysOp opcode;
     union {
@@ -251,10 +256,19 @@ typedef struct {
         JANET_SYS_SPILL_BOTH
     } spills[3];
     uint32_t regs[3];
+    uint32_t stack_offsets[3];
+    uint32_t stack_sizes[3];
 } JanetSysSpill;
+
+/* Delay alignment info for the most part to the lowering phase */
+typedef struct {
+    uint32_t size;
+    uint32_t alignment;
+} JanetSysTypeLayout;
 
 /* Keep track of names for each instruction */
 extern const char *janet_sysop_names[];
+extern const char *prim_to_prim_name[];
 
 /* Lowering */
 void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into);
