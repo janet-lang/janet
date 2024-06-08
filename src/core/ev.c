@@ -281,13 +281,9 @@ void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback
     janet_assert(!fiber->ev_callback, "double async on fiber");
     if (mode & JANET_ASYNC_LISTEN_READ) {
         stream->read_fiber = fiber;
-    } else {
-        stream->read_fiber = NULL;
     }
     if (mode & JANET_ASYNC_LISTEN_WRITE) {
         stream->write_fiber = fiber;
-    } else {
-        stream->write_fiber = NULL;
     }
     fiber->ev_callback = callback;
     fiber->ev_stream = stream;
