@@ -174,17 +174,17 @@ JanetSysSpill *assign_registers(JanetSysIR *ir, JanetTable *assignments,
 static void do_spills(JanetBuffer *buffer, JanetSysSpill *spills, uint32_t index) {
     JanetSysSpill spill = spills[index];
     for (int spi = 0; spi < 3; spi++) {
-        if (spill.spills[spi] == JANET_SYS_SPILL_READ || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
-            // emit load
-            uint32_t reg = spill.regs[spi];
-            void *x = (void *) 0x123456;
-            janet_formatb(buffer, "load r%u from %v ; SPILL\n", reg, janet_wrap_pointer(x));
-        }
         if (spill.spills[spi] == JANET_SYS_SPILL_WRITE || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
             // emit store
             uint32_t reg = spill.regs[spi];
             void *x = (void *) 0x123456;
             janet_formatb(buffer, "store r%u to %v ; SPILL\n", reg, janet_wrap_pointer(x));
+        }
+        if (spill.spills[spi] == JANET_SYS_SPILL_READ || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
+            // emit load
+            uint32_t reg = spill.regs[spi];
+            void *x = (void *) 0x123456;
+            janet_formatb(buffer, "load r%u from %v ; SPILL\n", reg, janet_wrap_pointer(x));
         }
     }
 }
@@ -196,7 +196,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
         JanetTable *assignments = janet_table(0);
         /* 16 total 64 bit registers - 3 temp */
-        JanetSysSpill *spills = assign_registers(ir, assignments, 13);
+        JanetSysSpill *spills = assign_registers(ir, assignments, 113);
 
         /* Emit prelude */
         if (ir->link_name != NULL) {
@@ -216,6 +216,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                 case JANET_SYSOP_TYPE_BIND:
                 case JANET_SYSOP_TYPE_ARRAY:
                 case JANET_SYSOP_TYPE_POINTER:
+                case JANET_SYSOP_ARG:
                     /* Non synthesized instructions */
                     break;
                 case JANET_SYSOP_POINTER_ADD:
@@ -274,7 +275,38 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                             v2reg(assignments, instruction.branch.cond));
                     break;
                 case JANET_SYSOP_CALLK:
-                    do_spills(buffer, spills, j);
+                case JANET_SYSOP_CALL:
+                    ;
+                    /* Strange iteration is to iterate the arguments in reverse order */
+                    for (int32_t argo = instruction.call.arg_count - 1; argo >= 0; argo -= 3) {
+                        int32_t offset = argo / 3;
+                        int32_t sub_count = 3;
+                        while (offset * 3 + sub_count >= (int32_t) instruction.call.arg_count) {
+                            sub_count--;
+                        }
+                        JanetSysInstruction arg_instruction = ir->instructions[j + offset];
+                        do_spills(buffer, spills, j + offset);
+                        for (int x = sub_count; x >= 0; x--) {
+                            janet_formatb(buffer, "push r%u\n", v2reg(assignments, arg_instruction.arg.args[x]));
+                        }
+                    }
+                    if (instruction.opcode == JANET_SYSOP_CALLK) {
+                        if (instruction.callk.has_dest) {
+                            janet_formatb(buffer, "r%u = call %p\n", v2reg(assignments, instruction.callk.dest),
+                                    ir->constants[instruction.callk.constant]);
+                        } else {
+                            janet_formatb(buffer, "call %p\n",
+                                    ir->constants[instruction.callk.constant]);
+                        }
+                    } else {
+                        if (instruction.call.has_dest) {
+                            janet_formatb(buffer, "r%u = call r%u\n", v2reg(assignments, instruction.call.dest),
+                                    v2reg(assignments, instruction.call.callee));
+                        } else {
+                            janet_formatb(buffer, "call r%u\n",
+                                    v2reg(assignments, instruction.call.callee));
+                        }
+                    }
                     break;
                 // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
             }
