@@ -28,10 +28,59 @@
 #include "util.h"
 #endif
 
+#define RAX 0
+#define RCX 1
+#define RDX 2
+#define RBX 3
+#define RSI 4
+#define RDI 5
+#define RSP 6
+#define RBP 7
+
 static const char *register_names[] = {
-    "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
+    "rax", "rcx", "rdx", "rbx", "rsi", "rdi", "rsp", "rbp",
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 };
+
+static const char *register_names_32[] = {
+    "eax", "ecx", "edx", "ebx", "esi", "edi", "esp", "ebp",
+    "r8d", "r9d", "r10d", "rlld", "r12d", "r13d", "r14d", "r15d"
+};
+
+static const char *register_names_16[] = {
+    "ax", "cx", "dx", "bx", "si", "di", "sp", "bp",
+    "r8w", "r9w", "r10w", "rllw", "r12w", "r13w", "r14w", "r15w"
+};
+
+static const char *register_names_8[] = {
+    "al", "cl", "dl", "bl", "sil", "dil", "spl", "bpl",
+    "r8b", "r9b", "r10b", "rllb", "r12b", "r13b", "r14b", "r15b"
+};
+
+typedef struct {
+    enum {
+        JANET_SYSREG_STACK,
+        JANET_SYSREG_8,
+        JANET_SYSREG_16,
+        JANET_SYSREG_32,
+        JANET_SYSREG_64,
+        JANET_SYSREG_XMM
+    } kind;
+    uint32_t index;
+} x64Reg;
+
+typedef struct {
+    JanetSysIRLinkage *linkage;
+    JanetSysIR *ir;
+    JanetBuffer *buffer;
+    x64Reg *regs; /* Map IR virtual registers to hardware register or stack offset */
+    JanetSysTypeLayout *layouts;
+    JanetSysTypeLayout *ir_layouts;
+    uint32_t frame_size;
+    uint32_t restore_count;
+    uint32_t to_restore[128];
+    JanetSysCallingConvention calling_convention;
+} JanetSysx64Context;
 
 /* Get the layout for types */
 JanetSysTypeLayout get_x64layout(JanetSysTypeInfo info) {
@@ -72,18 +121,7 @@ JanetSysTypeLayout get_x64layout(JanetSysTypeInfo info) {
     return layout;
 }
 
-static uint32_t v2reg_dflt(JanetTable *assignments, uint32_t var, uint32_t dflt) {
-    Janet check = janet_table_get(assignments, janet_wrap_number(var));
-    if (janet_checktype(check, JANET_NUMBER)) {
-        return (uint32_t) janet_unwrap_number(check);
-    }
-    return dflt;
-}
-
-JanetSysSpill *assign_registers(JanetSysIR *ir,
-        JanetSysTypeLayout *layouts,
-        JanetTable *assignments,
-        uint32_t max_reg) {
+void assign_registers(JanetSysx64Context *ctx) {
 
     /* simplest register assignment algorithm - first n variables
      * get registers, rest get assigned temporary registers and spill on every use. */
@@ -92,199 +130,142 @@ JanetSysSpill *assign_registers(JanetSysIR *ir,
     /* TODO - move into sysir.c and allow reuse for multiple targets */
 
     /* Make trivial assigments */
-    for (uint32_t i = 0; i < ir->register_count; i++) {
-        if (i < max_reg) {
-            janet_table_put(assignments, janet_wrap_number(i), janet_wrap_number(i));
-        }
-    }
-
-    /* Assign all slots a stack location */
-    /* TODO - be smarter about this */
-    uint32_t *stack_locations = janet_smalloc(ir->register_count * sizeof(uint32_t));
     uint32_t next_loc = 0;
-    for (uint32_t i = 0; i < ir->register_count; i++) {
-        JanetSysTypeLayout layout = layouts[i];
-        next_loc = (next_loc + layout.alignment - 1) / layout.alignment * layout.alignment;
-        stack_locations[i] = next_loc;
-        next_loc += layout.size;
-    }
-
-    /* Generate spills. Spills occur iff using the temporary register (max_reg) */
-    JanetSysSpill *spills = NULL;
-    for (uint32_t i = 0; i < ir->instruction_count; i++) {
-        JanetSysInstruction instruction = ir->instructions[i];
-        JanetSysSpill spill;
-        spill.spills[0] = JANET_SYS_SPILL_NONE;
-        spill.spills[1] = JANET_SYS_SPILL_NONE;
-        spill.spills[2] = JANET_SYS_SPILL_NONE;
-        uint32_t rega;
-        uint32_t regb;
-        uint32_t regc;
-        switch (instruction.opcode) {
-            default:
-                break;
-
-            /* DEST = LHS op RHS */
-            case JANET_SYSOP_ADD:
-            case JANET_SYSOP_SUBTRACT:
-            case JANET_SYSOP_MULTIPLY:
-            case JANET_SYSOP_DIVIDE:
-            case JANET_SYSOP_BAND:
-            case JANET_SYSOP_BOR:
-            case JANET_SYSOP_BXOR:
-            case JANET_SYSOP_SHL:
-            case JANET_SYSOP_SHR:
-            case JANET_SYSOP_EQ:
-            case JANET_SYSOP_NEQ:
-            case JANET_SYSOP_LT:
-            case JANET_SYSOP_LTE:
-            case JANET_SYSOP_GT:
-            case JANET_SYSOP_GTE:
-            case JANET_SYSOP_POINTER_ADD:
-            case JANET_SYSOP_POINTER_SUBTRACT:
-                rega = v2reg_dflt(assignments, instruction.three.dest, max_reg);
-                regb = v2reg_dflt(assignments, instruction.three.lhs, max_reg + 1);
-                regc = v2reg_dflt(assignments, instruction.three.rhs, max_reg + 2);
-                spill.regs[0] = rega;
-                spill.regs[1] = regb;
-                spill.regs[2] = regc;
-                if (rega >= max_reg) {
-                    spill.spills[0] = JANET_SYS_SPILL_WRITE;
-                    spill.stack_offsets[0] = stack_locations[instruction.three.dest];
-                    spill.stack_sizes[0] = layouts[instruction.three.dest].size;
-                }
-                if (regb >= max_reg) {
-                    spill.spills[1] = JANET_SYS_SPILL_READ;
-                    spill.stack_offsets[1] = stack_locations[instruction.three.lhs];
-                    spill.stack_sizes[1] = layouts[instruction.three.lhs].size;
-                }
-                if (regc >= max_reg) {
-                    spill.spills[2] = JANET_SYS_SPILL_READ;
-                    spill.stack_offsets[2] = stack_locations[instruction.three.rhs];
-                    spill.stack_sizes[2] = layouts[instruction.three.rhs].size;
-                }
-                break;
-
-            /* DEST = op SRC */
-            case JANET_SYSOP_MOVE:
-            case JANET_SYSOP_CAST:
-            case JANET_SYSOP_BNOT:
-                rega = v2reg_dflt(assignments, instruction.two.dest, max_reg);
-                regb = v2reg_dflt(assignments, instruction.two.src, max_reg + 1);
-                spill.regs[0] = rega;
-                spill.regs[1] = regb;
-                if (rega >= max_reg) {
-                    spill.spills[0] = JANET_SYS_SPILL_WRITE;
-                    spill.stack_offsets[0] = stack_locations[instruction.two.dest];
-                    spill.stack_sizes[0] = layouts[instruction.two.dest].size;
-                }
-                if (regb >= max_reg) {
-                    spill.spills[1] = JANET_SYS_SPILL_READ;
-                    spill.stack_offsets[1] = stack_locations[instruction.two.src];
-                    spill.stack_sizes[1] = layouts[instruction.two.src].size;
-                }
-                break;
-
-            /* branch COND */
-            case JANET_SYSOP_BRANCH:
-            case JANET_SYSOP_BRANCH_NOT:
-                rega = v2reg_dflt(assignments, instruction.branch.cond, max_reg);
-                spill.regs[0] = rega;
-                if (rega >= max_reg) {
-                    spill.spills[0] = JANET_SYS_SPILL_READ;
-                    spill.stack_offsets[0] = stack_locations[instruction.branch.cond];
-                    spill.stack_sizes[0] = layouts[instruction.branch.cond].size;
-                }
-                break;
-
-            case JANET_SYSOP_CONSTANT:
-                rega = v2reg_dflt(assignments, instruction.constant.dest, max_reg);
-                spill.regs[0] = rega;
-                if (rega >= max_reg) {
-                    spill.spills[0] = JANET_SYS_SPILL_WRITE;
-                    spill.stack_offsets[0] = stack_locations[instruction.constant.dest];
-                    spill.stack_sizes[0] = layouts[instruction.constant.dest].size;
-                }
-                break;
-
-            case JANET_SYSOP_RETURN:
-                rega = v2reg_dflt(assignments, instruction.one.src, max_reg);
-                spill.regs[0] = rega;
-                if (rega >= max_reg) {
-                    spill.spills[0] = JANET_SYS_SPILL_READ;
-                    spill.stack_offsets[0] = stack_locations[instruction.one.src];
-                    spill.stack_sizes[0] = layouts[instruction.one.src].size;
-                }
-                break;
-
-            /* Should we handle here or per call? */
-            case JANET_SYSOP_ARG:
-                for (int j = 0; j < 3; j++) {
-                    uint32_t var = instruction.arg.args[j];
-                    rega = v2reg_dflt(assignments, var, 0);
-                    spill.regs[j] = rega;
-                    if (rega >= max_reg) { /* Unused elements must be 0 */
-                        spill.spills[j] = JANET_SYS_SPILL_READ;
-                        spill.stack_offsets[j] = stack_locations[instruction.arg.args[j]];
-                        spill.stack_sizes[j] = layouts[instruction.arg.args[j]].size;
-                    }
-                }
-                break;
-
-            /* Variable arg */
-            case JANET_SYSOP_CALL:
-            case JANET_SYSOP_CALLK:
-                /* TODO */
-                break;
+    ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
+    for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
+        if (i < 13) { /* skip r15 so we have some temporary registers if needed */
+            /* Assign to register */
+            uint32_t to = i;
+            if (to > 5) {
+                to += 2; /* skip rsp and rbp */
+            }
+            ctx->regs[i].kind = JANET_SYSREG_64;
+            ctx->regs[i].index = to;
+        } else { // TODO - also assign stack location if src of address IR instruction
+            /* Assign to stack location */
+            ctx->regs[i].kind = JANET_SYSREG_STACK;
+            JanetSysTypeLayout layout = ctx->ir_layouts[i];
+            next_loc = (next_loc + layout.alignment - 1) / layout.alignment * layout.alignment;
+            ctx->regs[i].index = next_loc;
+            next_loc += layout.size;
         }
-        janet_v_push(spills, spill);
     }
 
-    janet_sfree(layouts);
-    janet_sfree(stack_locations);
+    next_loc = (next_loc + 15) / 16 * 16;
+    ctx->frame_size = next_loc + 16;
 
-    return spills;
+    /* Mark which registers need restoration before returning */
+    ctx->restore_count = 0;
+    unsigned char seen[16] = {0};
+    unsigned char tokeep[] = {3, 6, 7, 12, 13, 14, 15};
+    for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
+        x64Reg reg = ctx->regs[i];
+        if (reg.kind == JANET_SYSREG_STACK) continue;
+        for (int j = 0; j < sizeof(tokeep); j++) {
+            if (!seen[j] && reg.index == tokeep[j]) {
+                ctx->to_restore[ctx->restore_count++] = reg.index;
+                seen[j] = 1;
+            }
+        }
+    }
 }
 
-typedef struct {
-    uint32_t temps[3];
-} JanetTempRegs;
-
-static JanetTempRegs do_spills_read(JanetBuffer *buffer, JanetSysSpill *spills, uint32_t index) {
-    JanetSysSpill spill = spills[index];
-    JanetTempRegs temps;
-    for (int spi = 0; spi < 3; spi++) {
-        uint32_t reg = spill.regs[spi];
-        temps.temps[spi] = reg;
-        if (spill.spills[spi] == JANET_SYS_SPILL_READ || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
-            // emit load
-            uint32_t x = spill.stack_offsets[spi];
-            uint32_t s = spill.stack_sizes[spi];
-            janet_formatb(buffer, "load%u r%u from stack[%u] ; SPILL\n", s, reg, x);
-        }
-    }
-    return temps;
+static int operand_isstack(JanetSysx64Context *ctx, uint32_t o) {
+    if (o > JANET_SYS_MAX_OPERAND) return 0; /* constant */
+    x64Reg reg = ctx->regs[o];
+    return reg.kind == JANET_SYSREG_STACK;
 }
 
-static void do_spills_write(JanetBuffer *buffer, JanetSysSpill *spills, uint32_t index) {
-    JanetSysSpill spill = spills[index];
-    for (int spi = 0; spi < 3; spi++) {
-        if (spill.spills[spi] == JANET_SYS_SPILL_WRITE || spill.spills[spi] == JANET_SYS_SPILL_BOTH) {
-            // emit store
-            uint32_t reg = spill.regs[spi];
-            uint32_t x = spill.stack_offsets[spi];
-            uint32_t s = spill.stack_sizes[spi];
-            janet_formatb(buffer, "store%u r%u to stack[%u] ; SPILL\n", s, reg, x);
+static int operand_isreg(JanetSysx64Context *ctx, uint32_t o, uint32_t regindex) {
+    if (o > JANET_SYS_MAX_OPERAND) return 0; /* constant */
+    x64Reg reg = ctx->regs[o];
+    if (reg.kind == JANET_SYSREG_STACK) return 0;
+    return reg.index == regindex;
+}
+
+static void sysemit_operand(JanetSysx64Context *ctx, uint32_t o, const char *after) {
+    if (o <= JANET_SYS_MAX_OPERAND) {
+        /* Virtual register */
+        x64Reg reg = ctx->regs[o];
+        if (reg.kind == JANET_SYSREG_STACK) {
+            janet_formatb(ctx->buffer, "[rbp - %u]", reg.index);
+        } else if (reg.kind == JANET_SYSREG_64) {
+            janet_formatb(ctx->buffer, "%s", register_names[reg.index]);
+        }
+    } else {
+        /* Constant */
+        uint32_t index = o - JANET_SYS_CONSTANT_PREFIX;
+        Janet c = ctx->ir->constants[index];
+        if (janet_checktype(c, JANET_STRING)) {
+            janet_formatb(ctx->buffer, "[rel CONST%u]", index);
+        } else {
+            janet_formatb(ctx->buffer, "%V", c);
         }
     }
+    janet_buffer_push_cstring(ctx->buffer, after);
+}
+
+/* A = A op B */
+static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t src) {
+    if (operand_isstack(ctx, dest) && operand_isstack(ctx, src)) {
+        /* Use a temporary register for src */
+        janet_formatb(ctx->buffer, "mov r15, ");
+        sysemit_operand(ctx, src, "\n");
+        janet_formatb(ctx->buffer, "%s ", op);
+        sysemit_operand(ctx, dest, ", r15\n");
+    } else {
+        janet_formatb(ctx->buffer, "%s ", op);
+        sysemit_operand(ctx, dest, ", ");
+        sysemit_operand(ctx, src, "\n");
+    }
+}
+
+static void sysemit_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
+    if (dest == src) return;
+    sysemit_binop(ctx, "mov", dest, src);
+}
+
+/* Move a value to a register, and save the contents of the old register on the stack */
+static void sysemit_mov_save(JanetSysx64Context *ctx, uint32_t dest_reg, uint32_t src) {
+    janet_formatb(ctx->buffer, "push %s\n", register_names[dest_reg]);
+    if (!operand_isreg(ctx, src, dest_reg)) {
+        janet_formatb(ctx->buffer, "mov %s, ", register_names[dest_reg]);
+        sysemit_operand(ctx, src, "\n");
+    }
+}
+
+static void sysemit_mov_restore(JanetSysx64Context *ctx, uint32_t dest_reg) {
+    janet_formatb(ctx->buffer, "pop %s\n", register_names[dest_reg]);
+}
+
+static void sysemit_threeop(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t lhs, uint32_t rhs) {
+    sysemit_mov(ctx, dest, lhs);
+    sysemit_binop(ctx, op, dest, rhs);
+}
+
+static void sysemit_ret(JanetSysx64Context *ctx, uint32_t arg, int has_return) {
+    if (has_return && !operand_isreg(ctx, arg, RAX)) {
+        janet_formatb(ctx->buffer, "mov rax, ");
+        sysemit_operand(ctx, arg, "\n");
+    }
+    janet_formatb(ctx->buffer, "add rsp, %u\n", ctx->frame_size);
+    for (uint32_t k = 0; k < ctx->restore_count; k++) {
+        /* Pop in reverse order */
+        janet_formatb(ctx->buffer, "pop %s\n", register_names[ctx->to_restore[ctx->restore_count - k - 1]]);
+    }
+    janet_formatb(ctx->buffer, "leave\n");
+    janet_formatb(ctx->buffer, "ret\n");
 }
 
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
-    /* For now, emit assembly for nasm. Eventually an assembler for use with Janet would be good. */
 
-    JanetSysTypeLayout *all_layouts = janet_smalloc(linkage->type_def_count * sizeof(JanetSysTypeLayout));
+    /* Partially setup context */
+    JanetSysx64Context ctx;
+    ctx.linkage = linkage;
+    ctx.buffer = buffer;
+    ctx.layouts = janet_smalloc(linkage->type_def_count * sizeof(JanetSysTypeLayout));
     for (uint32_t i = 0; i < linkage->type_def_count; i++) {
-        all_layouts[i] = get_x64layout(linkage->type_defs[i]);
+        ctx.layouts[i] = get_x64layout(linkage->type_defs[i]);
     }
 
     /* Emit prelude */
@@ -294,21 +275,20 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
     /* Do register allocation  */
     for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
-        JanetTable *assignments = janet_table(0);
-        JanetTempRegs temps;
-        /* Get type layouts */
-        JanetSysTypeLayout *layouts = janet_smalloc(ir->register_count * sizeof(JanetSysTypeLayout));
-        for (uint32_t i = 0; i < ir->register_count; i++) {
-            layouts[i] = all_layouts[ir->types[i]];
-        }
-        JanetSysSpill *spills = assign_registers(ir, layouts, assignments, 13);
 
-        /* Allow combining compare + branch instructions more easily */
-        int skip_branch = 0;
+        /* Setup conttext */
+        ctx.ir_layouts = janet_smalloc(ir->register_count * sizeof(JanetSysTypeLayout));
+        for (uint32_t i = 0; i < ir->register_count; i++) {
+            ctx.ir_layouts[i] = ctx.layouts[ir->types[i]];
+        }
+        ctx.ir = ir;
+        assign_registers(&ctx);
 
         /* Emit constant strings */
-        for (int32_t j = 0; j < ir->constant_count; j++) {
-            janet_formatb(buffer, ".CONST%u:\n  .string %p\n", j, ir->constants[j]);
+        for (uint32_t j = 0; j < ir->constant_count; j++) {
+            if (janet_checktype(ir->constants[j], JANET_STRING)) {
+                janet_formatb(buffer, "\nCONST%u: db %p\n", j, ir->constants[j]);
+            }
         }
 
         /* Emit prelude */
@@ -317,6 +297,14 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         } else {
             janet_formatb(buffer, "\n_section_%d:\n", i);
         }
+        janet_formatb(buffer, "push rbp\nmov rbp, rsp\nsub rsp, %u\n", ctx.frame_size);
+
+        for (uint32_t k = 0; k < ctx.restore_count; k++) {
+            /* Pop in reverse order */
+            janet_formatb(buffer, "push %s\n", register_names[ctx.to_restore[k]]);
+        }
+
+        /* Function body */
         for (uint32_t j = 0; j < ir->instruction_count; j++) {
             JanetSysInstruction instruction = ir->instructions[j];
             switch (instruction.opcode) {
@@ -333,36 +321,57 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     /* Non synthesized instructions */
                     break;
                 case JANET_SYSOP_POINTER_ADD:
-                case JANET_SYSOP_POINTER_SUBTRACT:
                 case JANET_SYSOP_ADD:
+                    sysemit_threeop(&ctx, "add", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_POINTER_SUBTRACT:
                 case JANET_SYSOP_SUBTRACT:
+                    sysemit_threeop(&ctx, "sub", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
                 case JANET_SYSOP_MULTIPLY:
+                    sysemit_threeop(&ctx, "mul", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
                 case JANET_SYSOP_DIVIDE:
-                    temps = do_spills_read(buffer, spills, j);
-                    janet_formatb(buffer, "r%u = %s r%u, r%u\n",
-                            temps.temps[0],
-                            janet_sysop_names[instruction.opcode],
-                            temps.temps[1],
-                            temps.temps[2]);
-                    do_spills_write(buffer, spills, j);
+                    sysemit_threeop(&ctx, "div", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_BAND:
+                    sysemit_threeop(&ctx, "and", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_BOR:
+                    sysemit_threeop(&ctx, "or", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_BXOR:
+                    sysemit_threeop(&ctx, "xor", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_SHL:
+                    sysemit_threeop(&ctx, "shl", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
+                    break;
+                case JANET_SYSOP_SHR:
+                    sysemit_threeop(&ctx, "shr", instruction.three.dest,
+                                    instruction.three.lhs,
+                                    instruction.three.rhs);
                     break;
                 case JANET_SYSOP_MOVE:
-                    temps = do_spills_read(buffer, spills, j);
-                    //janet_formatb(buffer, "r%u = r%u\n", temps.temps[0], temps.temps[1]);
-                    janet_formatb(buffer, "mov %s, %s\n",
-                            register_names[temps.temps[0]],
-                            register_names[temps.temps[1]]);
-                    do_spills_write(buffer, spills, j);
+                    sysemit_mov(&ctx, instruction.two.dest, instruction.two.src);
                     break;
                 case JANET_SYSOP_RETURN:
-                    temps = do_spills_read(buffer, spills, j);
-                    //janet_formatb(buffer, "return r%u\n", temps.temps[0]);
-                    janet_formatb(buffer, "leave\n mov %s, rax\nret\n", register_names[temps.temps[0]]);
-                    break;
-                case JANET_SYSOP_CONSTANT:
-                    temps = do_spills_read(buffer, spills, j);
-                    janet_formatb(buffer, "r%u = constant $%v\n", temps.temps[0], ir->constants[instruction.constant.constant]);
-                    do_spills_write(buffer, spills, j);
+                    sysemit_ret(&ctx, instruction.ret.value, instruction.ret.has_value);
                     break;
                 case JANET_SYSOP_LABEL:
                     janet_formatb(buffer, "label_%u:\n", instruction.label.id);
@@ -373,16 +382,15 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                 case JANET_SYSOP_LTE:
                 case JANET_SYSOP_GT:
                 case JANET_SYSOP_GTE:
-                    temps = do_spills_read(buffer, spills, j);
+                    ;
                     JanetSysInstruction nexti = ir->instructions[j + 1];
                     /* Combine compare and branch into one instruction */
-                    /* TODO - handle when lhs or rhs is 0 */
+                    /* TODO - specialize when lhs or rhs is 0 */
                     /* TODO - handle floats */
-                    janet_formatb(buffer, "cmp %s, %s\n", register_names[temps.temps[1]], register_names[temps.temps[2]]);
+                    sysemit_binop(&ctx, "cmp", instruction.three.lhs, instruction.three.rhs);
                     if ((nexti.opcode == JANET_SYSOP_BRANCH ||
                             nexti.opcode == JANET_SYSOP_BRANCH_NOT)
                             && nexti.branch.cond == instruction.three.dest) {
-                        skip_branch = 1;
                         int invert = nexti.opcode == JANET_SYSOP_BRANCH_NOT;
                         if (instruction.opcode == JANET_SYSOP_EQ) {
                             janet_formatb(buffer, "%s label_%u\n", invert ? "jne" : "je", nexti.branch.to);
@@ -399,84 +407,79 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                         } else {
                             janet_panic("unreachable");
                         }
-                        do_spills_write(buffer, spills, j);
+                        j++; /* Skip next branch instruction */
                         break;
                     }
                     /* Fallback to set* instructions */
                     if (instruction.opcode == JANET_SYSOP_EQ) {
-                        janet_formatb(buffer, "sete %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "sete ");
                     } else if (instruction.opcode == JANET_SYSOP_NEQ) {
-                        janet_formatb(buffer, "setne %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "setne ");
                     } else if (instruction.opcode == JANET_SYSOP_GT) {
-                        janet_formatb(buffer, "setg %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "setg ");
                     } else if (instruction.opcode == JANET_SYSOP_GTE) {
-                        janet_formatb(buffer, "setge %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "setge ");
                     } else if (instruction.opcode == JANET_SYSOP_LT) {
-                        janet_formatb(buffer, "setl %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "setl ");
                     } else if (instruction.opcode == JANET_SYSOP_LTE) {
-                        janet_formatb(buffer, "setle %s\n", register_names[temps.temps[0]]);
+                        janet_formatb(buffer, "setle ");
                     } else {
                         janet_panic("unreachable");
                     }
-                    do_spills_write(buffer, spills, j);
+                    sysemit_operand(&ctx, instruction.three.dest, "\n");
                     break;
                 case JANET_SYSOP_BRANCH:
                 case JANET_SYSOP_BRANCH_NOT:
-                    ;
-                    if (skip_branch) {
-                        skip_branch = 0;
-                        break;
-                    }
-                    temps = do_spills_read(buffer, spills, j);
-                    if (instruction.opcode == JANET_SYSOP_BRANCH) {
-                        janet_formatb(buffer, "jnz %s label_%u\n",
-                                register_names[temps.temps[0]],
-                                instruction.branch.to);
-                    } else {
-                        janet_formatb(buffer, "jz %s label_%u\n",
-                                register_names[temps.temps[0]],
-                                instruction.branch.to);
-                    }
+                    janet_formatb(buffer, instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ");
+                    sysemit_operand(&ctx, instruction.branch.cond, " ");
+                    janet_formatb(buffer, "label_%u\n", instruction.branch.to);
                     break;
                 case JANET_SYSOP_JUMP:
-                    janet_formatb(buffer, "jmp label_%u\n",
-                            instruction.jump.to);
+                    janet_formatb(buffer, "jmp label_%u\n", instruction.jump.to);
                     break;
-                case JANET_SYSOP_CALLK:
                 case JANET_SYSOP_CALL:
                     ;
+                    /* Push first 6 arguments to particular registers */
+                    JanetSysInstruction args1 = ir->instructions[j + 1];
+                    JanetSysInstruction args2 = ir->instructions[j + 2];
+                    if (instruction.call.arg_count >= 1) sysemit_mov_save(&ctx, RDI, args1.arg.args[0]);
+                    if (instruction.call.arg_count >= 2) sysemit_mov_save(&ctx, RSI, args1.arg.args[1]);
+                    if (instruction.call.arg_count >= 3) sysemit_mov_save(&ctx, RDX, args1.arg.args[2]);
+                    if (instruction.call.arg_count >= 4) sysemit_mov_save(&ctx, RCX, args2.arg.args[0]);
+                    if (instruction.call.arg_count >= 5) sysemit_mov_save(&ctx, 8,   args2.arg.args[1]);
+                    if (instruction.call.arg_count >= 6) sysemit_mov_save(&ctx, 9,   args2.arg.args[2]);
                     /* Strange iteration is to iterate the arguments in reverse order */
-                    for (int32_t argo = instruction.call.arg_count - 1; argo >= 0; argo -= 3) {
+                    for (int32_t argo = instruction.call.arg_count - 1; argo >= 5; argo--) {
                         int32_t offset = argo / 3;
-                        int32_t sub_count = 3;
-                        while (offset * 3 + sub_count >= (int32_t) instruction.call.arg_count) {
-                            sub_count--;
-                        }
-                        temps = do_spills_read(buffer, spills, j + offset);
-                        for (int x = sub_count; x >= 0; x--) {
-                            janet_formatb(buffer, "push r%u\n", temps.temps[x]);
-                        }
+                        int32_t x = argo % 3;
+                        janet_formatb(buffer, "push ");
+                        sysemit_operand(&ctx, ir->instructions[j + offset + 1].arg.args[x], "\n");
                     }
-                    temps = do_spills_read(buffer, spills, j);
-                    if (instruction.opcode == JANET_SYSOP_CALLK) {
-                        if (instruction.callk.has_dest) {
-                            janet_formatb(buffer, "r%u = call %p\n", temps.temps[0],
-                                    ir->constants[instruction.callk.constant]);
-                        } else {
-                            janet_formatb(buffer, "call %p\n",
-                                    ir->constants[instruction.callk.constant]);
-                        }
-                    } else {
-                        if (instruction.call.has_dest) {
-                            janet_formatb(buffer, "r%u = call r%u\n", temps.temps[0], temps.temps[1]);
-                        } else {
-                            janet_formatb(buffer, "call r%u\n", temps.temps[0]);
-                        }
+                    janet_formatb(buffer, "call ");
+                    sysemit_operand(&ctx, instruction.call.callee, "\n");
+                    if (instruction.call.has_dest) {
+                        /* Get result from rax */
+                        janet_formatb(buffer, "mov ");
+                        sysemit_operand(&ctx, instruction.call.dest, ", rax\n");
                     }
-                    do_spills_write(buffer, spills, j);
+                    if (instruction.call.arg_count >= 6) sysemit_mov_restore(&ctx, 9);
+                    if (instruction.call.arg_count >= 5) sysemit_mov_restore(&ctx, 8);
+                    if (instruction.call.arg_count >= 4) sysemit_mov_restore(&ctx, RCX);
+                    if (instruction.call.arg_count >= 3) sysemit_mov_restore(&ctx, RDX);
+                    if (instruction.call.arg_count >= 2) sysemit_mov_restore(&ctx, RSI);
+                    if (instruction.call.arg_count >= 1) sysemit_mov_restore(&ctx, RDI);
                     break;
-                // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
+                    // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
             }
         }
     }
 }
+
+#undef RAX
+#undef RCX
+#undef RDX
+#undef RBX
+#undef RSI
+#undef RDI
+#undef RSP
+#undef RBP

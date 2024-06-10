@@ -25,7 +25,7 @@
     (constant 3 1.77)
     (call 3 sin 3)
     (cast bob 2)
-    (call bob test_function)
+    (call :default bob test_function)
     (add 5 bob 3)
     (jump :location)
     (return 5)))

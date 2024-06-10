@@ -82,14 +82,12 @@ typedef enum {
     JANET_SYSOP_NEQ,
     JANET_SYSOP_GTE,
     JANET_SYSOP_LTE,
-    JANET_SYSOP_CONSTANT,
     JANET_SYSOP_CALL,
     JANET_SYSOP_RETURN,
     JANET_SYSOP_JUMP,
     JANET_SYSOP_BRANCH,
     JANET_SYSOP_BRANCH_NOT,
     JANET_SYSOP_ADDRESS,
-    JANET_SYSOP_CALLK,
     JANET_SYSOP_TYPE_PRIMITIVE,
     JANET_SYSOP_TYPE_STRUCT,
     JANET_SYSOP_TYPE_BIND,
@@ -131,6 +129,17 @@ typedef struct {
 #define JANET_SYS_MAX_OPERAND      0x7FFFFFFFU
 #define JANET_SYS_CONSTANT_PREFIX  0x80000000U
 
+typedef enum {
+    JANET_SYS_CC_DEFAULT, /* Reasonable default - maps to a specific cc based on target */
+    JANET_SYS_CC_SYSCALL, /* Reasonable default for platform syscalls - maps to a specific cc based on target */
+    JANET_SYS_CC_X86_CDECL,
+    JANET_SYS_CC_X86_STDCALL,
+    JANET_SYS_CC_X86_FASTCALL,
+    JANET_SYS_CC_X64_SYSV,
+    JANET_SYS_CC_X64_SYSV_SYSCALL,
+    JANET_SYS_CC_X64_WINDOWS,
+} JanetSysCallingConvention;
+
 typedef struct {
     JanetSysOp opcode;
     union {
@@ -143,14 +152,9 @@ typedef struct {
             uint32_t dest;
             uint32_t callee;
             uint32_t arg_count;
-            uint32_t has_dest;
+            uint8_t has_dest;
+            JanetSysCallingConvention calling_convention;
         } call;
-        struct {
-            uint32_t dest;
-            uint32_t constant;
-            uint32_t arg_count;
-            uint32_t has_dest;
-        } callk;
         struct {
             uint32_t dest;
             uint32_t src;
@@ -165,10 +169,6 @@ typedef struct {
             uint32_t cond;
             uint32_t to;
         } branch;
-        struct {
-            uint32_t dest;
-            uint32_t constant;
-        } constant;
         struct {
             uint32_t dest_type;
             uint32_t prim;
@@ -201,6 +201,10 @@ typedef struct {
         struct {
             uint32_t id;
         } label;
+        struct {
+            uint32_t value;
+            uint32_t has_value;
+        } ret;
     };
     int32_t line;
     int32_t column;
@@ -234,31 +238,17 @@ typedef struct {
     uint32_t register_count;
     uint32_t constant_count;
     uint32_t return_type;
+    uint32_t has_return_type;
     uint32_t parameter_count;
     uint32_t label_count;
     uint32_t *types;
     JanetSysInstruction *instructions;
     JanetString *register_names;
     Janet *constants;
+    JanetTable *constants_lookup;
     JanetTable *register_name_lookup;
     JanetTable *labels;
 } JanetSysIR;
-
-/* Represent register spills after doing register allocation. Before lowering
- * individual instructions, check if any spills occur and possibly insert extra
- * reads and writes from/to the stack. Up to 6 spills per instruction (3 registers
- * a load and store each) */
-typedef struct {
-    enum {
-        JANET_SYS_SPILL_NONE,
-        JANET_SYS_SPILL_READ,
-        JANET_SYS_SPILL_WRITE,
-        JANET_SYS_SPILL_BOTH
-    } spills[3];
-    uint32_t regs[3];
-    uint32_t stack_offsets[3];
-    uint32_t stack_sizes[3];
-} JanetSysSpill;
 
 /* Delay alignment info for the most part to the lowering phase */
 typedef struct {

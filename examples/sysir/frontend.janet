@@ -79,32 +79,12 @@
   (cond
 
     # Compile a constant
-    (number? code)
-    (let [slot (get-slot)
-          slottype 'int]
-      (array/push into ~(bind ,slot ,slottype))
-      (array/push into ~(constant ,slot ,code))
-      slot)
-
-    # Booleans
-    (boolean? code)
-    (let [slot (get-slot)
-          slottype 'boolean]
-      (array/push into ~(bind ,slot ,slottype))
-      (array/push into ~(constant ,slot ,(if code -1 0)))
-      slot)
+    (or (string? code) (number? code) (boolean? code))
+    ~(,code)
 
     # Binding
     (symbol? code)
     (named-slot code)
-
-    # String literals
-    (string? code)
-    (let [slot (get-slot)
-          slottype 'pointer]
-      (array/push into ~(bind ,slot ,slottype))
-      (array/push into ~(constant ,slot ,code))
-      slot)
 
     # Compile forms
     (and (tuple? code) (= :parens (tuple/type code)))
@@ -135,8 +115,14 @@
           (assert (= 2 (length args)))
           (def [xtype x] args)
           (def result (visit1 x into))
-          (array/push into ~(bind ,result ,xtype))
-          result)
+          (if (tuple? result) # constant
+            (let [r (get-slot)] 
+              (array/push into ~(bind ,r ,xtype))
+              (array/push into ~(move ,r ,result))
+              r)
+            (do
+              (array/push into ~(bind ,result ,xtype))
+              result)))
 
         # Named bindings
         # TODO - type inference
@@ -235,7 +221,7 @@
           (def ret (if no-return nil (get-slot)))
           (each arg args
             (array/push slots (visit1 arg into)))
-          (array/push into ~(call ,ret ,op ,;slots))
+          (array/push into ~(call :default ,ret [,op] ,;slots))
           ret)))
 
     (errorf "cannot compile %q" code)))
@@ -311,6 +297,7 @@
         (array/push ir-asm ~(bind ,slot ,tp)))
       (each part body
         (visit1 part ir-asm true))
+      #(eprintf "%.99M" ir-asm)
       (sysir/asm ctx ir-asm))
 
     (errorf "unknown form %v" form)))
@@ -318,6 +305,11 @@
 ###
 ###
 ###
+
+(def simple
+  '(defn simple [x:int]
+     (def xyz:int (+ 1 2 3))
+     (return (* x 2 x))))
 
 (def myprog
   '(defn myprog []
@@ -327,8 +319,8 @@
      (var i:int 0)
      (while (< i 10)
        (set i (+ 1 i))
-       (printf "i = %d\n" (the int i)))
-     (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
+       (printf (the pointer "i = %d\n") (the int i)))
+     (printf (the pointer "hello, world!\n%d\n") (the int (if x abc xyz)))
      (return (/ abc xyz))))
 
 (def doloop
@@ -340,10 +332,10 @@
      (return x)))
 
 (def main-fn
-  '(defn main:int []
+  '(defn main:void []
      (doloop 10 20)
      (printf "done!\n")
-     (return (the int 0))))
+     (return)))
 
 (def ctx (sysir/context))
 (setup-default-types ctx)
@@ -367,5 +359,9 @@
 ####
 
 (compile1 myprog)
+(compile1 doloop)
+(compile1 main-fn)
+(print "compiled!")
 (dump)
+(dumpc)
 (dumpx64)
