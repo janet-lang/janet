@@ -215,6 +215,20 @@
           (array/push into lab-end)
           ret)
 
+        # Insert IR
+        'ir
+        (do (array/push into ;args) nil)
+
+        # Syscall
+        'syscall
+        (do
+          (def slots @[])
+          (def ret (if no-return nil (get-slot)))
+          (each arg args
+            (array/push slots (visit1 arg into)))
+          (array/push into ~(syscall :default ,ret ,;slots))
+          ret)
+
         # Assume function call
         (do
           (def slots @[])
@@ -332,9 +346,10 @@
      (return x)))
 
 (def main-fn
-  '(defn main:void []
-     (doloop 10 20)
-     (printf "done!\n")
+  '(defn _start:void []
+     (syscall 1 1 "Hello, world!\n" 14)
+     (syscall 60 0)
+     #(write 1 "Hello, world!\n" 14)
      (return)))
 
 (def ctx (sysir/context))
@@ -358,10 +373,9 @@
 
 ####
 
-(compile1 myprog)
-(compile1 doloop)
+#(compile1 myprog)
+#(compile1 doloop)
 (compile1 main-fn)
-(print "compiled!")
-(dump)
-(dumpc)
+#(dump)
+#(dumpc)
 (dumpx64)

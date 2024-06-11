@@ -83,6 +83,7 @@ typedef enum {
     JANET_SYSOP_GTE,
     JANET_SYSOP_LTE,
     JANET_SYSOP_CALL,
+    JANET_SYSOP_SYSCALL,
     JANET_SYSOP_RETURN,
     JANET_SYSOP_JUMP,
     JANET_SYSOP_BRANCH,
@@ -259,6 +260,13 @@ typedef struct {
 /* Keep track of names for each instruction */
 extern const char *janet_sysop_names[];
 extern const char *prim_to_prim_name[];
+
+/* Utilities */
+
+/* Get list of uint32_t instruction arguments from a call or other variable length instruction.
+   Needs to be free with janet_sfree (or you can leak it and the garbage collector will eventually clean
+ * it up). */
+uint32_t *janet_sys_callargs(JanetSysInstruction *instr, uint32_t *count);
 
 /* Lowering */
 void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into);
