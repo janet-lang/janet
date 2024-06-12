@@ -37,6 +37,7 @@ temp.janet
 temp.c
 temp*janet
 temp*.c
+temp.*
 scratch.janet
 scratch.c
 

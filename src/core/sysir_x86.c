@@ -57,15 +57,23 @@ static const char *register_names_8[] = {
     "r8b", "r9b", "r10b", "rllb", "r12b", "r13b", "r14b", "r15b"
 };
 
+static const char *register_names_xmm[] = {
+    "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+    "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"
+};
+
+typedef enum {
+    JANET_SYSREG_STACK, // TODO - one of these is not like the others
+    JANET_SYSREG_8,
+    JANET_SYSREG_16,
+    JANET_SYSREG_32,
+    JANET_SYSREG_64,
+    JANET_SYSREG_2x64,
+    JANET_SYSREG_XMM
+} x64RegKind;
+
 typedef struct {
-    enum {
-        JANET_SYSREG_STACK,
-        JANET_SYSREG_8,
-        JANET_SYSREG_16,
-        JANET_SYSREG_32,
-        JANET_SYSREG_64,
-        JANET_SYSREG_XMM
-    } kind;
+    x64RegKind kind;
     uint32_t index;
 } x64Reg;
 
@@ -80,6 +88,7 @@ typedef struct {
     uint32_t restore_count;
     uint32_t to_restore[128];
     JanetSysCallingConvention calling_convention;
+    int32_t ir_index;
 } JanetSysx64Context;
 
 /* Get the layout for types */
@@ -121,26 +130,64 @@ JanetSysTypeLayout get_x64layout(JanetSysTypeInfo info) {
     return layout;
 }
 
+/* Get the register type that could store an operand o. Anything that will
+ * be forced to the stack will return a 64bit register. */
+static x64RegKind get_slot_regkind(JanetSysx64Context *ctx, uint32_t o) {
+    JanetPrim prim;
+    if (o > JANET_SYS_MAX_OPERAND) {
+        prim = ctx->linkage->type_defs[ctx->ir->constants[o - JANET_SYS_CONSTANT_PREFIX].type].prim;
+    } else {
+        prim = ctx->linkage->type_defs[ctx->ir->types[o]].prim;
+    }
+    if (prim == JANET_PRIM_S8 || prim == JANET_PRIM_U8) {
+        return JANET_SYSREG_8;
+    } else if (prim == JANET_PRIM_S16 || prim == JANET_PRIM_U16) {
+        return JANET_SYSREG_16;
+    } else if (prim == JANET_PRIM_S32 || prim == JANET_PRIM_U32) {
+        return JANET_SYSREG_32;
+    } else if (prim == JANET_PRIM_F64 || prim == JANET_PRIM_F32) {
+        return JANET_SYSREG_XMM;
+    } else {
+        return JANET_SYSREG_64;
+    }
+}
+
 void assign_registers(JanetSysx64Context *ctx) {
 
     /* simplest register assignment algorithm - first n variables
      * get registers, rest get assigned temporary registers and spill on every use. */
     /* TODO - linear scan or graph coloring. Require calculating live ranges */
-    /* TODO - avoid spills inside loops if possible */
+    /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
 
     /* Make trivial assigments */
     uint32_t next_loc = 0;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
+    uint32_t assigned = 0;
+    assigned |= 1 << RSP;
+    assigned |= 1 << RBP;
+    assigned |= 1 << 15; // keep a temp
     for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
-        if (i < 13) { /* skip r15 so we have some temporary registers if needed */
-            /* Assign to register */
-            uint32_t to = i + 1; /* skip rax */
-            if (i > 5) {
-                to += 2; /* skip rsp and rbp */
+        if (i < ctx->ir->parameter_count) {
+            /* Assign to rdi, rsi, etc. according to ABI */
+            ctx->regs[i].kind = get_slot_regkind(ctx, i);
+            if (i == 0) ctx->regs[i].index = RDI;
+            if (i == 1) ctx->regs[i].index = RSI;
+            if (i == 2) ctx->regs[i].index = RDX;
+            if (i == 3) ctx->regs[i].index = RCX;
+            if (i == 4) ctx->regs[i].index = 8;
+            if (i == 5) ctx->regs[i].index = 9;
+            if (i >= 6) {
+                janet_assert(0, "more than 6 parameters nyi");
             }
-            ctx->regs[i].kind = JANET_SYSREG_64;
+            assigned |= 1 << ctx->regs[i].index;
+        } else if (assigned < 0xFFFF) { /* skip r15 so we have some temporary registers if needed */
+            /* Assign to register */
+            uint32_t to = 0;
+            while ((1 << to) & assigned) to++;
+            ctx->regs[i].kind = get_slot_regkind(ctx, i);
             ctx->regs[i].index = to;
+            assigned |= 1 << ctx->regs[i].index;
         } else { // TODO - also assign stack location if src of address IR instruction
             /* Assign to stack location */
             ctx->regs[i].kind = JANET_SYSREG_STACK;
@@ -183,36 +230,57 @@ static int operand_isreg(JanetSysx64Context *ctx, uint32_t o, uint32_t regindex)
     return reg.index == regindex;
 }
 
+static void sysemit_reg(JanetSysx64Context *ctx, x64Reg reg, const char *after) {
+    if (reg.kind == JANET_SYSREG_STACK) {
+        janet_formatb(ctx->buffer, "[rbp - %u]", reg.index);
+    } else if (reg.kind == JANET_SYSREG_64) {
+        janet_formatb(ctx->buffer, "%s", register_names[reg.index]);
+    } else if (reg.kind == JANET_SYSREG_32) {
+        janet_formatb(ctx->buffer, "%s", register_names_32[reg.index]);
+    } else if (reg.kind == JANET_SYSREG_16) {
+        janet_formatb(ctx->buffer, "%s", register_names_16[reg.index]);
+    } else if (reg.kind == JANET_SYSREG_8) {
+        janet_formatb(ctx->buffer, "%s", register_names_8[reg.index]);
+    } else {
+        janet_formatb(ctx->buffer, "%s", register_names_xmm[reg.index]);
+    }
+    if (after) janet_buffer_push_cstring(ctx->buffer, after);
+}
+
 static void sysemit_operand(JanetSysx64Context *ctx, uint32_t o, const char *after) {
     if (o <= JANET_SYS_MAX_OPERAND) {
-        /* Virtual register */
-        x64Reg reg = ctx->regs[o];
-        if (reg.kind == JANET_SYSREG_STACK) {
-            janet_formatb(ctx->buffer, "[rbp - %u]", reg.index);
-        } else if (reg.kind == JANET_SYSREG_64) {
-            janet_formatb(ctx->buffer, "%s", register_names[reg.index]);
-        }
+        sysemit_reg(ctx, ctx->regs[o], NULL);
     } else {
         /* Constant */
         uint32_t index = o - JANET_SYS_CONSTANT_PREFIX;
-        Janet c = ctx->ir->constants[index];
+        Janet c = ctx->ir->constants[index].value;
+        // TODO - do this properly
         if (janet_checktype(c, JANET_STRING)) {
-            janet_formatb(ctx->buffer, "CONST%u", index);
+            janet_formatb(ctx->buffer, "CONST_%d_%u", ctx->ir_index, index);
         } else {
+            // TODO - do this properly too.
+            // Also figure out how to load large constants to a temporary register
+            // In x64, only move to register is allowed to take a 64 bit immediate, so
+            // our methodology here changes based on what kind of operand we need.
             janet_formatb(ctx->buffer, "%V", c);
         }
     }
-    janet_buffer_push_cstring(ctx->buffer, after);
+    if (after) janet_buffer_push_cstring(ctx->buffer, after);
 }
 
 /* A = A op B */
 static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t src) {
     if (operand_isstack(ctx, dest) && operand_isstack(ctx, src)) {
         /* Use a temporary register for src */
-        janet_formatb(ctx->buffer, "mov r15, ");
+        x64Reg tempreg;
+        tempreg.kind = get_slot_regkind(ctx, dest);
+        tempreg.index = 15;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
         sysemit_operand(ctx, src, "\n");
         janet_formatb(ctx->buffer, "%s ", op);
-        sysemit_operand(ctx, dest, ", r15\n");
+        sysemit_operand(ctx, dest, ", ");
+        sysemit_reg(ctx, tempreg, "\n");
     } else {
         janet_formatb(ctx->buffer, "%s ", op);
         sysemit_operand(ctx, dest, ", ");
@@ -227,7 +295,11 @@ static void sysemit_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
 
 static void sysemit_movreg(JanetSysx64Context *ctx, uint32_t regdest, uint32_t src) {
     if (operand_isreg(ctx, src, regdest)) return;
-    janet_formatb(ctx->buffer, "mov %s, ", register_names[regdest]);
+    x64Reg tempreg;
+    tempreg.kind = get_slot_regkind(ctx, src);
+    tempreg.index = regdest;
+    janet_formatb(ctx->buffer, "mov ");
+    sysemit_reg(ctx, tempreg, ", ");
     sysemit_operand(ctx, src, "\n");
 }
 
@@ -235,7 +307,7 @@ static void sysemit_pushreg(JanetSysx64Context *ctx, uint32_t dest_reg) {
     janet_formatb(ctx->buffer, "push %s\n", register_names[dest_reg]);
 }
 
-/* Move a value to a register, and save the contents of the old register on the stack */
+/* Move a value to a register, and save the contents of the old register on fhe stack */
 static void sysemit_mov_save(JanetSysx64Context *ctx, uint32_t dest_reg, uint32_t src) {
     sysemit_pushreg(ctx, dest_reg);
     sysemit_movreg(ctx, dest_reg, src);
@@ -256,7 +328,7 @@ static void sysemit_three_inst(JanetSysx64Context *ctx, const char *op, JanetSys
 
 static void sysemit_ret(JanetSysx64Context *ctx, uint32_t arg, int has_return) {
     if (has_return) sysemit_movreg(ctx, RAX, arg);
-    janet_formatb(ctx->buffer, "add rsp, %u\n", ctx->frame_size);
+    /* TODO - depends on current calling convention */
     for (uint32_t k = 0; k < ctx->restore_count; k++) {
         /* Pop in reverse order */
         janet_formatb(ctx->buffer, "pop %s\n", register_names[ctx->to_restore[ctx->restore_count - k - 1]]);
@@ -279,7 +351,7 @@ static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
             nexti.branch.cond == instruction.three.dest) {
         /* Combine compare and branch */
         int invert = nexti.opcode == JANET_SYSOP_BRANCH_NOT;
-        janet_formatb(ctx->buffer, "%s label_%u\n", invert ? branch_invert : branch, nexti.branch.to);
+        janet_formatb(ctx->buffer, "%s label_%d_%u\n", invert ? branch_invert : branch, ctx->ir_index, nexti.branch.to);
         /* Skip next branch IR instruction */
         return 1;
     } else {
@@ -288,6 +360,25 @@ static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
         sysemit_operand(ctx, instruction.three.dest, "\n");
         return 0;
     }
+}
+
+static void sysemit_cast(JanetSysx64Context *ctx, JanetSysInstruction instruction) {
+    uint32_t dest = instruction.two.dest;
+    uint32_t src = instruction.two.src;
+    uint32_t dest_type = janet_sys_optype(ctx->ir, dest);
+    uint32_t src_type = janet_sys_optype(ctx->ir, src);
+    JanetSysTypeInfo destinfo = ctx->linkage->type_defs[dest_type];
+    JanetSysTypeInfo srcinfo = ctx->linkage->type_defs[src_type];
+    /* For signed -> unsigned of same size, just move */
+    /* For casting larger integer to smaller, truncate by just using smaller register class w/ move */
+    /* For casting smaller integer to larger, depends.
+     *      for 32 -> 64, zeros/sign-extends upper bits
+     *      for other sizes, upper bits unchanged, need to be zeroed or oned before hand.
+     *      for floating pointer conversions, todo
+     */
+    (void) destinfo;
+    (void) srcinfo;
+    janet_formatb(ctx->buffer, "; cast nyi\n");
 }
 
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
@@ -303,10 +394,24 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
 
     /* Emit prelude */
     janet_formatb(buffer, "bits 64\ndefault rel\n\n");
+    JanetTable *seen = janet_table(0);
     for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
         if (ir->link_name != NULL) {
+            janet_table_put(seen, janet_csymbolv((const char *)ir->link_name), janet_wrap_true());
             janet_formatb(buffer, "global %s\n", ir->link_name);
+        }
+    }
+    for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
+        JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
+        for (uint32_t j = 0; j < ir->constant_count; j++) {
+            Janet c = ir->constants[j].value;
+            if (janet_checktype(janet_table_get(seen, c), JANET_NIL)) {
+                if (janet_checktype(c, JANET_SYMBOL)) {
+                    janet_formatb(buffer, "extern %V\n", c);
+                    janet_table_put(seen, c, janet_wrap_true());
+                }
+            }
         }
     }
     janet_formatb(buffer, "section .text\n");
@@ -314,6 +419,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
     /* Do register allocation  */
     for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
+        ctx.ir_index = i;
         if (ir->link_name == NULL) {
             continue;
         }
@@ -325,38 +431,6 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         }
         ctx.ir = ir;
         assign_registers(&ctx);
-
-        /* Emit constant strings */
-        for (uint32_t j = 0; j < ir->constant_count; j++) {
-            if (janet_checktype(ir->constants[j], JANET_STRING)) {
-                JanetString str = janet_unwrap_string(ir->constants[j]);
-                janet_formatb(buffer, "\nCONST%u: db ", j);
-                /* Nasm syntax */
-                int in_string = 0;
-                for (int32_t ci = 0; ci < janet_string_length(str); ci++) {
-                    int c = str[ci];
-                    if (c < 32) {
-                        if (in_string) {
-                            janet_formatb(buffer, "\", %d", c);
-                        } else {
-                            janet_formatb(buffer, ci ? ", %d" : "%d", c);
-                        }
-                        in_string = 0;
-                    } else {
-                        if (!in_string) {
-                            janet_buffer_push_cstring(buffer, ci ? ", \"" : "\"");
-                        }
-                        janet_buffer_push_u8(buffer, c);
-                        in_string = 1;
-                    }
-                }
-                if (!in_string) {
-                    janet_buffer_push_cstring(buffer, "\n");
-                } else {
-                    janet_buffer_push_cstring(buffer, "\"\n");
-                }
-            }
-        }
 
         /* Emit prelude */
         if (ir->link_name != NULL) {
@@ -423,7 +497,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     sysemit_ret(&ctx, instruction.ret.value, instruction.ret.has_value);
                     break;
                 case JANET_SYSOP_LABEL:
-                    janet_formatb(buffer, "label_%u:\n", instruction.label.id);
+                    janet_formatb(buffer, "label_%d_%u:\n", i, instruction.label.id);
                     break;
                 case JANET_SYSOP_EQ:
                     j += sysemit_comp(&ctx, j, "je", "jne", "sete");
@@ -443,14 +517,17 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                 case JANET_SYSOP_GTE:
                     j += sysemit_comp(&ctx, j, "jge", "jl", "setge");
                     break;
+                case JANET_SYSOP_CAST:
+                    sysemit_cast(&ctx, instruction);
+                    break;
                 case JANET_SYSOP_BRANCH:
                 case JANET_SYSOP_BRANCH_NOT:
                     janet_formatb(buffer, instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ");
                     sysemit_operand(&ctx, instruction.branch.cond, " ");
-                    janet_formatb(buffer, "label_%u\n", instruction.branch.to);
+                    janet_formatb(buffer, "label_%d_%u\n", i, instruction.branch.to);
                     break;
                 case JANET_SYSOP_JUMP:
-                    janet_formatb(buffer, "jmp label_%u\n", instruction.jump.to);
+                    janet_formatb(buffer, "jmp label_%d_%u\n", i, instruction.jump.to);
                     break;
                 case JANET_SYSOP_SYSCALL:
                 case JANET_SYSOP_CALL:
@@ -473,10 +550,14 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                         sysemit_movreg(&ctx, RAX, instruction.call.callee);
                         janet_formatb(buffer, "syscall\n");
                     } else {
+                        /* Save RAX to number of floating point args for varags - for now, always 0 :) */
+                        sysemit_pushreg(&ctx, RAX);
+                        janet_formatb(buffer, "mov rax, 0\n");
                         janet_formatb(buffer, "call ");
                         sysemit_operand(&ctx, instruction.call.callee, "\n");
                     }
-                    if (instruction.call.has_dest) sysemit_movreg(&ctx, instruction.call.dest, RAX);
+                    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(&ctx, instruction.call.dest, RAX);
+                    if (instruction.opcode != JANET_SYSOP_SYSCALL) sysemit_popreg(&ctx, RAX);
                     if (argcount >= 6) sysemit_popreg(&ctx, 9);
                     if (argcount >= 5) sysemit_popreg(&ctx, 8);
                     if (argcount >= 4) sysemit_popreg(&ctx, RCX);
@@ -485,6 +566,44 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     if (argcount >= 1) sysemit_popreg(&ctx, RDI);
                     break;
                     // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
+            }
+        }
+    }
+    /* End section .text */
+
+    janet_formatb(buffer, "section .rodata\n\n");
+
+    for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
+        JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
+        /* Emit constant strings */
+        for (uint32_t j = 0; j < ir->constant_count; j++) {
+            if (janet_checktype(ir->constants[j].value, JANET_STRING)) {
+                JanetString str = janet_unwrap_string(ir->constants[j].value);
+                janet_formatb(buffer, "\nCONST_%d_%u: db ", i, j);
+                /* Nasm syntax */
+                int in_string = 0;
+                for (int32_t ci = 0; ci < janet_string_length(str); ci++) {
+                    int c = str[ci];
+                    if (c < 32) {
+                        if (in_string) {
+                            janet_formatb(buffer, "\", %d", c);
+                        } else {
+                            janet_formatb(buffer, ci ? ", %d" : "%d", c);
+                        }
+                        in_string = 0;
+                    } else {
+                        if (!in_string) {
+                            janet_buffer_push_cstring(buffer, ci ? ", \"" : "\"");
+                        }
+                        janet_buffer_push_u8(buffer, c);
+                        in_string = 1;
+                    }
+                }
+                if (!in_string) {
+                    janet_buffer_push_cstring(buffer, ", 0\n");
+                } else {
+                    janet_buffer_push_cstring(buffer, "\", 0\n");
+                }
             }
         }
     }

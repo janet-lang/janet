@@ -54,6 +54,7 @@
   (add-prim-type 'float 'f32)
   (add-prim-type 'double 'f64)
   (add-prim-type 'int 's32)
+  (add-prim-type 'long 's64)
   (add-prim-type 'pointer 'pointer)
   (add-prim-type 'boolean 'boolean)
   (sysir/asm ctx into)
@@ -75,12 +76,13 @@
 
 (defn visit1
   "Take in a form and compile code and put it into `into`. Return result slot."
-  [code into &opt no-return]
+  [code into &opt no-return type-hint]
   (cond
 
     # Compile a constant
-    (or (string? code) (number? code) (boolean? code))
-    ~(,code)
+    (string? code) ~(pointer ,code)
+    (boolean? code) ~(boolean ,code)
+    (number? code) ~(,(or type-hint 'long) ,code)
 
     # Binding
     (symbol? code)
@@ -94,12 +96,12 @@
       (case op
 
         # Arithmetic
-        '+ (do-binop 'add args into)
-        '- (do-binop 'subtract args into)
-        '* (do-binop 'multiply args into)
-        '/ (do-binop 'divide args into)
-        '<< (do-binop 'shl args into)
-        '>> (do-binop 'shl args into)
+        '+ (do-binop 'add args into type-hint)
+        '- (do-binop 'subtract args into type-hint)
+        '* (do-binop 'multiply args into type-hint)
+        '/ (do-binop 'divide args into type-hint)
+        '<< (do-binop 'shl args into type-hint)
+        '>> (do-binop 'shl args into type-hint)
 
         # Comparison
         '= (do-comp 'eq args into)
@@ -114,12 +116,11 @@
         (do
           (assert (= 2 (length args)))
           (def [xtype x] args)
-          (def result (visit1 x into))
+          (def result (visit1 x into false xtype))
           (if (tuple? result) # constant
-            (let [r (get-slot)] 
-              (array/push into ~(bind ,r ,xtype))
-              (array/push into ~(move ,r ,result))
-              r)
+            (let [[t y] result]
+              (assertf (= t xtype) "type mismatch, %p doesn't match %p" t xtype)
+              [xtype y])
             (do
               (array/push into ~(bind ,result ,xtype))
               result)))
@@ -235,7 +236,7 @@
           (def ret (if no-return nil (get-slot)))
           (each arg args
             (array/push slots (visit1 arg into)))
-          (array/push into ~(call :default ,ret [,op] ,;slots))
+          (array/push into ~(call :default ,ret [pointer ,op] ,;slots))
           ret)))
 
     (errorf "cannot compile %q" code)))
@@ -243,10 +244,10 @@
 (varfn do-binop
   "Emit an operation such as (+ x y).
   Extended to support any number of arguments such as (+ x y z ...)"
-  [opcode args into]
+  [opcode args into type-hint]
   (var final nil)
   (each arg args
-    (def right (visit1 arg into))
+    (def right (visit1 arg into false type-hint))
     (set final
          (if final
            (let [result (get-slot)]
@@ -317,40 +318,8 @@
     (errorf "unknown form %v" form)))
 
 ###
+### Setup
 ###
-###
-
-(def simple
-  '(defn simple [x:int]
-     (def xyz:int (+ 1 2 3))
-     (return (* x 2 x))))
-
-(def myprog
-  '(defn myprog []
-     (def xyz:int (+ 1 2 3))
-     (def abc:int (* 4 5 6))
-     (def x:boolean (= 5 7))
-     (var i:int 0)
-     (while (< i 10)
-       (set i (+ 1 i))
-       (printf (the pointer "i = %d\n") (the int i)))
-     (printf (the pointer "hello, world!\n%d\n") (the int (if x abc xyz)))
-     (return (/ abc xyz))))
-
-(def doloop
-  '(defn doloop [x:int y:int]
-     (var i:int x)
-     (while (< i y)
-       (set i (+ 1 i))
-       (printf "i = %d\n" (the int i)))
-     (return x)))
-
-(def main-fn
-  '(defn _start:void []
-     (syscall 1 1 "Hello, world!\n" 14)
-     (syscall 60 0)
-     #(write 1 "Hello, world!\n" 14)
-     (return)))
 
 (def ctx (sysir/context))
 (setup-default-types ctx)
@@ -370,12 +339,3 @@
 (defn dumpc
   []
   (print (sysir/to-c ctx)))
-
-####
-
-#(compile1 myprog)
-#(compile1 doloop)
-(compile1 main-fn)
-#(dump)
-#(dumpc)
-(dumpx64)

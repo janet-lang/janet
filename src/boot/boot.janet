@@ -158,6 +158,16 @@
   [fmt & args]
   (error (string/format fmt ;args)))
 
+(defmacro assertf
+  "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
+  [x fmt & args]
+  (def v (gensym))
+  ~(do
+     (def ,v ,x)
+     (if ,v
+       ,v
+       (,error (,string/format ,fmt ,;args)))))
+
 (defmacro default
   ``Define a default value for an optional argument.
   Expands to `(def sym (if (= nil sym) val sym))`.``

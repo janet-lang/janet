@@ -25,6 +25,46 @@
  * that for "System Janet" a dialect for "System Programming". Sysir can then be retargeted to C or direct to machine
  * code for JIT or AOT compilation.
  */
+
+/* TODO
+ * [x] encode constants directly in 3 address codes - makes codegen easier
+ * [x] typed constants
+ * [x] named registers and types
+ * [x] better type errors (perhaps mostly for compiler debugging - full type system goes on top)
+ * [-] x86/x64 machine code target - in progress
+ *   [ ] handle floating point types
+ *   [ ] handle array types
+ *   [ ] emit machine code directly
+ * [ ] target specific extensions - custom instructions and custom primitives
+ * [ ] better casting semantics
+ * [x] separate pointer arithmetic from generalized arithmetic (easier to instrument code for safety)?
+ * [x] fixed-size array types
+ * [x] recursive pointer types
+ * [ ] global and thread local state
+ * [x] union types?
+ * [x] incremental compilation - save type definitions for later
+ * [ ] Extension to C target for interfacing with Janet
+ * [x] pointer math, pointer types
+ * [x] composite types - support for load, store, move, and function args.
+ * [x] Have some mechanism for field access (dest = src.offset)
+ * [x] Related, move type creation as opcodes like in SPIRV - have separate virtual "type slots" and value slots for this.
+ * [x] support for stack allocation of arrays
+ * [ ] more math intrinsics
+ * [x] source mapping (using built in Janet source mapping metadata on tuples)
+ * [x] unit type or void type
+ * [ ] (typed) function pointer types and remove calling untyped pointers
+ * [x] APL array semantics for binary operands (maybe?)
+ * [ ] a few built-in array combinators (maybe?)
+ * [ ] multiple error messages in one pass
+ * [ ] better verification of constants
+ * [x] don't allow redefining types
+ * [ ] generate elf/mach-o/pe directly
+ *   [ ] elf
+ *   [ ] mach-o
+ *   [ ] pe
+ * [ ] generate dwarf info
+ */
+
 #ifndef JANET_SYSIR_H
 #define JANET_SYSIR_H
 
@@ -125,6 +165,9 @@ typedef struct {
     uint32_t type;
 } JanetSysTypeField;
 
+#define JANET_SYS_CALLFLAG_HAS_DEST 1
+#define JANET_SYS_CALLFLAG_VARARGS 2
+
 /* Allow read arguments to be constants to allow
  * encoding immediates. This makes codegen easier. */
 #define JANET_SYS_MAX_OPERAND      0x7FFFFFFFU
@@ -153,7 +196,7 @@ typedef struct {
             uint32_t dest;
             uint32_t callee;
             uint32_t arg_count;
-            uint8_t has_dest;
+            uint8_t flags;
             JanetSysCallingConvention calling_convention;
         } call;
         struct {
@@ -193,6 +236,7 @@ typedef struct {
         struct {
             uint32_t dest_type;
             uint32_t type;
+            // Include address space?
         } pointer;
         struct {
             uint32_t dest_type;
@@ -230,6 +274,14 @@ typedef struct {
     JanetTable *type_name_lookup;
 } JanetSysIRLinkage;
 
+/* Keep source code information as well as
+ * typing information along with constants */
+typedef struct {
+    uint32_t type;
+    Janet value;
+    // TODO - source and line
+} JanetSysConstant;
+
 /* IR representation for a single function.
  * Allow for incremental compilation and linking. */
 typedef struct {
@@ -245,8 +297,7 @@ typedef struct {
     uint32_t *types;
     JanetSysInstruction *instructions;
     JanetString *register_names;
-    Janet *constants;
-    JanetTable *constants_lookup;
+    JanetSysConstant *constants;
     JanetTable *register_name_lookup;
     JanetTable *labels;
 } JanetSysIR;
@@ -262,6 +313,8 @@ extern const char *janet_sysop_names[];
 extern const char *prim_to_prim_name[];
 
 /* Utilities */
+
+uint32_t janet_sys_optype(JanetSysIR *ir, uint32_t op);
 
 /* Get list of uint32_t instruction arguments from a call or other variable length instruction.
    Needs to be free with janet_sfree (or you can leak it and the garbage collector will eventually clean
