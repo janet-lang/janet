@@ -44,17 +44,17 @@ static const char *register_names[] = {
 
 static const char *register_names_32[] = {
     "eax", "ecx", "edx", "ebx", "esi", "edi", "esp", "ebp",
-    "r8d", "r9d", "r10d", "rlld", "r12d", "r13d", "r14d", "r15d"
+    "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
 };
 
 static const char *register_names_16[] = {
     "ax", "cx", "dx", "bx", "si", "di", "sp", "bp",
-    "r8w", "r9w", "r10w", "rllw", "r12w", "r13w", "r14w", "r15w"
+    "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w"
 };
 
 static const char *register_names_8[] = {
     "al", "cl", "dl", "bl", "sil", "dil", "spl", "bpl",
-    "r8b", "r9b", "r10b", "rllb", "r12b", "r13b", "r14b", "r15b"
+    "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"
 };
 
 static const char *register_names_xmm[] = {
@@ -89,6 +89,7 @@ typedef struct {
     uint32_t to_restore[128];
     JanetSysCallingConvention calling_convention;
     int32_t ir_index;
+    uint32_t occupied_registers;
 } JanetSysx64Context;
 
 /* Get the layout for types */
@@ -159,14 +160,24 @@ void assign_registers(JanetSysx64Context *ctx) {
     /* TODO - linear scan or graph coloring. Require calculating live ranges */
     /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
+    
+
+    if (ctx->ir->register_count == 0) {
+        ctx->regs = NULL;
+        ctx->frame_size = 0;
+        ctx->occupied_registers = 0;
+        ctx->restore_count = 0;
+        return;
+    }
 
     /* Make trivial assigments */
     uint32_t next_loc = 0;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
     uint32_t assigned = 0;
+    uint32_t occupied = 0;
     assigned |= 1 << RSP;
     assigned |= 1 << RBP;
-    assigned |= 1 << 15; // keep a temp
+    assigned |= 1 << RAX; // return reg, div, etc.
     for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
         if (i < ctx->ir->parameter_count) {
             /* Assign to rdi, rsi, etc. according to ABI */
@@ -181,6 +192,7 @@ void assign_registers(JanetSysx64Context *ctx) {
                 janet_assert(0, "more than 6 parameters nyi");
             }
             assigned |= 1 << ctx->regs[i].index;
+            occupied |= 1 << ctx->regs[i].index;
         } else if (assigned < 0xFFFF) { /* skip r15 so we have some temporary registers if needed */
             /* Assign to register */
             uint32_t to = 0;
@@ -188,6 +200,7 @@ void assign_registers(JanetSysx64Context *ctx) {
             ctx->regs[i].kind = get_slot_regkind(ctx, i);
             ctx->regs[i].index = to;
             assigned |= 1 << ctx->regs[i].index;
+            occupied |= 1 << ctx->regs[i].index;
         } else { // TODO - also assign stack location if src of address IR instruction
             /* Assign to stack location */
             ctx->regs[i].kind = JANET_SYSREG_STACK;
@@ -200,6 +213,7 @@ void assign_registers(JanetSysx64Context *ctx) {
 
     next_loc = (next_loc + 15) / 16 * 16;
     ctx->frame_size = next_loc + 16;
+    ctx->occupied_registers = occupied;
 
     /* Mark which registers need restoration before returning */
     ctx->restore_count = 0;
@@ -274,7 +288,7 @@ static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest
         /* Use a temporary register for src */
         x64Reg tempreg;
         tempreg.kind = get_slot_regkind(ctx, dest);
-        tempreg.index = 15;
+        tempreg.index = RAX;
         janet_formatb(ctx->buffer, "mov ");
         sysemit_reg(ctx, tempreg, ", ");
         sysemit_operand(ctx, src, "\n");
@@ -339,9 +353,18 @@ static void sysemit_ret(JanetSysx64Context *ctx, uint32_t arg, int has_return) {
 
 static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
                         const char *branch, const char *branch_invert,
-                        const char *set) {
+                        const char *set, const char *set_invert) {
     JanetSysInstruction instruction = ctx->ir->instructions[index];
-    sysemit_binop(ctx, "cmp", instruction.three.lhs, instruction.three.rhs);
+    if (instruction.three.lhs > JANET_SYS_MAX_OPERAND) {
+        /* Constant cannot be first operand to cmp, switch */
+        set = set_invert;
+        const char *temp = branch;
+        branch = branch_invert;
+        branch_invert = temp;
+        sysemit_binop(ctx, "cmp", instruction.three.rhs, instruction.three.lhs);
+    } else {
+        sysemit_binop(ctx, "cmp", instruction.three.lhs, instruction.three.rhs);
+    }
     int has_next = index < ctx->ir->instruction_count - 1;
     JanetSysInstruction nexti;
     if (has_next) nexti = ctx->ir->instructions[index + 1];
@@ -357,6 +380,7 @@ static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
     } else {
         /* Set register instead */
         janet_formatb(ctx->buffer, "%s ", set);
+        /* Set only byte register */
         sysemit_operand(ctx, instruction.three.dest, "\n");
         return 0;
     }
@@ -430,6 +454,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
             ctx.ir_layouts[i] = ctx.layouts[ir->types[i]];
         }
         ctx.ir = ir;
+        //janet_assert(ir->register_count, "non-zero register count");
         assign_registers(&ctx);
 
         /* Emit prelude */
@@ -470,10 +495,10 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     sysemit_three_inst(&ctx, "sub", instruction);
                     break;
                 case JANET_SYSOP_MULTIPLY:
-                    sysemit_three_inst(&ctx, "mul", instruction);
+                    sysemit_three_inst(&ctx, "imul", instruction);
                     break;
                 case JANET_SYSOP_DIVIDE:
-                    sysemit_three_inst(&ctx, "div", instruction);
+                    sysemit_three_inst(&ctx, "idiv", instruction);
                     break;
                 case JANET_SYSOP_BAND:
                     sysemit_three_inst(&ctx, "and", instruction);
@@ -500,31 +525,35 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     janet_formatb(buffer, "label_%d_%u:\n", i, instruction.label.id);
                     break;
                 case JANET_SYSOP_EQ:
-                    j += sysemit_comp(&ctx, j, "je", "jne", "sete");
+                    j += sysemit_comp(&ctx, j, "je", "jne", "sete", "setne");
                     break;
                 case JANET_SYSOP_NEQ:
-                    j += sysemit_comp(&ctx, j, "jne", "je", "setne");
+                    j += sysemit_comp(&ctx, j, "jne", "je", "setne", "sete");
                     break;
                 case JANET_SYSOP_LT:
-                    j += sysemit_comp(&ctx, j, "jl", "jge", "setl");
+                    j += sysemit_comp(&ctx, j, "jl", "jge", "setl", "setge");
                     break;
                 case JANET_SYSOP_LTE:
-                    j += sysemit_comp(&ctx, j, "jle", "jg", "setle");
+                    j += sysemit_comp(&ctx, j, "jle", "jg", "setle", "setg");
                     break;
                 case JANET_SYSOP_GT:
-                    j += sysemit_comp(&ctx, j, "jg", "jle", "setg");
+                    j += sysemit_comp(&ctx, j, "jg", "jle", "setg", "setle");
                     break;
                 case JANET_SYSOP_GTE:
-                    j += sysemit_comp(&ctx, j, "jge", "jl", "setge");
+                    j += sysemit_comp(&ctx, j, "jge", "jl", "setge", "setl");
                     break;
                 case JANET_SYSOP_CAST:
                     sysemit_cast(&ctx, instruction);
                     break;
                 case JANET_SYSOP_BRANCH:
                 case JANET_SYSOP_BRANCH_NOT:
-                    janet_formatb(buffer, instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ");
-                    sysemit_operand(&ctx, instruction.branch.cond, " ");
-                    janet_formatb(buffer, "label_%d_%u\n", i, instruction.branch.to);
+                    janet_formatb(buffer, "test ");
+                    // TODO - ensure branch condition is not a const
+                    sysemit_operand(&ctx, instruction.branch.cond, ", 0\n");
+                    janet_formatb(buffer,
+                            "%s label_%d_%u\n",
+                            instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ",
+                            i, instruction.branch.to);
                     break;
                 case JANET_SYSOP_JUMP:
                     janet_formatb(buffer, "jmp label_%d_%u\n", i, instruction.jump.to);
@@ -535,13 +564,30 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     /* Push first 6 arguments to particular registers */
                     uint32_t argcount = 0;
                     uint32_t *args = janet_sys_callargs(ir->instructions + j, &argcount);
-                    if (argcount >= 1) sysemit_mov_save(&ctx, RDI, args[0]);
-                    if (argcount >= 2) sysemit_mov_save(&ctx, RSI, args[1]);
-                    if (argcount >= 3) sysemit_mov_save(&ctx, RDX, args[2]);
-                    if (argcount >= 4) sysemit_mov_save(&ctx, RCX, args[3]);
-                    if (argcount >= 5) sysemit_mov_save(&ctx, 8,   args[4]);
-                    if (argcount >= 6) sysemit_mov_save(&ctx, 9,   args[5]);
+                    int save_rdi = argcount >= 1 || (ctx.occupied_registers & (1 << RDI));
+                    int save_rsi = argcount >= 2 || (ctx.occupied_registers & (1 << RSI));
+                    int save_rdx = argcount >= 3 || (ctx.occupied_registers & (1 << RDX));
+                    int save_rcx = argcount >= 4 || (ctx.occupied_registers & (1 << RCX));
+                    int save_r8 = argcount >= 5 || (ctx.occupied_registers & (1 << 8));
+                    int save_r9 = argcount >= 6 || (ctx.occupied_registers & (1 << 9));
+                    int save_r10 = ctx.occupied_registers & (1 << 10);
+                    int save_r11 = ctx.occupied_registers & (1 << 11);
+                    if (save_rdi && argcount >= 1) sysemit_mov_save(&ctx, RDI, args[0]);
+                    if (save_rdi && argcount < 1)  sysemit_pushreg(&ctx, RDI);
+                    if (save_rsi && argcount >= 2) sysemit_mov_save(&ctx, RSI, args[1]);
+                    if (save_rsi && argcount < 2) sysemit_pushreg(&ctx, RSI);
+                    if (save_rdx && argcount >= 3) sysemit_mov_save(&ctx, RDX, args[2]);
+                    if (save_rdx && argcount < 3) sysemit_pushreg(&ctx, RDX);
+                    if (save_rcx && argcount >= 4) sysemit_mov_save(&ctx, RCX, args[3]);
+                    if (save_rcx && argcount < 4) sysemit_pushreg(&ctx, RCX);
+                    if (save_r8 && argcount >= 5) sysemit_mov_save(&ctx, 8, args[4]);
+                    if (save_r8 && argcount < 5) sysemit_pushreg(&ctx, 8);
+                    if (save_r9 && argcount >= 6) sysemit_mov_save(&ctx, 9, args[5]);
+                    if (save_r9 && argcount < 6) sysemit_pushreg(&ctx, 9);
+                    if (save_r10) sysemit_pushreg(&ctx, 10);
+                    if (save_r11) sysemit_pushreg(&ctx, 11);
                     for (int32_t argo = argcount - 1; argo >= 5; argo--) {
+                        janet_panic("nyi");
                         janet_formatb(buffer, "push ");
                         sysemit_operand(&ctx, args[argo], "\n");
                     }
@@ -556,14 +602,16 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                         janet_formatb(buffer, "call ");
                         sysemit_operand(&ctx, instruction.call.callee, "\n");
                     }
-                    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(&ctx, instruction.call.dest, RAX);
+                    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(&ctx, RAX, instruction.call.dest);
                     if (instruction.opcode != JANET_SYSOP_SYSCALL) sysemit_popreg(&ctx, RAX);
-                    if (argcount >= 6) sysemit_popreg(&ctx, 9);
-                    if (argcount >= 5) sysemit_popreg(&ctx, 8);
-                    if (argcount >= 4) sysemit_popreg(&ctx, RCX);
-                    if (argcount >= 3) sysemit_popreg(&ctx, RDX);
-                    if (argcount >= 2) sysemit_popreg(&ctx, RSI);
-                    if (argcount >= 1) sysemit_popreg(&ctx, RDI);
+                    if (save_r11) sysemit_popreg(&ctx, 11);
+                    if (save_r10) sysemit_popreg(&ctx, 10);
+                    if (save_r9) sysemit_popreg(&ctx, 9);
+                    if (save_r8) sysemit_popreg(&ctx, 8);
+                    if (save_rcx) sysemit_popreg(&ctx, RCX);
+                    if (save_rdx) sysemit_popreg(&ctx, RDX);
+                    if (save_rsi) sysemit_popreg(&ctx, RSI);
+                    if (save_rdi) sysemit_popreg(&ctx, RDI);
                     break;
                     // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
             }

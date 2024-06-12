@@ -300,6 +300,7 @@ typedef struct {
     JanetSysConstant *constants;
     JanetTable *register_name_lookup;
     JanetTable *labels;
+    Janet error_ctx; /* Temporary for holding error messages */
 } JanetSysIR;
 
 /* Delay alignment info for the most part to the lowering phase */

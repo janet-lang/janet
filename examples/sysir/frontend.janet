@@ -126,14 +126,13 @@
               result)))
 
         # Named bindings
-        # TODO - type inference
         'def
         (do
           (assert (= 2 (length args)))
           (def [full-name value] args)
           (assert (symbol? full-name))
           (def [name tp] (type-extract full-name 'int))
-          (def result (visit1 value into))
+          (def result (visit1 value into false tp))
           (def slot (get-slot name))
           (when tp
             (array/push into ~(bind ,slot ,tp)))
@@ -147,7 +146,7 @@
           (def [full-name value] args)
           (assert (symbol? full-name))
           (def [name tp] (type-extract full-name 'int))
-          (def result (visit1 value into))
+          (def result (visit1 value into false tp))
           (def slot (get-slot name))
           (when tp
             (array/push into ~(bind ,slot ,tp)))
@@ -179,7 +178,7 @@
         'do
         (do
           (each form (slice args 0 -2) (visit1 form into true))
-          (visit1 (last args) into))
+          (visit1 (last args) into false type-hint))
 
         # While loop
         'while
@@ -204,15 +203,16 @@
           (def lab-end (keyword (gensym)))
           (assert (< 2 (length args) 4))
           (def [cnd tru fal] args)
-          (def condition-slot (visit1 cnd into))
+          (def condition-slot (visit1 cnd into false 'boolean))
           (def ret (get-slot))
+          (array/push into ~(bind ,ret ,type-hint))
           (array/push into ~(branch ,condition-slot ,lab))
           # false path
-          (array/push into ~(move ,ret ,(visit1 tru into)))
+          (array/push into ~(move ,ret ,(visit1 tru into false type-hint)))
           (array/push into ~(jump ,lab-end))
           (array/push into lab)
           # true path
-          (array/push into ~(move ,ret ,(visit1 fal into)))
+          (array/push into ~(move ,ret ,(visit1 fal into false type-hint)))
           (array/push into lab-end)
           ret)
 
@@ -312,7 +312,7 @@
         (array/push ir-asm ~(bind ,slot ,tp)))
       (each part body
         (visit1 part ir-asm true))
-      #(eprintf "%.99M" ir-asm)
+      # (eprintf "%.99M" ir-asm)
       (sysir/asm ctx ir-asm))
 
     (errorf "unknown form %v" form)))

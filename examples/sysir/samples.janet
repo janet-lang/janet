@@ -6,16 +6,16 @@
      (return (* x 2 x))))
 
 (def myprog
-  '(defn myprog []
+  '(defn myprog:int []
      (def xyz:int (+ 1 2 3))
      (def abc:int (* 4 5 6))
-     (def x:boolean (= 5 7))
+     (def x:boolean (= (the int 5) xyz))
      (var i:int 0)
-     (while (< i 10)
-       (set i (+ 1 i))
+     (while (< i (the int 10))
+       (set i (the int (+ 1 i)))
        (printf "i = %d\n" i))
      (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
-     (return (/ abc xyz))))
+     (return (* abc xyz))))
 
 (def doloop
   '(defn doloop [x:int y:int]
@@ -23,6 +23,7 @@
      (while (< i y)
        (set i (the int (+ 1 i)))
        (printf "i = %d\n" (the int i)))
+     (myprog)
      (return x)))
 
 (def main-fn
@@ -34,7 +35,7 @@
 
 ####
 
-#(compile1 myprog)
+(compile1 myprog)
 (compile1 doloop)
 (compile1 main-fn)
 #(dump)
