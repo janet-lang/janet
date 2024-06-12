@@ -319,13 +319,6 @@ JANET_CORE_FN(cfun_table_new,
     int32_t cap = janet_getnat(argv, 0);
     return janet_wrap_table(janet_table(cap));
 }
-/*
-    uint32_t flags = janet_getflags(argv, 1, "kv");
-    if (flags == 0) return janet_wrap_table(janet_table(cap));
-    if (flags == 1) return janet_wrap_table(janet_table_weakk(cap));
-    if (flags == 2) return janet_wrap_table(janet_table_weakv(cap));
-    return janet_wrap_table(janet_table_weakkv(cap));
-    */
 
 JANET_CORE_FN(cfun_table_weak,
               "(table/weak capacity)",
