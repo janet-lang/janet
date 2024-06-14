@@ -3040,9 +3040,10 @@
   ``Merge a module source into the `target` environment with a `prefix`, as with the `import` macro.
   This lets users emulate the behavior of `import` with a custom module table.
   If `export` is truthy, then merged functions are not marked as private. Returns
-  the modified target environment.``
-  [target source &opt prefix export]
-  (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private))]
+  the modified target environment. If an array `only` is passed, only merge keys in `only`.``
+  [target source &opt prefix export only]
+  (def only-set (if only (invert only)))
+  (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private)) :when (or (not only) (in only-set k))]
     (def newv (table/setproto @{:private (not export)} v))
     (put target (symbol prefix k) newv))
   target)
@@ -3055,13 +3056,14 @@
   (def kargs (table ;args))
   (def {:as as
         :prefix prefix
-        :export ep} kargs)
+        :export ep
+        :only only} kargs)
   (def newenv (require-1 path args kargs))
   (def prefix (or
                 (and as (string as "/"))
                 prefix
                 (string (last (string/split "/" path)) "/")))
-  (merge-module env newenv prefix ep))
+  (merge-module env newenv prefix ep only))
 
 (defmacro import
   ``Import a module. First requires the module, and then merges its

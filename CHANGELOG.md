@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `:only` argument to `import` to allow for easier control over imported bindings.
 - Add extra optional `env` argument to `eval` and `eval-string`.
 - Allow naming function literals with a keyword. This allows better stacktraces for macros without
   accidentally adding new bindings.
