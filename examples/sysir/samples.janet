@@ -1,9 +1,13 @@
 (use ./frontend)
 
+(def square
+  '(defn square:int [num:int]
+     (return (* num num))))
+
 (def simple
-  '(defn simple [x:int]
+  '(defn simple:int [x:int]
      (def xyz:int (+ 1 2 3))
-     (return (* x 2 x))))
+     (return (the int (* x 2 x)))))
 
 (def myprog
   '(defn myprog:int []
@@ -16,6 +20,7 @@
        (printf "i = %d\n" i))
      (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
      (return (* abc xyz))))
+     #(return (the int (simple (* abc xyz))))))
 
 (def doloop
   '(defn doloop [x:int y:int]
@@ -35,6 +40,8 @@
 
 ####
 
+#(compile1 square)
+(compile1 simple)
 (compile1 myprog)
 (compile1 doloop)
 (compile1 main-fn)

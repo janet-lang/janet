@@ -63,7 +63,6 @@ static const char *register_names_xmm[] = {
 };
 
 typedef enum {
-    JANET_SYSREG_STACK, // TODO - one of these is not like the others
     JANET_SYSREG_8,
     JANET_SYSREG_16,
     JANET_SYSREG_32,
@@ -72,8 +71,15 @@ typedef enum {
     JANET_SYSREG_XMM
 } x64RegKind;
 
+typedef enum {
+    JANET_SYSREG_REGISTER,
+    JANET_SYSREG_STACK, /* Indexed from base pointer */
+    JANET_SYSREG_STACK_PARAMETER, /* Index from base pointer in other direction */
+} x64Storage;
+
 typedef struct {
     x64RegKind kind;
+    x64Storage storage;
     uint32_t index;
 } x64Reg;
 
@@ -161,15 +167,6 @@ void assign_registers(JanetSysx64Context *ctx) {
     /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
     
-
-    if (ctx->ir->register_count == 0) {
-        ctx->regs = NULL;
-        ctx->frame_size = 0;
-        ctx->occupied_registers = 0;
-        ctx->restore_count = 0;
-        return;
-    }
-
     /* Make trivial assigments */
     uint32_t next_loc = 0;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
@@ -179,9 +176,9 @@ void assign_registers(JanetSysx64Context *ctx) {
     assigned |= 1 << RBP;
     assigned |= 1 << RAX; // return reg, div, etc.
     for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
+        ctx->regs[i].kind = get_slot_regkind(ctx, i);
         if (i < ctx->ir->parameter_count) {
             /* Assign to rdi, rsi, etc. according to ABI */
-            ctx->regs[i].kind = get_slot_regkind(ctx, i);
             if (i == 0) ctx->regs[i].index = RDI;
             if (i == 1) ctx->regs[i].index = RSI;
             if (i == 2) ctx->regs[i].index = RDX;
@@ -189,24 +186,27 @@ void assign_registers(JanetSysx64Context *ctx) {
             if (i == 4) ctx->regs[i].index = 8;
             if (i == 5) ctx->regs[i].index = 9;
             if (i >= 6) {
-                janet_assert(0, "more than 6 parameters nyi");
+                janet_panic("nyi");
+                ctx->regs[i].storage = JANET_SYSREG_STACK_PARAMETER;
+            } else {
+                ctx->regs[i].storage = JANET_SYSREG_REGISTER;
+                assigned |= 1 << ctx->regs[i].index;
+                occupied |= 1 << ctx->regs[i].index;
             }
-            assigned |= 1 << ctx->regs[i].index;
-            occupied |= 1 << ctx->regs[i].index;
         } else if (assigned < 0xFFFF) { /* skip r15 so we have some temporary registers if needed */
             /* Assign to register */
             uint32_t to = 0;
             while ((1 << to) & assigned) to++;
-            ctx->regs[i].kind = get_slot_regkind(ctx, i);
             ctx->regs[i].index = to;
+            ctx->regs[i].storage = JANET_SYSREG_REGISTER;
             assigned |= 1 << ctx->regs[i].index;
             occupied |= 1 << ctx->regs[i].index;
         } else { // TODO - also assign stack location if src of address IR instruction
             /* Assign to stack location */
-            ctx->regs[i].kind = JANET_SYSREG_STACK;
             JanetSysTypeLayout layout = ctx->ir_layouts[i];
             next_loc = (next_loc + layout.alignment - 1) / layout.alignment * layout.alignment;
             ctx->regs[i].index = next_loc;
+            ctx->regs[i].storage = JANET_SYSREG_STACK;
             next_loc += layout.size;
         }
     }
@@ -221,7 +221,7 @@ void assign_registers(JanetSysx64Context *ctx) {
     unsigned char tokeep[] = {3, 6, 7, 12, 13, 14, 15};
     for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
         x64Reg reg = ctx->regs[i];
-        if (reg.kind == JANET_SYSREG_STACK) continue;
+        if (reg.storage != JANET_SYSREG_REGISTER) continue;
         for (unsigned int j = 0; j < sizeof(tokeep); j++) {
             if (!seen[j] && reg.index == tokeep[j]) {
                 ctx->to_restore[ctx->restore_count++] = reg.index;
@@ -234,19 +234,23 @@ void assign_registers(JanetSysx64Context *ctx) {
 static int operand_isstack(JanetSysx64Context *ctx, uint32_t o) {
     if (o > JANET_SYS_MAX_OPERAND) return 0; /* constant */
     x64Reg reg = ctx->regs[o];
-    return reg.kind == JANET_SYSREG_STACK;
+    return reg.storage != JANET_SYSREG_REGISTER;
 }
 
 static int operand_isreg(JanetSysx64Context *ctx, uint32_t o, uint32_t regindex) {
     if (o > JANET_SYS_MAX_OPERAND) return 0; /* constant */
     x64Reg reg = ctx->regs[o];
-    if (reg.kind == JANET_SYSREG_STACK) return 0;
+    if (reg.storage != JANET_SYSREG_REGISTER) return 0;
     return reg.index == regindex;
 }
 
 static void sysemit_reg(JanetSysx64Context *ctx, x64Reg reg, const char *after) {
-    if (reg.kind == JANET_SYSREG_STACK) {
-        janet_formatb(ctx->buffer, "[rbp - %u]", reg.index);
+    if (reg.storage == JANET_SYSREG_STACK) {
+        // TODO - use LEA for parameters larger than a qword
+        janet_formatb(ctx->buffer, "[rbp-%u]", reg.index);
+    } else if (reg.storage == JANET_SYSREG_STACK_PARAMETER) {
+        // TODO - use LEA for parameters larger than a qword
+        janet_formatb(ctx->buffer, "[rbp+%u]", reg.index);
     } else if (reg.kind == JANET_SYSREG_64) {
         janet_formatb(ctx->buffer, "%s", register_names[reg.index]);
     } else if (reg.kind == JANET_SYSREG_32) {
@@ -317,6 +321,16 @@ static void sysemit_movreg(JanetSysx64Context *ctx, uint32_t regdest, uint32_t s
     sysemit_operand(ctx, src, "\n");
 }
 
+static void sysemit_movfromreg(JanetSysx64Context *ctx, uint32_t dest, uint32_t srcreg) {
+    if (operand_isreg(ctx, dest, srcreg)) return;
+    x64Reg tempreg;
+    tempreg.kind = get_slot_regkind(ctx, dest);
+    tempreg.index = srcreg;
+    janet_formatb(ctx->buffer, "mov ");
+    sysemit_operand(ctx, dest, ", ");
+    sysemit_reg(ctx, tempreg, "\n");
+}
+
 static void sysemit_pushreg(JanetSysx64Context *ctx, uint32_t dest_reg) {
     janet_formatb(ctx->buffer, "push %s\n", register_names[dest_reg]);
 }
@@ -334,6 +348,22 @@ static void sysemit_popreg(JanetSysx64Context *ctx, uint32_t dest_reg) {
 static void sysemit_threeop(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t lhs, uint32_t rhs) {
     sysemit_mov(ctx, dest, lhs);
     sysemit_binop(ctx, op, dest, rhs);
+}
+
+static void sysemit_threeop_nodeststack(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t lhs,
+        uint32_t rhs) {
+    if (operand_isstack(ctx, dest)) {
+        sysemit_movreg(ctx, RAX, lhs);
+        x64Reg tempreg;
+        tempreg.kind = get_slot_regkind(ctx, dest);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "%s ", op);
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, lhs, "\n");
+        sysemit_movfromreg(ctx, dest, RAX);
+    } else {
+        sysemit_threeop(ctx, op, dest, lhs, rhs);
+    }
 }
 
 static void sysemit_three_inst(JanetSysx64Context *ctx, const char *op, JanetSysInstruction instruction) {
@@ -379,9 +409,12 @@ static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
         return 1;
     } else {
         /* Set register instead */
-        janet_formatb(ctx->buffer, "%s ", set);
-        /* Set only byte register */
-        sysemit_operand(ctx, instruction.three.dest, "\n");
+        x64RegKind kind = get_slot_regkind(ctx, instruction.three.dest);
+        if (kind != JANET_SYSREG_8) {
+            /* Zero the upper bits */
+            sysemit_binop(ctx, "xor", instruction.three.dest, instruction.three.dest);
+        }
+        janet_formatb(ctx->buffer, "%s %s\n", set, register_names_8[instruction.three.dest]);
         return 0;
     }
 }
@@ -495,7 +528,8 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     sysemit_three_inst(&ctx, "sub", instruction);
                     break;
                 case JANET_SYSOP_MULTIPLY:
-                    sysemit_three_inst(&ctx, "imul", instruction);
+                    sysemit_threeop_nodeststack(&ctx, "imul", instruction.three.dest,
+                            instruction.three.lhs, instruction.three.rhs);
                     break;
                 case JANET_SYSOP_DIVIDE:
                     sysemit_three_inst(&ctx, "idiv", instruction);
