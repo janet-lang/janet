@@ -204,9 +204,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.34.dylib
+SONAME=libjanet.1.35.dylib
 else
-SONAME=libjanet.so.1.34
+SONAME=libjanet.so.1.35
 endif
 
 build/c/shell.c: src/mainclient/shell.c

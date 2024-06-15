@@ -7,7 +7,7 @@
 #define JANET_VERSION_MINOR 34
 #define JANET_VERSION_PATCH 0
 #define JANET_VERSION_EXTRA ""
-#define JANET_VERSION "1.34.0"
+#define JANET_VERSION "1.35.0"
 
 /* #define JANET_BUILD "local" */
 
