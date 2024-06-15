@@ -375,7 +375,7 @@ JANET_CORE_FN(cfun_buffer_push_uint16,
         uint16_t data;
         uint8_t bytes[2];
     } u;
-    u.data = (uint16_t) janet_getuinteger(argv, 2);
+    u.data = janet_getuinteger16(argv, 2);
     if (reverse) {
         uint8_t temp = u.bytes[1];
         u.bytes[1] = u.bytes[0];

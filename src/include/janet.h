@@ -897,12 +897,16 @@ JANET_API Janet janet_nanbox32_from_tagp(uint32_t tag, void *pointer);
 /* End of tagged union implementation */
 #endif
 
+JANET_API int janet_checkint16(Janet x);
+JANET_API int janet_checkuint16(Janet x);
 JANET_API int janet_checkint(Janet x);
 JANET_API int janet_checkuint(Janet x);
 JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
+#define janet_checkint16range(x) ((x) >= INT16_MIN && (x) <= INT16_MAX && (x) == (int16_t)(x))
+#define janet_checkuint16range(x) ((x) >= 0 && (x) <= UINT16_MAX && (x) == (uint16_t)(x))
 #define janet_checkintrange(x) ((x) >= INT32_MIN && (x) <= INT32_MAX && (x) == (int32_t)(x))
 #define janet_checkuintrange(x) ((x) >= 0 && (x) <= UINT32_MAX && (x) == (uint32_t)(x))
 #define janet_checkint64range(x) ((x) >= JANET_INTMIN_DOUBLE && (x) <= JANET_INTMAX_DOUBLE && (x) == (int64_t)(x))
@@ -2020,8 +2024,10 @@ JANET_API void *janet_getpointer(const Janet *argv, int32_t n);
 
 JANET_API int32_t janet_getnat(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
+JANET_API int16_t janet_getinteger16(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
 JANET_API uint32_t janet_getuinteger(const Janet *argv, int32_t n);
+JANET_API uint16_t janet_getuinteger16(const Janet *argv, int32_t n);
 JANET_API uint64_t janet_getuinteger64(const Janet *argv, int32_t n);
 JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);

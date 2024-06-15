@@ -88,6 +88,8 @@
 (def buffer-uint16-max @"")
 (buffer/push-uint16 buffer-uint16-max :be 0xFFFF)
 (assert (= "\xff\xff" (string buffer-uint16-max)) "buffer/push-uint16 max")
+(assert-error "too large" (buffer/push-uint16 @"" 0x1FFFF))
+(assert-error "too small" (buffer/push-uint16 @"" -0x1))
 
 (def buffer-uint32-be @"")
 (buffer/push-uint32 buffer-uint32-be :be 0x01020304)
