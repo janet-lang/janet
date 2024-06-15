@@ -49,6 +49,12 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+      - name: Install WiX
+        run: dotnet tool install --global wix
+      - name: Build WiX on Windows
+        run: wix build .\nexus.wxs
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
       - name: Build the project
