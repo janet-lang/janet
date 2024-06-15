@@ -57,9 +57,7 @@ jobs:
         with:
           draft: true
           files: |
-            ./dist/*.zip
-            ./*.zip
-            ./*.msi
+            *.msi
 
   release-cosmo:
     permissions:
