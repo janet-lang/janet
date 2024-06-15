@@ -2746,8 +2746,8 @@
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (defdyn *module-cache* "Dynamic binding for overriding `module/cache`")
-(defdyn *module-paths* "Dynamic binding for overriding `module/cache`")
-(defdyn *module-loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module-paths* "Dynamic binding for overriding `module/paths`")
+(defdyn *module-loading* "Dynamic binding for overriding `module/loading`")
 (defdyn *module-loaders* "Dynamic binding for overriding `module/loaders`")
 (defdyn *module-make-env* "Dynamic binding for creating new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
 
