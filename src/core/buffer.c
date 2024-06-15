@@ -375,7 +375,7 @@ JANET_CORE_FN(cfun_buffer_push_uint16,
         uint16_t data;
         uint8_t bytes[2];
     } u;
-    u.data = (uint16_t) janet_getinteger(argv, 2);
+    u.data = (uint16_t) janet_getuinteger(argv, 2);
     if (reverse) {
         uint8_t temp = u.bytes[1];
         u.bytes[1] = u.bytes[0];
@@ -396,7 +396,7 @@ JANET_CORE_FN(cfun_buffer_push_uint32,
         uint32_t data;
         uint8_t bytes[4];
     } u;
-    u.data = (uint32_t) janet_getinteger(argv, 2);
+    u.data = janet_getuinteger(argv, 2);
     if (reverse)
         reverse_u32(u.bytes);
     janet_buffer_push_u32(buffer, *(uint32_t *) u.bytes);
@@ -414,7 +414,7 @@ JANET_CORE_FN(cfun_buffer_push_uint64,
         uint64_t data;
         uint8_t bytes[8];
     } u;
-    u.data = (uint64_t) janet_getuinteger64(argv, 2);
+    u.data = janet_getuinteger64(argv, 2);
     if (reverse)
         reverse_u64(u.bytes);
     janet_buffer_push_u64(buffer, *(uint64_t *) u.bytes);

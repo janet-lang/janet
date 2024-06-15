@@ -2021,6 +2021,7 @@ JANET_API void *janet_getpointer(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getnat(const Janet *argv, int32_t n);
 JANET_API int32_t janet_getinteger(const Janet *argv, int32_t n);
 JANET_API int64_t janet_getinteger64(const Janet *argv, int32_t n);
+JANET_API uint32_t janet_getuinteger(const Janet *argv, int32_t n);
 JANET_API uint64_t janet_getuinteger64(const Janet *argv, int32_t n);
 JANET_API size_t janet_getsize(const Janet *argv, int32_t n);
 JANET_API JanetView janet_getindexed(const Janet *argv, int32_t n);
