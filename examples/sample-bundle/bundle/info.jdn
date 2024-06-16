@@ -1,0 +1,4 @@
+@{
+  :name "sample-bundle"
+  :dependencies ["sample-dep1" "sample-dep2"]
+}

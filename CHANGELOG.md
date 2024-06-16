@@ -1,10 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.35.0 - 2024-06-15
+- Add `:only` argument to `import` to allow for easier control over imported bindings.
 - Add extra optional `env` argument to `eval` and `eval-string`.
 - Allow naming function literals with a keyword. This allows better stacktraces for macros without
   accidentally adding new bindings.
+- Add `bundle/` module for managing packages within Janet. This should replace the jpm packaging
+  format eventually and is much simpler and amenable to more complicated builds.
 - Add macros `ev/with-lock`, `ev/with-rlock`, and `ev/with-wlock` for using mutexes and rwlocks.
 - Add `with-env`
 - Add *module-make-env* dynamic binding

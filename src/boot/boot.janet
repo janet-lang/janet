@@ -2664,7 +2664,7 @@
 
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
-  environment is needed, use `run-context`.``
+  environment is needed, use `run-context`. Optionally pass in an `env` table with available bindings.``
   [form &opt env]
   (def res (compile form env :eval))
   (if (= (type res) :function)
@@ -2704,7 +2704,7 @@
 
 (defn eval-string
   ``Evaluates a string in the current environment. If more control over the
-  environment is needed, use `run-context`.``
+  environment is needed, use `run-context`. Optionally pass in an `env` table with available bindings.``
   [str &opt env]
   (var ret nil)
   (each x (parse-all str) (set ret (eval x env)))
@@ -2756,8 +2756,8 @@
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
 (defdyn *module-cache* "Dynamic binding for overriding `module/cache`")
-(defdyn *module-paths* "Dynamic binding for overriding `module/cache`")
-(defdyn *module-loading* "Dynamic binding for overriding `module/cache`")
+(defdyn *module-paths* "Dynamic binding for overriding `module/paths`")
+(defdyn *module-loading* "Dynamic binding for overriding `module/loading`")
 (defdyn *module-loaders* "Dynamic binding for overriding `module/loaders`")
 (defdyn *module-make-env* "Dynamic binding for creating new environments for `import`, `require`, and `dofile`. Overrides `make-env`.")
 
@@ -3050,7 +3050,7 @@
   ``Merge a module source into the `target` environment with a `prefix`, as with the `import` macro.
   This lets users emulate the behavior of `import` with a custom module table.
   If `export` is truthy, then merged functions are not marked as private. Returns
-  the modified target environment. If an array `only` is passed, only merge keys in `only`.``
+  the modified target environment. If a tuple or array `only` is passed, only merge keys in `only`.``
   [target source &opt prefix export only]
   (def only-set (if only (invert only)))
   (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private)) :when (or (not only) (in only-set k))]
@@ -3083,7 +3083,8 @@
   to re-export the imported symbols. If "`:exit true`" is given as an argument,
   any errors encountered at the top level in the module will cause `(os/exit 1)`
   to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
-  module cache.``
+  module cache. Use `:only [foo bar baz]` to only import select bindings into the
+  current environment.``
   [path & args]
   (def ps (partition 2 args))
   (def argm (mapcat (fn [[k v]] [k (case k :as (string v) :only ~(quote ,v) v)]) ps))
@@ -3754,7 +3755,7 @@
     (acquire-release ev/acquire-rlock ev/release-rlock lock body))
 
   (defmacro ev/with-wlock
-    ``Run a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
+    ``Run a body of code after acquiring write access to an rwlock. Will automatically release the lock when done.``
     [lock & body]
     (acquire-release ev/acquire-wlock ev/release-wlock lock body))
 
@@ -3974,6 +3975,383 @@
   (table/clear module/cache)
   (merge-into module/cache old-modcache)
   nil)
+
+###
+###
+### Bundle tools
+###
+###
+
+(compwhen (dyn 'os/stat)
+
+  (def- seps {:windows "\\" :mingw "\\" :cygwin "\\"})
+  (defn- sep [] (get seps (os/which) "/"))
+
+  (defn- bundle-rpath
+    [path]
+    (os/realpath path))
+
+  (defn- bundle-dir
+    [&opt bundle-name]
+    (def s (sep))
+    (string (bundle-rpath (dyn *syspath*)) s "bundle" (if bundle-name s) bundle-name))
+
+  (defn- bundle-file
+    [bundle-name filename]
+    (def s (sep))
+    (string (bundle-rpath (dyn *syspath*)) s "bundle" s bundle-name s filename))
+
+  (defn- get-manifest-filename
+    [bundle-name]
+    (bundle-file bundle-name "manifest.jdn"))
+
+  (defn- prime-bundle-paths
+    []
+    (def s (sep))
+    (def path (bundle-dir))
+    (os/mkdir path)
+    (assert (os/stat path :mode)))
+
+  (defn- get-files [manifest]
+    (def files (get manifest :files @[]))
+    (put manifest :files files)
+    files)
+
+  (defn- rmrf
+    "rm -rf in janet"
+    [x]
+    (case (os/lstat x :mode)
+      nil nil
+      :directory (do
+                   (def s (sep))
+                   (each y (os/dir x)
+                     (rmrf (string x s y)))
+                   (os/rmdir x))
+      (os/rm x))
+    nil)
+
+  (defn- copyfile
+    [from to]
+    (def mode (os/stat from :permissions))
+    (def b (buffer/new 0x10000))
+    (with [ffrom (file/open from :rb)]
+      (with [fto (file/open to :wb)]
+        (forever
+          (file/read ffrom 0x10000 b)
+          (when (empty? b) (buffer/trim b) (os/chmod to mode) (break))
+          (file/write fto b)
+          (buffer/clear b)))))
+
+  (defn- copyrf
+    [from to]
+    (case (os/stat from :mode)
+      :file (copyfile from to)
+      :directory (do
+                   (def s (sep))
+                   (os/mkdir to)
+                   (each y (os/dir from)
+                     (copyrf (string from s y) (string to s y)))))
+    nil)
+
+  (defn- sync-manifest
+    [manifest]
+    (def bn (get manifest :name))
+    (def manifest-name (get-manifest-filename bn))
+    (spit manifest-name (string/format "%j\n" manifest)))
+
+  (defn bundle/manifest
+    "Get the manifest for a give installed bundle"
+    [bundle-name]
+    (def name (get-manifest-filename bundle-name))
+    (assert (fexists name) (string "no bundle " bundle-name " found"))
+    (parse (slurp name)))
+
+  (defn- get-bundle-module
+    [bundle-name]
+    (def manifest (bundle/manifest bundle-name))
+    (def dir (os/cwd))
+    (def workdir (get manifest :local-source "."))
+    (def fixed-syspath (bundle-rpath (dyn *syspath*)))
+    (try
+      (os/cd workdir)
+      ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
+    (defer (os/cd dir)
+      (def new-env (make-env (curenv)))
+      (put new-env *module-cache* @{})
+      (put new-env *module-loading* @{})
+      (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
+      (put new-env :workdir workdir)
+      (put new-env :name bundle-name)
+      (put new-env *syspath* fixed-syspath)
+      (with-env new-env
+        (put new-env :bundle-dir (bundle-dir bundle-name)) # get the syspath right
+        (require (string "@syspath/bundle/" bundle-name)))))
+
+  (defn- do-hook
+    [module bundle-name hook & args]
+    (def hookf (module/value module (symbol hook)))
+    (unless hookf (break))
+    (def manifest (bundle/manifest bundle-name))
+    (def dir (os/cwd))
+    (os/cd (get module :workdir "."))
+    (defer (os/cd dir)
+      (print "running hook " hook " for bundle " bundle-name)
+      (hookf ;args)))
+
+  (defn bundle/list
+    "Get a list of all installed bundles in lexical order."
+    []
+    (def d (bundle-dir))
+    (if (os/stat d :mode)
+      (sort (os/dir d))
+      @[]))
+
+  (defn- bundle-uninstall-unchecked
+    [bundle-name]
+    (def man (bundle/manifest bundle-name))
+    (def all-hooks (get man :hooks @[]))
+    (when (index-of :uninstall all-hooks)
+      (def module (get-bundle-module bundle-name))
+      (do-hook module bundle-name :uninstall man))
+    (def files (get man :files []))
+    (each file (reverse files)
+      (print "remove " file)
+      (case (os/stat file :mode)
+        :file (os/rm file)
+        :directory (os/rmdir file)))
+    (rmrf (bundle-dir bundle-name))
+    nil)
+
+  (defn bundle/uninstall
+    "Remove a bundle from the current syspath"
+    [bundle-name]
+    (def breakage @{})
+    (each b (bundle/list)
+      (unless (= b bundle-name)
+        (def m (bundle/manifest b))
+        (def deps (get m :dependencies []))
+        (each d deps
+          (if (= d bundle-name) (put breakage b true)))))
+    (when (next breakage)
+      (def breakage-list (sorted (keys breakage)))
+      (errorf "cannot uninstall %s, breaks dependent bundles %n" bundle-name breakage-list))
+    (bundle-uninstall-unchecked bundle-name))
+
+  (defn bundle/topolist
+    "Get topological order of all bundles, such that each bundle is listed after its dependencies."
+    []
+    (def visited @{})
+    (def cycle-detect @{})
+    (def order @[])
+    (def stack @[])
+    (defn visit
+      [b]
+      (array/push stack b)
+      (if (get visited b) (break))
+      (if (get cycle-detect b) (errorf "cycle detected in bundle dependencies: %s" (string/join stack " -> ")))
+      (put cycle-detect b true)
+      (each d (get (bundle/manifest b) :dependencies []) (visit d))
+      (put cycle-detect b nil)
+      (put visited b true)
+      (array/pop stack)
+      (array/push order b))
+    (each b (bundle/list) (visit b))
+    order)
+
+  (defn bundle/prune
+    "Remove all orphaned bundles from the syspath. An orphaned bundle is a bundle that is
+     marked for :auto-remove and is not depended on by any other bundle."
+    []
+    (def topo (bundle/topolist))
+    (def rtopo (reverse topo))
+    # Check which auto-remove packages can be dropped
+    # Iterate in (reverse) topological order, and if we see an auto-remove package and have not already seen
+    # something that depends on it, then it is a root package and can be pruned.
+    (def exempt @{})
+    (def to-drop @[])
+    (each b rtopo
+      (def m (bundle/manifest b))
+      (if (or (get exempt b) (not (get m :auto-remove)))
+        (do
+          (put exempt b true)
+          (each d (get m :dependencies []) (put exempt d true)))
+        (array/push to-drop b)))
+    (print "pruning " (length to-drop) " bundles")
+    (each b to-drop
+      (print "uninstall " b))
+    (each b to-drop
+      (print "uninstalling " b)
+      (bundle-uninstall-unchecked b)))
+
+  (defn bundle/installed?
+    "Check if a bundle is installed."
+    [bundle-name]
+    (not (not (os/stat (bundle-dir bundle-name) :mode))))
+
+  (defn bundle/install
+    "Install a bundle from the local filesystem. The name of the bundle will be infered from the bundle, or passed as a parameter :name in `config`."
+    [path &keys config]
+    (def path (bundle-rpath path))
+    (def clean (get config :clean))
+    (def check (get config :check))
+    (def s (sep))
+    # Check meta file for dependencies and default name
+    (def infofile-pre (string path s "bundle" s "info.jdn"))
+    (var default-bundle-name nil)
+    (when (os/stat infofile-pre :mode)
+      (def info (-> infofile-pre slurp parse))
+      (def deps (get info :dependencies @[]))
+      (set default-bundle-name (get info :name))
+      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
+      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
+    (def bundle-name (get config :name default-bundle-name))
+    (assert bundle-name (errorf "unable to infer bundle name for %v, use :name argument" path))
+    (assert (not (string/check-set "\\/" bundle-name))
+            (string "bundle name "
+                    bundle-name
+                    " cannot contain path separators"))
+    (assert (next bundle-name) "cannot use empty bundle-name")
+    (assert (not (fexists (get-manifest-filename bundle-name)))
+            "bundle is already installed")
+    # Setup installed paths
+    (prime-bundle-paths)
+    (os/mkdir (bundle-dir bundle-name))
+    # Copy some files into the new location unconditionally
+    (def implicit-sources (string path s "bundle"))
+    (when (= :directory (os/stat implicit-sources :mode))
+      (copyrf implicit-sources (bundle-dir bundle-name)))
+    (def man @{:name bundle-name :local-source path :files @[]})
+    (merge-into man config)
+    (def infofile (bundle-file bundle-name "info.jdn"))
+    (put man :auto-remove (get config :auto-remove))
+    (sync-manifest man)
+    (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
+      (when (os/stat infofile :mode)
+        (def info (-> infofile slurp parse))
+        (def deps (get info :dependencies @[]))
+        (def missing (filter (complement bundle/installed?) deps))
+        (when (next missing)
+          (error (string "missing dependencies " (string/join missing ", "))))
+        (put man :dependencies deps)
+        (put man :info info))
+      (def module (get-bundle-module bundle-name))
+      (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
+      (put man :hooks all-hooks)
+      (do-hook module bundle-name :dependencies man)
+      (when clean
+        (do-hook module bundle-name :clean man))
+      (do-hook module bundle-name :build man)
+      (do-hook module bundle-name :install man)
+      (when check
+        (do-hook module bundle-name :check man))
+      (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
+      (sync-manifest man))
+    (print "installed " bundle-name)
+    bundle-name)
+
+  (defn- bundle/pack
+    "Take an installed bundle and create a bundle source directory that can be used to
+     reinstall the bundle on a compatible system. This is used to create backups for installed
+     bundles without rebuilding, or make a prebuilt bundle for other systems."
+    [bundle-name dest-dir &opt is-backup]
+    (var i 0)
+    (def man (bundle/manifest bundle-name))
+    (def files (get man :files @[]))
+    (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
+    (def s (sep))
+    (os/mkdir (string dest-dir s "bundle"))
+    (def install-hook (string dest-dir s "bundle" s "init.janet"))
+    (edefer (rmrf dest-dir) # don't leave garbage on failure
+      (def install-source @[])
+      (def syspath (bundle-rpath (dyn *syspath*)))
+      (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir s "old-bundle")))
+      (each file files
+        (def {:mode mode :permissions perm} (os/stat file))
+        (def relpath (string/triml (slice file (length syspath) -1) s))
+        (case mode
+          :directory (array/push install-source ~(bundle/add-directory manifest ,relpath ,perm))
+          :file (do
+                  (def filename (string/format "file_%06d" (++ i)))
+                  (copyfile file (string dest-dir s filename))
+                  (array/push install-source ~(bundle/add-file manifest ,filename ,relpath ,perm)))
+          (errorf "unexpected file %v" file)))
+      (def b @"(defn install [manifest]")
+      (each form install-source (buffer/format b "\n  %j" form))
+      (buffer/push b ")\n")
+      (spit install-hook b))
+    dest-dir)
+
+  (defn bundle/reinstall
+    "Reinstall an existing bundle from the local source code."
+    [bundle-name &keys new-config]
+    (def manifest (bundle/manifest bundle-name))
+    (def path (get manifest :local-source))
+    (def config (get manifest :config @{}))
+    (def s (sep))
+    (assert (= :directory (os/stat path :mode)) "local source not available")
+    (def backup-dir (string (dyn *syspath*) s bundle-name ".backup"))
+    (rmrf backup-dir)
+    (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
+    (edefer (do
+              (bundle/install backup-bundle-source :name bundle-name)
+              (copyrf (string backup-bundle-source s "old-bundle") (bundle-dir bundle-name))
+              (rmrf backup-bundle-source))
+      (bundle-uninstall-unchecked bundle-name)
+      (bundle/install path :name bundle-name ;(kvs config) ;(kvs new-config)))
+    (rmrf backup-bundle-source)
+    bundle-name)
+
+  (defn bundle/add-directory
+    "Add a directory during the install process relative to `(dyn *syspath*)`"
+    [manifest dest &opt chmod-mode]
+    (def files (get-files manifest))
+    (def s (sep))
+    (def absdest (string (dyn *syspath*) s dest))
+    (unless (os/mkdir absdest)
+      (errorf "collision at %s, directory already exists" absdest))
+    (def absdest (os/realpath absdest))
+    (array/push files absdest)
+    (when chmod-mode
+      (os/chmod absdest chmod-mode))
+    (print "add " absdest)
+    absdest)
+
+  (defn bundle/add-file
+    "Add files during an install relative to `(dyn *syspath*)`"
+    [manifest src &opt dest chmod-mode]
+    (default dest src)
+    (def files (get-files manifest))
+    (def s (sep))
+    (def absdest (string (dyn *syspath*) s dest))
+    (when (os/stat absdest :mode)
+      (errorf "collision at %s, file already exists" absdest))
+    (copyfile src absdest)
+    (def absdest (os/realpath absdest))
+    (array/push files absdest)
+    (when chmod-mode
+      (os/chmod absdest chmod-mode))
+    (print "add " absdest)
+    absdest)
+
+  (defn bundle/add
+    "Add files and directories during a bundle install relative to `(dyn *syspath*)`.
+     Added paths will be recorded in the bundle manifest such that they are properly tracked
+     and removed during an upgrade or uninstall."
+    [manifest src &opt dest chmod-mode]
+    (default dest src)
+    (def s (sep))
+    (case (os/stat src :mode)
+      :directory
+      (let [absdest (bundle/add-directory manifest dest chmod-mode)]
+        (each d (os/dir src) (bundle/add manifest (string src s d) (string dest s d) chmod-mode))
+        absdest)
+      :file (bundle/add-file manifest src dest chmod-mode)))
+
+  (defn bundle/update-all
+    "Reinstall all bundles"
+    [&keys configs]
+    (each bundle (bundle/topolist)
+      (bundle/reinstall bundle ;(kvs configs)))))
 
 ###
 ###
@@ -4338,9 +4716,8 @@
   (each s core-sources
     (do-one-file s))
 
-  # Create C source file that contains images a uint8_t buffer. This
-  # can be compiled and linked statically into the main janet library
-  # and example client.
+  # Create C source file that contains the boot image in a uint8_t buffer. This
+  # can be compiled and linked statically into the main janet library and client
   (print "static const unsigned char janet_core_image_bytes[] = {")
   (loop [line :in (partition 16 image)]
     (prin "  ")

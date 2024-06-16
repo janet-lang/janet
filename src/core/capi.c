@@ -303,10 +303,27 @@ int32_t janet_getinteger(const Janet *argv, int32_t n) {
 uint32_t janet_getuinteger(const Janet *argv, int32_t n) {
     Janet x = argv[n];
     if (!janet_checkuint(x)) {
-        janet_panicf("bad slot #%d, expected 32 bit signed integer, got %v", n, x);
+        janet_panicf("bad slot #%d, expected 32 bit unsigned integer, got %v", n, x);
     }
-    return janet_unwrap_integer(x);
+    return (uint32_t) janet_unwrap_number(x);
 }
+
+int16_t janet_getinteger16(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkint16(x)) {
+        janet_panicf("bad slot #%d, expected 16 bit signed integer, got %v", n, x);
+    }
+    return (int16_t) janet_unwrap_number(x);
+}
+
+uint16_t janet_getuinteger16(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkuint16(x)) {
+        janet_panicf("bad slot #%d, expected 16 bit unsigned integer, got %v", n, x);
+    }
+    return (uint16_t) janet_unwrap_number(x);
+}
+
 
 int64_t janet_getinteger64(const Janet *argv, int32_t n) {
 #ifdef JANET_INT_TYPES

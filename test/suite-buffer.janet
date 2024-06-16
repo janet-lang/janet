@@ -85,9 +85,11 @@
 (buffer/push-uint16 buffer-uint16-le :le 0x0102)
 (assert (= "\x02\x01" (string buffer-uint16-le)) "buffer/push-uint16 little endian")
 
-(def buffer-uint16-negative @"")
-(buffer/push-uint16 buffer-uint16-negative :be -1)
-(assert (= "\xff\xff" (string buffer-uint16-negative)) "buffer/push-uint16 negative")
+(def buffer-uint16-max @"")
+(buffer/push-uint16 buffer-uint16-max :be 0xFFFF)
+(assert (= "\xff\xff" (string buffer-uint16-max)) "buffer/push-uint16 max")
+(assert-error "too large" (buffer/push-uint16 @"" 0x1FFFF))
+(assert-error "too small" (buffer/push-uint16 @"" -0x1))
 
 (def buffer-uint32-be @"")
 (buffer/push-uint32 buffer-uint32-be :be 0x01020304)
@@ -97,9 +99,9 @@
 (buffer/push-uint32 buffer-uint32-le :le 0x01020304)
 (assert (= "\x04\x03\x02\x01" (string buffer-uint32-le)) "buffer/push-uint32 little endian")
 
-(def buffer-uint32-negative @"")
-(buffer/push-uint32 buffer-uint32-negative :be -1)
-(assert (= "\xff\xff\xff\xff" (string buffer-uint32-negative)) "buffer/push-uint32 negative")
+(def buffer-uint32-max @"")
+(buffer/push-uint32 buffer-uint32-max :be 0xFFFFFFFF)
+(assert (= "\xff\xff\xff\xff" (string buffer-uint32-max)) "buffer/push-uint32 max")
 
 (def buffer-float32-be @"")
 (buffer/push-float32 buffer-float32-be :be 1.234)
