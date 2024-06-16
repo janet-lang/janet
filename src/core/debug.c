@@ -102,7 +102,7 @@ void janet_stacktrace(JanetFiber *fiber, Janet err) {
 }
 
 /* Error reporting. This can be emulated from within Janet, but for
- * consitency with the top level code it is defined once. */
+ * consistency with the top level code it is defined once. */
 void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *prefix) {
 
     int32_t fi;

@@ -116,7 +116,7 @@
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
 
-# For macros, we define an imcomplete odd? function that will be overriden.
+# For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
 
 (def- non-atomic-types
@@ -3847,7 +3847,7 @@
     (string/replace-all "-" "_" name))
 
   (defn ffi/context
-    "Set the path of the dynamic library to implictly bind, as well
+    "Set the path of the dynamic library to implicitly bind, as well
      as other global state for ease of creating native bindings."
     [&opt native-path &named map-symbols lazy]
     (default map-symbols default-mangle)
@@ -4179,7 +4179,7 @@
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/install
-    "Install a bundle from the local filesystem. The name of the bundle will be infered from the bundle, or passed as a parameter :name in `config`."
+    "Install a bundle from the local filesystem. The name of the bundle will be inferred from the bundle, or passed as a parameter :name in `config`."
     [path &keys config]
     (def path (bundle-rpath path))
     (def clean (get config :clean))

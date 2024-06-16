@@ -754,7 +754,7 @@
     (default name (string "has-key? " (++ test-has-key-auto)))
     (assert (= expected (has-key? col key)) name)
     (if
-      # guarenteed by `has-key?` to never fail
+      # guaranteed by `has-key?` to never fail
       expected (in col key)
       # if `has-key?` is false, then `in` should fail (for indexed types)
       #
