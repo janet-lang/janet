@@ -32,8 +32,8 @@
      (return x)))
 
 (def main-fn
-  '(defn _start:void []
-     (syscall 1 1 "Hello, world!\n" 14)
+  '(defn WinMain:void []
+     #(syscall 1 1 "Hello, world!\n" 14)
      (doloop 10 20)
      (exit (the int 0))
      (return)))

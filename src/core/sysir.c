@@ -287,7 +287,7 @@ static uint32_t instr_read_type_operand(Janet x, JanetSysIR *ir, ReadOpMode rmod
             return (uint32_t) n;
         } else if (rmode == READ_TYPE_FORWARD_REF) {
             uint32_t operand = linkage->type_def_count++;
-            janet_table_put(linkage->type_name_lookup, x, janet_wrap_number(-operand - 1));
+            janet_table_put(linkage->type_name_lookup, x, janet_wrap_number(-(int64_t)operand - 1));
             return operand;
         } else if (rmode == READ_TYPE_DEFINITION) {
             uint32_t operand = linkage->type_def_count++;
@@ -1600,7 +1600,7 @@ void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into) {
                     build_tuple[0] = janet_csymbolv("type-array");
                     build_tuple[1] = janet_sys_get_desttype(linkage, instruction.array.dest_type);
                     build_tuple[2] = janet_sys_get_desttype(linkage, instruction.array.type);
-                    build_tuple[4] = janet_wrap_number(instruction.array.fixed_count);
+                    build_tuple[4] = janet_wrap_number((double) instruction.array.fixed_count);
                     break;
             }
             const Janet *tuple = janet_tuple_end(build_tuple);

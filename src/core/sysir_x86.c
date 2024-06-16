@@ -585,8 +585,8 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     sysemit_operand(&ctx, instruction.branch.cond, ", 0\n");
                     janet_formatb(buffer,
                                   "%s label_%d_%u\n",
-                                  instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ",
-                                  i, instruction.branch.to);
+                                  instruction.opcode == JANET_SYSOP_BRANCH ? "jnz" : "jz",
+                                  i, (uint64_t) instruction.branch.to);
                     break;
                 case JANET_SYSOP_JUMP:
                     janet_formatb(buffer, "jmp label_%d_%u\n", i, instruction.jump.to);
