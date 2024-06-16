@@ -2654,7 +2654,7 @@
 
 (defn eval
   ``Evaluates a form in the current environment. If more control over the
-  environment is needed, use `run-context`.``
+  environment is needed, use `run-context`. Optionally pass in an `env` table with available bindings.``
   [form &opt env]
   (def res (compile form env :eval))
   (if (= (type res) :function)
@@ -2694,7 +2694,7 @@
 
 (defn eval-string
   ``Evaluates a string in the current environment. If more control over the
-  environment is needed, use `run-context`.``
+  environment is needed, use `run-context`. Optionally pass in an `env` table with available bindings.``
   [str &opt env]
   (var ret nil)
   (each x (parse-all str) (set ret (eval x env)))
@@ -3040,7 +3040,7 @@
   ``Merge a module source into the `target` environment with a `prefix`, as with the `import` macro.
   This lets users emulate the behavior of `import` with a custom module table.
   If `export` is truthy, then merged functions are not marked as private. Returns
-  the modified target environment. If an array `only` is passed, only merge keys in `only`.``
+  the modified target environment. If a tuple or array `only` is passed, only merge keys in `only`.``
   [target source &opt prefix export only]
   (def only-set (if only (invert only)))
   (loop [[k v] :pairs source :when (symbol? k) :when (not (v :private)) :when (or (not only) (in only-set k))]
@@ -3073,7 +3073,8 @@
   to re-export the imported symbols. If "`:exit true`" is given as an argument,
   any errors encountered at the top level in the module will cause `(os/exit 1)`
   to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
-  module cache.``
+  module cache. Use `:only [foo bar baz]` to only import select bindings into the
+  current environment.``
   [path & args]
   (def ps (partition 2 args))
   (def argm (mapcat (fn [[k v]] [k (if (= k :as) (string v) v)]) ps))
@@ -3744,7 +3745,7 @@
     (acquire-release ev/acquire-rlock ev/release-rlock lock body))
 
   (defmacro ev/with-wlock
-    ``Run a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
+    ``Run a body of code after acquiring write access to an rwlock. Will automatically release the lock when done.``
     [lock & body]
     (acquire-release ev/acquire-wlock ev/release-wlock lock body))
 
@@ -4178,7 +4179,7 @@
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/install
-    "Install a bundle from the local filesystem with a name `bundle-name`."
+    "Install a bundle from the local filesystem. The name of the bundle will be infered from the bundle, or passed as a parameter :name in `config`."
     [path &keys config]
     (def path (bundle-rpath path))
     (def clean (get config :clean))
