@@ -475,7 +475,7 @@ JANET_CORE_FN(cfun_ffi_align,
 static void *janet_ffi_getpointer(const Janet *argv, int32_t n) {
     switch (janet_type(argv[n])) {
         default:
-            janet_panicf("bad slot #%d, expected ffi pointer convertable type, got %v", n, argv[n]);
+            janet_panicf("bad slot #%d, expected ffi pointer convertible type, got %v", n, argv[n]);
         case JANET_POINTER:
         case JANET_STRING:
         case JANET_KEYWORD:

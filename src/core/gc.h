@@ -64,7 +64,7 @@ enum JanetMemoryType {
 };
 
 /* To allocate collectable memory, one must call janet_alloc, initialize the memory,
- * and then call when janet_enablegc when it is initailize and reachable by the gc (on the JANET stack) */
+ * and then call when janet_enablegc when it is initialized and reachable by the gc (on the JANET stack) */
 void *janet_gcalloc(enum JanetMemoryType type, size_t size);
 
 #endif

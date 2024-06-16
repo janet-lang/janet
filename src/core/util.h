@@ -141,7 +141,7 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source);
 #define strdup(x) _strdup(x)
 #endif
 
-/* Use LoadLibrary on windows or dlopen on posix to load dynamic libaries
+/* Use LoadLibrary on windows or dlopen on posix to load dynamic libraries
  * with native code. */
 #if defined(JANET_NO_DYNAMIC_MODULES)
 typedef int Clib;

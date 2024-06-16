@@ -34,9 +34,9 @@
  * because E is a valid digit in bases 15 or greater. For bases greater than
  * 10, the letters are used as digits. A through Z correspond to the digits 10
  * through 35, and the lowercase letters have the same values. The radix number
- * is always in base 10. For example, a hexidecimal number could be written
+ * is always in base 10. For example, a hexadecimal number could be written
  * '16rdeadbeef'. janet_scan_number also supports some c style syntax for
- * hexidecimal literals. The previous number could also be written
+ * hexadecimal literals. The previous number could also be written
  * '0xdeadbeef'.
  */
 

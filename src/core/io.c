@@ -294,7 +294,7 @@ int janet_file_close(JanetFile *file) {
     if (!(file->flags & (JANET_FILE_NOT_CLOSEABLE | JANET_FILE_CLOSED))) {
         ret = fclose(file->file);
         file->flags |= JANET_FILE_CLOSED;
-        file->file = NULL; /* NULL derefence is easier to debug then other problems */
+        file->file = NULL; /* NULL dereference is easier to debug then other problems */
         return ret;
     }
     return 0;

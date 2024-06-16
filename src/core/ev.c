@@ -433,7 +433,7 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
     }
     janet_marshal_int64(ctx, (int64_t)(duph));
 #else
-    /* Marshal after dup becuse it is easier than maintaining our own ref counting. */
+    /* Marshal after dup because it is easier than maintaining our own ref counting. */
     int duph = dup(s->handle);
     if (duph < 0) janet_panicf("failed to duplicate stream handle: %V", janet_ev_lasterr());
     janet_marshal_int(ctx, (int32_t)(duph));
@@ -595,7 +595,7 @@ void janet_ev_deinit_common(void) {
 
 /* Shorthand to yield to event loop */
 void janet_await(void) {
-    /* Store the fiber in a gobal table */
+    /* Store the fiber in a global table */
     janet_signalv(JANET_SIGNAL_EVENT, janet_wrap_nil());
 }
 
@@ -1477,7 +1477,7 @@ static void janet_register_stream(JanetStream *stream) {
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     ULONG_PTR completionKey = 0;
-    DWORD num_bytes_transfered = 0;
+    DWORD num_bytes_transferred = 0;
     LPOVERLAPPED overlapped = NULL;
 
     /* Calculate how long to wait before timeout */
@@ -1492,7 +1492,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
     } else {
         waittime = INFINITE;
     }
-    BOOL result = GetQueuedCompletionStatus(janet_vm.iocp, &num_bytes_transfered, &completionKey, &overlapped, (DWORD) waittime);
+    BOOL result = GetQueuedCompletionStatus(janet_vm.iocp, &num_bytes_transferred, &completionKey, &overlapped, (DWORD) waittime);
 
     if (result || overlapped) {
         if (0 == completionKey) {
@@ -1515,7 +1515,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
             if (fiber != NULL) {
                 fiber->flags &= ~JANET_FIBER_EV_FLAG_IN_FLIGHT;
                 /* System is done with this, we can reused this data */
-                overlapped->InternalHigh = (ULONG_PTR) num_bytes_transfered;
+                overlapped->InternalHigh = (ULONG_PTR) num_bytes_transferred;
                 fiber->ev_callback(fiber, result ? JANET_ASYNC_EVENT_COMPLETE : JANET_ASYNC_EVENT_FAILED);
             } else {
                 janet_free((void *) overlapped);
@@ -2832,7 +2832,7 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
             janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
         }
 
-        /* Get supervsior */
+        /* Get supervisor */
         if (flags & JANET_THREAD_SUPERVISOR_FLAG) {
             Janet sup =
                 janet_unmarshal(nextbytes, endbytes - nextbytes,

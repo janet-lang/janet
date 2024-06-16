@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /*
- * Detect OS and endianess.
+ * Detect OS and endianness.
  * From webkit source. There is likely some extreneous
  * detection for unsupported platforms
  */
@@ -262,7 +262,7 @@ extern "C" {
 #endif
 #endif
 
-/* Tell complier some functions don't return */
+/* Tell compiler some functions don't return */
 #ifndef JANET_NO_RETURN
 #ifdef JANET_WINDOWS
 #define JANET_NO_RETURN __declspec(noreturn)
@@ -272,7 +272,7 @@ extern "C" {
 #endif
 
 /* Prevent some recursive functions from recursing too deeply
- * ands crashing (the parser). Instead, error out. */
+ * and crashing (the parser). Instead, error out. */
 #define JANET_RECURSION_GUARD 1024
 
 /* Maximum depth to follow table prototypes before giving up and returning nil. */
@@ -2150,7 +2150,7 @@ typedef enum {
     RULE_TO,           /* [rule] */
     RULE_THRU,         /* [rule] */
     RULE_LENPREFIX,    /* [rule_a, rule_b (repeat rule_b rule_a times)] */
-    RULE_READINT,      /* [(signedness << 4) | (endianess << 5) | bytewidth, tag] */
+    RULE_READINT,      /* [(signedness << 4) | (endianness << 5) | bytewidth, tag] */
     RULE_LINE,         /* [tag] */
     RULE_COLUMN,       /* [tag] */
     RULE_UNREF,        /* [rule, tag] */

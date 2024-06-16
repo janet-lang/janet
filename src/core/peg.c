@@ -134,7 +134,7 @@ static LineCol get_linecol_from_position(PegState *s, int32_t position) {
      *   a newline character is consider to be on the same line as the character before
      *   (\n is line terminator, not line separator).
      * - in the not-found case, we still want to find the greatest-indexed newline that
-     *   is before position. we use that to calcuate the line and column.
+     *   is before position. we use that to calculate the line and column.
      * - in the case that lo = 0 and s->linemap[0] is still greater than position, we
      *   are on the first line and our column is position + 1. */
     int32_t hi = s->linemaplen; /* hi is greater than the actual line */
@@ -667,11 +667,11 @@ tail:
         case RULE_READINT: {
             uint32_t tag = rule[2];
             uint32_t signedness = rule[1] & 0x10;
-            uint32_t endianess = rule[1] & 0x20;
+            uint32_t endianness = rule[1] & 0x20;
             int width = (int)(rule[1] & 0xF);
             if (text + width > s->text_end) return NULL;
             uint64_t accum = 0;
-            if (endianess) {
+            if (endianness) {
                 /* BE */
                 for (int i = 0; i < width; i++) accum = (accum << 8) | text[i];
             } else {
@@ -1628,7 +1628,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 2;
                 break;
             case RULE_READINT:
-                /* [ width | (endianess << 5) | (signedness << 6), tag ] */
+                /* [ width | (endianness << 5) | (signedness << 6), tag ] */
                 if (rule[1] > JANET_MAX_READINT_WIDTH) goto bad;
                 i += 3;
                 break;
@@ -1725,7 +1725,7 @@ static JanetPeg *compile_peg(Janet x) {
 JANET_CORE_FN(cfun_peg_compile,
               "(peg/compile peg)",
               "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to suppliment "
+              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to supplement "
               "the grammar of the peg for otherwise undefined peg keywords.") {
     janet_fixarity(argc, 1);
     JanetPeg *peg = compile_peg(argv[0]);

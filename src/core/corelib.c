@@ -976,7 +976,7 @@ static void make_apply(JanetTable *env) {
         /* Push the array */
         S(JOP_PUSH_ARRAY, 5),
 
-        /* Call the funciton */
+        /* Call the function */
         S(JOP_TAILCALL, 0)
     };
     janet_quick_asm(env, JANET_FUN_APPLY | JANET_FUNCDEF_FLAG_VARARG,

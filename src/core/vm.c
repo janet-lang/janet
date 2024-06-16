@@ -1268,7 +1268,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 /*
  * Execute a single instruction in the fiber. Does this by inspecting
  * the fiber, setting a breakpoint at the next instruction, executing, and
- * reseting breakpoints to how they were prior. Yes, it's a bit hacky.
+ * resetting breakpoints to how they were prior. Yes, it's a bit hacky.
  */
 JanetSignal janet_step(JanetFiber *fiber, Janet in, Janet *out) {
     /* No finished or currently alive fibers. */
@@ -1613,7 +1613,7 @@ int janet_init(void) {
     janet_vm.registry_count = 0;
     janet_vm.registry_dirty = 0;
 
-    /* Intialize abstract registry */
+    /* Initialize abstract registry */
     janet_vm.abstract_registry = janet_table(0);
     janet_gcroot(janet_wrap_table(janet_vm.abstract_registry));
 

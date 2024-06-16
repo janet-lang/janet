@@ -1413,7 +1413,7 @@ JANET_CORE_FN(os_spawn,
 JANET_CORE_FN(os_posix_exec,
               "(os/posix-exec args &opt flags env)",
               "Use the execvpe or execve system calls to replace the current process with an interface similar to os/execute. "
-              "Hoever, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
+              "However, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
               "does not allow redirection of stdio.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
 }

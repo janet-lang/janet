@@ -492,7 +492,7 @@
       # header, followed by body, and drop the :header-len capture
       :packet (/ (* :packet-header :packet-body) ,|$1)
 
-      # any exact seqence of packets (no extra characters)
+      # any exact sequence of packets (no extra characters)
       :main (* (any :packet) -1)}))
 
 (assert (deep= @["a" "bb" "ccc"] (peg/match peg2 "1:a2:bb3:ccc"))
