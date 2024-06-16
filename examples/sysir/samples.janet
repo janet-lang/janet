@@ -19,8 +19,8 @@
        (set i (the int (+ 1 i)))
        (printf "i = %d\n" i))
      (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
-     (return (* abc xyz))))
-     #(return (the int (simple (* abc xyz))))))
+     #(return (* abc xyz))))
+     (return (the int (simple (* abc xyz))))))
 
 (def doloop
   '(defn doloop [x:int y:int]

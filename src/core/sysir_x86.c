@@ -166,9 +166,9 @@ void assign_registers(JanetSysx64Context *ctx) {
     /* TODO - linear scan or graph coloring. Require calculating live ranges */
     /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
-    
+
     /* Make trivial assigments */
-    uint32_t next_loc = 0;
+    uint32_t next_loc = 16;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
     uint32_t assigned = 0;
     uint32_t occupied = 0;
@@ -193,7 +193,7 @@ void assign_registers(JanetSysx64Context *ctx) {
                 assigned |= 1 << ctx->regs[i].index;
                 occupied |= 1 << ctx->regs[i].index;
             }
-        } else if (assigned < 0xFFFF) { /* skip r15 so we have some temporary registers if needed */
+        } else if (assigned < 0xFFFF) {
             /* Assign to register */
             uint32_t to = 0;
             while ((1 << to) & assigned) to++;
@@ -351,7 +351,7 @@ static void sysemit_threeop(JanetSysx64Context *ctx, const char *op, uint32_t de
 }
 
 static void sysemit_threeop_nodeststack(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t lhs,
-        uint32_t rhs) {
+                                        uint32_t rhs) {
     if (operand_isstack(ctx, dest)) {
         sysemit_movreg(ctx, RAX, lhs);
         x64Reg tempreg;
@@ -487,7 +487,6 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
             ctx.ir_layouts[i] = ctx.layouts[ir->types[i]];
         }
         ctx.ir = ir;
-        //janet_assert(ir->register_count, "non-zero register count");
         assign_registers(&ctx);
 
         /* Emit prelude */
@@ -529,7 +528,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     break;
                 case JANET_SYSOP_MULTIPLY:
                     sysemit_threeop_nodeststack(&ctx, "imul", instruction.three.dest,
-                            instruction.three.lhs, instruction.three.rhs);
+                                                instruction.three.lhs, instruction.three.rhs);
                     break;
                 case JANET_SYSOP_DIVIDE:
                     sysemit_three_inst(&ctx, "idiv", instruction);
@@ -585,9 +584,9 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     // TODO - ensure branch condition is not a const
                     sysemit_operand(&ctx, instruction.branch.cond, ", 0\n");
                     janet_formatb(buffer,
-                            "%s label_%d_%u\n",
-                            instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ",
-                            i, instruction.branch.to);
+                                  "%s label_%d_%u\n",
+                                  instruction.opcode == JANET_SYSOP_BRANCH ? "jnz " : "jz ",
+                                  i, instruction.branch.to);
                     break;
                 case JANET_SYSOP_JUMP:
                     janet_formatb(buffer, "jmp label_%d_%u\n", i, instruction.jump.to);
@@ -631,13 +630,11 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                         janet_formatb(buffer, "syscall\n");
                     } else {
                         /* Save RAX to number of floating point args for varags - for now, always 0 :) */
-                        sysemit_pushreg(&ctx, RAX);
                         janet_formatb(buffer, "mov rax, 0\n");
                         janet_formatb(buffer, "call ");
                         sysemit_operand(&ctx, instruction.call.callee, "\n");
                     }
                     if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(&ctx, RAX, instruction.call.dest);
-                    if (instruction.opcode != JANET_SYSOP_SYSCALL) sysemit_popreg(&ctx, RAX);
                     if (save_r11) sysemit_popreg(&ctx, 11);
                     if (save_r10) sysemit_popreg(&ctx, 10);
                     if (save_r9) sysemit_popreg(&ctx, 9);
