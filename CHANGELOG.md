@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.35.1 - 2024-06-16
+## 1.35.2 - 2024-06-16
 - Fix some documentation typos.
 - Allow using `:only` in import without quoting.
 
