@@ -3077,7 +3077,7 @@
   current environment.``
   [path & args]
   (def ps (partition 2 args))
-  (def argm (mapcat (fn [[k v]] [k (if (= k :as) (string v) v)]) ps))
+  (def argm (mapcat (fn [[k v]] [k (case k :as (string v) :only ~(quote ,v) v)]) ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
