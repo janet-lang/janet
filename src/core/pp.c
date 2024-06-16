@@ -134,9 +134,9 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
 #undef POINTSIZE
 }
 
-static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, int32_t len) {
+static void janet_escape_string_impl(JanetBuffer *buffer, const uint8_t *str, size_t len) {
     janet_buffer_push_u8(buffer, '"');
-    for (int32_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         uint8_t c = str[i];
         switch (c) {
             case '"':
@@ -279,10 +279,10 @@ void janet_to_string_b(JanetBuffer *buffer, Janet x) {
 
 /* Check if a symbol or keyword contains no symbol characters */
 static int contains_bad_chars(const uint8_t *sym, int issym) {
-    int32_t len = janet_string_length(sym);
+    size_t len = janet_string_length(sym);
     if (len && issym && sym[0] >= '0' && sym[0] <= '9') return 1;
     if (!janet_valid_utf8(sym, len)) return 1;
-    for (int32_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         if (!janet_is_symbol_char(sym[i])) return 1;
     }
     return 0;
@@ -393,7 +393,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetTuple t = janet_unwrap_tuple(x);
             int isb = janet_tuple_flag(t) & JANET_TUPLE_FLAG_BRACKETCTOR;
             janet_buffer_push_u8(S->buffer, isb ? '[' : '(');
-            for (int32_t i = 0; i < janet_tuple_length(t); i++) {
+            for (size_t i = 0; i < janet_tuple_length(t); i++) {
                 if (i) janet_buffer_push_u8(S->buffer, ' ');
                 if (print_jdn_one(S, t[i], depth - 1)) return 1;
             }
@@ -404,7 +404,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             janet_table_put(&S->seen, x, janet_wrap_true());
             JanetArray *a = janet_unwrap_array(x);
             janet_buffer_push_cstring(S->buffer, "@[");
-            for (int32_t i = 0; i < a->count; i++) {
+            for (size_t i = 0; i < a->count; i++) {
                 if (i) janet_buffer_push_u8(S->buffer, ' ');
                 if (print_jdn_one(S, a->data[i], depth - 1)) return 1;
             }
@@ -416,7 +416,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetTable *tab = janet_unwrap_table(x);
             janet_buffer_push_cstring(S->buffer, "@{");
             int isFirst = 1;
-            for (int32_t i = 0; i < tab->capacity; i++) {
+            for (size_t i = 0; i < tab->capacity; i++) {
                 const JanetKV *kv = tab->data + i;
                 if (janet_checktype(kv->key, JANET_NIL)) continue;
                 if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');
@@ -432,7 +432,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             JanetStruct st = janet_unwrap_struct(x);
             janet_buffer_push_u8(S->buffer, '{');
             int isFirst = 1;
-            for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+            for (size_t i = 0; i < janet_struct_capacity(st); i++) {
                 const JanetKV *kv = st + i;
                 if (janet_checktype(kv->key, JANET_NIL)) continue;
                 if (!isFirst) janet_buffer_push_u8(S->buffer, ' ');
@@ -538,7 +538,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
         }
         case JANET_ARRAY:
         case JANET_TUPLE: {
-            int32_t i = 0, len = 0;
+            size_t i = 0, len = 0;
             const Janet *arr = NULL;
             int isarray = janet_checktype(x, JANET_ARRAY);
             janet_indexed_view(x, &arr, &len);
@@ -589,7 +589,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (NULL != proto) {
                     Janet name = janet_table_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
-                    int32_t len;
+                    size_t len;
                     if (janet_bytes_view(name, &n, &len)) {
                         if (S->flags & JANET_PRETTY_COLOR) {
                             janet_buffer_push_cstring(S->buffer, janet_class_color);
@@ -606,7 +606,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
                 if (NULL != proto) {
                     Janet name = janet_struct_get(proto, janet_ckeywordv("_name"));
                     const uint8_t *n;
-                    int32_t len;
+                    size_t len;
                     if (janet_bytes_view(name, &n, &len)) {
                         if (S->flags & JANET_PRETTY_COLOR) {
                             janet_buffer_push_cstring(S->buffer, janet_class_color);
@@ -625,7 +625,7 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (S->depth == 0) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
-                int32_t i = 0, len = 0, cap = 0;
+                size_t i = 0, len = 0, cap = 0;
                 const JanetKV *kvs = NULL;
                 janet_dictionary_view(x, &kvs, &len, &cap);
                 if (!istable && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_DICT_ONELINE)
@@ -897,13 +897,13 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 's':
                 case 'S': {
                     const char *str = va_arg(args, const char *);
-                    int32_t len = c[-1] == 's'
-                                  ? (int32_t) strlen(str)
+                    size_t len = c[-1] == 's'
+                                  ? strlen(str)
                                   : janet_string_length((JanetString) str);
                     if (form[2] == '\0')
                         janet_buffer_push_bytes(b, (const uint8_t *) str, len);
                     else {
-                        if (len != (int32_t) strlen((const char *) str))
+                        if (len != strlen((const char *) str))
                             janet_panic("string contains zeros");
                         if (!strchr(form, '.') && len >= 100) {
                             janet_panic("no precision and string is too long to be formatted");

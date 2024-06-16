@@ -249,7 +249,7 @@ static double convert(
  * and integer, return 0. */
 int janet_scan_number_base(
     const uint8_t *str,
-    int32_t len,
+    size_t len,
     int32_t base,
     double *out) {
     const uint8_t *end = str + len;
@@ -385,7 +385,7 @@ error:
 
 int janet_scan_number(
     const uint8_t *str,
-    int32_t len,
+    size_t len,
     double *out) {
     return janet_scan_number_base(str, len, 0, out);
 }
@@ -394,7 +394,7 @@ int janet_scan_number(
 
 static int scan_uint64(
     const uint8_t *str,
-    int32_t len,
+    size_t len,
     uint64_t *out,
     int *neg) {
     const uint8_t *end = str + len;
@@ -457,7 +457,7 @@ static int scan_uint64(
     return 1;
 }
 
-int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
+int janet_scan_int64(const uint8_t *str, size_t len, int64_t *out) {
     int neg;
     uint64_t bi;
     if (scan_uint64(str, len, &bi, &neg)) {
@@ -477,7 +477,7 @@ int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out) {
     return 0;
 }
 
-int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
+int janet_scan_uint64(const uint8_t *str, size_t len, uint64_t *out) {
     int neg;
     uint64_t bi;
     if (scan_uint64(str, len, &bi, &neg)) {

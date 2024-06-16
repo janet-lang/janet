@@ -27,10 +27,10 @@
 #endif
 
 /* Run a string */
-int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
+int janet_dobytes(JanetTable *env, const uint8_t *bytes, size_t len, const char *sourcePath, Janet *out) {
     JanetParser parser;
     int errflags = 0, done = 0;
-    int32_t index = 0;
+    size_t index = 0;
     Janet ret = janet_wrap_nil();
     JanetFiber *fiber = NULL;
     const uint8_t *where = sourcePath ? janet_cstring(sourcePath) : NULL;
@@ -128,7 +128,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
 }
 
 int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out) {
-    int32_t len = 0;
+    size_t len = 0;
     while (str[len]) ++len;
     return janet_dobytes(env, (const uint8_t *)str, len, sourcePath, out);
 }

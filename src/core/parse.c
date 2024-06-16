@@ -59,11 +59,11 @@ int janet_is_symbol_char(uint8_t c) {
 /* Validate some utf8. Useful for identifiers. Only validates
  * the encoding, does not check for valid code points (they
  * are less well defined than the encoding). */
-int janet_valid_utf8(const uint8_t *str, int32_t len) {
-    int32_t i = 0;
-    int32_t j;
+int janet_valid_utf8(const uint8_t *str, size_t len) {
+    size_t i = 0;
+    size_t j;
     while (i < len) {
-        int32_t nexti;
+        size_t nexti;
         uint8_t c = str[i];
 
         /* Check the number of bytes in code point */
@@ -434,8 +434,8 @@ static int stringchar(JanetParser *p, JanetParseState *state, uint8_t c) {
 }
 
 /* Check for string equality in the buffer */
-static int check_str_const(const char *cstr, const uint8_t *str, int32_t len) {
-    int32_t index;
+static int check_str_const(const char *cstr, const uint8_t *str, size_t len) {
+    size_t index;
     for (index = 0; index < len; index++) {
         uint8_t c = str[index];
         uint8_t k = ((const uint8_t *)cstr)[index];
@@ -449,14 +449,14 @@ static int check_str_const(const char *cstr, const uint8_t *str, int32_t len) {
 static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
     Janet ret;
     double numval;
-    int32_t blen;
+    size_t blen;
     if (janet_is_symbol_char(c)) {
         push_buf(p, (uint8_t) c);
         if (c > 127) state->argn = 1; /* Use to indicate non ascii */
         return 1;
     }
     /* Token finished */
-    blen = (int32_t) p->bufcount;
+    blen = p->bufcount;
     int start_dig = p->buf[0] >= '0' && p->buf[0] <= '9';
     int start_num = start_dig || p->buf[0] == '-' || p->buf[0] == '+' || p->buf[0] == '.';
     if (p->buf[0] == ':') {
@@ -920,13 +920,13 @@ JANET_CORE_FN(cfun_parse_consume,
     JanetParser *p = janet_getabstract(argv, 0, &janet_parser_type);
     JanetByteView view = janet_getbytes(argv, 1);
     if (argc == 3) {
-        int32_t offset = janet_getinteger(argv, 2);
-        if (offset < 0 || offset > view.len)
+        size_t offset = janet_getsize(argv, 2);
+        if (offset > view.len)
             janet_panicf("invalid offset %d out of range [0,%d]", offset, view.len);
         view.len -= offset;
         view.bytes += offset;
     }
-    int32_t i;
+    size_t i;
     for (i = 0; i < view.len; i++) {
         janet_parser_consume(p, view.bytes[i]);
         switch (janet_parser_status(p)) {
@@ -934,10 +934,10 @@ JANET_CORE_FN(cfun_parse_consume,
             case JANET_PARSE_PENDING:
                 break;
             default:
-                return janet_wrap_integer(i + 1);
+                return janet_wrap_size(i + 1);
         }
     }
-    return janet_wrap_integer(i);
+    return janet_wrap_size(i);
 }
 
 JANET_CORE_FN(cfun_parse_eof,
@@ -974,7 +974,7 @@ JANET_CORE_FN(cfun_parse_insert,
         }
     } else if (s->flags & (PFLAG_STRING | PFLAG_LONGSTRING)) {
         const uint8_t *str = janet_to_string(argv[1]);
-        int32_t slen = janet_string_length(str);
+        size_t slen = janet_string_length(str);
         size_t newcount = p->bufcount + slen;
         if (p->bufcap < newcount) {
             size_t newcap = 2 * newcount;

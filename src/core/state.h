@@ -42,14 +42,14 @@ typedef struct JanetScratch {
 typedef struct {
     JanetGCObject *self;
     JanetGCObject *other;
-    int32_t index;
-    int32_t index2;
+    size_t index;
+    size_t index2;
 } JanetTraversalNode;
 
 typedef struct {
-    int32_t capacity;
-    int32_t head;
-    int32_t tail;
+    size_t capacity;
+    size_t head;
+    size_t tail;
     void *data;
 } JanetQueue;
 

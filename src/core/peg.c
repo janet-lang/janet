@@ -65,9 +65,9 @@ typedef struct {
  * to save state at branches, and then reload
  * if one branch fails and try a new branch. */
 typedef struct {
-    int32_t cap;
-    int32_t tcap;
-    int32_t scratch;
+    size_t cap;
+    size_t tcap;
+    size_t scratch;
 } CapState;
 
 /* Save the current capture state */
@@ -423,10 +423,10 @@ tail:
             /* check number parsing */
             double x = 0.0;
             int32_t base = (int32_t) rule[2];
-            if (janet_scan_number_base(text, (int32_t)(result - text), base, &x)) return NULL;
+            if (janet_scan_number_base(text, (size_t)(result - text), base, &x)) return NULL;
             /* Specialized pushcap - avoid intermediate string creation */
             if (!s->has_backref && s->mode == PEG_MODE_ACCUMULATE) {
-                janet_buffer_push_bytes(s->scratch, text, (int32_t)(result - text));
+                janet_buffer_push_bytes(s->scratch, text, (size_t)(result - text));
             } else {
                 uint32_t tag = rule[3];
                 pushcap(s, janet_wrap_number(x), tag);
@@ -597,7 +597,7 @@ tail:
         case RULE_ERROR: {
             int oldmode = s->mode;
             s->mode = PEG_MODE_NORMAL;
-            int32_t old_cap = s->captures->count;
+            size_t old_cap = s->captures->count;
             down1(s);
             const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
             up1(s);
@@ -925,7 +925,7 @@ static void spec_set(Builder *b, int32_t argc, const Janet *argv) {
     Reserve r = reserve(b, 9);
     const uint8_t *str = peg_getset(b, argv[0]);
     uint32_t bitmap[8] = {0};
-    for (int32_t i = 0; i < janet_string_length(str); i++)
+    for (size_t i = 0; i < janet_string_length(str); i++)
         bitmap_set(bitmap, str[i]);
     emit_rule(r, RULE_SET, 8, bitmap);
 }
@@ -1384,7 +1384,7 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             /* Build grammar table */
             const JanetKV *st = janet_unwrap_struct(peg);
             JanetTable *new_grammar = janet_table(2 * janet_struct_capacity(st));
-            for (int32_t i = 0; i < janet_struct_capacity(st); i++) {
+            for (size_t i = 0; i < janet_struct_capacity(st); i++) {
                 if (janet_checktype(st[i].key, JANET_KEYWORD)) {
                     janet_table_put(new_grammar, st[i].key, st[i].value);
                 }
@@ -1805,7 +1805,7 @@ JANET_CORE_FN(cfun_peg_find,
               "(peg/find peg text &opt start & args)",
               "Find first index where the peg matches in text. Returns an integer, or nil if not found.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
-    for (int32_t i = c.start; i < c.bytes.len; i++) {
+    for (size_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
         if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
             return janet_wrap_integer(i);
@@ -1818,7 +1818,7 @@ JANET_CORE_FN(cfun_peg_find_all,
               "Find all indexes where the peg matches in text. Returns an array of integers.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
     JanetArray *ret = janet_array(0);
-    for (int32_t i = c.start; i < c.bytes.len; i++) {
+    for (size_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
         if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
             janet_array_push(ret, janet_wrap_integer(i));
@@ -1829,8 +1829,8 @@ JANET_CORE_FN(cfun_peg_find_all,
 static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
     PegCall c = peg_cfun_init(argc, argv, 1);
     JanetBuffer *ret = janet_buffer(0);
-    int32_t trail = 0;
-    for (int32_t i = c.start; i < c.bytes.len;) {
+    size_t trail = 0;
+    for (size_t i = c.start; i < c.bytes.len;) {
         peg_call_reset(&c);
         const uint8_t *result = peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i);
         if (NULL != result) {
@@ -1838,7 +1838,7 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
                 janet_buffer_push_bytes(ret, c.bytes.bytes + trail, (i - trail));
                 trail = i;
             }
-            int32_t nexti = (int32_t)(result - c.bytes.bytes);
+            size_t nexti = (size_t)(result - c.bytes.bytes);
             JanetByteView subst = janet_text_substitution(&c.subst, c.bytes.bytes + i, nexti - i, c.s.captures);
             janet_buffer_push_bytes(ret, subst.bytes, subst.len);
             trail = nexti;

@@ -64,8 +64,7 @@ const JanetAbstractType janet_file_type = {
 /* Check arguments to fopen */
 static int32_t checkflags(const uint8_t *str) {
     int32_t flags = 0;
-    int32_t i;
-    int32_t len = janet_string_length(str);
+    size_t len = janet_string_length(str);
     if (!len || len > 10)
         janet_panic("file mode must have a length between 1 and 10");
     switch (*str) {
@@ -85,7 +84,7 @@ static int32_t checkflags(const uint8_t *str) {
             janet_sandbox_assert(JANET_SANDBOX_FS_READ);
             break;
     }
-    for (i = 1; i < len; i++) {
+    for (size_t i = 1; i < len; i++) {
         switch (str[i]) {
             default:
                 janet_panicf("invalid flag %c, expected +, b, or n", str[i]);
@@ -209,11 +208,11 @@ JANET_CORE_FN(cfun_io_fread,
     } else {
         buffer = janet_getbuffer(argv, 2);
     }
-    int32_t bufstart = buffer->count;
+    size_t bufstart = buffer->count;
     if (janet_checktype(argv[1], JANET_KEYWORD)) {
         const uint8_t *sym = janet_unwrap_keyword(argv[1]);
         if (!janet_cstrcmp(sym, "all")) {
-            int32_t sizeBefore;
+            size_t sizeBefore;
             do {
                 sizeBefore = buffer->count;
                 read_chunk(iof, buffer, 4096);
@@ -494,7 +493,7 @@ static Janet cfun_io_print_impl_x(int32_t argc, Janet *argv, int newline,
         }
     }
     for (int32_t i = offset; i < argc; ++i) {
-        int32_t len;
+        size_t len;
         const uint8_t *vstr;
         if (janet_checktype(argv[i], JANET_BUFFER)) {
             JanetBuffer *b = janet_unwrap_buffer(argv[i]);

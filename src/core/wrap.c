@@ -88,6 +88,12 @@ int (janet_unwrap_boolean)(Janet x) {
 int32_t (janet_unwrap_integer)(Janet x) {
     return janet_unwrap_integer(x);
 }
+size_t (janet_unwrap_size)(Janet x) {
+    return janet_unwrap_size(x);
+}
+ssize_t (janet_unwrap_ssize)(Janet x) {
+    return janet_unwrap_ssize(x);
+}
 
 #if defined(JANET_NANBOX_32) || defined(JANET_NANBOX_64)
 Janet(janet_wrap_nil)(void) {
@@ -144,6 +150,12 @@ Janet(janet_wrap_pointer)(void *x) {
 Janet(janet_wrap_integer)(int32_t x) {
     return janet_wrap_integer(x);
 }
+Janet(janet_wrap_size)(size_t x) {
+    return janet_wrap_size(x);
+}
+Janet(janet_wrap_ssize)(ssize_t x) {
+    return janet_wrap_ssize(x);
+}
 #endif
 
 #ifndef JANET_NANBOX_32
@@ -160,10 +172,10 @@ Janet(janet_wrap_number)(double x) {
 
 /*****/
 
-void *janet_memalloc_empty(int32_t count) {
-    int32_t i;
-    void *mem = janet_malloc((size_t) count * sizeof(JanetKV));
-    janet_vm.next_collection += (size_t) count * sizeof(JanetKV);
+void *janet_memalloc_empty(size_t count) {
+    size_t i;
+    void *mem = janet_malloc(count * sizeof(JanetKV));
+    janet_vm.next_collection += count * sizeof(JanetKV);
     if (NULL == mem) {
         JANET_OUT_OF_MEMORY;
     }
@@ -176,8 +188,8 @@ void *janet_memalloc_empty(int32_t count) {
     return mem;
 }
 
-void janet_memempty(JanetKV *mem, int32_t count) {
-    int32_t i;
+void janet_memempty(JanetKV *mem, size_t count) {
+    size_t i;
     for (i = 0; i < count; i++) {
         mem[i].key = janet_wrap_nil();
         mem[i].value = janet_wrap_nil();

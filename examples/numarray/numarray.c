@@ -70,7 +70,7 @@ void num_array_put(void *p, Janet key, Janet value) {
     if (!janet_checktype(value, JANET_NUMBER))
         janet_panic("expected number value");
 
-    index = (size_t)janet_unwrap_integer(key);
+    index = janet_unwrap_size(key);
     if (index < array->size) {
         array->data[index] = janet_unwrap_number(value);
     }
@@ -96,7 +96,7 @@ int num_array_get(void *p, Janet key, Janet *out) {
         return janet_getmethod(janet_unwrap_keyword(key), methods, out);
     if (!janet_checkint(key))
         janet_panic("expected integer key");
-    index = (size_t)janet_unwrap_integer(key);
+    index = janet_unwrap_size(key);
     if (index >= array->size) {
         return 0;
     } else {

@@ -232,7 +232,7 @@ void janetc_throwaway(JanetFopts opts, Janet x);
 JanetSlot janetc_gettarget(JanetFopts opts);
 
 /* Get a bunch of slots for function arguments */
-JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len);
+JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, size_t len);
 
 /* Get a bunch of slots for function arguments */
 JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds);

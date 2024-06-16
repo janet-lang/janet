@@ -66,7 +66,7 @@ static const uint8_t JANET_SYMCACHE_DELETED[1] = {0};
  * where one would put it. */
 static const uint8_t **janet_symcache_findmem(
     const uint8_t *str,
-    int32_t len,
+    size_t len,
     int32_t hash,
     int *success) {
     uint32_t bounds[4];
@@ -116,10 +116,10 @@ notfound:
     janet_symcache_findmem((str), janet_string_length(str), janet_string_hash(str), (success))
 
 /* Resize the cache. */
-static void janet_cache_resize(uint32_t newCapacity) {
-    uint32_t i, oldCapacity;
+static void janet_cache_resize(size_t newCapacity) {
+    size_t i, oldCapacity;
     const uint8_t **oldCache = janet_vm.cache;
-    const uint8_t **newCache = janet_calloc(1, (size_t) newCapacity * sizeof(const uint8_t *));
+    const uint8_t **newCache = janet_calloc(1, newCapacity * sizeof(const uint8_t *));
     if (newCache == NULL) {
         JANET_OUT_OF_MEMORY;
     }
@@ -169,14 +169,14 @@ void janet_symbol_deinit(const uint8_t *sym) {
 }
 
 /* Create a symbol from a byte string */
-const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
+const uint8_t *janet_symbol(const uint8_t *str, size_t len) {
     int32_t hash = janet_string_calchash(str, len);
     uint8_t *newstr;
     int success = 0;
     const uint8_t **bucket = janet_symcache_findmem(str, len, hash, &success);
     if (success)
         return *bucket;
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + (size_t) len + 1);
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_SYMBOL, sizeof(JanetStringHead) + len + 1);
     head->hash = hash;
     head->length = len;
     newstr = (uint8_t *)(head->data);
@@ -188,7 +188,7 @@ const uint8_t *janet_symbol(const uint8_t *str, int32_t len) {
 
 /* Get a symbol from a cstring */
 const uint8_t *janet_csymbol(const char *cstr) {
-    return janet_symbol((const uint8_t *)cstr, (int32_t) strlen(cstr));
+    return janet_symbol((const uint8_t *)cstr, strlen(cstr));
 }
 
 /* Increment the gensym buffer */

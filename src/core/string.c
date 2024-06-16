@@ -31,8 +31,8 @@
 #include <string.h>
 
 /* Begin building a string */
-uint8_t *janet_string_begin(int32_t length) {
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + (size_t) length + 1);
+uint8_t *janet_string_begin(size_t length) {
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + length + 1);
     head->length = length;
     uint8_t *data = (uint8_t *)head->data;
     data[length] = 0;
@@ -46,8 +46,8 @@ const uint8_t *janet_string_end(uint8_t *str) {
 }
 
 /* Load a buffer as a string */
-const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
-    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + (size_t) len + 1);
+const uint8_t *janet_string(const uint8_t *buf, size_t len) {
+    JanetStringHead *head = janet_gcalloc(JANET_MEMORY_STRING, sizeof(JanetStringHead) + len + 1);
     head->length = len;
     head->hash = janet_string_calchash(buf, len);
     uint8_t *data = (uint8_t *)head->data;
@@ -58,9 +58,9 @@ const uint8_t *janet_string(const uint8_t *buf, int32_t len) {
 
 /* Compare two strings */
 int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
-    int32_t xlen = janet_string_length(lhs);
-    int32_t ylen = janet_string_length(rhs);
-    int32_t len = xlen > ylen ? ylen : xlen;
+    size_t xlen = janet_string_length(lhs);
+    size_t ylen = janet_string_length(rhs);
+    size_t len = xlen > ylen ? ylen : xlen;
     int res = memcmp(lhs, rhs, len);
     if (res) return res > 0 ? 1 : -1;
     if (xlen == ylen) return 0;
@@ -68,9 +68,9 @@ int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
 }
 
 /* Compare a janet string with a piece of memory */
-int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
+int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, size_t rlen, int32_t rhash) {
     int32_t lhash = janet_string_hash(lhs);
-    int32_t llen = janet_string_length(lhs);
+    size_t llen = janet_string_length(lhs);
     if (lhs == rhs)
         return 1;
     if (lhash != rhash || llen != rlen)
@@ -92,10 +92,10 @@ const uint8_t *janet_cstring(const char *str) {
 /* Knuth Morris Pratt Algorithm */
 
 struct kmp_state {
-    int32_t i;
-    int32_t j;
-    int32_t textlen;
-    int32_t patlen;
+    size_t i;
+    size_t j;
+    size_t textlen;
+    size_t patlen;
     int32_t *lookup;
     const uint8_t *text;
     const uint8_t *pat;
@@ -103,8 +103,8 @@ struct kmp_state {
 
 static void kmp_init(
     struct kmp_state *s,
-    const uint8_t *text, int32_t textlen,
-    const uint8_t *pat, int32_t patlen) {
+    const uint8_t *text, size_t textlen,
+    const uint8_t *pat, size_t patlen) {
     if (patlen == 0) {
         janet_panic("expected non-empty pattern");
     }
@@ -121,7 +121,8 @@ static void kmp_init(
     s->patlen = patlen;
     /* Init state machine */
     {
-        int32_t i, j;
+        size_t i;
+        int32_t j;
         for (i = 1, j = 0; i < patlen; i++) {
             while (j && pat[j] != pat[i]) j = lookup[j - 1];
             if (pat[j] == pat[i]) j++;
@@ -140,10 +141,10 @@ static void kmp_seti(struct kmp_state *state, int32_t i) {
 }
 
 static int32_t kmp_next(struct kmp_state *state) {
-    int32_t i = state->i;
-    int32_t j = state->j;
-    int32_t textlen = state->textlen;
-    int32_t patlen = state->patlen;
+    size_t i = state->i;
+    size_t j = state->j;
+    size_t textlen = state->textlen;
+    size_t patlen = state->patlen;
     const uint8_t *text = state->text;
     const uint8_t *pat = state->pat;
     int32_t *lookup = state->lookup;
@@ -204,12 +205,11 @@ JANET_CORE_FN(cfun_string_repeat,
               "Returns a string that is `n` copies of `bytes` concatenated.") {
     janet_fixarity(argc, 2);
     JanetByteView view = janet_getbytes(argv, 0);
-    int32_t rep = janet_getinteger(argv, 1);
-    if (rep < 0) janet_panic("expected non-negative number of repetitions");
+    size_t rep = janet_getsize(argv, 1);
     if (rep == 0) return janet_cstringv("");
-    int64_t mulres = (int64_t) rep * view.len;
-    if (mulres > INT32_MAX) janet_panic("result string is too long");
-    uint8_t *newbuf = janet_string_begin((int32_t) mulres);
+    uint64_t mulres = (uint64_t) rep * view.len;
+    if (mulres > JANET_INTMAX_SIZE) janet_panic("result string is too long");
+    uint8_t *newbuf = janet_string_begin(mulres);
     uint8_t *end = newbuf + mulres;
     for (uint8_t *p = newbuf; p < end; p += view.len) {
         safe_memcpy(p, view.bytes, view.len);
@@ -223,7 +223,7 @@ JANET_CORE_FN(cfun_string_bytes,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     Janet *tup = janet_tuple_begin(view.len);
-    int32_t i;
+    size_t i;
     for (i = 0; i < view.len; i++) {
         tup[i] = janet_wrap_integer((int32_t) view.bytes[i]);
     }
@@ -251,7 +251,7 @@ JANET_CORE_FN(cfun_string_asciilower,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    for (int32_t i = 0; i < view.len; i++) {
+    for (size_t i = 0; i < view.len; i++) {
         uint8_t c = view.bytes[i];
         if (c >= 65 && c <= 90) {
             buf[i] = c + 32;
@@ -270,7 +270,7 @@ JANET_CORE_FN(cfun_string_asciiupper,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    for (int32_t i = 0; i < view.len; i++) {
+    for (size_t i = 0; i < view.len; i++) {
         uint8_t c = view.bytes[i];
         if (c >= 97 && c <= 122) {
             buf[i] = c - 32;
@@ -287,7 +287,7 @@ JANET_CORE_FN(cfun_string_reverse,
     janet_fixarity(argc, 1);
     JanetByteView view = janet_getbytes(argv, 0);
     uint8_t *buf = janet_string_begin(view.len);
-    int32_t i, j;
+    size_t i, j;
     for (i = 0, j = view.len - 1; i < view.len; i++, j--) {
         buf[i] = view.bytes[j];
     }
@@ -474,13 +474,13 @@ JANET_CORE_FN(cfun_string_checkset,
     JanetByteView set = janet_getbytes(argv, 0);
     JanetByteView str = janet_getbytes(argv, 1);
     /* Populate set */
-    for (int32_t i = 0; i < set.len; i++) {
+    for (size_t i = 0; i < set.len; i++) {
         int index = set.bytes[i] >> 5;
         uint32_t mask = 1 << (set.bytes[i] & 0x1F);
         bitset[index] |= mask;
     }
     /* Check set */
-    for (int32_t i = 0; i < str.len; i++) {
+    for (size_t i = 0; i < str.len; i++) {
         int index = str.bytes[i] >> 5;
         uint32_t mask = 1 << (str.bytes[i] & 0x1F);
         if (!(bitset[index] & mask)) {
@@ -504,24 +504,24 @@ JANET_CORE_FN(cfun_string_join,
         joiner.len = 0;
     }
     /* Check args */
-    int32_t i;
-    int64_t finallen = 0;
+    size_t i;
+    size_t finallen = 0;
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk;
-        int32_t chunklen = 0;
+        size_t chunklen = 0;
         if (!janet_bytes_view(parts.items[i], &chunk, &chunklen)) {
             janet_panicf("item %d of parts is not a byte sequence, got %v", i, parts.items[i]);
         }
         if (i) finallen += joiner.len;
         finallen += chunklen;
-        if (finallen > INT32_MAX)
+        if (finallen > JANET_INTMAX_SIZE)
             janet_panic("result string too long");
     }
     uint8_t *buf, *out;
-    out = buf = janet_string_begin((int32_t) finallen);
+    out = buf = janet_string_begin(finallen);
     for (i = 0; i < parts.len; i++) {
         const uint8_t *chunk = NULL;
-        int32_t chunklen = 0;
+        size_t chunklen = 0;
         if (i) {
             safe_memcpy(out, joiner.bytes, joiner.len);
             out += joiner.len;
@@ -568,23 +568,23 @@ JANET_CORE_FN(cfun_string_format,
 }
 
 static int trim_help_checkset(JanetByteView set, uint8_t x) {
-    for (int32_t j = 0; j < set.len; j++)
+    for (size_t j = 0; j < set.len; j++)
         if (set.bytes[j] == x)
             return 1;
     return 0;
 }
 
-static int32_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
-    for (int32_t i = 0; i < str.len; i++)
+static size_t trim_help_leftedge(JanetByteView str, JanetByteView set) {
+    for (size_t i = 0; i < str.len; i++)
         if (!trim_help_checkset(set, str.bytes[i]))
             return i;
     return str.len;
 }
 
-static int32_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
-    for (int32_t i = str.len - 1; i >= 0; i--)
-        if (!trim_help_checkset(set, str.bytes[i]))
-            return i + 1;
+static size_t trim_help_rightedge(JanetByteView str, JanetByteView set) {
+    for (size_t i = 0; i < str.len; i++)
+        if (!trim_help_checkset(set, str.bytes[str.len - i - 1]))
+            return str.len - i;
     return 0;
 }
 
@@ -605,8 +605,8 @@ JANET_CORE_FN(cfun_string_trim,
               "`set` is provided, consider only characters in `set` to be whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
-    int32_t left_edge = trim_help_leftedge(str, set);
-    int32_t right_edge = trim_help_rightedge(str, set);
+    size_t left_edge = trim_help_leftedge(str, set);
+    size_t right_edge = trim_help_rightedge(str, set);
     if (right_edge < left_edge)
         return janet_stringv(NULL, 0);
     return janet_stringv(str.bytes + left_edge, right_edge - left_edge);

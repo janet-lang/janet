@@ -310,7 +310,7 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
     JanetDictView dict = janet_getdictionary(argv, 2);
 #ifdef JANET_WINDOWS
     JanetBuffer *temp = janet_buffer(10);
-    for (int32_t i = 0; i < dict.cap; i++) {
+    for (size_t i = 0; i < dict.cap; i++) {
         const JanetKV *kv = dict.kvs + i;
         if (!janet_checktype(kv->key, JANET_STRING)) continue;
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
@@ -326,26 +326,26 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
     memcpy(ret, temp->data, temp->count);
     return ret;
 #else
-    char **envp = janet_smalloc(sizeof(char *) * ((size_t)dict.len + 1));
+    char **envp = janet_smalloc(sizeof(char *) * (dict.len + 1));
     int32_t j = 0;
-    for (int32_t i = 0; i < dict.cap; i++) {
+    for (size_t i = 0; i < dict.cap; i++) {
         const JanetKV *kv = dict.kvs + i;
         if (!janet_checktype(kv->key, JANET_STRING)) continue;
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
         const uint8_t *keys = janet_unwrap_string(kv->key);
         const uint8_t *vals = janet_unwrap_string(kv->value);
-        int32_t klen = janet_string_length(keys);
-        int32_t vlen = janet_string_length(vals);
+        size_t klen = janet_string_length(keys);
+        size_t vlen = janet_string_length(vals);
         /* Check keys has no embedded 0s or =s. */
         int skip = 0;
-        for (int32_t k = 0; k < klen; k++) {
+        for (size_t k = 0; k < klen; k++) {
             if (keys[k] == '\0' || keys[k] == '=') {
                 skip = 1;
                 break;
             }
         }
         if (skip) continue;
-        char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
+        char *envitem = janet_smalloc(klen + vlen + 2);
         memcpy(envitem, keys, klen);
         envitem[klen] = '=';
         memcpy(envitem + klen + 1, vals, vlen);
@@ -381,7 +381,7 @@ static void os_execute_cleanup(EnvBlock envp, const char **child_argv) {
  * a single string of this format. Returns a buffer that can be cast into a c string. */
 static JanetBuffer *os_exec_escape(JanetView args) {
     JanetBuffer *b = janet_buffer(0);
-    for (int32_t i = 0; i < args.len; i++) {
+    for (size_t i = 0; i < args.len; i++) {
         const char *arg = janet_getcstring(args.items, i);
 
         /* Push leading space if not first */
@@ -1247,8 +1247,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* Result */
     int status = 0;
 
-    const char **child_argv = janet_smalloc(sizeof(char *) * ((size_t) exargs.len + 1));
-    for (int32_t i = 0; i < exargs.len; i++)
+    const char **child_argv = janet_smalloc(sizeof(char *) * (exargs.len + 1));
+    for (size_t i = 0; i < exargs.len; i++)
         child_argv[i] = janet_getcstring(exargs.items, i);
     child_argv[exargs.len] = NULL;
     /* Coerce to form that works for spawn. I'm fairly confident no implementation
@@ -1671,9 +1671,8 @@ JANET_CORE_FN(os_cryptorand,
               "Get or append `n` bytes of good quality random data provided by the OS. Returns a new buffer or `buf`.") {
     JanetBuffer *buffer;
     janet_arity(argc, 1, 2);
-    int32_t offset;
-    int32_t n = janet_getinteger(argv, 0);
-    if (n < 0) janet_panic("expected positive integer");
+    size_t offset;
+    size_t n = janet_getsize(argv, 0);
     if (argc == 2) {
         buffer = janet_getbuffer(argv, 1);
         offset = buffer->count;

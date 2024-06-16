@@ -81,9 +81,9 @@ void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
 
-void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len) {
+void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, size_t len) {
     uint8_t state[16] = {0};
-    for (int32_t i = 0; i < len; i++)
+    for (size_t i = 0; i < len; i++)
         state[i & 0xF] ^= bytes[i];
     rng->a = state[0] + (state[1] << 8) + (state[2] << 16) + (state[3] << 24);
     rng->b = state[4] + (state[5] << 8) + (state[6] << 16) + (state[7] << 24);

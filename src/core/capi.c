@@ -138,7 +138,7 @@ type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, type dflt) { \
 }
 
 #define DEFINE_OPTLEN(name, NAME, type) \
-type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len) { \
+type janet_opt##name(const Janet *argv, int32_t argc, int32_t n, size_t dflt_len) { \
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {\
         return janet_##name(dflt_len); \
     }\
@@ -232,19 +232,19 @@ const char *janet_getcbytes(const Janet *argv, int32_t n) {
             char *new_string = janet_smalloc(b->count + 1);
             memcpy(new_string, b->data, b->count);
             new_string[b->count] = 0;
-            if (strlen(new_string) != (size_t) b->count) goto badzeros;
+            if (strlen(new_string) != b->count) goto badzeros;
             return new_string;
         } else {
             /* Ensure trailing 0 */
             janet_buffer_push_u8(b, 0);
             b->count--;
-            if (strlen((char *)b->data) != (size_t) b->count) goto badzeros;
+            if (strlen((char *)b->data) != b->count) goto badzeros;
             return (const char *) b->data;
         }
     }
     JanetByteView view = janet_getbytes(argv, n);
     const char *cstr = (const char *)view.bytes;
-    if (strlen(cstr) != (size_t) view.len) goto badzeros;
+    if (strlen(cstr) != view.len) goto badzeros;
     return cstr;
 
 badzeros:
@@ -354,39 +354,47 @@ size_t janet_getsize(const Janet *argv, int32_t n) {
     if (!janet_checksize(x)) {
         janet_panicf("bad slot #%d, expected size, got %v", n, x);
     }
-    return (size_t) janet_unwrap_number(x);
+    return janet_unwrap_size(x);
 }
 
-int32_t janet_gethalfrange(const Janet *argv, int32_t n, int32_t length, const char *which) {
-    int32_t raw = janet_getinteger(argv, n);
-    int32_t not_raw = raw;
+ssize_t janet_getssize(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkssize(x)) {
+        janet_panicf("bad slot #%d, expected ssize, got %v", n, x);
+    }
+    return janet_unwrap_ssize(x);
+}
+
+size_t janet_gethalfrange(const Janet *argv, int32_t n, size_t length, const char *which) {
+    ssize_t raw = janet_getssize(argv, n);
+    ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length + 1;
-    if (not_raw < 0 || not_raw > length)
+    if (not_raw < 0 || (size_t) not_raw > length)
         janet_panicf("%s index %d out of range [%d,%d]", which, (int64_t) raw, -(int64_t)length - 1, (int64_t) length);
-    return not_raw;
+    return (size_t) not_raw;
 }
 
-int32_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+size_t janet_getstartrange(const Janet *argv, int32_t argc, int32_t n, size_t length) {
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
         return 0;
     }
     return janet_gethalfrange(argv, n, length, "start");
 }
 
-int32_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, int32_t length) {
+size_t janet_getendrange(const Janet *argv, int32_t argc, int32_t n, size_t length) {
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
         return length;
     }
     return janet_gethalfrange(argv, n, length, "end");
 }
 
-int32_t janet_getargindex(const Janet *argv, int32_t n, int32_t length, const char *which) {
-    int32_t raw = janet_getinteger(argv, n);
-    int32_t not_raw = raw;
+size_t janet_getargindex(const Janet *argv, int32_t n, size_t length, const char *which) {
+    ssize_t raw = janet_getssize(argv, n);
+    ssize_t not_raw = raw;
     if (not_raw < 0) not_raw += length;
-    if (not_raw < 0 || not_raw > length)
+    if (not_raw < 0 || (size_t) not_raw > length)
         janet_panicf("%s index %d out of range [%d,%d)", which, (int64_t)raw, -(int64_t)length, (int64_t)length);
-    return not_raw;
+    return (size_t) not_raw;
 }
 
 JanetView janet_getindexed(const Janet *argv, int32_t n) {
@@ -431,7 +439,7 @@ void *janet_getabstract(const Janet *argv, int32_t n, const JanetAbstractType *a
 JanetRange janet_getslice(int32_t argc, const Janet *argv) {
     janet_arity(argc, 1, 3);
     JanetRange range;
-    int32_t length = janet_length(argv[0]);
+    size_t length = janet_length(argv[0]);
     range.start = janet_getstartrange(argv, argc, 1, length);
     range.end = janet_getendrange(argv, argc, 2, length);
     if (range.end < range.start)
@@ -466,13 +474,13 @@ void janet_setdyn(const char *name, Janet value) {
 uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
     uint64_t ret = 0;
     const uint8_t *keyw = janet_getkeyword(argv, n);
-    int32_t klen = janet_string_length(keyw);
-    int32_t flen = (int32_t) strlen(flags);
+    size_t klen = janet_string_length(keyw);
+    size_t flen = strlen(flags);
     if (flen > 64) {
         flen = 64;
     }
-    for (int32_t j = 0; j < klen; j++) {
-        for (int32_t i = 0; i < flen; i++) {
+    for (size_t j = 0; j < klen; j++) {
+        for (size_t i = 0; i < flen; i++) {
             if (((uint8_t) flags[i]) == keyw[j]) {
                 ret |= 1ULL << i;
                 goto found;
@@ -507,6 +515,12 @@ size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_t dflt) {
     if (argc <= n) return dflt;
     if (janet_checktype(argv[n], JANET_NIL)) return dflt;
     return janet_getsize(argv, n);
+}
+
+ssize_t janet_optssize(const Janet *argv, int32_t argc, int32_t n, ssize_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getssize(argv, n);
 }
 
 void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, void *dflt) {

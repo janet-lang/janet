@@ -418,12 +418,11 @@ JanetSlot janetc_gettarget(JanetFopts opts) {
 }
 
 /* Get a bunch of slots for function arguments */
-JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, int32_t len) {
-    int32_t i;
+JanetSlot *janetc_toslots(JanetCompiler *c, const Janet *vals, size_t len) {
     JanetSlot *ret = NULL;
     JanetFopts subopts = janetc_fopts_default(c);
     subopts.flags |= JANET_FOPTS_ACCEPT_SPLICE;
-    for (i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         janet_v_push(ret, janetc_value(subopts, vals[i]));
     }
     return ret;
@@ -435,9 +434,9 @@ JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds) {
     JanetFopts subopts = janetc_fopts_default(c);
     subopts.flags |= JANET_FOPTS_ACCEPT_SPLICE;
     const JanetKV *kvs = NULL;
-    int32_t cap = 0, len = 0;
+    size_t cap = 0, len = 0;
     janet_dictionary_view(ds, &kvs, &len, &cap);
-    for (int32_t i = 0; i < cap; i++) {
+    for (size_t i = 0; i < cap; i++) {
         if (janet_checktype(kvs[i].key, JANET_NIL)) continue;
         janet_v_push(ret, janetc_value(subopts, kvs[i].key));
         janet_v_push(ret, janetc_value(subopts, kvs[i].value));
