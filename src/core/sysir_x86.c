@@ -91,11 +91,10 @@ typedef struct {
     JanetSysTypeLayout *layouts;
     JanetSysTypeLayout *ir_layouts;
     uint32_t frame_size;
-    uint32_t restore_count;
-    uint32_t to_restore[128];
-    JanetSysCallingConvention calling_convention;
+    JanetSysCallingConvention calling_convention; /* Store normalized calling convention of current IR */
     int32_t ir_index;
     uint32_t occupied_registers;
+    uint32_t clobbered_registers; /* Restore these before returning */
 } JanetSysx64Context;
 
 /* Get the layout for types */
@@ -167,6 +166,8 @@ void assign_registers(JanetSysx64Context *ctx) {
     /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
 
+    JanetSysCallingConvention cc = ctx->calling_convention;
+
     /* Make trivial assigments */
     uint32_t next_loc = 16;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
@@ -179,19 +180,28 @@ void assign_registers(JanetSysx64Context *ctx) {
         ctx->regs[i].kind = get_slot_regkind(ctx, i);
         if (i < ctx->ir->parameter_count) {
             /* Assign to rdi, rsi, etc. according to ABI */
-            if (i == 0) ctx->regs[i].index = RDI;
-            if (i == 1) ctx->regs[i].index = RSI;
-            if (i == 2) ctx->regs[i].index = RDX;
-            if (i == 3) ctx->regs[i].index = RCX;
-            if (i == 4) ctx->regs[i].index = 8;
-            if (i == 5) ctx->regs[i].index = 9;
-            if (i >= 6) {
-                janet_panic("nyi");
-                ctx->regs[i].storage = JANET_SYSREG_STACK_PARAMETER;
+            if (cc == JANET_SYS_CC_X64_SYSV) {
+                if (i == 0) ctx->regs[i].index = RDI;
+                if (i == 1) ctx->regs[i].index = RSI;
+                if (i == 2) ctx->regs[i].index = RDX;
+                if (i == 3) ctx->regs[i].index = RCX;
+                if (i == 4) ctx->regs[i].index = 8;
+                if (i == 5) ctx->regs[i].index = 9;
+                if (i >= 6) {
+                    janet_panic("nyi parameter count > 6");
+                    ctx->regs[i].storage = JANET_SYSREG_STACK_PARAMETER;
+                }
+            } else if (cc == JANET_SYS_CC_X64_WINDOWS) {
+                if (i == 0) ctx->regs[i].index = RCX;
+                if (i == 1) ctx->regs[i].index = RDX;
+                if (i == 2) ctx->regs[i].index = 8;
+                if (i == 3) ctx->regs[i].index = 9;
+                if (i >= 4) {
+                    ctx->regs[i].storage = JANET_SYSREG_STACK_PARAMETER;
+                    ctx->regs[i].index = (i - 4) * 8 + 16;
+                }
             } else {
-                ctx->regs[i].storage = JANET_SYSREG_REGISTER;
-                assigned |= 1 << ctx->regs[i].index;
-                occupied |= 1 << ctx->regs[i].index;
+                janet_panic("cannot assign registers for calling convention");
             }
         } else if (assigned < 0xFFFF) {
             /* Assign to register */
@@ -216,19 +226,24 @@ void assign_registers(JanetSysx64Context *ctx) {
     ctx->occupied_registers = occupied;
 
     /* Mark which registers need restoration before returning */
-    ctx->restore_count = 0;
-    unsigned char seen[16] = {0};
-    unsigned char tokeep[] = {3, 6, 7, 12, 13, 14, 15};
-    for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
-        x64Reg reg = ctx->regs[i];
-        if (reg.storage != JANET_SYSREG_REGISTER) continue;
-        for (unsigned int j = 0; j < sizeof(tokeep); j++) {
-            if (!seen[j] && reg.index == tokeep[j]) {
-                ctx->to_restore[ctx->restore_count++] = reg.index;
-                seen[j] = 1;
-            }
-        }
+    uint32_t non_volatile_mask = 0;
+    if (cc == JANET_SYS_CC_X64_SYSV) {
+        non_volatile_mask = (1 << RBX)
+            | (1 << 12)
+            | (1 << 13)
+            | (1 << 14)
+            | (1 << 15);
     }
+    if (cc == JANET_SYS_CC_X64_WINDOWS) {
+        non_volatile_mask = (1 << RBX)
+            | (RDI << 12)
+            | (RSI << 12)
+            | (1 << 12)
+            | (1 << 13)
+            | (1 << 14)
+            | (1 << 15);
+    }
+    ctx->clobbered_registers = assigned | non_volatile_mask;
 }
 
 static int operand_isstack(JanetSysx64Context *ctx, uint32_t o) {
@@ -372,10 +387,11 @@ static void sysemit_three_inst(JanetSysx64Context *ctx, const char *op, JanetSys
 
 static void sysemit_ret(JanetSysx64Context *ctx, uint32_t arg, int has_return) {
     if (has_return) sysemit_movreg(ctx, RAX, arg);
-    /* TODO - depends on current calling convention */
-    for (uint32_t k = 0; k < ctx->restore_count; k++) {
-        /* Pop in reverse order */
-        janet_formatb(ctx->buffer, "pop %s\n", register_names[ctx->to_restore[ctx->restore_count - k - 1]]);
+    /* Pop in reverse order */
+    for (int32_t k = 31; k >= 0; k--) {
+        if (ctx->clobbered_registers & (1u << k)) {
+            janet_formatb(ctx->buffer, "pop %s\n", register_names[k]);
+        }
     }
     janet_formatb(ctx->buffer, "leave\n");
     janet_formatb(ctx->buffer, "ret\n");
@@ -404,7 +420,7 @@ static int sysemit_comp(JanetSysx64Context *ctx, uint32_t index,
             nexti.branch.cond == instruction.three.dest) {
         /* Combine compare and branch */
         int invert = nexti.opcode == JANET_SYSOP_BRANCH_NOT;
-        janet_formatb(ctx->buffer, "%s label_%d_%u\n", invert ? branch_invert : branch, ctx->ir_index, nexti.branch.to);
+        janet_formatb(ctx->buffer, "%s label_%d_%u\n", invert ? branch_invert : branch, ctx->ir_index, (uint64_t) nexti.branch.to);
         /* Skip next branch IR instruction */
         return 1;
     } else {
@@ -436,6 +452,100 @@ static void sysemit_cast(JanetSysx64Context *ctx, JanetSysInstruction instructio
     (void) destinfo;
     (void) srcinfo;
     janet_formatb(ctx->buffer, "; cast nyi\n");
+}
+
+static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instruction, uint32_t *args, uint32_t argcount) {
+    /* Push first 6 arguments to particular registers */
+    JanetSysIR *ir = ctx->ir;
+    JanetBuffer *buffer = ctx->buffer;
+    int save_rdi = argcount >= 1 || (ctx->occupied_registers & (1 << RDI));
+    int save_rsi = argcount >= 2 || (ctx->occupied_registers & (1 << RSI));
+    int save_rdx = argcount >= 3 || (ctx->occupied_registers & (1 << RDX));
+    int save_rcx = argcount >= 4 || (ctx->occupied_registers & (1 << RCX));
+    int save_r8 = argcount >= 5 || (ctx->occupied_registers & (1 << 8));
+    int save_r9 = argcount >= 6 || (ctx->occupied_registers & (1 << 9));
+    int save_r10 = ctx->occupied_registers & (1 << 10);
+    int save_r11 = ctx->occupied_registers & (1 << 11);
+    if (save_rdi && argcount >= 1) sysemit_mov_save(ctx, RDI, args[0]);
+    if (save_rdi && argcount < 1)  sysemit_pushreg(ctx, RDI);
+    if (save_rsi && argcount >= 2) sysemit_mov_save(ctx, RSI, args[1]);
+    if (save_rsi && argcount < 2) sysemit_pushreg(ctx, RSI);
+    if (save_rdx && argcount >= 3) sysemit_mov_save(ctx, RDX, args[2]);
+    if (save_rdx && argcount < 3) sysemit_pushreg(ctx, RDX);
+    if (save_rcx && argcount >= 4) sysemit_mov_save(ctx, RCX, args[3]);
+    if (save_rcx && argcount < 4) sysemit_pushreg(ctx, RCX);
+    if (save_r8 && argcount >= 5) sysemit_mov_save(ctx, 8, args[4]);
+    if (save_r8 && argcount < 5) sysemit_pushreg(ctx, 8);
+    if (save_r9 && argcount >= 6) sysemit_mov_save(ctx, 9, args[5]);
+    if (save_r9 && argcount < 6) sysemit_pushreg(ctx, 9);
+    if (save_r10) sysemit_pushreg(ctx, 10);
+    if (save_r11) sysemit_pushreg(ctx, 11);
+    for (int32_t argo = argcount - 1; argo >= 6; argo--) {
+        janet_panic("nyi push sysv args");
+        janet_formatb(buffer, "push ");
+        sysemit_operand(ctx, args[argo], "\n");
+    }
+    if (instruction.opcode == JANET_SYSOP_SYSCALL) {
+        sysemit_movreg(ctx, RAX, instruction.call.callee);
+        janet_formatb(buffer, "syscall\n");
+    } else {
+        /* Save RAX to number of floating point args for varags - for now, always 0 :) */
+        janet_formatb(buffer, "mov rax, 0\n");
+        janet_formatb(buffer, "call ");
+        sysemit_operand(ctx, instruction.call.callee, "\n");
+    }
+    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(ctx, RAX, instruction.call.dest);
+    if (save_r11) sysemit_popreg(ctx, 11);
+    if (save_r10) sysemit_popreg(ctx, 10);
+    if (save_r9) sysemit_popreg(ctx, 9);
+    if (save_r8) sysemit_popreg(ctx, 8);
+    if (save_rcx) sysemit_popreg(ctx, RCX);
+    if (save_rdx) sysemit_popreg(ctx, RDX);
+    if (save_rsi) sysemit_popreg(ctx, RSI);
+    if (save_rdi) sysemit_popreg(ctx, RDI);
+}
+
+static void sysemit_win64_call(JanetSysx64Context *ctx, JanetSysInstruction instruction, uint32_t *args, uint32_t argcount) {
+    /* Push first 6 arguments to particular registers */
+    JanetSysIR *ir = ctx->ir;
+    JanetBuffer *buffer = ctx->buffer;
+    int save_rcx = argcount >= 1 || (ctx->occupied_registers & (1 << RCX));
+    int save_rdx = argcount >= 2 || (ctx->occupied_registers & (1 << RDX));
+    int save_r8 = argcount >= 3 || (ctx->occupied_registers & (1 << 8));
+    int save_r9 = argcount >= 4 || (ctx->occupied_registers & (1 << 9));
+    int save_r10 = ctx->occupied_registers & (1 << 10);
+    int save_r11 = ctx->occupied_registers & (1 << 11);
+    if (save_rcx && argcount >= 1) sysemit_mov_save(ctx, RCX, args[0]);
+    if (save_rcx && argcount < 1) sysemit_pushreg(ctx, RCX);
+    if (save_rdx && argcount >= 2) sysemit_mov_save(ctx, RDX, args[1]);
+    if (save_rdx && argcount < 2) sysemit_pushreg(ctx, RDX);
+    if (save_r8 && argcount >= 3) sysemit_mov_save(ctx, 8, args[2]);
+    if (save_r8 && argcount < 3) sysemit_pushreg(ctx, 8);
+    if (save_r9 && argcount >= 4) sysemit_mov_save(ctx, 9, args[3]);
+    if (save_r9 && argcount < 4) sysemit_pushreg(ctx, 9);
+    if (save_r10) sysemit_pushreg(ctx, 10);
+    if (save_r11) sysemit_pushreg(ctx, 11);
+    for (uint32_t argo = 4; argo < argcount; argo++) {
+        janet_formatb(buffer, "push ");
+        sysemit_operand(ctx, args[argo], "\n");
+    }
+    if (instruction.opcode == JANET_SYSOP_SYSCALL) {
+        sysemit_movreg(ctx, RAX, instruction.call.callee);
+        janet_formatb(buffer, "syscall\n");
+    } else {
+        janet_formatb(buffer, "call ");
+        sysemit_operand(ctx, instruction.call.callee, "\n");
+    }
+    if (argcount > 4) {
+        janet_formatb(buffer, "add rsp, %u\n", 8 * (argcount - 4));
+    }
+    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(ctx, RAX, instruction.call.dest);
+    if (save_r11) sysemit_popreg(ctx, 11);
+    if (save_r10) sysemit_popreg(ctx, 10);
+    if (save_r9) sysemit_popreg(ctx, 9);
+    if (save_r8) sysemit_popreg(ctx, 8);
+    if (save_rdx) sysemit_popreg(ctx, RDX);
+    if (save_rcx) sysemit_popreg(ctx, RCX);
 }
 
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
@@ -480,8 +590,13 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         if (ir->link_name == NULL) {
             continue;
         }
+        ctx.calling_convention = ir->calling_convention;
+        if (ctx.calling_convention == JANET_SYS_CC_DEFAULT) {
+            /* Pick default calling convention */
+            ctx.calling_convention = JANET_SYS_CC_X64_WINDOWS;
+        }
 
-        /* Setup conttext */
+        /* Setup context */
         ctx.ir_layouts = janet_smalloc(ir->register_count * sizeof(JanetSysTypeLayout));
         for (uint32_t i = 0; i < ir->register_count; i++) {
             ctx.ir_layouts[i] = ctx.layouts[ir->types[i]];
@@ -497,9 +612,10 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         }
         janet_formatb(buffer, "push rbp\nmov rbp, rsp\nsub rsp, %u\n", ctx.frame_size);
 
-        for (uint32_t k = 0; k < ctx.restore_count; k++) {
-            /* Pop in reverse order */
-            janet_formatb(buffer, "push %s\n", register_names[ctx.to_restore[k]]);
+        for (uint32_t k = 0; k < 32; k++) {
+            if (ctx.clobbered_registers & (1u << k)) {
+                janet_formatb(buffer, "push %s\n", register_names[k]);
+            }
         }
 
         /* Function body */
@@ -593,64 +709,31 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
                     break;
                 case JANET_SYSOP_SYSCALL:
                 case JANET_SYSOP_CALL:
-                    ;
-                    /* Push first 6 arguments to particular registers */
-                    uint32_t argcount = 0;
-                    uint32_t *args = janet_sys_callargs(ir->instructions + j, &argcount);
-                    int save_rdi = argcount >= 1 || (ctx.occupied_registers & (1 << RDI));
-                    int save_rsi = argcount >= 2 || (ctx.occupied_registers & (1 << RSI));
-                    int save_rdx = argcount >= 3 || (ctx.occupied_registers & (1 << RDX));
-                    int save_rcx = argcount >= 4 || (ctx.occupied_registers & (1 << RCX));
-                    int save_r8 = argcount >= 5 || (ctx.occupied_registers & (1 << 8));
-                    int save_r9 = argcount >= 6 || (ctx.occupied_registers & (1 << 9));
-                    int save_r10 = ctx.occupied_registers & (1 << 10);
-                    int save_r11 = ctx.occupied_registers & (1 << 11);
-                    if (save_rdi && argcount >= 1) sysemit_mov_save(&ctx, RDI, args[0]);
-                    if (save_rdi && argcount < 1)  sysemit_pushreg(&ctx, RDI);
-                    if (save_rsi && argcount >= 2) sysemit_mov_save(&ctx, RSI, args[1]);
-                    if (save_rsi && argcount < 2) sysemit_pushreg(&ctx, RSI);
-                    if (save_rdx && argcount >= 3) sysemit_mov_save(&ctx, RDX, args[2]);
-                    if (save_rdx && argcount < 3) sysemit_pushreg(&ctx, RDX);
-                    if (save_rcx && argcount >= 4) sysemit_mov_save(&ctx, RCX, args[3]);
-                    if (save_rcx && argcount < 4) sysemit_pushreg(&ctx, RCX);
-                    if (save_r8 && argcount >= 5) sysemit_mov_save(&ctx, 8, args[4]);
-                    if (save_r8 && argcount < 5) sysemit_pushreg(&ctx, 8);
-                    if (save_r9 && argcount >= 6) sysemit_mov_save(&ctx, 9, args[5]);
-                    if (save_r9 && argcount < 6) sysemit_pushreg(&ctx, 9);
-                    if (save_r10) sysemit_pushreg(&ctx, 10);
-                    if (save_r11) sysemit_pushreg(&ctx, 11);
-                    for (int32_t argo = argcount - 1; argo >= 5; argo--) {
-                        janet_panic("nyi");
-                        janet_formatb(buffer, "push ");
-                        sysemit_operand(&ctx, args[argo], "\n");
+                    {
+                        uint32_t argcount = 0;
+                        uint32_t *args = janet_sys_callargs(ir->instructions + j, &argcount);
+                        JanetSysCallingConvention cc = instruction.call.calling_convention;
+
+                        /* Set default calling convention based on context */
+                        if (cc == JANET_SYS_CC_DEFAULT) {
+                            cc = JANET_SYS_CC_X64_WINDOWS;
+                        }
+
+                        if (cc == JANET_SYS_CC_X64_SYSV) {
+                            sysemit_sysv_call(&ctx, instruction, args, argcount);
+                        } else if (cc == JANET_SYS_CC_X64_WINDOWS) {
+                            sysemit_win64_call(&ctx, instruction, args, argcount);
+                        }
+                        janet_sfree(args);
+                        break;
                     }
-                    janet_sfree(args);
-                    if (instruction.opcode == JANET_SYSOP_SYSCALL) {
-                        sysemit_movreg(&ctx, RAX, instruction.call.callee);
-                        janet_formatb(buffer, "syscall\n");
-                    } else {
-                        /* Save RAX to number of floating point args for varags - for now, always 0 :) */
-                        janet_formatb(buffer, "mov rax, 0\n");
-                        janet_formatb(buffer, "call ");
-                        sysemit_operand(&ctx, instruction.call.callee, "\n");
-                    }
-                    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(&ctx, RAX, instruction.call.dest);
-                    if (save_r11) sysemit_popreg(&ctx, 11);
-                    if (save_r10) sysemit_popreg(&ctx, 10);
-                    if (save_r9) sysemit_popreg(&ctx, 9);
-                    if (save_r8) sysemit_popreg(&ctx, 8);
-                    if (save_rcx) sysemit_popreg(&ctx, RCX);
-                    if (save_rdx) sysemit_popreg(&ctx, RDX);
-                    if (save_rsi) sysemit_popreg(&ctx, RSI);
-                    if (save_rdi) sysemit_popreg(&ctx, RDI);
-                    break;
                     // On a comparison, if next instruction is branch that reads from dest, combine into a single op.
             }
         }
     }
     /* End section .text */
 
-    janet_formatb(buffer, "section .rodata\n\n");
+    janet_formatb(buffer, "\nsection .rodata\n");
 
     for (int32_t i = 0; i < linkage->ir_ordered->count; i++) {
         JanetSysIR *ir = janet_unwrap_pointer(linkage->ir_ordered->data[i]);
@@ -658,7 +741,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer) 
         for (uint32_t j = 0; j < ir->constant_count; j++) {
             if (janet_checktype(ir->constants[j].value, JANET_STRING)) {
                 JanetString str = janet_unwrap_string(ir->constants[j].value);
-                janet_formatb(buffer, "\nCONST_%d_%u: db ", i, j);
+                janet_formatb(buffer, "CONST_%d_%u: db ", i, j);
                 /* Nasm syntax */
                 int in_string = 0;
                 for (int32_t ci = 0; ci < janet_string_length(str); ci++) {

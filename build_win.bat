@@ -20,11 +20,11 @@
 @setlocal
 
 @rem Example use asan
-@rem set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD /fsanitize=address /Zi
-@rem set JANET_LINK=link /nologo clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
+@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD /fsanitize=address /Zi /DEBUG
+@set JANET_LINK=link /nologo clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib /DEBUG
 
-@set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD
-@set JANET_LINK=link /nologo
+@rem set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD
+@rem set JANET_LINK=link /nologo
 
 @set JANET_LINK_STATIC=lib /nologo
 

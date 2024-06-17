@@ -71,6 +71,7 @@ const char *prim_to_prim_name[] = {
 const char *janet_sysop_names[] = {
     "link-name", /* JANET_SYSOP_LINK_NAME */
     "parameter-count", /* JANET_SYSOP_PARAMETER_COUNT */
+    "calling-convention", /* JANET_SYSOP_CALLING_CONVENTION */
     "move", /* JANET_SYSOP_MOVE */
     "cast", /* JANET_SYSOP_CAST */
     "add", /* JANET_SYSOP_ADD */
@@ -158,6 +159,7 @@ static const JanetSysInstrName sys_op_names[] = {
     {"branch-not", JANET_SYSOP_BRANCH_NOT},
     {"bxor", JANET_SYSOP_BXOR},
     {"call", JANET_SYSOP_CALL},
+    {"calling-convention", JANET_SYSOP_CALLING_CONVENTION},
     {"cast", JANET_SYSOP_CAST},
     {"divide", JANET_SYSOP_DIVIDE},
     {"eq", JANET_SYSOP_EQ},
@@ -287,7 +289,7 @@ static uint32_t instr_read_type_operand(Janet x, JanetSysIR *ir, ReadOpMode rmod
             return (uint32_t) n;
         } else if (rmode == READ_TYPE_FORWARD_REF) {
             uint32_t operand = linkage->type_def_count++;
-            janet_table_put(linkage->type_name_lookup, x, janet_wrap_number(-(int64_t)operand - 1));
+            janet_table_put(linkage->type_name_lookup, x, janet_wrap_number(-(double)operand - 1.0));
             return operand;
         } else if (rmode == READ_TYPE_DEFINITION) {
             uint32_t operand = linkage->type_def_count++;
@@ -370,6 +372,7 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
     JanetSysInstruction *ir = NULL;
     JanetTable *labels = out->labels;
     int found_parameter_count = 0;
+    int found_calling_convention = 0;
 
     /* Parse instructions */
     Janet x = janet_wrap_nil();
@@ -435,6 +438,14 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                 }
                 found_parameter_count = 1;
                 out->parameter_count = janet_getnat(tuple, 1);
+                break;
+            case JANET_SYSOP_CALLING_CONVENTION:
+                instr_assert_length(tuple, 2, opvalue);
+                if (found_calling_convention) {
+                    janet_panic("duplicate calling-convention");
+                }
+                found_calling_convention = 1;
+                out->calling_convention = instr_read_cc(tuple[1]);
                 break;
             case JANET_SYSOP_ADD:
             case JANET_SYSOP_SUBTRACT:
@@ -1063,6 +1074,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_ARG:
             case JANET_SYSOP_LINK_NAME:
             case JANET_SYSOP_PARAMETER_COUNT:
+            case JANET_SYSOP_CALLING_CONVENTION:
             case JANET_SYSOP_JUMP:
             case JANET_SYSOP_LABEL:
                 break;
@@ -1202,6 +1214,7 @@ static void janet_sys_ir_init(JanetSysIR *out, JanetView instructions, JanetSysI
     ir.parameter_count = 0;
     ir.link_name = NULL;
     ir.error_ctx = janet_wrap_nil();
+    ir.calling_convention = JANET_SYS_CC_DEFAULT;
 
     janet_sysir_init_instructions(&ir, instructions);
 
@@ -1384,6 +1397,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
                 case JANET_SYSOP_ARG:
                 case JANET_SYSOP_LINK_NAME:
                 case JANET_SYSOP_PARAMETER_COUNT:
+                case JANET_SYSOP_CALLING_CONVENTION:
                     break;
                 case JANET_SYSOP_LABEL: {
                     janet_formatb(buffer, "\n_label_%u:\n", instruction.label.id);

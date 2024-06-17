@@ -32,19 +32,27 @@
      (return x)))
 
 (def main-fn
-  '(defn WinMain:void []
+  '(defn _start:void []
      #(syscall 1 1 "Hello, world!\n" 14)
      (doloop 10 20)
      (exit (the int 0))
      (return)))
 
+(def winmain
+  '(defn Start:void []
+     (MessageBoxExA (the pointer 0) "Hello, world!" "Test" 0 (the s16 0))
+     (ExitProcess (the int 0))
+     (return)))
+
+
 ####
 
 #(compile1 square)
-(compile1 simple)
-(compile1 myprog)
-(compile1 doloop)
-(compile1 main-fn)
+#(compile1 simple)
+#(compile1 myprog)
+#(compile1 doloop)
+#(compile1 main-fn)
+(compile1 winmain)
 #(dump)
 #(dumpc)
 (dumpx64)

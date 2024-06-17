@@ -57,6 +57,7 @@
   (add-prim-type 'long 's64)
   (add-prim-type 'pointer 'pointer)
   (add-prim-type 'boolean 'boolean)
+  (add-prim-type 's16 's16)
   (sysir/asm ctx into)
   ctx)
 

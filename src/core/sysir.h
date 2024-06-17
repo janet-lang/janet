@@ -102,6 +102,7 @@ typedef struct {
 typedef enum {
     JANET_SYSOP_LINK_NAME,
     JANET_SYSOP_PARAMETER_COUNT,
+    JANET_SYSOP_CALLING_CONVENTION,
     JANET_SYSOP_MOVE,
     JANET_SYSOP_CAST,
     JANET_SYSOP_ADD,
@@ -300,6 +301,7 @@ typedef struct {
     JanetSysConstant *constants;
     JanetTable *register_name_lookup;
     JanetTable *labels;
+    JanetSysCallingConvention calling_convention;
     Janet error_ctx; /* Temporary for holding error messages */
 } JanetSysIR;
 
