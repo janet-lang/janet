@@ -1879,12 +1879,26 @@ JANET_CORE_FN(cfun_sysir_toir,
 }
 
 JANET_CORE_FN(cfun_sysir_tox64,
-              "(sysir/to-x64 context &opt buffer options)",
+              "(sysir/to-x64 context &opt buffer target)",
               "Lower IR to x64 machine code.") {
     janet_arity(argc, 1, 3);
     JanetSysIRLinkage *ir = janet_getabstract(argv, 0, &janet_sysir_context_type);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 1, 0);
-    janet_sys_ir_lower_to_x64(ir, buffer);
+    JanetSysTarget target;
+    if (argc < 3 || janet_checktype(argv[2], JANET_NIL) || janet_keyeq(argv[2], "native")) {
+#ifdef JANET_WINDOWS
+        target = JANET_SYS_TARGET_X64_WINDOWS;
+#else
+        target = JANET_SYS_TARGET_X64_LINUX;
+#endif
+    } else if (janet_keyeq(argv[1], "windows")) {
+        target = JANET_SYS_TARGET_X64_WINDOWS;
+    } else if (janet_keyeq(argv[1], "linux")) {
+        target = JANET_SYS_TARGET_X64_LINUX;
+    } else {
+        janet_panicf("unknown target %v", argv[1]);
+    }
+    janet_sys_ir_lower_to_x64(ir, target, buffer);
     return janet_wrap_buffer(buffer);
 }
 

@@ -38,24 +38,13 @@
      (exit (the int 0))
      (return)))
 
-(def winmain
-  '(defn Start:void []
-     (MessageBoxExA (the pointer 0) "Hello, world!" "Test" 0 (the s16 0))
-     (ExitProcess (the int 0))
-     (return)))
-
-
 ####
 
-#(compile1 square)
-#(compile1 simple)
-#(compile1 myprog)
-#(compile1 doloop)
-#(compile1 main-fn)
-(compile1 winmain)
+(compile1 square)
+(compile1 simple)
+(compile1 myprog)
+(compile1 doloop)
+(compile1 main-fn)
 #(dump)
 #(dumpc)
 (dumpx64)
-
-# Run with
-# janet examples/sysir/scratch.janet > temp.nasm && nasm -felf64 temp.nasm -l temp.lst && ld temp.o && ./a.out

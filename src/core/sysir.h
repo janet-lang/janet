@@ -185,6 +185,11 @@ typedef enum {
     JANET_SYS_CC_X64_WINDOWS,
 } JanetSysCallingConvention;
 
+typedef enum {
+    JANET_SYS_TARGET_X64_WINDOWS, /* 64 bit, modern windows */
+    JANET_SYS_TARGET_X64_LINUX, /* x64 linux with recent kernel */
+} JanetSysTarget;
+
 typedef struct {
     JanetSysOp opcode;
     union {
@@ -328,6 +333,6 @@ uint32_t *janet_sys_callargs(JanetSysInstruction *instr, uint32_t *count);
 void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into);
 void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer);
 
-void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetBuffer *buffer);
+void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetSysTarget target, JanetBuffer *buffer);
 
 #endif
