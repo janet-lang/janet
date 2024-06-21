@@ -972,7 +972,7 @@ const char *janet_strerror(int e) {
 #ifdef JANET_WINDOWS
     /* Microsoft strerror seems sane here and is thread safe by default */
     return strerror(e);
-#elif defined(_GNU_SOURCE)
+#elif defined(__GLIBC__)
     /* See https://linux.die.net/man/3/strerror_r */
     return strerror_r(e, janet_vm.strerror_buf, sizeof(janet_vm.strerror_buf));
 #else
