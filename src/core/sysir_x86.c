@@ -67,7 +67,7 @@ typedef enum {
     JANET_SYSREG_16,
     JANET_SYSREG_32,
     JANET_SYSREG_64,
-    JANET_SYSREG_2x64,
+    JANET_SYSREG_2x64, /* Figure out how to represent this */
     JANET_SYSREG_XMM
 } x64RegKind;
 

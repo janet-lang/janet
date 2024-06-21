@@ -1891,9 +1891,9 @@ JANET_CORE_FN(cfun_sysir_tox64,
 #else
         target = JANET_SYS_TARGET_X64_LINUX;
 #endif
-    } else if (janet_keyeq(argv[1], "windows")) {
+    } else if (janet_keyeq(argv[2], "windows")) {
         target = JANET_SYS_TARGET_X64_WINDOWS;
-    } else if (janet_keyeq(argv[1], "linux")) {
+    } else if (janet_keyeq(argv[2], "linux")) {
         target = JANET_SYS_TARGET_X64_LINUX;
     } else {
         janet_panicf("unknown target %v", argv[1]);

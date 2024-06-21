@@ -337,6 +337,10 @@
   []
   (print (sysir/to-x64 ctx)))
 
+(defn dumpx64-windows
+  []
+  (print (sysir/to-x64 ctx @"" :windows)))
+ 
 (defn dumpc
   []
   (print (sysir/to-c ctx)))

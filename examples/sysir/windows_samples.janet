@@ -11,4 +11,4 @@
 (compile1 winmain)
 #(dump)
 #(dumpc)
-(dumpx64)
+(dumpx64-windows)
