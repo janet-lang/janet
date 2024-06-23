@@ -8,11 +8,13 @@
 
 (if is-windows
   (os/execute ["cl.exe" "/nologo" "/LD" ffi/source-loc "/link" "/DLL" (string "/OUT:" ffi/loc)] :px)
-  (os/execute ["cc" ffi/source-loc "-shared" "-o" ffi/loc] :px))
+  (os/execute ["cc" ffi/source-loc "-g" "-shared" "-o" ffi/loc] :px))
 
 (ffi/context ffi/loc)
 
+(def intint (ffi/struct :int :int))
 (def intintint (ffi/struct :int :int :int))
+(def uint64pair (ffi/struct :u64 :u64))
 (def big (ffi/struct :s64 :s64 :s64))
 (def split (ffi/struct :int :int :float :float))
 (def split-flip (ffi/struct :float :float :int :int))
@@ -55,6 +57,13 @@
 (ffi/defbind sixints-fn six-ints [])
 (ffi/defbind sixints-fn-2 :int [x :int s six-ints])
 (ffi/defbind sixints-fn-3 :int [s six-ints x :int])
+(ffi/defbind stack-spill-fn intint
+             [a :u8 b :u8 c :u8 d :u8
+              e :u8 f :u8 g :u8 h :u8
+              i :float j :float k :float l :float
+              m :float n :float o :float p :float
+              s1 :float s2 :s8 s3 :u8 s4 :double s5 :u8 s6 intint])
+(ffi/defbind stack-spill-fn-2 :double [a uint64pair b uint64pair c uint64pair d :s8 e uint64pair f :s8])
 (ffi/defbind-alias int-fn int-fn-aliased :int [a :int b :int])
 
 #
@@ -132,5 +141,10 @@
 (assert (= 21 (math/round (double-many 1 2 3 4 5 6.01))))
 (assert (= 19 (double-lots 1 2 3 4 5 6 7 8 9 10)))
 (assert (= 204 (float-fn 8 4 17)))
+(assert (= [0 38534415] (stack-spill-fn
+                          0 0 0 0 0 0 0 0
+                          0 0 0 0 0 0 0 0
+                          1.5 -32 196 65536.5 3 [-15 32])))
+(assert (= -2806 (stack-spill-fn-2 [2 3] [5 7] [9 11] -19 [13 17] -23)))
 
 (print "Done.")
