@@ -21,7 +21,6 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
-# We should get ARM support...
 (def has-ffi (dyn 'ffi/native))
 (def has-full-ffi
   (and has-ffi
