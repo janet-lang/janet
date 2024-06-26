@@ -2668,7 +2668,7 @@ JANET_CORE_FN(os_open,
     } else if (write_flag && !read_flag) {
         open_flags |= O_WRONLY;
     } else {
-        open_flags = O_RDWR;
+        open_flags |= O_RDWR;
     }
 
     do {
