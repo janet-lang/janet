@@ -867,7 +867,7 @@ static int line() {
     if (write_console((char *) gbl_prompt, gbl_plen) == -1) return -1;
     for (;;) {
         char c;
-        char seq[3];
+        char seq[5];
 
         int rc;
         do {
@@ -990,6 +990,20 @@ static int line() {
                                     break;
                                 default:
                                     break;
+                            }
+                        } else if (seq[2] == ';') {
+                            if (read_console(seq + 3, 2) == -1) break;
+                            if (seq[3] == '5') {
+                                switch (seq[4]) {
+                                    case 'C': /* ctrl-right */
+                                        krightw();
+                                        break;
+                                    case 'D': /* ctrl-left */
+                                        kleftw();
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
                     } else if (seq[0] == 'O') {
