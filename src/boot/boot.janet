@@ -4475,7 +4475,13 @@
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))
            (def e (dofile path))
-           (spit (in args (+ i 2)) (make-image e))
+           (def output-path
+             (if (< (+ i 2) (length args))
+               (in args (+ i 2))
+               (string
+                 (if (string/has-suffix? ".janet" path) (string/slice path 0 -7) path)
+                 ".jimage")))
+           (spit output-path (make-image e))
            (set no-file false)
            3)
      "-" (fn [&] (set handleopts false) 1)
