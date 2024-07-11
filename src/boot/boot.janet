@@ -153,6 +153,51 @@
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
+(defmacro defdyn
+  ``Define an alias for a keyword that is used as a dynamic binding. The
+  alias is a normal, lexically scoped binding that can be used instead of
+  a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
+  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
+  called "earmuffs".``
+  [alias & more]
+  (assert (symbol? alias) "alias must be a symbol")
+  (assert (> (length alias) 2) "name must have leading and trailing '*' characters")
+  (assert (= 42 (get alias 0) (get alias (- (length alias) 1))) "name must have leading and trailing '*' characters")
+  (def prefix (dyn :defdyn-prefix))
+  (def kw (keyword prefix (slice alias 1 -2)))
+  ~(def ,alias :dyn ,;more ,kw))
+
+(defdyn *macro-form*
+  "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *lint-error*
+  "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
+
+(defdyn *lint-warn*
+  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+
+(defdyn *lint-levels*
+  "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
+
+(defdyn *macro-lints*
+  ``Bound to an array of lint messages that will be reported by the compiler inside a macro.
+  To indicate an error or warning, a macro author should use `maclintf`.``)
+
+(defn maclintf
+  ``When inside a macro, call this function to add a linter warning. Takes
+  a `fmt` argument like `string/format`, which is used to format the message.``
+  [level fmt & args]
+  (def lints (dyn *macro-lints*))
+  (if lints
+    (do
+      (def form (dyn *macro-form*))
+      (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
+      (def l (if (not= -1 l) l))
+      (def c (if (not= -1 c) c))
+      (def msg (string/format fmt ;args))
+      (array/push lints [level l c msg])))
+  nil)
+
 (defn errorf
   "A combination of `error` and `string/format`. Equivalent to `(error (string/format fmt ;args))`."
   [fmt & args]
@@ -531,6 +576,11 @@
   [x ds & body]
   (each-template x ds :each body))
 
+(defn- check-empty-body
+  [body]
+  (if (= (length body) 0)
+    (maclintf :normal "empty loop body")))
+
 (defmacro loop
   ```
   A general purpose loop macro. This macro is similar to the Common Lisp loop
@@ -602,6 +652,7 @@
   The `loop` macro always evaluates to nil.
   ```
   [head & body]
+  (check-empty-body body)
   (loop1 body head 0))
 
 (defmacro seq
@@ -609,6 +660,7 @@
   See `loop` for details.``
   [head & body]
   (def $accum (gensym))
+  (check-empty-body body)
   ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro catseq
@@ -616,6 +668,7 @@
   See `loop` for details.``
   [head & body]
   (def $accum (gensym))
+  (check-empty-body body)
   ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
 
 (defmacro tabseq
@@ -629,6 +682,7 @@
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
+  (check-empty-body body)
   ~(,fiber/new (fn :generate [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
@@ -1207,19 +1261,6 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
-(defmacro defdyn
-  ``Define an alias for a keyword that is used as a dynamic binding. The
-  alias is a normal, lexically scoped binding that can be used instead of
-  a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
-  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
-  called "earmuffs".``
-  [alias & more]
-  (assert (symbol? alias) "alias must be a symbol")
-  (assert (and (> (length alias) 2) (= 42 (first alias) (last alias))) "name must have leading and trailing '*' characters")
-  (def prefix (dyn :defdyn-prefix))
-  (def kw (keyword prefix (slice alias 1 -2)))
-  ~(def ,alias :dyn ,;more ,kw))
-
 (defn has-key?
   "Check if a data structure `ds` contains the key `key`."
   [ds key]
@@ -1239,18 +1280,6 @@
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
-
-(defdyn *macro-form*
-  "Inside a macro, is bound to the source form that invoked the macro")
-
-(defdyn *lint-error*
-  "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
-
-(defdyn *lint-warn*
-  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
-
-(defdyn *lint-levels*
-  "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
 
 (defdyn *current-file*
   "Bound to the name of the currently compiling file.")
@@ -2034,24 +2063,6 @@
 ### Macro Expansion
 ###
 ###
-
-(defdyn *macro-lints*
-  ``Bound to an array of lint messages that will be reported by the compiler inside a macro.
-  To indicate an error or warning, a macro author should use `maclintf`.``)
-
-(defn maclintf
-  ``When inside a macro, call this function to add a linter warning. Takes
-  a `fmt` argument like `string/format`, which is used to format the message.``
-  [level fmt & args]
-  (def lints (dyn *macro-lints*))
-  (when lints
-    (def form (dyn *macro-form*))
-    (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
-    (def l (if-not (= -1 l) l))
-    (def c (if-not (= -1 c) c))
-    (def msg (string/format fmt ;args))
-    (array/push lints [level l c msg]))
-  nil)
 
 (defn macex1
   ``Expand macros in a form, but do not recursively expand macros.
