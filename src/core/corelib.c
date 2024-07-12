@@ -449,6 +449,11 @@ JANET_CORE_FN(janet_core_range,
     }
     count = (count > 0) ? count : 0;
     int32_t int_count = ceil(count);
+    if (step > 0.0) {
+        janet_assert(start + int_count * step >= stop, "bad range code");
+    } else {
+        janet_assert(start + int_count * step <= stop, "bad range code");
+    }
     JanetArray *array = janet_array(int_count);
     for (int32_t i = 0; i < int_count; i++) {
         array->data[i] = janet_wrap_number(start + i * step);
