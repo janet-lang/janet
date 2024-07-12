@@ -432,27 +432,28 @@ JANET_CORE_FN(janet_core_range,
               "With one argument, returns a range [0, end). With two arguments, returns "
               "a range [start, end). With three, returns a range with optional step size.") {
     janet_arity(argc, 1, 3);
-    int32_t start = 0, stop = 0, step = 1, count = 0;
+    double start = 0, stop = 0, step = 1, count = 0;
     if (argc == 3) {
-        start = janet_getinteger(argv, 0);
-        stop = janet_getinteger(argv, 1);
-        step = janet_getinteger(argv, 2);
-        count = (step > 0) ? (stop - start - 1) / step + 1 :
-                ((step < 0) ? (stop - start + 1) / step + 1 : 0);
+        start = janet_getnumber(argv, 0);
+        stop = janet_getnumber(argv, 1);
+        step = janet_getnumber(argv, 2);
+        count = (step > 0) ? (stop - start) / step :
+                ((step < 0) ? (stop - start) / step : 0);
     } else if (argc == 2) {
-        start = janet_getinteger(argv, 0);
-        stop = janet_getinteger(argv, 1);
+        start = janet_getnumber(argv, 0);
+        stop = janet_getnumber(argv, 1);
         count = stop - start;
     } else {
-        stop = janet_getinteger(argv, 0);
+        stop = janet_getnumber(argv, 0);
         count = stop;
     }
     count = (count > 0) ? count : 0;
-    JanetArray *array = janet_array(count);
-    for (int32_t i = 0; i < count; i++) {
+    int32_t int_count = ceil(count);
+    JanetArray *array = janet_array(int_count);
+    for (int32_t i = 0; i < int_count; i++) {
         array->data[i] = janet_wrap_number(start + i * step);
     }
-    array->count = count;
+    array->count = int_count;
     return janet_wrap_array(array);
 }
 
