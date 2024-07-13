@@ -456,7 +456,7 @@ JANET_CORE_FN(janet_core_range,
     }
     JanetArray *array = janet_array(int_count);
     for (int32_t i = 0; i < int_count; i++) {
-        array->data[i] = janet_wrap_number(start + i * step);
+        array->data[i] = janet_wrap_number(start + (double) i * step);
     }
     array->count = int_count;
     return janet_wrap_array(array);
