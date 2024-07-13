@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <math.h>
 
 #ifdef JANET_EV
 #ifndef JANET_WINDOWS
