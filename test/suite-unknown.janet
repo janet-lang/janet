@@ -187,7 +187,7 @@
 (def manydefs (seq [i :range [0 300]]
                 (tuple 'def (gensym) (string "value_" i))))
 (array/push manydefs (tuple * 10000 3 5 7 9))
-(def f (compile ['do ;manydefs] (fiber/getenv (fiber/current))))
+(def f (compile (tuple 'do ;manydefs) (fiber/getenv (fiber/current))))
 (assert (= (f) (* 10000 3 5 7 9)) "long function compilation")
 
 # Closure in while loop

@@ -180,8 +180,8 @@
 # Looping idea
 # 45f8db0
 (def xs
-  (seq [x :in [-1 0 1] y :in [-1 0 1] :when (not= x y 0)] (tuple x y)))
-(def txs (apply tuple xs))
+  (seq [x :in [-1 0 1] y :in [-1 0 1] :when (not= x y 0)] (tuple/brackets x y)))
+(def txs (apply tuple/brackets xs))
 
 (assert (= txs [[-1 -1] [-1 0] [-1 1] [0 -1] [0 1] [1 -1] [1 0] [1 1]])
         "nested seq")
@@ -840,9 +840,9 @@
   (assert (= (keep-syntax! par (map inc @[1 2 3])) '(2 3 4))
           "keep-syntax! parens coerce array")
   (assert (not= (keep-syntax! brak @[1 2 3]) '(1 2 3))
-          "keep-syntax! brackets not parens")
+          "keep-syntax! brackets are not parens")
   (assert (not= (keep-syntax! par @[1 2 3]) '[1 2 3])
-          "keep-syntax! parens not brackets")
+          "keep-syntax! parens are not brackets")
   (assert (= (tuple/sourcemap brak)
              (tuple/sourcemap (keep-syntax! brak @[1 2 3])))
           "keep-syntax! brackets source map")

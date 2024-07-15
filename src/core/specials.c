@@ -216,7 +216,7 @@ static int destructure(JanetCompiler *c,
                     janetc_freeslot(c, arg);
                     janetc_freeslot(c, len);
 
-                    janetc_emit_s(c, JOP_MAKE_TUPLE, nextright, 1);
+                    janetc_emit_s(c, JOP_MAKE_BRACKET_TUPLE, nextright, 1);
 
                     leaf(c, janet_unwrap_symbol(values[i + 1]), nextright, attr);
                     janetc_freeslot(c, nextright);

@@ -52,7 +52,7 @@ void janetc_emit(JanetCompiler *c, uint32_t instr) {
 /* Add a constant to the current scope. Return the index of the constant. */
 static int32_t janetc_const(JanetCompiler *c, Janet x) {
     JanetScope *scope = c->scope;
-    int32_t i, len;
+    int32_t i, len, is_tup;
     /* Get the topmost function scope */
     while (scope) {
         if (scope->flags & JANET_SCOPE_FUNCTION)
@@ -61,6 +61,7 @@ static int32_t janetc_const(JanetCompiler *c, Janet x) {
     }
     /* Check if already added */
     len = janet_v_count(scope->consts);
+    is_tup = janet_checktype(x, JANET_TUPLE);
     for (i = 0; i < len; i++) {
         if (janet_equals(x, scope->consts[i]))
             return i;

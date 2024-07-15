@@ -303,7 +303,7 @@
   (let [f (gensym) r (gensym)]
     ~(let [,f (,fiber/new (fn :protect [] ,;body) :ie)
            ,r (,resume ,f)]
-       [(,not= :error (,fiber/status ,f)) ,r])))
+       (tuple (,not= :error (,fiber/status ,f)) ,r))))
 
 (defmacro and
   `Evaluates to the last argument if all preceding elements are truthy, otherwise
@@ -318,9 +318,9 @@
     (set ret (if (= i (- len 1))
                v
                (if (idempotent? v)
-                 ['if v ret v]
+                 (tuple 'if v ret v)
                  (do (def s (gensym))
-                   ['if ['def s v] ret s])))))
+                   (tuple 'if (tuple 'def s v) ret s))))))
   ret)
 
 (defmacro or
@@ -348,7 +348,7 @@
   (def len (length syms))
   (def accum @[])
   (while (< i len)
-    (array/push accum (in syms i) [gensym])
+    (array/push accum (in syms i) (tuple 'gensym))
     (++ i))
   ~(let (,;accum) ,;body))
 
@@ -418,14 +418,14 @@
   [[binding ctor dtor] & body]
   ~(do
      (def ,binding ,ctor)
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(apply defer (tuple (or dtor :close) binding) body)))
 
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(apply defer (tuple (or dtor :close) binding) body)))
 
 (defmacro if-with
   ``Similar to `with`, but if binding is false or nil, evaluates
@@ -433,7 +433,7 @@
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] [truthy])
+     ,(apply defer (tuple (or dtor :close) binding) [truthy])
      ,falsey))
 
 (defn- for-var-template
@@ -1255,11 +1255,11 @@
 (defmacro juxt
   "Macro form of `juxt*`. Same behavior but more efficient."
   [& funs]
-  (def parts @['tuple])
+  (def parts @[])
   (def $args (gensym))
   (each f funs
     (array/push parts (tuple apply f $args)))
-  (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
+  ~(fn :juxt [& ,$args] [;,parts]))
 
 (defn has-key?
   "Check if a data structure `ds` contains the key `key`."
@@ -1464,9 +1464,9 @@
   (def len (length vars))
   (unless (even? len) (error "expected even number of argument to vars"))
   (def temp (seq [i :range [0 len 2]] (gensym)))
-  (def saveold (seq [i :range [0 len 2]] ['def (temp (/ i 2)) (vars i)]))
-  (def setnew (seq [i :range [0 len 2]] ['set (vars i) (vars (+ i 1))]))
-  (def restoreold (seq [i :range [0 len 2]] ['set (vars i) (temp (/ i 2))]))
+  (def saveold (seq [i :range [0 len 2]] (tuple 'def (temp (/ i 2)) (vars i))))
+  (def setnew (seq [i :range [0 len 2]] (tuple 'set (vars i) (vars (+ i 1)))))
+  (def restoreold (seq [i :range [0 len 2]] (tuple 'set (vars i) (temp (/ i 2)))))
   (with-syms [ret f s]
     ~(do
        ,;saveold
@@ -1889,7 +1889,7 @@
   # Keep an array for accumulating the compilation output
   (def x-sym (if (idempotent? x) x (gensym)))
   (def accum @[])
-  (if (not= x x-sym) (array/push accum ['def x-sym x]))
+  (if (not= x x-sym) (array/push accum (tuple 'def x-sym x)))
 
   # Table of gensyms
   (def symbols @{[nil nil] x-sym})
@@ -1904,7 +1904,7 @@
     (or (get symbols symbol-key)
         (let [s (gensym)]
           (put symbols symbol-key s)
-          (emit ['def s [get parent-sym key]])
+          (emit (tuple 'def s (tuple 'get parent-sym key)))
           s)))
 
   (defn get-length-sym
@@ -1912,7 +1912,7 @@
     (or (get length-symbols parent-sym)
         (let [s (gensym)]
           (put length-symbols parent-sym s)
-          (emit ['def s ['if [indexed? parent-sym] [length parent-sym]]])
+          (emit (tuple 'def s (tuple 'if (tuple 'indexed? parent-sym) (tuple 'length parent-sym))))
           s)))
 
   (defn visit-pattern-1
@@ -1952,7 +1952,7 @@
             (when (not= (type (pattern (inc i))) :symbol)
               (errorf "expected symbol following & in pattern, found %q" (pattern (inc i))))
 
-            (put b2g (pattern (inc i)) @[[slice s i]])
+            (put b2g (pattern (inc i)) @[[(tuple 'splice (tuple 'slice s i))]])
             (break))
           (visit-pattern-1 b2g s i sub-pattern)))
 
@@ -1977,13 +1977,13 @@
         (if-let [rest-idx (find-index (fn [x] (= x '&)) pattern)]
           rest-idx
           (length pattern)))
-      (array/push anda [<= pattern-len (get-length-sym s)]))
+      (array/push anda (tuple <= pattern-len (get-length-sym s))))
     (cond
 
       # match data structure template
       (or (= t :struct) (= t :table))
       (eachp [i sub-pattern] pattern
-        (array/push anda [not= nil (get-sym s i)])
+        (array/push anda (tuple not= nil (get-sym s i)))
         (visit-pattern-2 anda gun preds s i sub-pattern))
 
       isarr
@@ -1998,7 +1998,7 @@
 
       # match quoted literal
       (and (= t :tuple) (= 2 (length pattern)) (= 'quote (pattern 0)))
-      (array/push anda ['= s pattern])
+      (array/push anda (tuple '= s pattern))
 
       # match global unification
       (and (= t :tuple) (= 2 (length pattern)) (= '@ (pattern 0)))
@@ -2013,7 +2013,7 @@
         (visit-pattern-2 anda gun preds parent-sym key (pattern 0)))
 
       # match literal
-      (array/push anda ['= s pattern])))
+      (array/push anda (tuple '= s pattern))))
 
   # Compile the patterns
   (each [pattern expression] patterns
@@ -2027,19 +2027,19 @@
     (def unify @[])
     (each syms b2g
       (when (< 1 (length syms))
-        (array/push unify [= ;syms])))
+        (array/push unify (tuple = ;syms))))
     # Global unification
     (eachp [binding syms] gun
-      (array/push unify [= binding ;syms]))
+      (array/push unify (tuple = binding ;syms)))
     (sort unify)
     (array/concat anda unify)
     # Final binding
-    (def defs (seq [[k v] :in (sort (pairs b2g))] ['def k (first v)]))
+    (def defs (seq [[k v] :in (sort (pairs b2g))] (tuple 'def k (first v))))
     # Predicates
     (unless (empty? preds)
       (def pred-join ~(do ,;defs (and ,;preds)))
       (array/push anda pred-join))
-    (emit-branch (tuple/slice anda) ['do ;defs expression]))
+    (emit-branch (tuple/slice anda) (tuple 'do ;defs expression)))
 
   # Expand branches
   (def stack @[else])

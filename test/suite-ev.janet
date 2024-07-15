@@ -341,12 +341,12 @@
 # ev/select, suspended take operation, channel closed
 (def ch (ev/chan))
 (ev/go |(ev/chan-close ch))
-(assert (= (ev/select ch) [:close ch]))
+(assert (= (ev/select ch) (tuple :close ch)))
 
 # ev/select, suspended give operation, channel closed
 (def ch (ev/chan))
 (ev/go |(ev/chan-close ch))
-(assert (= (ev/select [ch 1]) [:close ch]))
+(assert (= (ev/select [ch 1]) (tuple :close ch)))
 
 # ev/gather check
 (defn exec-slurp

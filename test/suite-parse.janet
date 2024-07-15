@@ -146,9 +146,9 @@
     (parser/where p ;location)
     (parser/where p)))
 
-(assert (= [1 7] (parser-location @"(+ 1 2)")) "parser location 1")
-(assert (= [5 7] (parser-location @"(+ 1 2)" [5])) "parser location 2")
-(assert (= [10 10] (parser-location @"(+ 1 2)" [10 10])) "parser location 3")
+(assert (= (tuple 1 7) (parser-location @"(+ 1 2)")) "parser location 1")
+(assert (= (tuple 5 7) (parser-location @"(+ 1 2)" [5])) "parser location 2")
+(assert (= (tuple 10 10) (parser-location @"(+ 1 2)" [10 10])) "parser location 3")
 
 # Issue #861 - should be valgrind clean
 # 39c6be7cb
@@ -180,13 +180,13 @@
 (parser/consume p "(")
 (parser/insert p "hello")
 (parser/consume p ")")
-(assert (= (parser/produce p) ["hello"]))
+(assert (= (parser/produce p) (tuple "hello")))
 
 (def p (parser/new))
 (parser/consume p `("hel`)
 (parser/insert p `lo`)
 (parser/consume p `")`)
-(assert (= (parser/produce p) ["hello"]))
+(assert (= (parser/produce p) (tuple "hello")))
 
 (end-suite)
 

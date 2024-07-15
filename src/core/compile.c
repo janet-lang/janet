@@ -675,6 +675,13 @@ static JanetSlot janetc_tuple(JanetFopts opts, Janet x) {
                         JOP_MAKE_TUPLE);
 }
 
+static JanetSlot janetc_bracket_tuple(JanetFopts opts, Janet x) {
+    JanetCompiler *c = opts.compiler;
+    const Janet *t = janet_unwrap_tuple(x);
+    return janetc_maker(opts,
+                        janetc_toslots(c, t, janet_tuple_length(t)),
+                        JOP_MAKE_BRACKET_TUPLE);
+}
 static JanetSlot janetc_tablector(JanetFopts opts, Janet x, int op) {
     JanetCompiler *c = opts.compiler;
     return janetc_maker(opts,
@@ -805,9 +812,13 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 const Janet *tup = janet_unwrap_tuple(x);
                 /* Empty tuple is tuple literal */
                 if (janet_tuple_length(tup) == 0) {
-                    ret = janetc_cslot(janet_wrap_tuple(janet_tuple_n(NULL, 0)));
+                    const Janet *newtup = janet_tuple_n(NULL, 0);
+                    if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR)
+                        janet_tuple_flag(newtup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+                    ret = janetc_cslot(janet_wrap_tuple(newtup));
                 } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
-                    ret = janetc_tuple(opts, x);
+                    // fprintf(stderr, "%s!\n", janet_formatc("%q", x));
+                    ret = janetc_bracket_tuple(opts, x);
                 } else {
                     JanetSlot head = janetc_value(subopts, tup[0]);
                     subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
