@@ -643,7 +643,6 @@ static JanetSlot janetc_maker(JanetFopts opts, JanetSlot *slots, int op) {
         retslot = janetc_cslot(janet_wrap_struct(janet_struct_end(st)));
         janetc_freeslots(c, slots);
     } else if (can_inline && (op == JOP_MAKE_TUPLE)) {
-        // TODO: Does this branch ever get taken? I don't think that op is used.
         Janet *tup = janet_tuple_begin(janet_v_count(slots));
         for (int32_t i = 0; i < janet_v_count(slots); i++) {
             tup[i] = slots[i].constant;
