@@ -111,7 +111,7 @@
 (compwhen
   (dyn 'ev/go)
   (assert
-    (= (tuple true :caught)
+    (= [true :caught]
        (protect
          (try
            (do

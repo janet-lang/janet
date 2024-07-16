@@ -999,7 +999,7 @@ static Janet janet_disasm_sourcemap(JanetFuncDef *def) {
         JanetSourceMapping mapping = def->sourcemap[i];
         t[0] = janet_wrap_integer(mapping.line);
         t[1] = janet_wrap_integer(mapping.column);
-        sourcemap->data[i] = janet_wrap_tuple(janet_tuple_end(t));
+        sourcemap->data[i] = janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(t)));
     }
     sourcemap->count = def->bytecode_length;
     return janet_wrap_array(sourcemap);

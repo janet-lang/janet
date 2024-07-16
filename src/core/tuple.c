@@ -53,6 +53,17 @@ const Janet *janet_tuple_n(const Janet *values, int32_t n) {
     return janet_tuple_end(t);
 }
 
+/* Toggle the type of tuple */
+const Janet *janet_tuple_toggle(const Janet *tuple) {
+    if (janet_tuple_flag(tuple) & JANET_TUPLE_FLAG_BRACKETCTOR) {
+        int32_t mask = ~JANET_TUPLE_FLAG_BRACKETCTOR;
+        janet_tuple_flag(tuple) &= mask;
+    } else {
+        janet_tuple_flag(tuple) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+    }
+    return tuple;
+}
+
 /* C Functions */
 
 JANET_CORE_FN(cfun_tuple_brackets,
@@ -77,6 +88,15 @@ JANET_CORE_FN(cfun_tuple_slice,
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));
 }
 
+JANET_CORE_FN(cfun_tuple_toggle,
+              "(tuple/toggle tup)",
+              "Toggles the tuple from being delimited by parentheses to being"
+              "delimited by brackets and vice versa.") {
+    janet_fixarity(argc, 1);
+    const Janet *tup = janet_gettuple(argv, 0);
+    return janet_wrap_tuple(janet_tuple_toggle(tup));
+}
+
 JANET_CORE_FN(cfun_tuple_type,
               "(tuple/type tup)",
               "Checks how the tuple was constructed. Will return the keyword "
@@ -96,13 +116,13 @@ JANET_CORE_FN(cfun_tuple_type,
 JANET_CORE_FN(cfun_tuple_sourcemap,
               "(tuple/sourcemap tup)",
               "Returns the sourcemap metadata attached to a tuple, "
-              "which is another tuple (line, column).") {
+              "which is another tuple [line, column].") {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
     Janet contents[2];
     contents[0] = janet_wrap_integer(janet_tuple_head(tup)->sm_line);
     contents[1] = janet_wrap_integer(janet_tuple_head(tup)->sm_column);
-    return janet_wrap_tuple(janet_tuple_n(contents, 2));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(contents, 2)));
 }
 
 JANET_CORE_FN(cfun_tuple_setmap,
@@ -121,6 +141,7 @@ void janet_lib_tuple(JanetTable *env) {
     JanetRegExt tuple_cfuns[] = {
         JANET_CORE_REG("tuple/brackets", cfun_tuple_brackets),
         JANET_CORE_REG("tuple/slice", cfun_tuple_slice),
+        JANET_CORE_REG("tuple/toggle", cfun_tuple_toggle),
         JANET_CORE_REG("tuple/type", cfun_tuple_type),
         JANET_CORE_REG("tuple/sourcemap", cfun_tuple_sourcemap),
         JANET_CORE_REG("tuple/setmap", cfun_tuple_setmap),

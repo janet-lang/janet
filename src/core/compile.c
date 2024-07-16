@@ -79,7 +79,7 @@ void janetc_lintf(JanetCompiler *c, JanetCompileLintLevel level, const char *for
         payload[1] = c->current_mapping.line == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.line);
         payload[2] = c->current_mapping.column == -1 ? janet_wrap_nil() : janet_wrap_integer(c->current_mapping.column);
         payload[3] = janet_wrap_string(str);
-        janet_array_push(c->lints, janet_wrap_tuple(janet_tuple_end(payload)));
+        janet_array_push(c->lints, janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(payload))));
     }
 }
 
@@ -643,6 +643,7 @@ static JanetSlot janetc_maker(JanetFopts opts, JanetSlot *slots, int op) {
         retslot = janetc_cslot(janet_wrap_struct(janet_struct_end(st)));
         janetc_freeslots(c, slots);
     } else if (can_inline && (op == JOP_MAKE_TUPLE)) {
+        // TODO: Does this branch ever get taken? I don't think that op is used.
         Janet *tup = janet_tuple_begin(janet_v_count(slots));
         for (int32_t i = 0; i < janet_v_count(slots); i++) {
             tup[i] = slots[i].constant;
@@ -666,14 +667,6 @@ static JanetSlot janetc_array(JanetFopts opts, Janet x) {
                         janetc_toslots(c, a->data, a->count),
                         JOP_MAKE_ARRAY);
 }
-
-// static JanetSlot janetc_tuple(JanetFopts opts, Janet x) {
-//     JanetCompiler *c = opts.compiler;
-//     const Janet *t = janet_unwrap_tuple(x);
-//     return janetc_maker(opts,
-//                         janetc_toslots(c, t, janet_tuple_length(t)),
-//                         JOP_MAKE_TUPLE);
-// }
 
 static JanetSlot janetc_bracket_tuple(JanetFopts opts, Janet x) {
     JanetCompiler *c = opts.compiler;
@@ -814,10 +807,9 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 if (janet_tuple_length(tup) == 0) {
                     const Janet *newtup = janet_tuple_n(NULL, 0);
                     if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR)
-                        janet_tuple_flag(newtup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
+                        janet_tuple_toggle(newtup);
                     ret = janetc_cslot(janet_wrap_tuple(newtup));
                 } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
-                    // fprintf(stderr, "%s!\n", janet_formatc("%q", x));
                     ret = janetc_bracket_tuple(opts, x);
                 } else {
                     JanetSlot head = janetc_value(subopts, tup[0]);
@@ -1092,7 +1084,7 @@ JANET_CORE_FN(cfun_compile,
               "eval. Returns a new function and does not modify ast. Returns an error "
               "struct with keys :line, :column, and :error if compilation fails. "
               "If a `lints` array is given, linting messages will be appended to the array. "
-              "Each message will be a tuple of the form `(level line col message)`.") {
+              "Each message will be a tuple of the form `[level line col message]`.") {
     janet_arity(argc, 1, 4);
     JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))
                       ? janet_gettable(argv, 1) : janet_vm.fiber->env;

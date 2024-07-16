@@ -303,7 +303,7 @@
   (let [f (gensym) r (gensym)]
     ~(let [,f (,fiber/new (fn :protect [] ,;body) :ie)
            ,r (,resume ,f)]
-       (tuple (,not= :error (,fiber/status ,f)) ,r))))
+       [(,not= :error (,fiber/status ,f)) ,r])))
 
 (defmacro and
   `Evaluates to the last argument if all preceding elements are truthy, otherwise
@@ -348,7 +348,7 @@
   (def len (length syms))
   (def accum @[])
   (while (< i len)
-    (array/push accum (in syms i) (tuple 'gensym))
+    (array/push accum (in syms i) (tuple gensym))
     (++ i))
   ~(let (,;accum) ,;body))
 
@@ -1259,7 +1259,7 @@
   (def $args (gensym))
   (each f funs
     (array/push parts (tuple apply f $args)))
-  ~(fn :juxt [& ,$args] [;,parts]))
+  (tuple 'fn :juxt ['& $args] [;parts]))
 
 (defn has-key?
   "Check if a data structure `ds` contains the key `key`."
@@ -2832,7 +2832,7 @@
 (defn module/find
   ```
   Try to match a module or path name from the patterns in `module/paths`.
-  Returns a tuple (fullpath kind) where the kind is one of :source, :native,
+  Returns a tuple [fullpath kind] where the kind is one of :source, :native,
   or :image if the module is found, otherwise a tuple with nil followed by
   an error message.
   ```

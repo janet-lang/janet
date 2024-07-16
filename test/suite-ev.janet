@@ -258,7 +258,7 @@
 (set fiber
   (ev/spawn
     (set result (protect (ev/sleep 10)))
-    (assert (= result '(false "boop")) "ev/cancel 1")))
+    (assert (= result [false "boop"]) "ev/cancel 1")))
 (ev/sleep 0)
 (ev/cancel fiber "boop")
 
@@ -341,12 +341,12 @@
 # ev/select, suspended take operation, channel closed
 (def ch (ev/chan))
 (ev/go |(ev/chan-close ch))
-(assert (= (ev/select ch) (tuple :close ch)))
+(assert (= (ev/select ch) [:close ch]))
 
 # ev/select, suspended give operation, channel closed
 (def ch (ev/chan))
 (ev/go |(ev/chan-close ch))
-(assert (= (ev/select [ch 1]) (tuple :close ch)))
+(assert (= (ev/select [ch 1]) [:close ch]))
 
 # ev/gather check
 (defn exec-slurp

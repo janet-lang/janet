@@ -227,7 +227,7 @@ JANET_CORE_FN(cfun_string_bytes,
     for (i = 0; i < view.len; i++) {
         tup[i] = janet_wrap_integer((int32_t) view.bytes[i]);
     }
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(tup)));
 }
 
 JANET_CORE_FN(cfun_string_frombytes,

@@ -350,7 +350,7 @@ JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
 }
 
 JANET_CORE_FN(janet_cfun_frexp, "(math/frexp x)",
-              "Returns a tuple of (mantissa, exponent) from number.") {
+              "Returns a tuple of [mantissa, exponent] from number.") {
     janet_fixarity(argc, 1);
     double x = janet_getnumber(argv, 0);
     int exp;
@@ -358,7 +358,7 @@ JANET_CORE_FN(janet_cfun_frexp, "(math/frexp x)",
     Janet *result = janet_tuple_begin(2);
     result[0] = janet_wrap_number(x);
     result[1] = janet_wrap_number((double) exp);
-    return janet_wrap_tuple(janet_tuple_end(result));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(result)));
 }
 
 JANET_CORE_FN(janet_cfun_ldexp, "(math/ldexp m e)",

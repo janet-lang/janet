@@ -1655,6 +1655,7 @@ JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
 JANET_API Janet *janet_tuple_begin(int32_t length);
 JANET_API JanetTuple janet_tuple_end(Janet *tuple);
 JANET_API JanetTuple janet_tuple_n(const Janet *values, int32_t n);
+JANET_API JanetTuple janet_tuple_toggle(JanetTuple tuple);
 
 /* String/Symbol functions */
 #define janet_string_head(s) ((JanetStringHead *)((char *)s - offsetof(JanetStringHead, data)))

@@ -391,7 +391,7 @@ static void janet_add_meta(JanetTable *table, const char *doc, const char *sourc
         triple[0] = janet_cstringv(source_file);
         triple[1] = janet_wrap_integer(source_line);
         triple[2] = janet_wrap_integer(1);
-        Janet value = janet_wrap_tuple(janet_tuple_n(triple, 3));
+        Janet value = janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(triple, 3)));
         janet_table_put(table, janet_ckeywordv("source-map"), value);
     }
 }

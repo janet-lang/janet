@@ -1101,6 +1101,7 @@ JANET_CORE_FN(cfun_parse_where,
         p->column = (size_t) column;
     }
     Janet *tup = janet_tuple_begin(2);
+    janet_tuple_flag(tup) |= JANET_TUPLE_FLAG_BRACKETCTOR;
     tup[0] = janet_wrap_integer(p->line);
     tup[1] = janet_wrap_integer(p->column);
     return janet_wrap_tuple(janet_tuple_end(tup));

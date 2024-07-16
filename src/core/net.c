@@ -744,7 +744,7 @@ static Janet janet_so_getname(const void *sa_any) {
                 janet_panic("unable to decode ipv4 host address");
             }
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai->sin_port))};
-            return janet_wrap_tuple(janet_tuple_n(pair, 2));
+            return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(pair, 2)));
         }
 #ifndef JANET_NO_IPV6
         case AF_INET6: {
@@ -753,7 +753,7 @@ static Janet janet_so_getname(const void *sa_any) {
                 janet_panic("unable to decode ipv4 host address");
             }
             Janet pair[2] = {janet_cstringv(buffer), janet_wrap_integer(ntohs(sai6->sin6_port))};
-            return janet_wrap_tuple(janet_tuple_n(pair, 2));
+            return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(pair, 2)));
         }
 #endif
 #ifndef JANET_WINDOWS
@@ -767,7 +767,7 @@ static Janet janet_so_getname(const void *sa_any) {
             } else {
                 pathname = janet_cstringv(sun->sun_path);
             }
-            return janet_wrap_tuple(janet_tuple_n(&pathname, 1));
+            return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(&pathname, 1)));
         }
 #endif
     }

@@ -258,7 +258,7 @@ static const Janet *janetc_make_sourcemap(JanetCompiler *c) {
     tup[0] = c->source ? janet_wrap_string(c->source) : janet_wrap_nil();
     tup[1] = janet_wrap_integer(c->current_mapping.line);
     tup[2] = janet_wrap_integer(c->current_mapping.column);
-    return janet_tuple_end(tup);
+    return janet_tuple_toggle(janet_tuple_end(tup));
 }
 
 static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv) {

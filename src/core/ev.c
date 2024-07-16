@@ -562,7 +562,7 @@ static Janet make_supervisor_event(const char *name, JanetFiber *fiber, int thre
     } else {
         tup[2] = janet_wrap_nil();
     }
-    return janet_wrap_tuple(janet_tuple_n(tup, 3));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(tup, 3)));
 }
 
 /* Common init code */
@@ -761,7 +761,7 @@ static Janet make_write_result(JanetChannel *channel) {
     Janet *tup = janet_tuple_begin(2);
     tup[0] = janet_ckeywordv("give");
     tup[1] = janet_wrap_channel(channel);
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(tup)));
 }
 
 static Janet make_read_result(JanetChannel *channel, Janet x) {
@@ -769,14 +769,14 @@ static Janet make_read_result(JanetChannel *channel, Janet x) {
     tup[0] = janet_ckeywordv("take");
     tup[1] = janet_wrap_channel(channel);
     tup[2] = x;
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(tup)));
 }
 
 static Janet make_close_result(JanetChannel *channel) {
     Janet *tup = janet_tuple_begin(2);
     tup[0] = janet_ckeywordv("close");
     tup[1] = janet_wrap_channel(channel);
-    return janet_wrap_tuple(janet_tuple_end(tup));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_end(tup)));
 }
 
 /* Callback to use for scheduling a fiber from another thread. */
@@ -2902,7 +2902,8 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
                 tstate.payload
             };
             janet_channel_push((JanetChannel *)supervisor,
-                               janet_wrap_tuple(janet_tuple_n(pair, 2)), 2);
+                               janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(pair, 2))),
+                               2);
         } else if (flags & 0x1) {
             /* No wait, just print to stderr */
             janet_eprintf("thread start failure: %v\n", tstate.payload);
@@ -2990,7 +2991,9 @@ JANET_CORE_FN(cfun_ev_give_supervisor,
     void *chanv = janet_vm.root_fiber->supervisor_channel;
     if (NULL != chanv) {
         JanetChannel *chan = janet_channel_unwrap(chanv);
-        if (janet_channel_push(chan, janet_wrap_tuple(janet_tuple_n(argv, argc)), 0)) {
+        if (janet_channel_push(chan,
+                               janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(argv, argc))),
+                               0)) {
             janet_await();
         }
     }

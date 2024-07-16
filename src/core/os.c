@@ -1606,7 +1606,7 @@ JANET_CORE_FN(os_clock,
         Janet tup[2] = {janet_wrap_number((double)tv.tv_sec),
                         janet_wrap_number((double)tv.tv_nsec)
                        };
-        return janet_wrap_tuple(janet_tuple_n(tup, 2));
+        return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(tup, 2)));
     } else {
         janet_panicf("expected :double, :int, or :tuple, got %v", argv[1]);
     }
@@ -2691,7 +2691,7 @@ JANET_CORE_FN(os_pipe,
     JanetStream *reader = janet_stream(fds[0], JANET_STREAM_READABLE, NULL);
     JanetStream *writer = janet_stream(fds[1], JANET_STREAM_WRITABLE, NULL);
     Janet tup[2] = {janet_wrap_abstract(reader), janet_wrap_abstract(writer)};
-    return janet_wrap_tuple(janet_tuple_n(tup, 2));
+    return janet_wrap_tuple(janet_tuple_toggle(janet_tuple_n(tup, 2)));
 }
 
 #endif
