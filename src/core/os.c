@@ -1582,8 +1582,8 @@ JANET_CORE_FN(os_clock,
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_arity(argc, 0, 2);
 
-    JanetKeyword sourcestr = janet_optkeyword(argv, argc, 0, (const uint8_t *) "realtime");
-    if (janet_cstrcmp(sourcestr, "realtime") == 0) {
+    JanetKeyword sourcestr = janet_optkeyword(argv, argc, 0, NULL);
+    if (sourcestr == NULL || janet_cstrcmp(sourcestr, "realtime") == 0) {
         source = JANET_TIME_REALTIME;
     } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
         source = JANET_TIME_MONOTONIC;
@@ -1596,8 +1596,8 @@ JANET_CORE_FN(os_clock,
     struct timespec tv;
     if (janet_gettime(&tv, source)) janet_panic("could not get time");
 
-    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, (const uint8_t *) "double");
-    if (janet_cstrcmp(formatstr, "double") == 0) {
+    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, NULL);
+    if (formatstr == NULL || janet_cstrcmp(formatstr, "double") == 0) {
         double dtime = (double)(tv.tv_sec + (tv.tv_nsec / 1E9));
         return janet_wrap_number(dtime);
     } else if (janet_cstrcmp(formatstr, "int") == 0) {
