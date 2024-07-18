@@ -652,7 +652,6 @@
   The `loop` macro always evaluates to nil.
   ```
   [head & body]
-  (check-empty-body body)
   (loop1 body head 0))
 
 (defmacro seq
