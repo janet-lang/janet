@@ -467,8 +467,13 @@ static int tokenchar(JanetParser *p, JanetParseState *state, uint8_t c) {
             return 0;
         }
         ret = janet_keywordv(p->buf + 1, blen - 1);
+#ifdef JANET_INT_TYPES
+    } else if (start_num && !janet_scan_numeric(p->buf, blen, &ret)) {
+        (void) numval;
+#else
     } else if (start_num && !janet_scan_number(p->buf, blen, &numval)) {
         ret = janet_wrap_number(numval);
+#endif
     } else if (!check_str_const("nil", p->buf, blen)) {
         ret = janet_wrap_nil();
     } else if (!check_str_const("false", p->buf, blen)) {

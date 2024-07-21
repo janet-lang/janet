@@ -1598,6 +1598,9 @@ JANET_API int janet_scan_number(const uint8_t *str, int32_t len, double *out);
 JANET_API int janet_scan_number_base(const uint8_t *str, int32_t len, int32_t base, double *out);
 JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
 JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
+#ifdef JANET_INT_TYPES
+JANET_API int janet_scan_numeric(const uint8_t *str, int32_t len, Janet *out);
+#endif
 
 /* Debugging */
 JANET_API void janet_debug_break(JanetFuncDef *def, int32_t pc);

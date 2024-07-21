@@ -47,6 +47,14 @@
 (assert (= (int/to-number (i64 9007199254740991)) 9007199254740991))
 (assert (= (int/to-number (i64 -9007199254740991)) -9007199254740991))
 
+# New parser
+(assert (= (u64 "123") 123:u) "u64 parsing")
+(assert (= (u64 "0") 0:u) "u64 parsing")
+(assert (= (u64 "0xFFFF_FFFF_FFFF_FFFF") 0xFFFF_FFFF_FFFF_FFFF:u) "u64 parsing")
+(assert (= (i64 "123") 123:s) "s64 parsing")
+(assert (= (i64 "-123") -123:s) "s64 parsing")
+(assert (= (i64 "0") 0:s) "s64 parsing")
+
 (assert-error
   "u64 out of bounds for safe integer"
   (int/to-number (u64 "9007199254740993"))

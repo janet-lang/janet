@@ -489,6 +489,40 @@ int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
     return 0;
 }
 
+/* Similar to janet_scan_number but allows for
+ * more numeric types with a given suffix. */
+int janet_scan_numeric(
+    const uint8_t *str,
+    int32_t len,
+    Janet *out) {
+    int result;
+    double num;
+    int64_t i64;
+    uint64_t u64;
+    if (len < 2 || str[len - 2] != ':') {
+        result = janet_scan_number_base(str, len, 0, &num);
+        *out = janet_wrap_number(num);
+        return result;
+    }
+    switch (str[len - 1]) {
+        default:
+            return 1;
+        case 'n':
+            result = janet_scan_number_base(str, len - 2, 0, &num);
+            *out = janet_wrap_number(num);
+            return result;
+        /* Condition is inverted janet_scan_int64 and janet_scan_uint64 */
+        case 's':
+            result = !janet_scan_int64(str, len - 2, &i64);
+            *out = janet_wrap_s64(i64);
+            return result;
+        case 'u':
+            result = !janet_scan_uint64(str, len - 2, &u64);
+            *out = janet_wrap_u64(u64);
+            return result;
+    }
+}
+
 #endif
 
 void janet_buffer_dtostr(JanetBuffer *buffer, double x) {
