@@ -1325,7 +1325,11 @@
 (defmacro ->
   ``Threading macro. Inserts x as the second value in the first form
   in `forms`, and inserts the modified first form into the second form
-  in the same manner, and so on. Useful for expressing pipelines of data.``
+  in the same manner, and so on. Useful for expressing pipelines of data.
+
+  Note that a macro or special form in `->` may not behave as you expect,
+  because the previous expression(s) are inserted lexically.
+  In particular, `fn` and `short-fn` will not work; use `as->` instead.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1338,7 +1342,11 @@
 (defmacro ->>
   ``Threading macro. Inserts x as the last value in the first form
   in `forms`, and inserts the modified first form into the second form
-  in the same manner, and so on. Useful for expressing pipelines of data.``
+  in the same manner, and so on. Useful for expressing pipelines of data.
+
+  Note that a macro or special form in `->>` may not behave as you expect,
+  because the previous expression(s) are inserted lexically.
+  In particular, `fn` and `short-fn` will behave strangely; use `as->` instead.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1353,7 +1361,11 @@
   in `forms`, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
-  Useful for expressing pipelines of data.``
+  Useful for expressing pipelines of data.
+
+  Note that a macro or special form in `-?>` may not behave as you expect,
+  because the previous expression(s) are inserted lexically.
+  In particular, `fn` and `short-fn` will not work; use `as?->` instead.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
@@ -1369,7 +1381,11 @@
   in `forms`, and inserts the modified first form into the second form
   in the same manner, and so on. The pipeline will return nil
   if an intermediate value is nil.
-  Useful for expressing pipelines of data.``
+  Useful for expressing pipelines of data.
+
+  Note that a macro or special form in `-?>` may not behave as you expect,
+  because the previous expression(s) are inserted lexically.
+  In particular, `fn` and `short-fn` will behave strangely; use `as?->` instead.``
   [x & forms]
   (defn fop [last n]
     (def [h t] (if (= :tuple (type n))
