@@ -832,17 +832,21 @@
 
 (defmacro- do-compare
   [x y]
+  (def f (gensym))
+  (def f-res (gensym))
+  (def g (gensym))
+  (def g-res (gensym))
   ~(do
-     (def f (get ,x :compare))
-     (def f-res (if f (f ,x ,y)))
-     (if f-res
-       f-res
+     (def ,f (,get ,x :compare))
+     (def ,f-res (if ,f (,f ,x ,y)))
+     (if ,f-res
+       ,f-res
        (do
-         (def g (get ,y :compare))
-         (def g-res (if g (- (g ,y ,x))))
-         (if g-res
-           g-res
-           (cmp ,x ,y))))))
+         (def ,g (,get ,y :compare))
+         (def ,g-res (if ,g (,- (,g ,y ,x))))
+         (if ,g-res
+           ,g-res
+           (,cmp ,x ,y))))))
 
 (defn compare
   ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
