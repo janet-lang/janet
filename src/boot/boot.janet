@@ -711,6 +711,19 @@
       (each x xs (+= accum x) (++ total))
       (/ accum total))))
 
+(defn geomean
+  "Returns the geometric mean of xs. If empty, returns NaN."
+  [xs]
+  (if (lengthable? xs)
+    (do
+      (var accum 0)
+      (each x xs (+= accum (math/log x)))
+      (math/exp (/ accum (length xs))))
+    (do
+      (var [accum total] [0 0])
+      (each x xs (+= accum (math/log x)) (++ total))
+      (math/exp (/ accum total)))))
+
 (defn product
   "Returns the product of xs. If xs is empty, returns 1."
   [xs]
