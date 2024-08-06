@@ -1471,7 +1471,10 @@ void janet_ev_deinit(void) {
 
 static void janet_register_stream(JanetStream *stream) {
     if (NULL == CreateIoCompletionPort(stream->handle, janet_vm.iocp, (ULONG_PTR) stream, 0)) {
-        janet_panicf("failed to listen for events: %V", janet_ev_lasterr());
+        if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | JANET_STREAM_ACCEPTABLE)) {
+            janet_panicf("failed to listen for events: %V", janet_ev_lasterr());
+        }
+        stream->flags |= JANET_STREAM_UNREGISTERED;
     }
 }
 
