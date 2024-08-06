@@ -2680,16 +2680,24 @@ JANET_CORE_FN(os_open,
 }
 
 JANET_CORE_FN(os_pipe,
-              "(os/pipe)",
+              "(os/pipe &opt flags)",
               "Create a readable stream and a writable stream that are connected. Returns a two-element "
               "tuple where the first element is a readable stream and the second element is the writable "
-              "stream.") {
+              "stream. `flags` is an optional set of keyword flags used to set whether the reader or writer ends of the pipe "
+              "can be used for blocking IO. \n\n"
+              "* :W - sets the writable end of the pipe to a blocking stream.\n"
+              "* :R - sets the readable end of the pipe to a blocking stream.\n\n"
+              "By default, both ends of the pipe are non-blocking for use the the `ev` module.") {
     (void) argv;
-    janet_fixarity(argc, 0);
+    janet_arity(argc, 0, 1);
     JanetHandle fds[2];
-    if (janet_make_pipe(fds, 0)) janet_panicv(janet_ev_lasterr());
-    JanetStream *reader = janet_stream(fds[0], JANET_STREAM_READABLE, NULL);
-    JanetStream *writer = janet_stream(fds[1], JANET_STREAM_WRITABLE, NULL);
+    int flags = 0;
+    if (argc > 0 && !janet_checktype(argv[0], JANET_NIL)) {
+        flags = (int) janet_getflags(argv, 0, "WR");
+    }
+    if (janet_make_pipe(fds, flags)) janet_panicv(janet_ev_lasterr());
+    JanetStream *reader = janet_stream(fds[0], (flags & 2) ? 0 : JANET_STREAM_READABLE, NULL);
+    JanetStream *writer = janet_stream(fds[1], (flags & 1) ? 0 : JANET_STREAM_WRITABLE, NULL);
     Janet tup[2] = {janet_wrap_abstract(reader), janet_wrap_abstract(writer)};
     return janet_wrap_tuple(janet_tuple_n(tup, 2));
 }

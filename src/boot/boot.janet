@@ -4339,6 +4339,19 @@
     (print "add " absdest)
     absdest)
 
+  (defn bundle/whois
+    "Given a file path, figure out which bundle installed it."
+    [path]
+    (var ret nil)
+    (def rpath (bundle-rpath path))
+    (each bundle-name (bundle/list)
+      (def files (get (bundle/manifest bundle-name) :files []))
+      (def has-file (index-of rpath files))
+      (when has-file
+        (set ret bundle-name)
+        (break)))
+    ret)
+
   (defn bundle/add-file
     "Add files during an install relative to `(dyn *syspath*)`"
     [manifest src &opt dest chmod-mode]

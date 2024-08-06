@@ -469,7 +469,7 @@ static Janet janet_stream_next(void *p, Janet key) {
 static void janet_stream_tostring(void *p, JanetBuffer *buffer) {
     JanetStream *stream = p;
     /* Let user print the file descriptor for debugging */
-    janet_formatb(buffer, "<core/stream handle=%d>", stream->handle);
+    janet_formatb(buffer, "[fd=%d]", stream->handle);
 }
 
 const JanetAbstractType janet_stream_type = {
@@ -2699,6 +2699,7 @@ static volatile long PipeSerialNumber;
  * mode = 0: both sides non-blocking.
  * mode = 1: only read side non-blocking: write side sent to subprocess
  * mode = 2: only write side non-blocking: read side sent to subprocess
+ * mode = 3: both sides blocking - for use in two subprocesses (making pipeline from external processes)
  */
 int janet_make_pipe(JanetHandle handles[2], int mode) {
 #ifdef JANET_WINDOWS
@@ -2712,6 +2713,11 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
     memset(&saAttr, 0, sizeof(saAttr));
     saAttr.nLength = sizeof(saAttr);
     saAttr.bInheritHandle = TRUE;
+    if (mode == 3) {
+        /* No overlapped IO involved, just call CreatePipe */
+        if (!CreatePipe(handles, handles + 1, &saAttr, 0)) return -1;
+        return 0;
+    }
     sprintf(PipeNameBuffer,
             "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
             (unsigned int) GetCurrentProcessId(),
@@ -2757,8 +2763,8 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
     if (pipe(handles)) return -1;
     if (mode != 2 && fcntl(handles[0], F_SETFD, FD_CLOEXEC)) goto error;
     if (mode != 1 && fcntl(handles[1], F_SETFD, FD_CLOEXEC)) goto error;
-    if (mode != 2 && fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
-    if (mode != 1 && fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;
+    if (mode != 2 && mode != 3 && fcntl(handles[0], F_SETFL, O_NONBLOCK)) goto error;
+    if (mode != 1 && mode != 3 && fcntl(handles[1], F_SETFL, O_NONBLOCK)) goto error;
     return 0;
 error:
     close(handles[0]);
