@@ -2683,11 +2683,11 @@ JANET_CORE_FN(os_pipe,
               "(os/pipe &opt flags)",
               "Create a readable stream and a writable stream that are connected. Returns a two-element "
               "tuple where the first element is a readable stream and the second element is the writable "
-              "stream. `flags` is an optional set of keyword flags used to set whether the reader or writer ends of the pipe "
-              "can be used for blocking IO. \n\n"
+              "stream. `flags` is a keyword set of flags to disable non-blocking settings on the ends of the pipe. "
+              "This may be desired if passing the pipe to a subprocess with `os/spawn`.\n\n"
               "* :W - sets the writable end of the pipe to a blocking stream.\n"
               "* :R - sets the readable end of the pipe to a blocking stream.\n\n"
-              "By default, both ends of the pipe are non-blocking for use the the `ev` module.") {
+              "By default, both ends of the pipe are non-blocking for use with the `ev` module.") {
     (void) argv;
     janet_arity(argc, 0, 1);
     JanetHandle fds[2];
