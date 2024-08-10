@@ -76,6 +76,16 @@
 (array/trim a)
 (array/ensure @[1 1] 6 2)
 
+# array/join
+(assert (deep= @[1 2 3] (array/join @[] [1] [2] [3])) "array/join 1")
+(assert (deep= @[] (array/join @[])) "array/join 2")
+(assert (deep= @[1 :a :b :c] (array/join @[1] @[:a :b] [] [:c])) "array/join 3")
+(assert (deep= @[:x :y :z "abc123" "def456"] (array/join @[:x :y :z] ["abc123" "def456"])) "array/join 4")
+(assert-error "array/join error 1" (array/join))
+(assert-error "array/join error 2" (array/join []))
+(assert-error "array/join error 3" (array/join [] "abc123"))
+(assert-error "array/join error 4" (array/join @[] "abc123"))
+(assert-error "array/join error 5" (array/join @[] "abc123"))
 
 (end-suite)
 

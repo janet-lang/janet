@@ -116,6 +116,34 @@ JANET_CORE_FN(cfun_tuple_setmap,
     return argv[0];
 }
 
+JANET_CORE_FN(cfun_tuple_join,
+              "(tuple/join & parts)",
+              "Create a tuple by joining together other tuples and arrays.") {
+    janet_arity(argc, 0, -1);
+    int32_t total_len = 0;
+    for (int32_t i = 0; i < argc; i++) {
+        int32_t len = 0;
+        const Janet *vals = NULL;
+        if (!janet_indexed_view(argv[i], &vals, &len)) {
+            janet_panicf("expected indexed type for argument %d, got %v", i, argv[i]);
+        }
+        if (INT32_MAX - total_len < len) {
+            janet_panic("tuple too large");
+        }
+        total_len += len;
+    }
+    Janet *tup = janet_tuple_begin(total_len);
+    Janet *tup_cursor = tup;
+    for (int32_t i = 0; i < argc; i++) {
+        int32_t len = 0;
+        const Janet *vals = NULL;
+        janet_indexed_view(argv[i], &vals, &len);
+        memcpy(tup_cursor, vals, len * sizeof(Janet));
+        tup_cursor += len;
+    }
+    return janet_wrap_tuple(janet_tuple_end(tup));
+}
+
 /* Load the tuple module */
 void janet_lib_tuple(JanetTable *env) {
     JanetRegExt tuple_cfuns[] = {
@@ -124,6 +152,7 @@ void janet_lib_tuple(JanetTable *env) {
         JANET_CORE_REG("tuple/type", cfun_tuple_type),
         JANET_CORE_REG("tuple/sourcemap", cfun_tuple_sourcemap),
         JANET_CORE_REG("tuple/setmap", cfun_tuple_setmap),
+        JANET_CORE_REG("tuple/join", cfun_tuple_join),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, tuple_cfuns);

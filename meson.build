@@ -271,6 +271,7 @@ test_files = [
   'test/suite-struct.janet',
   'test/suite-symcache.janet',
   'test/suite-table.janet',
+  'test/suite-tuple.janet',
   'test/suite-unknown.janet',
   'test/suite-value.janet',
   'test/suite-vm.janet'
