@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `array/join`
+- Add `tuple/join`
+
 ## 1.35.2 - 2024-06-16
 - Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
 - Let range take non-integer values.
