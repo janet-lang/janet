@@ -456,7 +456,7 @@ JANET_CORE_FN(janet_core_range,
     }
     JanetArray *array = janet_array(int_count);
     for (int32_t i = 0; i < int_count; i++) {
-        array->data[i] = janet_wrap_number(start + (double) i * step);
+        array->data[i] = janet_wrap_number((double) start + (double) i * step);
     }
     array->count = int_count;
     return janet_wrap_array(array);
@@ -1127,6 +1127,9 @@ static void janet_load_libs(JanetTable *env) {
 #endif
 #ifdef JANET_EV
     janet_lib_ev(env);
+#ifdef JANET_FILEWATCH
+    janet_lib_filewatch(env);
+#endif
 #endif
 #ifdef JANET_NET
     janet_lib_net(env);

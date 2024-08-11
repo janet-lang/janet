@@ -27,6 +27,7 @@
 #endif
 
 #ifdef JANET_EV
+#ifdef JANET_FILEWATCH
 
 typedef struct {
     JanetTable *watch_descriptors;
@@ -36,9 +37,9 @@ typedef struct {
 } JanetWatcher;
 
 #ifdef JANET_LINUX
+
 #include <sys/inotify.h>
 #include <unistd.h>
-#endif
 
 typedef struct {
     const char *name;
@@ -63,7 +64,8 @@ static const JanetWatchFlagName watcher_flags_linux[] = {
     {"q-overflow", IN_Q_OVERFLOW},
     {"unmount", IN_UNMOUNT},
 };
-static uint32_t decode_inotify_flags(const Janet *options, int32_t n) {
+
+static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
     uint32_t flags = 0;
     for (int32_t i = 0; i < n; i++) {
         if (!(janet_checktype(options[i], JANET_KEYWORD))) {
@@ -218,6 +220,43 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
     janet_async_start(watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, watcher);
 }
 
+#else
+
+/* Default implementation */
+
+static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
+    (void) options;
+    (void) n;
+    return 0;
+}
+
+static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uint32_t default_flags) {
+    (void) watcher;
+    (void) channel;
+    (void) default_flags;
+    janet_panic("nyi");
+}
+
+static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t flags) {
+    (void) watcher;
+    (void) flags;
+    (void) path;
+    janet_panic("nyi");
+}
+
+static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
+    (void) watcher;
+    (void) path;
+    janet_panic("nyi");
+}
+
+static void janet_watcher_listen(JanetWatcher *watcher) {
+    (void) watcher;
+    janet_panic("nyi");
+}
+
+#endif
+
 /* C Functions */
 
 static int janet_filewatch_mark(void *p, size_t s) {
@@ -242,7 +281,7 @@ JANET_CORE_FN(cfun_filewatch_make,
     janet_arity(argc, 1, -1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     JanetWatcher *watcher = janet_abstract(&janet_filewatch_at, sizeof(JanetWatcher));
-    uint32_t default_flags = decode_inotify_flags(argv + 1, argc - 1);
+    uint32_t default_flags = decode_watch_flags(argv + 1, argc - 1);
     janet_watcher_init(watcher, channel, default_flags);
     return janet_wrap_abstract(watcher);
 }
@@ -253,7 +292,7 @@ JANET_CORE_FN(cfun_filewatch_add,
     janet_arity(argc, 2, -1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
     const char *path = janet_getcstring(argv, 1);
-    uint32_t flags = watcher->default_flags | decode_inotify_flags(argv + 2, argc - 2);
+    uint32_t flags = watcher->default_flags | decode_watch_flags(argv + 2, argc - 2);
     janet_watcher_add(watcher, path, flags);
     return argv[0];
 }
@@ -289,4 +328,5 @@ void janet_lib_filewatch(JanetTable *env) {
     janet_core_cfuns_ext(env, NULL, cfuns);
 }
 
+#endif
 #endif

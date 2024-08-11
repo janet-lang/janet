@@ -210,6 +210,11 @@ extern "C" {
 #define JANET_EV
 #endif
 
+/* Enable or disable the filewatch/ module */
+#if !defined(JANET_NO_FILEWATCH)
+#define JANET_FILEWATCH
+#endif
+
 /* Enable or disable networking */
 #if defined(JANET_EV) && !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
 #define JANET_NET

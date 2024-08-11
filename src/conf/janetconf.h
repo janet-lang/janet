@@ -29,6 +29,7 @@
 /* #define JANET_NO_NET */
 /* #define JANET_NO_INT_TYPES */
 /* #define JANET_NO_EV */
+/* #define JANET_NO_FILEWATCH */
 /* #define JANET_NO_REALPATH */
 /* #define JANET_NO_SYMLINKS */
 /* #define JANET_NO_UMASK */

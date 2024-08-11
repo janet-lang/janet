@@ -79,6 +79,7 @@ conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
 conf.set('JANET_NO_FFI', not get_option('ffi'))
 conf.set('JANET_NO_FFI_JIT', not get_option('ffi_jit'))
+conf.set('JANET_NO_FILEWATCH', not get_option('filewatch'))
 conf.set('JANET_NO_CRYPTORAND', not get_option('cryptorand'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
