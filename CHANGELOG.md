@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `bundle/who-is` to query which bundle a file on disk was installed by.
+- Add `geomean` function
+- Add `:R` and `:W` flags to `os/pipe` to create blocking pipes on Posix and Windows systems.
+  These streams cannot be directly read to and written from, but can be passed to subprocesses.
 - Add `array/join`
 - Add `tuple/join`
 
