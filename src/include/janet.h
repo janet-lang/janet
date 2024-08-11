@@ -354,6 +354,7 @@ typedef struct {
 #ifdef JANET_EV
 typedef struct JanetOSMutex JanetOSMutex;
 typedef struct JanetOSRWLock JanetOSRWLock;
+typedef struct JanetChannel JanetChannel;
 #endif
 
 /***** END SECTION CONFIG *****/
@@ -1442,6 +1443,12 @@ JANET_API void *janet_abstract_end_threaded(void *x);
 JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size);
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
+
+/* Expose channel utilities */
+JanetChannel *janet_getchannel(const Janet *argv, int32_t n);
+JanetChannel *janet_optchannel(const Janet *argv, int32_t argc, int32_t n, JanetChannel *dflt);
+JANET_API int janet_channel_give(JanetChannel *channel, Janet x);
+JANET_API int janet_channel_take(JanetChannel *channel, Janet *out);
 
 /* Expose some OS sync primitives */
 JANET_API size_t janet_os_mutex_size(void);
