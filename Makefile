@@ -139,6 +139,7 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/ev.c \
 				   src/core/ffi.c \
 				   src/core/fiber.c \
+				   src/core/filewatch.c \
 				   src/core/gc.c \
 				   src/core/inttypes.c \
 				   src/core/io.c \

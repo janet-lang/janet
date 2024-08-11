@@ -74,7 +74,7 @@ typedef struct {
     } mode;
 } JanetChannelPending;
 
-typedef struct {
+struct JanetChannel {
     JanetQueue items;
     JanetQueue read_pending;
     JanetQueue write_pending;
@@ -86,7 +86,7 @@ typedef struct {
 #else
     pthread_mutex_t lock;
 #endif
-} JanetChannel;
+};
 
 typedef struct {
     JanetFiber *fiber;
@@ -866,7 +866,7 @@ static int janet_channel_push_with_lock(JanetChannel *channel, Janet x, int mode
             /* No root fiber, we are in completion on a root fiber. Don't block. */
             if (mode == 2) {
                 janet_chan_unlock(channel);
-                return 0;
+                return 1;
             }
             /* Pushed successfully, but should block. */
             JanetChannelPending pending;
@@ -922,6 +922,7 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
     int is_threaded = janet_chan_is_threaded(channel);
     if (janet_q_pop(&channel->items, item, sizeof(Janet))) {
         /* Queue empty */
+        if (is_choice == 2) return 0; // Skip pending read
         JanetChannelPending pending;
         pending.thread = &janet_vm;
         pending.fiber = janet_vm.root_fiber,
@@ -977,6 +978,14 @@ JanetChannel *janet_optchannel(const Janet *argv, int32_t argc, int32_t n, Janet
     } else {
         return dflt;
     }
+}
+
+int janet_channel_give(JanetChannel *channel, Janet x) {
+    return janet_channel_push(channel, x, 2);
+}
+
+int janet_channel_take(JanetChannel *channel, Janet *out) {
+    return janet_channel_pop(channel, out, 2);
 }
 
 /* Channel Methods */
@@ -3278,6 +3287,8 @@ void janet_lib_ev(JanetTable *env) {
     janet_register_abstract_type(&janet_channel_type);
     janet_register_abstract_type(&janet_mutex_type);
     janet_register_abstract_type(&janet_rwlock_type);
+
+    janet_lib_filewatch(env);
 }
 
 #endif
