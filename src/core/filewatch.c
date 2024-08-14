@@ -89,6 +89,9 @@ static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uin
     do {
         fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     } while (fd == -1 && errno == EINTR);
+    if (fd == -1) {
+        janet_panicv(janet_ev_lasterr());
+    }
     watcher->watch_descriptors = janet_table(0);
     watcher->channel = channel;
     watcher->default_flags = default_flags;
@@ -101,6 +104,9 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     do {
         result = inotify_add_watch(watcher->stream->handle, path, flags);
     } while (result == -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panicv(janet_ev_lasterr());
+    }
     Janet name = janet_cstringv(path);
     Janet wd = janet_wrap_integer(result);
     janet_table_put(watcher->watch_descriptors, name, wd);
@@ -117,7 +123,7 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
         result = inotify_rm_watch(watcher->stream->handle, watch_handle);
     } while (result != -1 && errno == EINTR);
     if (result == -1) {
-        janet_panicf("%s", janet_strerror(errno));
+        janet_panicv(janet_ev_lasterr());
     }
 }
 
@@ -277,7 +283,7 @@ static const JanetAbstractType janet_filewatch_at = {
 
 JANET_CORE_FN(cfun_filewatch_make,
         "(filewatch/make channel &opt default-flags)",
-        "Create a new filewatcher.") {
+        "Create a new filewatcher that will give events to a channel channel.") {
     janet_arity(argc, 1, -1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     JanetWatcher *watcher = janet_abstract(&janet_filewatch_at, sizeof(JanetWatcher));

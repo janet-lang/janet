@@ -988,6 +988,20 @@ int janet_channel_take(JanetChannel *channel, Janet *out) {
     return janet_channel_pop(channel, out, 2);
 }
 
+JanetChannel *janet_channel_make(uint32_t limit) {
+    janet_assert(limit <= INT32_MAX, "bad limit");
+    JanetChannel *channel = janet_abstract(&janet_channel_type, sizeof(JanetChannel));
+    janet_chan_init(channel, (int32_t) limit, 0);
+    return channel;
+}
+
+JanetChannel *janet_channel_make_threaded(uint32_t limit) {
+    janet_assert(limit <= INT32_MAX, "bad limit");
+    JanetChannel *channel = janet_abstract_threaded(&janet_channel_type, sizeof(JanetChannel));
+    janet_chan_init(channel, (int32_t) limit, 0);
+    return channel;
+}
+
 /* Channel Methods */
 
 JANET_CORE_FN(cfun_channel_push,
