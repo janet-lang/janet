@@ -4387,10 +4387,10 @@
     `Shorthand for adding scripts during an install. Scripts will be installed to
     (string (dyn *syspath*) "/bin") by default and will be set to be executable.`
     [manifest src &opt dest chmod-mode]
-    (default dest (string "bin" (sep) (->> src (string/split "/") last)))
+    (default dest (last (string/split "/" src)))
     (default chmod-mode 8r755)
     (os/mkdir (string (dyn *syspath*) (sep) "bin"))
-    (bundle/add-file manifest src dest chmod-mode))
+    (bundle/add-file manifest src (string "bin" (sep) dest) chmod-mode))
 
   (defn bundle/update-all
     "Reinstall all bundles"
