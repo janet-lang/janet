@@ -1419,6 +1419,7 @@ JANET_API void janet_loop1_interrupt(JanetVM *vm);
 
 /* Wrapper around streams */
 JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
+JANET_API JanetStream *janet_stream_ext(JanetHandle handle, uint32_t flags, const JanetMethod *methods, size_t size); /* Allow for type punning streams */
 JANET_API void janet_stream_close(JanetStream *stream);
 JANET_API Janet janet_cfun_stream_close(int32_t argc, Janet *argv);
 JANET_API Janet janet_cfun_stream_read(int32_t argc, Janet *argv);

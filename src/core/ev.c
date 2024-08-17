@@ -316,8 +316,9 @@ static const JanetMethod ev_default_stream_methods[] = {
 };
 
 /* Create a stream*/
-JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods) {
-    JanetStream *stream = janet_abstract(&janet_stream_type, sizeof(JanetStream));
+JanetStream *janet_stream_ext(JanetHandle handle, uint32_t flags, const JanetMethod *methods, size_t size) {
+    janet_assert(size >= sizeof(JanetStream), "bad size");
+    JanetStream *stream = janet_abstract(&janet_stream_type, size);
     stream->handle = handle;
     stream->flags = flags;
     stream->read_fiber = NULL;
@@ -327,6 +328,10 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
     stream->index = 0;
     janet_register_stream(stream);
     return stream;
+}
+
+JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods) {
+    return janet_stream_ext(handle, flags, methods, sizeof(JanetStream));
 }
 
 static void janet_stream_close_impl(JanetStream *stream) {
