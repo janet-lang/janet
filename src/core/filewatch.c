@@ -329,7 +329,6 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
 
 static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetWatcher *watcher = (JanetWatcher *) fiber->ev_state;
-    char buf[1024];
     switch (event) {
         default:
             break;
@@ -354,11 +353,11 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
     for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
-        const JanetKV *kv = watcher->watch_descriptors.items + i;
+        const JanetKV *kv = watcher->watch_descriptors.data + i;
         if (!janet_checktype(kv->key, JANET_POINTER)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->key);
         Janet pathv = kv->value;
-        BOOL result = ReadDirecoryChangesW(ow->handle,
+        BOOL result = ReadDirectoryChangesW(ow->stream.handle,
                 &ow->fni,
                 sizeof(FILE_NOTIFY_INFORMATION),
                 TRUE,
@@ -414,7 +413,7 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
 static int janet_filewatch_mark(void *p, size_t s) {
     JanetWatcher *watcher = (JanetWatcher *) p;
     (void) s;
-    if (watcher->stream == NULL) return 0; /* Incomplete initialization */
+    if (watcher->channel == NULL) return 0; /* Incomplete initialization */
 #ifndef JANET_WINDOWS
     janet_mark(janet_wrap_abstract(watcher->stream));
 #endif
@@ -425,7 +424,7 @@ static int janet_filewatch_mark(void *p, size_t s) {
 
 static int janet_filewatch_gc(void *p, size_t s) {
     JanetWatcher *watcher = (JanetWatcher *) p;
-    if (watcher->stream == NULL) return 0; /* Incomplete initialization */
+    if (watcher->channel == NULL) return 0; /* Incomplete initialization */
     (void) s;
     janet_table_deinit(&watcher->watch_descriptors);
     return 0;
