@@ -448,7 +448,12 @@ JANET_CORE_FN(janet_core_range,
         count = stop;
     }
     count = (count > 0) ? count : 0;
-    int32_t int_count = ceil(count);
+    int32_t int_count;
+    if (count > (double) INT32_MAX) {
+        int_count = INT32_MAX;
+    } else {
+        int_count = (int32_t) ceil(count);
+    }
     if (step > 0.0) {
         janet_assert(start + int_count * step >= stop, "bad range code");
     } else {

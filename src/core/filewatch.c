@@ -353,8 +353,8 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
 }
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
-    for (int32_t i = 0; i < watcher.watch_descriptors.capacity; i++) {
-        const JanetKV *kv = watcher.watch_descriptors.items + i;
+    for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
+        const JanetKV *kv = watcher->watch_descriptors.items + i;
         if (!janet_checktype(kv->key, JANET_POINTER)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->key);
         Janet pathv = kv->value;
