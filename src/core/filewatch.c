@@ -370,8 +370,6 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
             janet_panicv(janet_ev_lasterr());
         }
     }
-
-    janet_panic("nyi");
 }
 
 #else
@@ -416,6 +414,7 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
 static int janet_filewatch_mark(void *p, size_t s) {
     JanetWatcher *watcher = (JanetWatcher *) p;
     (void) s;
+    if (watcher->stream == NULL) return 0; /* Incomplete initialization */
 #ifndef JANET_WINDOWS
     janet_mark(janet_wrap_abstract(watcher->stream));
 #endif
@@ -426,6 +425,7 @@ static int janet_filewatch_mark(void *p, size_t s) {
 
 static int janet_filewatch_gc(void *p, size_t s) {
     JanetWatcher *watcher = (JanetWatcher *) p;
+    if (watcher->stream == NULL) return 0; /* Incomplete initialization */
     (void) s;
     janet_table_deinit(&watcher->watch_descriptors);
     return 0;
