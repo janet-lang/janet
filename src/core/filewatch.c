@@ -257,6 +257,8 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
 
 #elif JANET_WINDOWS
 
+static const uint32_t WATCHFLAG_RECURSIVE = 0x100000;
+
 static const JanetWatchFlagName watcher_flags_windows[] = {
     {"attributes", FILE_NOTIFY_CHANGE_ATTRIBUTES},
     {"creation", FILE_NOTIFY_CHANGE_CREATION},
@@ -266,6 +268,7 @@ static const JanetWatchFlagName watcher_flags_windows[] = {
     {"last-write", FILE_NOTIFY_CHANGE_LAST_WRITE},
     {"security", FILE_NOTIFY_CHANGE_SECURITY},
     {"size", FILE_NOTIFY_CHANGE_SIZE},
+    {"recursive", WATCHFLAG_RECURSIVE},
 };
 
 static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
@@ -310,8 +313,8 @@ static void read_dir_changes(OverlappedWatch *ow) {
     BOOL result = ReadDirectoryChangesW(ow->stream->handle,
             (FILE_NOTIFY_INFORMATION *) ow->buf,
             FILE_INFO_PADDING,
-            TRUE,
-            ow->flags,
+            (ow->flags & WATCHFLAG_RECURSIVE) ? TRUE : FALSE,
+            ow->flags & ~WATCHFLAG_RECURSIVE,
             NULL,
             (OVERLAPPED *) ow,
             NULL);
@@ -497,7 +500,7 @@ static const JanetAbstractType janet_filewatch_at = {
 };
 
 JANET_CORE_FN(cfun_filewatch_make,
-        "(filewatch/make channel &opt default-flags)",
+        "(filewatch/new channel &opt default-flags)",
         "Create a new filewatcher that will give events to a channel channel.") {
     janet_arity(argc, 1, -1);
     JanetChannel *channel = janet_getchannel(argv, 0);
@@ -540,7 +543,7 @@ JANET_CORE_FN(cfun_filewatch_listen,
 /* Module entry point */
 void janet_lib_filewatch(JanetTable *env) {
     JanetRegExt cfuns[] = {
-        JANET_CORE_REG("filewatch/make", cfun_filewatch_make),
+        JANET_CORE_REG("filewatch/new", cfun_filewatch_make),
         JANET_CORE_REG("filewatch/add", cfun_filewatch_add),
         JANET_CORE_REG("filewatch/remove", cfun_filewatch_remove),
         JANET_CORE_REG("filewatch/listen", cfun_filewatch_listen),
