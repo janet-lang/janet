@@ -50,6 +50,7 @@ typedef struct {
     JanetTable watch_descriptors;
     JanetChannel *channel;
     uint32_t default_flags;
+    int is_watching;
 } JanetWatcher;
 
 /* Reject certain filename events without sending anything to the channel
@@ -117,6 +118,7 @@ static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uin
     janet_table_init_raw(&watcher->watch_descriptors, 0);
     watcher->channel = channel;
     watcher->default_flags = default_flags;
+    watcher->is_watching = 0;
     watcher->stream = janet_stream(fd, JANET_STREAM_READABLE, NULL);
 }
 
@@ -248,20 +250,22 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
 }
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
+    if (watcher->is_watching) janet_panic("already watching");
+    watcher->is_watching = 1;
     janet_async_start(watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, watcher);
 }
 
 #elif JANET_WINDOWS
 
 static const JanetWatchFlagName watcher_flags_windows[] = {
-    {"file-name", FILE_NOTIFY_CHANGE_FILE_NAME},
-    {"dir-name", FILE_NOTIFY_CHANGE_DIR_NAME},
     {"attributes", FILE_NOTIFY_CHANGE_ATTRIBUTES},
-    {"size", FILE_NOTIFY_CHANGE_SIZE},
-    {"last-write", FILE_NOTIFY_CHANGE_LAST_WRITE},
-    {"last-access", FILE_NOTIFY_CHANGE_LAST_ACCESS},
     {"creation", FILE_NOTIFY_CHANGE_CREATION},
-    {"security", FILE_NOTIFY_CHANGE_SECURITY}
+    {"dir-name", FILE_NOTIFY_CHANGE_DIR_NAME},
+    {"file-name", FILE_NOTIFY_CHANGE_FILE_NAME},
+    {"last-access", FILE_NOTIFY_CHANGE_LAST_ACCESS},
+    {"last-write", FILE_NOTIFY_CHANGE_LAST_WRITE},
+    {"security", FILE_NOTIFY_CHANGE_SECURITY},
+    {"size", FILE_NOTIFY_CHANGE_SIZE},
 };
 
 static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
@@ -289,30 +293,118 @@ static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uin
     watcher->default_flags = default_flags;
 }
 
+/* Since the file info padding includes embedded file names, we want to include more space for data.
+ * We also need to handle manually calculating changes if path names are too long, but ideally just avoid
+ * that scenario as much as possible */
+#define FILE_INFO_PADDING (4096 * 4)
+
 typedef struct {
-    JanetStream stream;
     OVERLAPPED overlapped;
+    JanetStream *stream;
+    JanetWatcher *watcher;
     uint32_t flags;
-    FILE_NOTIFY_INFORMATION fni;
+    uint64_t buf[FILE_INFO_PADDING / sizeof(uint64_t)]; /* Ensure alignment */
 } OverlappedWatch;
 
+static void read_dir_changes(OverlappedWatch *ow) {
+    BOOL result = ReadDirectoryChangesExW(ow->stream->handle,
+            (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf,
+            FILE_INFO_PADDING,
+            TRUE,
+            ow->flags,
+            NULL,
+            (OVERLAPPED *) ow,
+            NULL,
+            ReadDirectoryNotifyExtendedInformation);
+    if (!result) {
+        janet_panicv(janet_ev_lasterr());
+    }
+}
+
+static const char* watcher_actions_windows[] = {
+    "unknown",
+    "added",
+    "removed",
+    "modified",
+    "renamed-old",
+    "renamed-new",
+};
+
+static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
+    OverlappedWatch *ow = (OverlappedWatch *) fiber->ev_state;
+    JanetWatcher *watcher = ow->watcher;
+    switch (event) {
+        default:
+            break;
+        case JANET_ASYNC_EVENT_MARK:
+            janet_mark(janet_wrap_abstract(ow->stream));
+            janet_mark(janet_wrap_abstract(watcher));
+            break;
+        case JANET_ASYNC_EVENT_CLOSE:
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            break;
+        case JANET_ASYNC_EVENT_ERR:
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            break;
+        case JANET_ASYNC_EVENT_COMPLETE:
+            {
+                FILE_NOTIFY_EXTENDED_INFORMATION *fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf;
+
+                while (1) {
+                    /* Got an event */
+
+                    /* Extract name */
+                    uint8_t tempbuf[FILE_INFO_PADDING];
+                    int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, WC_SEPCHARS, fni->FileName, fni->FileNameLength / 2, tempbuf, sizeof(tempbuf), NULL, NULL);
+                    JanetString filename = janet_string(tempbuf, nbytes);
+
+                    JanetKV *event = janet_struct_begin(2);
+                    janet_struct_put(event, janet_ckeywordv("action"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
+                    janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(filename));
+                    Janet eventv = janet_wrap_struct(janet_struct_end(event));
+
+                    janet_channel_give(watcher->channel, eventv);
+
+                    /* Next event */
+                    if (!fni->NextEntryOffset) break;
+                    fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ((char *)fni + fni->NextEntryOffset);
+                }
+
+                /* Make another call to read directory changes */
+                read_dir_changes(ow);
+            }
+            break;
+    }
+}
+
 static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t flags) {
-    HANDLE handle = CreateFileA(path, GENERIC_READ,
+    HANDLE handle = CreateFileA(path,
+            FILE_LIST_DIRECTORY,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             NULL,
             OPEN_EXISTING,
-            FILE_FLAG_OVERLAPPED | FILE_ATTRIBUTE_NORMAL,
-            0);
+            FILE_FLAG_OVERLAPPED | FILE_FLAG_BACKUP_SEMANTICS,
+            NULL);
     if (handle == INVALID_HANDLE_VALUE) {
         janet_panicv(janet_ev_lasterr());
     }
-    JanetStream *stream = janet_stream_ext(handle, 0, NULL, sizeof(OverlappedWatch));
+    JanetStream *stream = janet_stream(handle, JANET_STREAM_READABLE, NULL);
+    OverlappedWatch *ow = janet_malloc(sizeof(OverlappedWatch));
+    memset(ow, 0, sizeof(OverlappedWatch));
+    ow->stream = stream;
     Janet pathv = janet_cstringv(path);
-    stream->flags = flags | watcher->default_flags;
-    Janet streamv = janet_wrap_abstract(stream);
+    ow->flags = flags | watcher->default_flags;
+    ow->watcher = watcher;
+    ow->overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL); /* Do we need this */
+    Janet streamv = janet_wrap_pointer(ow);
     janet_table_put(&watcher->watch_descriptors, pathv, streamv);
     janet_table_put(&watcher->watch_descriptors, streamv, pathv);
-    /* TODO - if listening, also listen for this new path */
+    if (watcher->is_watching) {
+        read_dir_changes(ow);
+        janet_async_start(stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, ow);
+    }
 }
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
@@ -323,51 +415,19 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     }
     janet_table_remove(&watcher->watch_descriptors, pathv);
     janet_table_remove(&watcher->watch_descriptors, streamv);
-    OverlappedWatch *ow = janet_unwrap_abstract(streamv);
-    janet_stream_close((JanetStream *) ow);
-}
-
-static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
-    JanetWatcher *watcher = (JanetWatcher *) fiber->ev_state;
-    switch (event) {
-        default:
-            break;
-        case JANET_ASYNC_EVENT_MARK:
-            janet_mark(janet_wrap_abstract(watcher));
-            break;
-        case JANET_ASYNC_EVENT_CLOSE:
-            janet_schedule(fiber, janet_wrap_nil());
-            fiber->ev_state = NULL;
-            janet_async_end(fiber);
-            break;
-        case JANET_ASYNC_EVENT_ERR:
-            {
-                janet_schedule(fiber, janet_wrap_nil());
-                fiber->ev_state = NULL;
-                janet_async_end(fiber);
-                break;
-            }
-            break;
-    }
+    OverlappedWatch *ow = janet_unwrap_pointer(streamv);
+    janet_stream_close(ow->stream);
 }
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
+    if (watcher->is_watching) janet_panic("already watching");
+    watcher->is_watching = 1;
     for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
         const JanetKV *kv = watcher->watch_descriptors.data + i;
-        if (!janet_checktype(kv->key, JANET_POINTER)) continue;
+        if (!janet_checktype(kv->key, JANET_ABSTRACT)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->key);
-        Janet pathv = kv->value;
-        BOOL result = ReadDirectoryChangesW(ow->stream.handle,
-                &ow->fni,
-                sizeof(FILE_NOTIFY_INFORMATION),
-                TRUE,
-                ow->flags,
-                NULL,
-                &ow->overlapped,
-                NULL);
-        if (!result) {
-            janet_panicv(janet_ev_lasterr());
-        }
+        read_dir_changes(ow);
+        janet_async_start(ow->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, ow);
     }
 }
 
