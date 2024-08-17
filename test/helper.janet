@@ -7,20 +7,30 @@
 
 (def is-verbose (os/getenv "VERBOSE"))
 
-(defn assert
+(defn- assert-no-tail
   "Override's the default assert with some nice error handling."
   [x &opt e]
   (default e "assert error")
   (++ num-tests-run)
   (when x (++ num-tests-passed))
   (def str (string e))
-  (def frame (last (debug/stack (fiber/current))))
+  (def stack (debug/stack (fiber/current)))
+  (def frame (last stack))
   (def line-info (string/format "%s:%d"
                               (frame :source) (frame :source-line)))
   (if x
     (when is-verbose (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x))
-    (do (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
+    (do
+      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
   x)
+
+(defmacro assert
+  [x &opt e]
+  (def xx (gensym))
+  ~(do
+     (def ,xx ,x)
+     (,assert-no-tail ,xx ,e)
+     ,xx))
 
 (defmacro assert-error
   [msg & forms]

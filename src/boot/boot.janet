@@ -4219,7 +4219,8 @@
     (def check (get config :check))
     (def s (sep))
     # Check meta file for dependencies and default name
-    (def infofile-pre (string path s "bundle" s "info.jdn"))
+    (def infofile-pre-1 (string path s "bundle" s "info.jdn"))
+    (def infofile-pre (if (fexists infofile-pre-1) infofile-pre-1 (string path s "info.jdn"))) # allow for alias
     (var default-bundle-name nil)
     (when (os/stat infofile-pre :mode)
       (def info (-> infofile-pre slurp parse))
@@ -4239,6 +4240,10 @@
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
+    # Aliases for common bundle/ files
+    (def bundle.janet (string path s "bundle.janet"))
+    (when (fexists bundle.janet) (copyfile bundle.janet (bundle-file bundle-name "init.janet")))
+    (when (fexists infofile-pre) (copyfile infofile-pre (bundle-file bundle-name "info.jdn")))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
