@@ -307,15 +307,14 @@ typedef struct {
 } OverlappedWatch;
 
 static void read_dir_changes(OverlappedWatch *ow) {
-    BOOL result = ReadDirectoryChangesExW(ow->stream->handle,
-            (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf,
+    BOOL result = ReadDirectoryChangesW(ow->stream->handle,
+            (FILE_NOTIFY_INFORMATION *) ow->buf,
             FILE_INFO_PADDING,
             TRUE,
             ow->flags,
             NULL,
             (OVERLAPPED *) ow,
-            NULL,
-            ReadDirectoryNotifyExtendedInformation);
+            NULL);
     if (!result) {
         janet_panicv(janet_ev_lasterr());
     }
@@ -350,7 +349,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             break;
         case JANET_ASYNC_EVENT_COMPLETE:
             {
-                FILE_NOTIFY_EXTENDED_INFORMATION *fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf;
+                FILE_NOTIFY_INFORMATION *fni = (FILE_NOTIFY_INFORMATION *) ow->buf;
 
                 while (1) {
                     /* Got an event */
@@ -369,7 +368,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
 
                     /* Next event */
                     if (!fni->NextEntryOffset) break;
-                    fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ((char *)fni + fni->NextEntryOffset);
+                    fni = (FILE_NOTIFY_INFORMATION *) ((char *)fni + fni->NextEntryOffset);
                 }
 
                 /* Make another call to read directory changes */
