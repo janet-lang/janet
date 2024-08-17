@@ -210,6 +210,11 @@ extern "C" {
 #define JANET_EV
 #endif
 
+/* Enable or disable the filewatch/ module */
+#if !defined(JANET_NO_FILEWATCH)
+#define JANET_FILEWATCH
+#endif
+
 /* Enable or disable networking */
 #if defined(JANET_EV) && !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
 #define JANET_NET
@@ -1414,6 +1419,7 @@ JANET_API void janet_loop1_interrupt(JanetVM *vm);
 
 /* Wrapper around streams */
 JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
+JANET_API JanetStream *janet_stream_ext(JanetHandle handle, uint32_t flags, const JanetMethod *methods, size_t size); /* Allow for type punning streams */
 JANET_API void janet_stream_close(JanetStream *stream);
 JANET_API Janet janet_cfun_stream_close(int32_t argc, Janet *argv);
 JANET_API Janet janet_cfun_stream_read(int32_t argc, Janet *argv);
@@ -1445,6 +1451,8 @@ JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
 
 /* Expose channel utilities */
+JanetChannel *janet_channel_make(uint32_t limit);
+JanetChannel *janet_channel_make_threaded(uint32_t limit);
 JanetChannel *janet_getchannel(const Janet *argv, int32_t n);
 JanetChannel *janet_optchannel(const Janet *argv, int32_t argc, int32_t n, JanetChannel *dflt);
 JANET_API int janet_channel_give(JanetChannel *channel, Janet x);

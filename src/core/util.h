@@ -190,9 +190,6 @@ void janet_lib_debug(JanetTable *env);
 #ifdef JANET_PEG
 void janet_lib_peg(JanetTable *env);
 #endif
-#ifdef JANET_TYPED_ARRAY
-void janet_lib_typed_array(JanetTable *env);
-#endif
 #ifdef JANET_INT_TYPES
 void janet_lib_inttypes(JanetTable *env);
 #endif
@@ -204,10 +201,12 @@ extern const JanetAbstractType janet_address_type;
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
 int janet_make_pipe(JanetHandle handles[2], int mode);
+#ifdef JANET_FILEWATCH
 void janet_lib_filewatch(JanetTable *env);
 #endif
 #ifdef JANET_FFI
 void janet_lib_ffi(JanetTable *env);
+#endif
 #endif
 
 #endif
