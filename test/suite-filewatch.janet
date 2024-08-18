@@ -24,7 +24,7 @@
 (assert true)
 
 (def chan (ev/chan 1000))
-(def is-win (= :windows (os/which)))
+(def is-win (or (= :mingw (os/which)) (= :windows (os/which))))
 (def is-linux (= :linux (os/which)))
 
 # Test GC
@@ -64,15 +64,12 @@
 (rmrf td2)
 (os/mkdir td1)
 (os/mkdir td2)
-(case (os/which)
-  :windows
-  (do
-    (filewatch/add fw td1 :last-write :last-access :file-name :dir-name :size :attributes :recursive)
-    (filewatch/add fw td2 :last-write :last-access :file-name :dir-name :size :attributes))
-  # default
-  (do
-    (filewatch/add fw td1 :close-write :create :delete)
-    (filewatch/add fw td2 :close-write :create :delete :ignored)))
+(when is-win
+  (filewatch/add fw td1 :last-write :last-access :file-name :dir-name :size :attributes :recursive)
+  (filewatch/add fw td2 :last-write :last-access :file-name :dir-name :size :attributes))
+(when is-linux
+  (filewatch/add fw td1 :close-write :create :delete)
+  (filewatch/add fw td2 :close-write :create :delete :ignored))
 (assert-no-error "filewatch/listen no error" (filewatch/listen fw))
 
 #
