@@ -257,6 +257,12 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
     janet_async_start_fiber(fiber, watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, watcher);
 }
 
+static void janet_watcher_unlisten(JanetWatcher *watcher) {
+    if (!watcher->is_watching) return;
+    watcher->is_watching = 0;
+    janet_stream_close(watcher->stream);
+}
+
 #elif JANET_WINDOWS
 
 #define WATCHFLAG_RECURSIVE 0x100000u
