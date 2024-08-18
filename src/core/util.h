@@ -200,6 +200,7 @@ extern const JanetAbstractType janet_address_type;
 #ifdef JANET_EV
 void janet_lib_ev(JanetTable *env);
 void janet_ev_mark(void);
+void janet_async_start_fiber(JanetFiber *fiber, JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
 int janet_make_pipe(JanetHandle handles[2], int mode);
 #ifdef JANET_FILEWATCH
 void janet_lib_filewatch(JanetTable *env);

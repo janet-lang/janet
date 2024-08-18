@@ -276,8 +276,7 @@ void janet_async_in_flight(JanetFiber *fiber) {
 #endif
 }
 
-void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state) {
-    JanetFiber *fiber = janet_vm.root_fiber;
+void janet_async_start_fiber(JanetFiber *fiber, JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state) {
     janet_assert(!fiber->ev_callback, "double async on fiber");
     if (mode & JANET_ASYNC_LISTEN_READ) {
         stream->read_fiber = fiber;
@@ -291,6 +290,10 @@ void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback
     janet_gcroot(janet_wrap_abstract(stream));
     fiber->ev_state = state;
     callback(fiber, JANET_ASYNC_EVENT_INIT);
+}
+
+void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state) {
+    janet_async_start_fiber(janet_vm.root_fiber, stream, mode, callback, state);
     janet_await();
 }
 

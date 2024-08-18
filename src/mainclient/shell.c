@@ -1177,6 +1177,7 @@ int main(int argc, char **argv) {
     janet_resolve(env, janet_csymbol("cli-main"), &mainfun);
     Janet mainargs[1] = { janet_wrap_array(args) };
     JanetFiber *fiber = janet_fiber(janet_unwrap_function(mainfun), 64, 1, mainargs);
+    janet_gcroot(janet_wrap_fiber(fiber));
     fiber->env = env;
 
     /* Run the fiber in an event loop */

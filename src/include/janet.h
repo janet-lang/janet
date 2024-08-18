@@ -633,7 +633,9 @@ typedef void (*JanetEVCallback)(JanetFiber *fiber, JanetAsyncEvent event);
  * call when ever an event is sent from the event loop. state is an optional (can be NULL)
  * pointer to data allocated with janet_malloc. This pointer will be passed to callback as
  * fiber->ev_state. It will also be freed for you by the runtime when the event loop determines
- * it can no longer be referenced. On windows, the contents of state MUST contained an OVERLAPPED struct. */
+ * it can no longer be referenced. On windows, the contents of state MUST contained an OVERLAPPED struct at the 0 offset. */
+
+JANET_API void janet_async_start_fiber(JanetFiber *fiber, JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
 JANET_API JANET_NO_RETURN void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
 
 /* Do not send any more events to the given callback. Call this after scheduling fiber to be resume
@@ -1803,6 +1805,7 @@ JANET_API void janet_gcpressure(size_t s);
 /* Functions */
 JANET_API JanetFuncDef *janet_funcdef_alloc(void);
 JANET_API JanetFunction *janet_thunk(JanetFuncDef *def);
+JANET_API JanetFunction *janet_thunk_delay(Janet x);
 JANET_API int janet_verify(JanetFuncDef *def);
 
 /* Pretty printing */

@@ -25,6 +25,7 @@
 #include <janet.h>
 #include "state.h"
 #include "fiber.h"
+#include "util.h"
 #endif
 
 #ifndef JANET_SINGLE_THREADED
@@ -461,6 +462,33 @@ void janet_setdyn(const char *name, Janet value) {
         }
         janet_table_put(janet_vm.fiber->env, janet_ckeywordv(name), value);
     }
+}
+
+/* Create a function that when called, returns X. Trivial in Janet, a pain in C. */
+JanetFunction *janet_thunk_delay(Janet x) {
+    static const uint32_t bytecode[] = {
+        JOP_LOAD_CONSTANT,
+        JOP_RETURN
+    };
+    JanetFuncDef *def = janet_funcdef_alloc();
+    def->arity = 0;
+    def->min_arity = 0;
+    def->max_arity = INT32_MAX;
+    def->flags = JANET_FUNCDEF_FLAG_VARARG;
+    def->slotcount = 1;
+    def->bytecode = janet_malloc(sizeof(bytecode));
+    def->bytecode_length = (int32_t)(sizeof(bytecode) / sizeof(uint32_t));
+    def->constants = janet_malloc(sizeof(Janet));
+    def->constants_length = 1;
+    def->name = NULL;
+    if (!def->bytecode || !def->constants) {
+        JANET_OUT_OF_MEMORY;
+    }
+    def->constants[0] = x;
+    memcpy(def->bytecode, bytecode, sizeof(bytecode));
+    janet_def_addflags(def);
+    /* janet_verify(def); */
+    return janet_thunk(def);
 }
 
 uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
