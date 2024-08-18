@@ -53,17 +53,6 @@ typedef struct {
     int is_watching;
 } JanetWatcher;
 
-/* Reject certain filename events without sending anything to the channel
- * to make things faster and not waste time and memory creating events. This
- * should also let us watch only certain file names, patterns, etc. */
-static int janet_watch_filter(JanetWatcher *watcher, Janet filename, int wd) {
-    /* TODO - add filtering */
-    (void) watcher;
-    (void) filename;
-    (void) wd;
-    return 0;
-}
-
 #ifdef JANET_LINUX
 
 #include <sys/inotify.h>
@@ -78,7 +67,7 @@ static const JanetWatchFlagName watcher_flags_linux[] = {
     {"create", IN_CREATE},
     {"delete", IN_DELETE},
     {"delete-self", IN_DELETE_SELF},
-    {"ignored", IN_OPEN},
+    {"ignored", IN_IGNORED},
     {"modify", IN_MODIFY},
     {"move-self", IN_MOVE_SELF},
     {"moved-from", IN_MOVED_FROM},
@@ -153,7 +142,7 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
 
 static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetStream *stream = fiber->ev_stream;
-    JanetWatcher *watcher = (JanetWatcher *) fiber->ev_state;
+    JanetWatcher *watcher = *((JanetWatcher **) fiber->ev_state);
     char buf[1024];
     switch (event) {
         default:
@@ -163,13 +152,11 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             break;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(fiber, janet_wrap_nil());
-            fiber->ev_state = NULL;
             janet_async_end(fiber);
             break;
         case JANET_ASYNC_EVENT_ERR:
             {
                 janet_schedule(fiber, janet_wrap_nil());
-                fiber->ev_state = NULL;
                 janet_async_end(fiber);
                 break;
             }
@@ -221,9 +208,6 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                         cursor += inevent.len;
                     }
 
-                    /* Filter events by pattern */
-                    if (!janet_watch_filter(watcher, name, inevent.wd)) continue;
-
                     /* Got an event */
                     Janet path = janet_table_get(watcher->watch_descriptors, janet_wrap_integer(inevent.wd));
                     JanetKV *event = janet_struct_begin(6);
@@ -254,13 +238,17 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
     watcher->is_watching = 1;
     JanetFunction *thunk = janet_thunk_delay(janet_wrap_nil());
     JanetFiber *fiber = janet_fiber(thunk, 64, 0, NULL);
-    janet_async_start_fiber(fiber, watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, watcher);
+    JanetWatcher **state = janet_malloc(sizeof(JanetWatcher *)); /* Gross */
+    *state = watcher;
+    janet_async_start_fiber(fiber, watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, state);
+    janet_gcroot(janet_wrap_abstract(watcher));
 }
 
 static void janet_watcher_unlisten(JanetWatcher *watcher) {
     if (!watcher->is_watching) return;
     watcher->is_watching = 0;
     janet_stream_close(watcher->stream);
+    janet_gcunroot(janet_wrap_abstract(watcher));
 }
 
 #elif JANET_WINDOWS
@@ -268,6 +256,16 @@ static void janet_watcher_unlisten(JanetWatcher *watcher) {
 #define WATCHFLAG_RECURSIVE 0x100000u
 
 static const JanetWatchFlagName watcher_flags_windows[] = {
+    {"all", 
+        FILE_NOTIFY_CHANGE_ATTRIBUTES |
+        FILE_NOTIFY_CHANGE_CREATION |
+        FILE_NOTIFY_CHANGE_DIR_NAME |
+        FILE_NOTIFY_CHANGE_FILE_NAME |
+        FILE_NOTIFY_CHANGE_LAST_ACCESS |
+        FILE_NOTIFY_CHANGE_LAST_WRITE |
+        FILE_NOTIFY_CHANGE_SECURITY |
+        FILE_NOTIFY_CHANGE_SIZE |
+        WATCHFLAG_RECURSIVE},
     {"attributes", FILE_NOTIFY_CHANGE_ATTRIBUTES},
     {"creation", FILE_NOTIFY_CHANGE_CREATION},
     {"dir-name", FILE_NOTIFY_CHANGE_DIR_NAME},
@@ -392,7 +390,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     }
 
                     JanetKV *event = janet_struct_begin(3);
-                    janet_struct_put(event, janet_ckeywordv("action"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
+                    janet_struct_put(event, janet_ckeywordv("type"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
                     janet_struct_put(event, janet_ckeywordv("file-name"), filename);
                     janet_struct_put(event, janet_ckeywordv("dir"), janet_wrap_string(ow->dir_path));
                     Janet eventv = janet_wrap_struct(janet_struct_end(event));
@@ -470,6 +468,7 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
         OverlappedWatch *ow = janet_unwrap_pointer(kv->value);
         start_listening_ow(ow);
     }
+    janet_gcroot(janet_wrap_abstract(watcher));
 }
 
 static void janet_watcher_unlisten(JanetWatcher *watcher) {
@@ -482,6 +481,7 @@ static void janet_watcher_unlisten(JanetWatcher *watcher) {
         janet_stream_close(ow->stream);
     }
     janet_table_clear(watcher->watch_descriptors);
+    janet_gcunroot(janet_wrap_abstract(watcher));
 }
 
 #else

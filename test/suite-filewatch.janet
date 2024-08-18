@@ -24,6 +24,8 @@
 (assert true)
 
 (def chan (ev/chan 1000))
+(def is-win (= :windows (os/which)))
+(def is-linux (= :linux (os/which)))
 
 # Test GC
 (assert-no-error "filewatch/new" (filewatch/new chan))
@@ -36,7 +38,7 @@
     (def event (ev/take chan))
     (when is-verbose (pp event))
     (assert event "check event")
-    (assert (= value (get event key)) (string/format "got %p, exepcted %p" (get event key) value))))
+    (assert (= value (get event key)) (string/format "got %p, expected %p" (get event key) value))))
 
 (defn- expect-empty
   []
@@ -49,57 +51,121 @@
   (def path (string dir "/" name))
   (spit path "test text"))
 
+# Different operating systems report events differently. While it would be nice to
+# normalize this, each system has very large limitations in what can be reported when
+# compared with other systems. As such, the maximum subset of common functionality here
+# is quite small. Instead, test the capabilities of each system.
+
 # Create a file watcher on two test directories
 (def fw (filewatch/new chan))
 (def td1 (randdir))
 (def td2 (randdir))
+(rmrf td1)
+(rmrf td2)
 (os/mkdir td1)
 (os/mkdir td2)
-(filewatch/add fw td1 :last-write :last-access :file-name :dir-name :size :attributes :recursive)
-(filewatch/add fw td2 :last-write :last-access :file-name :dir-name :size :attributes)
+(case (os/which)
+  :windows
+  (do
+    (filewatch/add fw td1 :last-write :last-access :file-name :dir-name :size :attributes :recursive)
+    (filewatch/add fw td2 :last-write :last-access :file-name :dir-name :size :attributes))
+  # default
+  (do
+    (filewatch/add fw td1 :close-write :create :delete)
+    (filewatch/add fw td2 :close-write :create :delete :ignored)))
 (assert-no-error "filewatch/listen no error" (filewatch/listen fw))
 
-# Simulate some file event
-(spit-file td1 "file1.txt")
-(expect :action :added)
-(expect :action :modified)
-(expect-empty)
-(gccollect)
-(spit-file td1 "file1.txt")
-(expect :action :modified)
-(expect :action :modified)
-(expect-empty)
-(gccollect)
+#
+# Windows file writing
+#
 
-# Check td2
-(spit-file td2 "file2.txt")
-(expect :action :added)
-(expect :action :modified)
-(expect-empty)
+(when is-win
+  (spit-file td1 "file1.txt")
+  (expect :type :added)
+  (expect :type :modified)
+  (expect-empty)
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  (expect :type :modified)
+  (expect :type :modified)
+  (expect-empty)
+  (gccollect)
 
-# Remove a file, then wait for remove event
-(rmrf (string td1 "/file1.txt"))
-(expect :action :removed)
-(expect-empty)
+  # Check td2
+  (spit-file td2 "file2.txt")
+  (expect :type :added)
+  (expect :type :modified)
+  (expect-empty)
 
-# Unlisten to some events
-(filewatch/remove fw td2)
+  # Remove a file, then wait for remove event
+  (rmrf (string td1 "/file1.txt"))
+  (expect :type :removed)
+  (expect-empty)
 
-# Check that we don't get anymore events from test directory 2
-(spit-file td2 "file2.txt")
-(expect-empty)
+  # Unlisten to some events
+  (filewatch/remove fw td2)
 
-# Repeat and things should still work with test directory 1
-(spit-file td1 "file1.txt")
-(expect :action :added)
-(expect :action :modified)
-(expect-empty)
-(gccollect)
-(spit-file td1 "file1.txt")
-(expect :action :modified)
-(expect :action :modified)
-(expect-empty)
-(gccollect)
+  # Check that we don't get anymore events from test directory 2
+  (spit-file td2 "file2.txt")
+  (expect-empty)
+
+  # Repeat and things should still work with test directory 1
+  (spit-file td1 "file1.txt")
+  (expect :type :added)
+  (expect :type :modified)
+  (expect-empty)
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  (expect :type :modified)
+  (expect :type :modified)
+  (expect-empty)
+  (gccollect))
+
+#
+# Linux file writing
+#
+
+(when is-linux
+  (spit-file td1 "file1.txt")
+  (expect :type :create)
+  (expect :type :close-write)
+  (expect-empty)
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  (expect :type :close-write)
+  (expect-empty)
+  (gccollect)
+
+  # Check td2
+  (spit-file td2 "file2.txt")
+  (expect :type :create)
+  (expect :type :close-write)
+  (expect-empty)
+
+  # Remove a file, then wait for remove event
+  (rmrf (string td1 "/file1.txt"))
+  (expect :type :delete)
+  (expect-empty)
+
+  # Unlisten to some events
+  (filewatch/remove fw td2)
+  (expect :type :ignored)
+  (expect-empty)
+
+  # Check that we don't get anymore events from test directory 2
+  (spit-file td2 "file2.txt")
+  (expect-empty)
+
+  # Repeat and things should still work with test directory 1
+  (spit-file td1 "file1.txt")
+  (expect :type :create)
+  (expect :type :close-write)
+  (expect-empty)
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  (expect :type :close-write)
+  (expect-empty)
+  (gccollect))
 
 (assert-no-error "filewatch/unlisten no error" (filewatch/unlisten fw))
 (assert-no-error "cleanup 1" (rmrf td1))
