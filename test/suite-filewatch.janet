@@ -27,6 +27,12 @@
 (def is-win (or (= :mingw (os/which)) (= :windows (os/which))))
 (def is-linux (= :linux (os/which)))
 
+# If not supported, exit early
+(def [supported msg] (protect (filewatch/new chan)))
+(when (and (not supported) (string/find "filewatch not supported" msg))
+  (end-suite)
+  (quit))
+
 # Test GC
 (assert-no-error "filewatch/new" (filewatch/new chan))
 (gccollect)
