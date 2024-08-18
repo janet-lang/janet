@@ -320,16 +320,17 @@ typedef struct {
     uint64_t buf[FILE_INFO_PADDING / sizeof(uint64_t)]; /* Ensure alignment */
 } OverlappedWatch;
 
+#define NotifyChange FILE_NOTIFY_INFORMATION
+
 static void read_dir_changes(OverlappedWatch *ow) {
-    BOOL result = ReadDirectoryChangesExW(ow->stream->handle,
-            (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf,
+    BOOL result = ReadDirectoryChangesW(ow->stream->handle,
+            (NotifyChange *) ow->buf,
             FILE_INFO_PADDING,
             (ow->flags & WATCHFLAG_RECURSIVE) ? TRUE : FALSE,
             ow->flags & ~WATCHFLAG_RECURSIVE,
             NULL,
             (OVERLAPPED *) ow,
-            NULL,
-            ReadDirectoryNotifyExtendedInformation);
+            NULL);
     if (!result) {
         janet_panicv(janet_ev_lasterr());
     }
@@ -373,19 +374,26 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     break;
                 }
 
-                FILE_NOTIFY_EXTENDED_INFORMATION *fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ow->buf;
+                NotifyChange *fni = (NotifyChange *) ow->buf;
 
                 while (1) {
                     /* Got an event */
 
                     /* Extract name */
-                    uint8_t tempbuf[FILE_INFO_PADDING];
-                    int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, WC_SEPCHARS, fni->FileName, fni->FileNameLength / 2, tempbuf, sizeof(tempbuf), NULL, NULL);
-                    JanetString filename = janet_string(tempbuf, nbytes);
+                    Janet filename;
+                    if (fni->FileNameLength) {
+                        int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), NULL, 0, NULL, NULL);
+                        janet_assert(nbytes, "bad utf8 path");
+                        uint8_t *into = janet_string_begin(nbytes);
+                        WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), into, nbytes, NULL, NULL);
+                        filename = janet_wrap_string(janet_string_end(into));
+                    } else {
+                        filename = janet_cstringv("");
+                    }
 
                     JanetKV *event = janet_struct_begin(3);
                     janet_struct_put(event, janet_ckeywordv("action"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
-                    janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(filename));
+                    janet_struct_put(event, janet_ckeywordv("file-name"), filename);
                     janet_struct_put(event, janet_ckeywordv("dir"), janet_wrap_string(ow->dir_path));
                     Janet eventv = janet_wrap_struct(janet_struct_end(event));
 
@@ -393,7 +401,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
 
                     /* Next event */
                     if (!fni->NextEntryOffset) break;
-                    fni = (FILE_NOTIFY_EXTENDED_INFORMATION *) ((char *)fni + fni->NextEntryOffset);
+                    fni = (NotifyChange *) ((char *)fni + fni->NextEntryOffset);
                 }
 
                 /* Make another call to read directory changes */
