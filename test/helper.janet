@@ -64,3 +64,20 @@
   (eprinf "Finished suite %s in %.3f seconds - " suite-name delta)
   (eprint num-tests-passed " of " num-tests-run " tests passed.")
   (if (not= num-tests-passed num-tests-run) (os/exit 1)))
+
+(defn rmrf
+  "rm -rf in janet"
+  [x]
+  (case (os/lstat x :mode)
+    nil nil
+    :directory (do
+                 (each y (os/dir x)
+                   (rmrf (string x "/" y)))
+                 (os/rmdir x))
+    (os/rm x))
+  nil)
+
+(defn randdir
+  "Get a random directory name"
+  []
+  (string "tmp_dir_" (slice (string (math/random) ".tmp") 2)))

@@ -30,25 +30,13 @@
   [path]
   (string/replace-all "\\" "/" (os/realpath path)))
 
-(defn- rmrf
-  "rm -rf in janet"
-  [x]
-  (case (os/lstat x :mode)
-    nil nil
-    :directory (do
-                 (each y (os/dir x)
-                   (rmrf (string x "/" y)))
-                 (os/rmdir x))
-    (os/rm x))
-  nil)
-
 # Test mkdir -> rmdir
 (assert (os/mkdir "tempdir123"))
 (rmrf "tempdir123")
 
 # Setup a temporary syspath for manipultation
 (math/seedrandom (os/cryptorand 16))
-(def syspath (string (math/random) "_jpm_tree.tmp"))
+(def syspath (randdir))
 (rmrf syspath)
 (assert (os/mkdir syspath))
 (put root-env *syspath* (bundle-rpath syspath))

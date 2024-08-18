@@ -47,7 +47,7 @@ typedef struct {
 #ifndef JANET_WINDOWS
     JanetStream *stream;
 #endif
-    JanetTable watch_descriptors;
+    JanetTable* watch_descriptors;
     JanetChannel *channel;
     uint32_t default_flags;
     int is_watching;
@@ -115,7 +115,7 @@ static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uin
     if (fd == -1) {
         janet_panicv(janet_ev_lasterr());
     }
-    janet_table_init_raw(&watcher->watch_descriptors, 0);
+    watcher->watch_descriptors = janet_table(0);
     watcher->channel = channel;
     watcher->default_flags = default_flags;
     watcher->is_watching = 0;
@@ -133,13 +133,13 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     }
     Janet name = janet_cstringv(path);
     Janet wd = janet_wrap_integer(result);
-    janet_table_put(&watcher->watch_descriptors, name, wd);
-    janet_table_put(&watcher->watch_descriptors, wd, name);
+    janet_table_put(watcher->watch_descriptors, name, wd);
+    janet_table_put(watcher->watch_descriptors, wd, name);
 }
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     if (watcher->stream == NULL) janet_panic("watcher closed");
-    Janet check = janet_table_get(&watcher->watch_descriptors, janet_cstringv(path));
+    Janet check = janet_table_get(watcher->watch_descriptors, janet_cstringv(path));
     janet_assert(janet_checktype(check, JANET_NUMBER), "bad watch descriptor");
     int watch_handle = janet_unwrap_integer(check);
     int result;
@@ -225,7 +225,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     if (!janet_watch_filter(watcher, name, inevent.wd)) continue;
 
                     /* Got an event */
-                    Janet path = janet_table_get(&watcher->watch_descriptors, janet_wrap_integer(inevent.wd));
+                    Janet path = janet_table_get(watcher->watch_descriptors, janet_wrap_integer(inevent.wd));
                     JanetKV *event = janet_struct_begin(6);
                     janet_struct_put(event, janet_ckeywordv("wd"), janet_wrap_integer(inevent.wd));
                     janet_struct_put(event, janet_ckeywordv("wd-path"), path);
@@ -299,7 +299,7 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
 }
 
 static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uint32_t default_flags) {
-    janet_table_init_raw(&watcher->watch_descriptors, 0);
+    watcher->watch_descriptors = janet_table(0);
     watcher->channel = channel;
     watcher->default_flags = default_flags;
     watcher->is_watching = 0;
@@ -361,7 +361,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             janet_mark(janet_wrap_string(ow->dir_path));
             break;
         case JANET_ASYNC_EVENT_CLOSE:
-            janet_table_remove(&ow->watcher->watch_descriptors, janet_wrap_string(ow->dir_path));
+            janet_table_remove(ow->watcher->watch_descriptors, janet_wrap_string(ow->dir_path));
             break;
         case JANET_ASYNC_EVENT_ERR:
         case JANET_ASYNC_EVENT_FAILED:
@@ -444,7 +444,7 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     ow->watcher = watcher;
     ow->overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL); /* Do we need this */
     Janet streamv = janet_wrap_pointer(ow);
-    janet_table_put(&watcher->watch_descriptors, pathv, streamv);
+    janet_table_put(watcher->watch_descriptors, pathv, streamv);
     if (watcher->is_watching) {
         start_listening_ow(ow);
     }
@@ -452,11 +452,11 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     Janet pathv = janet_cstringv(path);
-    Janet streamv = janet_table_get(&watcher->watch_descriptors, pathv);
+    Janet streamv = janet_table_get(watcher->watch_descriptors, pathv);
     if (janet_checktype(streamv, JANET_NIL)) {
         janet_panicf("path %v is not being watched", pathv);
     }
-    janet_table_remove(&watcher->watch_descriptors, pathv);
+    janet_table_remove(watcher->watch_descriptors, pathv);
     OverlappedWatch *ow = janet_unwrap_pointer(streamv);
     janet_stream_close(ow->stream);
 }
@@ -464,8 +464,8 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
 static void janet_watcher_listen(JanetWatcher *watcher) {
     if (watcher->is_watching) janet_panic("already watching");
     watcher->is_watching = 1;
-    for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
-        const JanetKV *kv = watcher->watch_descriptors.data + i;
+    for (int32_t i = 0; i < watcher->watch_descriptors->capacity; i++) {
+        const JanetKV *kv = watcher->watch_descriptors->data + i;
         if (!janet_checktype(kv->value, JANET_POINTER)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->value);
         start_listening_ow(ow);
@@ -475,13 +475,13 @@ static void janet_watcher_listen(JanetWatcher *watcher) {
 static void janet_watcher_unlisten(JanetWatcher *watcher) {
     if (!watcher->is_watching) return;
     watcher->is_watching = 0;
-    for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
-        const JanetKV *kv = watcher->watch_descriptors.data + i;
+    for (int32_t i = 0; i < watcher->watch_descriptors->capacity; i++) {
+        const JanetKV *kv = watcher->watch_descriptors->data + i;
         if (!janet_checktype(kv->value, JANET_POINTER)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->value);
         janet_stream_close(ow->stream);
     }
-    janet_table_clear(&watcher->watch_descriptors);
+    janet_table_clear(watcher->watch_descriptors);
 }
 
 #else
@@ -533,8 +533,8 @@ static int janet_filewatch_mark(void *p, size_t s) {
     (void) s;
     if (watcher->channel == NULL) return 0; /* Incomplete initialization */
 #ifdef JANET_WINDOWS
-    for (int32_t i = 0; i < watcher->watch_descriptors.capacity; i++) {
-        const JanetKV *kv = watcher->watch_descriptors.data + i;
+    for (int32_t i = 0; i < watcher->watch_descriptors->capacity; i++) {
+        const JanetKV *kv = watcher->watch_descriptors->data + i;
         if (!janet_checktype(kv->value, JANET_POINTER)) continue;
         OverlappedWatch *ow = janet_unwrap_pointer(kv->value);
         janet_mark(janet_wrap_fiber(ow->fiber));
@@ -545,21 +545,13 @@ static int janet_filewatch_mark(void *p, size_t s) {
     janet_mark(janet_wrap_abstract(watcher->stream));
 #endif
     janet_mark(janet_wrap_abstract(watcher->channel));
-    janet_mark(janet_wrap_table(&watcher->watch_descriptors));
-    return 0;
-}
-
-static int janet_filewatch_gc(void *p, size_t s) {
-    JanetWatcher *watcher = (JanetWatcher *) p;
-    if (watcher->channel == NULL) return 0; /* Incomplete initialization */
-    (void) s;
-    janet_table_deinit(&watcher->watch_descriptors);
+    janet_mark(janet_wrap_table(watcher->watch_descriptors));
     return 0;
 }
 
 static const JanetAbstractType janet_filewatch_at = {
     "filewatch/watcher",
-    janet_filewatch_gc,
+    NULL,
     janet_filewatch_mark,
     JANET_ATEND_GCMARK
 };

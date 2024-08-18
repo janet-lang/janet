@@ -259,6 +259,7 @@ test_files = [
   'test/suite-debug.janet',
   'test/suite-ev.janet',
   'test/suite-ffi.janet',
+  'test/suite-filewatch.janet',
   'test/suite-inttypes.janet',
   'test/suite-io.janet',
   'test/suite-marsh.janet',
