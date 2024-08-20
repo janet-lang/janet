@@ -383,7 +383,7 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                         int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), NULL, 0, NULL, NULL);
                         janet_assert(nbytes, "bad utf8 path");
                         uint8_t *into = janet_string_begin(nbytes);
-                        WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), into, nbytes, NULL, NULL);
+                        WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), (char *) into, nbytes, NULL, NULL);
                         filename = janet_wrap_string(janet_string_end(into));
                     } else {
                         filename = janet_cstringv("");
