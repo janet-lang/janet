@@ -54,6 +54,18 @@
   # Drain if not empty, help with failures after this
   (while (pos? (ev/count chan)) (printf "extra: %p" (ev/take chan))))
 
+(defn- expect-maybe
+  "On wine + mingw, we get an extra event. This is a wine peculiarity."
+  [key value]
+  (ev/with-deadline
+    1
+    (ev/sleep 0)
+    (when (pos? (ev/count chan))
+      (def event (ev/take chan))
+      (when is-verbose (pp event))
+      (assert event "check event")
+      (assert (= value (get event key)) (string/format "got %p, expected %p" (get event key) value)))))
+
 (defn spit-file
   [dir name]
   (def path (string dir "/" name))
@@ -88,7 +100,7 @@
   (spit-file td1 "file1.txt")
   (expect :type :added)
   (expect :type :modified)
-  (expect-empty)
+  (expect-maybe :type :modified) # for mingw + wine
   (gccollect)
   (spit-file td1 "file1.txt")
   (expect :type :modified)
@@ -100,7 +112,7 @@
   (spit-file td2 "file2.txt")
   (expect :type :added)
   (expect :type :modified)
-  (expect-empty)
+  (expect-maybe :type :modified)
 
   # Remove a file, then wait for remove event
   (rmrf (string td1 "/file1.txt"))
@@ -118,12 +130,12 @@
   (spit-file td1 "file1.txt")
   (expect :type :added)
   (expect :type :modified)
-  (expect-empty)
+  (expect-maybe :type :modified)
   (gccollect)
   (spit-file td1 "file1.txt")
   (expect :type :modified)
   (expect :type :modified)
-  (expect-empty)
+  (expect-maybe :type :modified)
   (gccollect))
 
 #
