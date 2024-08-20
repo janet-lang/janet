@@ -50,7 +50,9 @@
   []
   (assert (zero? (ev/count chan)) "channel check empty")
   (ev/sleep 0) # turn the event loop
-  (assert (zero? (ev/count chan)) "channel check empty"))
+  (assert (zero? (ev/count chan)) "channel check empty")
+  # Drain if not empty, help with failures after this
+  (while (pos? (ev/count chan)) (printf "extra: %p" (ev/take chan))))
 
 (defn spit-file
   [dir name]
