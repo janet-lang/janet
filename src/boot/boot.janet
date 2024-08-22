@@ -1371,6 +1371,15 @@
     (keep-syntax! n parts))
   (reduce fop x forms))
 
+(defn fn->
+  ``Threading function. Calls the first of the functions it's given with x as
+  the only argument, then calls the second of the functions with the result,
+  and so on. Useful for expressing pipelines of data.``
+  [x & funs]
+  (var x x)
+  (each fun funs (set x (fun x)))
+  x)
+
 (defmacro -?>
   ``Short circuit threading macro. Inserts x as the second value in the first form
   in `forms`, and inserts the modified first form into the second form
@@ -1402,6 +1411,19 @@
     (def parts (array/concat @[h] t @[sym]))
     ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
+
+(defn fn-?>
+  ``Short circuit threading function. Calls the first of the functions it's
+  given with x as the only argument, then calls the second of the functions
+  with the result, and so on. The pipeline will return nil if an intermediate
+  value is nil. Useful for expressing pipelines of data.``
+  [x & funs]
+  (var x x)
+  (prompt :fn-?>
+    (each fun funs
+      (set x (fun x))
+      (when (nil? x) (return :fn-?> nil)))
+    x))
 
 (defn- walk-ind [f form]
   (def ret @[])

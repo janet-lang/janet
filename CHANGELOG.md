@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
   These streams cannot be directly read to and written from, but can be passed to subprocesses.
 - Add `array/join`
 - Add `tuple/join`
+- Add `fn->` and `fn-?>`
 
 ## 1.35.2 - 2024-06-16
 - Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
