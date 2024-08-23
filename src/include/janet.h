@@ -1742,6 +1742,9 @@ JANET_API void janet_table_merge_struct(JanetTable *table, JanetStruct other);
 JANET_API JanetKV *janet_table_find(JanetTable *t, Janet key);
 JANET_API JanetTable *janet_table_clone(JanetTable *table);
 JANET_API void janet_table_clear(JanetTable *table);
+JANET_API JanetTable *janet_table_weakk(int32_t capacity);
+JANET_API JanetTable *janet_table_weakv(int32_t capacity);
+JANET_API JanetTable *janet_table_weakkv(int32_t capacity);
 
 /* Fiber */
 JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);

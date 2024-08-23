@@ -68,8 +68,15 @@ enum {
     LB_STRUCT_PROTO, /* 223 */
 #ifdef JANET_EV
     LB_THREADED_ABSTRACT, /* 224 */
-    LB_POINTER_BUFFER, /* 224 */
+    LB_POINTER_BUFFER, /* 225 */
 #endif
+    LB_TABLE_WEAKK, /* 226 */
+    LB_TABLE_WEAKV, /* 227 */
+    LB_TABLE_WEAKKV, /* 228 */
+    LB_TABLE_WEAKK_PROTO, /* 229 */
+    LB_TABLE_WEAKV_PROTO, /* 230 */
+    LB_TABLE_WEAKKV_PROTO, /* 231 */
+    LB_ARRAY_WEAK, /* 232 */
 } LeadBytes;
 
 /* Helper to look inside an entry in an environment */
@@ -569,7 +576,8 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             int32_t i;
             JanetArray *a = janet_unwrap_array(x);
             MARK_SEEN();
-            pushbyte(st, LB_ARRAY);
+            enum JanetMemoryType memtype = janet_gc_type(a);
+            pushbyte(st, memtype == JANET_MEMORY_ARRAY_WEAK ? LB_ARRAY_WEAK : LB_ARRAY);
             pushint(st, a->count);
             for (i = 0; i < a->count; i++)
                 marshal_one(st, a->data[i], flags + 1);
@@ -592,7 +600,16 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
         case JANET_TABLE: {
             JanetTable *t = janet_unwrap_table(x);
             MARK_SEEN();
-            pushbyte(st, t->proto ? LB_TABLE_PROTO : LB_TABLE);
+            enum JanetMemoryType memtype = janet_gc_type(t);
+            if (memtype == JANET_MEMORY_TABLE_WEAKK) {
+                pushbyte(st, t->proto ? LB_TABLE_WEAKK_PROTO : LB_TABLE_WEAKK);
+            } else if (memtype == JANET_MEMORY_TABLE_WEAKV) {
+                pushbyte(st, t->proto ? LB_TABLE_WEAKV_PROTO : LB_TABLE_WEAKV);
+            } else if (memtype == JANET_MEMORY_TABLE_WEAKKV) {
+                pushbyte(st, t->proto ? LB_TABLE_WEAKKV_PROTO : LB_TABLE_WEAKKV);
+            } else {
+                pushbyte(st, t->proto ? LB_TABLE_PROTO : LB_TABLE);
+            }
             pushint(st, t->count);
             if (t->proto)
                 marshal_one(st, janet_wrap_table(t->proto), flags + 1);
@@ -1417,11 +1434,18 @@ static const uint8_t *unmarshal_one(
         }
         case LB_REFERENCE:
         case LB_ARRAY:
+        case LB_ARRAY_WEAK:
         case LB_TUPLE:
         case LB_STRUCT:
         case LB_STRUCT_PROTO:
         case LB_TABLE:
         case LB_TABLE_PROTO:
+        case LB_TABLE_WEAKK:
+        case LB_TABLE_WEAKV:
+        case LB_TABLE_WEAKKV:
+        case LB_TABLE_WEAKK_PROTO:
+        case LB_TABLE_WEAKV_PROTO:
+        case LB_TABLE_WEAKKV_PROTO:
             /* Things that open with integers */
         {
             data++;
@@ -1430,9 +1454,9 @@ static const uint8_t *unmarshal_one(
             if (lead != LB_REFERENCE) {
                 MARSH_EOS(st, data - 1 + len);
             }
-            if (lead == LB_ARRAY) {
+            if (lead == LB_ARRAY || lead == LB_ARRAY_WEAK) {
                 /* Array */
-                JanetArray *array = janet_array(len);
+                JanetArray *array = (lead == LB_ARRAY_WEAK) ? janet_array_weak(len) : janet_array(len);
                 array->count = len;
                 *out = janet_wrap_array(array);
                 janet_v_push(st->lookup, *out);
@@ -1472,10 +1496,19 @@ static const uint8_t *unmarshal_one(
                 *out = st->lookup[len];
             } else {
                 /* Table */
-                JanetTable *t = janet_table(len);
+                JanetTable *t;
+                if (lead == LB_TABLE_WEAKK_PROTO || lead == LB_TABLE_WEAKK) {
+                    t = janet_table_weakk(len);
+                } else if (lead == LB_TABLE_WEAKV_PROTO || lead == LB_TABLE_WEAKV) {
+                    t = janet_table_weakv(len);
+                } else if (lead == LB_TABLE_WEAKKV_PROTO || lead == LB_TABLE_WEAKKV) {
+                    t = janet_table_weakkv(len);
+                } else {
+                    t = janet_table(len);
+                }
                 *out = janet_wrap_table(t);
                 janet_v_push(st->lookup, *out);
-                if (lead == LB_TABLE_PROTO) {
+                if (lead == LB_TABLE_PROTO || lead == LB_TABLE_WEAKK_PROTO || lead == LB_TABLE_WEAKV_PROTO || lead == LB_TABLE_WEAKKV_PROTO) {
                     Janet proto;
                     data = unmarshal_one(st, data, &proto, flags + 1);
                     janet_asserttype(proto, JANET_TABLE, st);
