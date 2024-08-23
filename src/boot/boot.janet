@@ -1419,11 +1419,12 @@
   value is nil. Useful for expressing pipelines of data.``
   [x & funs]
   (var x x)
-  (prompt :fn-?>
-    (each fun funs
-      (set x (fun x))
-      (when (nil? x) (return :fn-?> nil)))
-    x))
+  (var index 0)
+  (def len (length funs))
+  (while (not (or (>= index len) (nil? x)))
+    (set x ((in funs index) x))
+    (++ index))
+  x)
 
 (defn- walk-ind [f form]
   (def ret @[])
