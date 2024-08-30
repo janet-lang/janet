@@ -39,6 +39,7 @@
       (buffer/format buf "%j" (in args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
+    (if (dyn :debug) (array/push modifiers {:source-form (dyn :macro-form)}))
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
@@ -4654,6 +4655,9 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
+    (unless (v :private)
+      (unless (v :doc)
+        (errorf "no docs: %v %p" k v))) # make sure we have docs
     # Fix directory separators on windows to make image identical between windows and non-windows
     (when-let [sm (get flat :source-map)]
       (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))

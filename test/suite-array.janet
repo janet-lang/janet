@@ -46,7 +46,6 @@
 (assert (deep= (array/remove @[1 2 3 4 5] 2 200) @[1 2]) "array/remove 3")
 (assert (deep= (array/remove @[1 2 3 4 5] -2 200) @[1 2 3]) "array/remove 4")
 
-
 # array/peek
 (assert (nil? (array/peek @[])) "array/peek empty")
 

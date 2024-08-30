@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Save `:source-form` in environment entries when `*debug*` is set.
 - Add experimental `filewatch/` module for listening to file system changes.
 - Add `bundle/who-is` to query which bundle a file on disk was installed by.
 - Add `geomean` function

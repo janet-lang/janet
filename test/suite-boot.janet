@@ -979,4 +979,11 @@
 (assert (= :a (with-env @{:b :a} (dyn :b))) "with-env dyn")
 (assert-error "unknown symbol +" (with-env @{} (eval '(+ 1 2))))
 
+(setdyn *debug* true)
+(def source '(defn a [x] (+ x x)))
+(eval source)
+(assert (= 20 (a 10)))
+(assert (deep= (get (dyn 'a) :source-form) source))
+(setdyn *debug* nil)
+
 (end-suite)
