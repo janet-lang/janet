@@ -4655,9 +4655,10 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
-    (unless (v :private)
-      (unless (v :doc)
-        (errorf "no docs: %v %p" k v))) # make sure we have docs
+    (unless (boot/config :no-docstrings)
+      (unless (v :private)
+        (unless (v :doc)
+          (errorf "no docs: %v %p" k v)))) # make sure we have docs
     # Fix directory separators on windows to make image identical between windows and non-windows
     (when-let [sm (get flat :source-map)]
       (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))
