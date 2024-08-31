@@ -38,13 +38,16 @@
 (gccollect)
 
 (defn- expect
-  [key value]
+  [key value & more-kvs]
   (ev/with-deadline
     1
     (def event (ev/take chan))
     (when is-verbose (pp event))
     (assert event "check event")
-    (assert (= value (get event key)) (string/format "got %p, expected %p" (get event key) value))))
+    (assert (= value (get event key)) (string/format "got %p, expected %p" (get event key) value))
+    (when (next more-kvs)
+      (each [k v] (partition 2 more-kvs)
+        (assert (= v (get event k)) (string/format "got %p, expected %p" (get event k) v))))))
 
 (defn- expect-empty
   []
@@ -80,14 +83,18 @@
 (def fw (filewatch/new chan))
 (def td1 (randdir))
 (def td2 (randdir))
+(def td3 (randdir))
 (rmrf td1)
 (rmrf td2)
 (os/mkdir td1)
 (os/mkdir td2)
+(os/mkdir td3)
+(spit-file td3 "file3.txt")
 (when is-win
   (filewatch/add fw td1 :last-write :last-access :file-name :dir-name :size :attributes :recursive)
   (filewatch/add fw td2 :last-write :last-access :file-name :dir-name :size :attributes))
 (when is-linux
+  (filewatch/add fw (string td3 "/file3.txt") :close-write :create :delete)
   (filewatch/add fw td1 :close-write :create :delete)
   (filewatch/add fw td2 :close-write :create :delete :ignored))
 (assert-no-error "filewatch/listen no error" (filewatch/listen fw))
@@ -98,7 +105,7 @@
 
 (when is-win
   (spit-file td1 "file1.txt")
-  (expect :type :added)
+  (expect :type :added :file-name "file1.txt" :dir-name td1)
   (expect :type :modified)
   (expect-maybe :type :modified) # for mingw + wine
   (gccollect)
@@ -144,7 +151,7 @@
 
 (when is-linux
   (spit-file td1 "file1.txt")
-  (expect :type :create)
+  (expect :type :create :file-name "file1.txt" :dir-name td1)
   (expect :type :close-write)
   (expect-empty)
   (gccollect)
@@ -152,6 +159,11 @@
   (expect :type :close-write)
   (expect-empty)
   (gccollect)
+
+  # Check file3.txt
+  (spit-file td3 "file3.txt")
+  (expect :type :close-write :file-name "file3.txt" :dir-name td3)
+  (expect-empty)
 
   # Check td2
   (spit-file td2 "file2.txt")
@@ -187,5 +199,6 @@
 (assert-no-error "filewatch/unlisten no error" (filewatch/unlisten fw))
 (assert-no-error "cleanup 1" (rmrf td1))
 (assert-no-error "cleanup 2" (rmrf td2))
+(assert-no-error "cleanup 3" (rmrf td3))
 
 (end-suite)
