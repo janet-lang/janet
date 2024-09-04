@@ -12,9 +12,9 @@ All notable changes to this project will be documented in this file.
 - Add `tuple/join`
 - Fix marshalling weak tables and weak arrays.
 - Expose C functions for constructing weak tables in janet.h
+- Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
 
 ## 1.35.2 - 2024-06-16
-- Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
 - Let range take non-integer values.
 - Fix some documentation typos.
 - Allow using `:only` in import without quoting.
