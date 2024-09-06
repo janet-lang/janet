@@ -174,6 +174,8 @@ JANET_CORE_FN(os_arch,
               "* :riscv64\n\n"
               "* :sparc\n\n"
               "* :wasm\n\n"
+              "* :s390\n\n"
+              "* :s390x\n\n"
               "* :unknown\n") {
     janet_fixarity(argc, 0);
     (void) argv;
@@ -200,6 +202,10 @@ JANET_CORE_FN(os_arch,
     return janet_ckeywordv("ppc");
 #elif (defined(__ppc64__) || defined(_ARCH_PPC64) || defined(_M_PPC))
     return janet_ckeywordv("ppc64");
+#elif (defined(__s390x__))
+    return janet_ckeywordv("s390x");
+#elif (defined(__s390__))
+    return janet_ckeywordv("s390");
 #else
     return janet_ckeywordv("unknown");
 #endif

@@ -371,17 +371,15 @@ JANET_CORE_FN(cfun_buffer_push_uint16,
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int reverse = should_reverse_bytes(argv, 1);
-    union {
-        uint16_t data;
-        uint8_t bytes[2];
-    } u;
-    u.data = janet_getuinteger16(argv, 2);
+    uint16_t data = janet_getuinteger16(argv, 2);
+    uint8_t bytes[sizeof(data)];
+    memcpy(bytes, &data, sizeof(bytes));
     if (reverse) {
-        uint8_t temp = u.bytes[1];
-        u.bytes[1] = u.bytes[0];
-        u.bytes[0] = temp;
+        uint8_t temp = bytes[1];
+        bytes[1] = bytes[0];
+        bytes[0] = temp;
     }
-    janet_buffer_push_u16(buffer, *(uint16_t *) u.bytes);
+    janet_buffer_push_bytes(buffer, bytes, sizeof(bytes));
     return argv[0];
 }
 
@@ -392,14 +390,12 @@ JANET_CORE_FN(cfun_buffer_push_uint32,
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int reverse = should_reverse_bytes(argv, 1);
-    union {
-        uint32_t data;
-        uint8_t bytes[4];
-    } u;
-    u.data = janet_getuinteger(argv, 2);
+    uint32_t data = janet_getuinteger(argv, 2);
+    uint8_t bytes[sizeof(data)];
+    memcpy(bytes, &data, sizeof(bytes));
     if (reverse)
-        reverse_u32(u.bytes);
-    janet_buffer_push_u32(buffer, *(uint32_t *) u.bytes);
+        reverse_u32(bytes);
+    janet_buffer_push_bytes(buffer, bytes, sizeof(bytes));
     return argv[0];
 }
 
@@ -410,14 +406,12 @@ JANET_CORE_FN(cfun_buffer_push_uint64,
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int reverse = should_reverse_bytes(argv, 1);
-    union {
-        uint64_t data;
-        uint8_t bytes[8];
-    } u;
-    u.data = janet_getuinteger64(argv, 2);
+    uint64_t data = janet_getuinteger64(argv, 2);
+    uint8_t bytes[sizeof(data)];
+    memcpy(bytes, &data, sizeof(bytes));
     if (reverse)
-        reverse_u64(u.bytes);
-    janet_buffer_push_u64(buffer, *(uint64_t *) u.bytes);
+        reverse_u64(bytes);
+    janet_buffer_push_bytes(buffer, bytes, sizeof(bytes));
     return argv[0];
 }
 
@@ -428,14 +422,12 @@ JANET_CORE_FN(cfun_buffer_push_float32,
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int reverse = should_reverse_bytes(argv, 1);
-    union {
-        float data;
-        uint8_t bytes[4];
-    } u;
-    u.data = (float) janet_getnumber(argv, 2);
+    float data = (float) janet_getnumber(argv, 2);
+    uint8_t bytes[sizeof(data)];
+    memcpy(bytes, &data, sizeof(bytes));
     if (reverse)
-        reverse_u32(u.bytes);
-    janet_buffer_push_u32(buffer, *(uint32_t *) u.bytes);
+        reverse_u32(bytes);
+    janet_buffer_push_bytes(buffer, bytes, sizeof(bytes));
     return argv[0];
 }
 
@@ -446,14 +438,12 @@ JANET_CORE_FN(cfun_buffer_push_float64,
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     int reverse = should_reverse_bytes(argv, 1);
-    union {
-        double data;
-        uint8_t bytes[8];
-    } u;
-    u.data = janet_getnumber(argv, 2);
+    double data = janet_getnumber(argv, 2);
+    uint8_t bytes[sizeof(data)];
+    memcpy(bytes, &data, sizeof(bytes));
     if (reverse)
-        reverse_u64(u.bytes);
-    janet_buffer_push_u64(buffer, *(uint64_t *) u.bytes);
+        reverse_u64(bytes);
+    janet_buffer_push_bytes(buffer, bytes, sizeof(bytes));
     return argv[0];
 }
 
