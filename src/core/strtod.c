@@ -497,8 +497,8 @@ int janet_scan_numeric(
     Janet *out) {
     int result;
     double num;
-    int64_t i64;
-    uint64_t u64;
+    int64_t i64 = 0;
+    uint64_t u64 = 0;
     if (len < 2 || str[len - 2] != ':') {
         result = janet_scan_number_base(str, len, 0, &num);
         *out = janet_wrap_number(num);
