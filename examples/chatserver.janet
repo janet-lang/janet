@@ -8,7 +8,7 @@
 
 (defn handler
   [connection]
-  (print "created " connection)
+  (print "connection: " connection)
   (net/write connection "Whats your name?\n")
   (def name (string/trim (string (ev/read connection 100))))
   (print name " connected")
@@ -23,13 +23,14 @@
                (put conmap name nil)
                (:close connection))
         (while (def msg (ev/read connection 100))
-            (broadcast name (string msg)))
+          (broadcast name (string msg)))
         (print name " disconnected")))))
 
 (defn main [& args]
   (printf "STARTING SERVER...")
   (flush)
   (def my-server (net/listen "127.0.0.1" "8000"))
+  '(handler (net/accept my-server))
   (forever
    (def connection (net/accept my-server))
    (ev/call handler connection)))
