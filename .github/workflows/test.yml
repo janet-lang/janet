@@ -93,16 +93,10 @@ jobs:
   test-s390x-linux:
     name: Build and test s390x in qemu
     runs-on: ubuntu-latest
-    container:
-      image: s390x/ubuntu
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@master
-      - name: Setup compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install build-essential git
-      - name: Compile the project
-        run: make clean && make
-      - name: Test the project
-        run: make test
+    - name: Checkout the repository
+      uses: actions/checkout@master
+    - name: Do Qemu build and test
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+        docker run --rm -v .:/janet -it s390x/ubuntu bash -c "apt-get -y update && apt-get -y install git build-essential && make -j3 && make test"
