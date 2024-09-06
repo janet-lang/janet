@@ -2283,7 +2283,6 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             break;
         case JANET_ASYNC_EVENT_CLOSE:
             janet_schedule(fiber, janet_wrap_nil());
-            stream->read_fiber = NULL;
             janet_async_end(fiber);
             break;
 #ifdef JANET_WINDOWS
@@ -2410,7 +2409,6 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     nread = 0;
                 } else {
                     janet_cancel(fiber, janet_ev_lasterr());
-                    stream->read_fiber = NULL;
                     janet_async_end(fiber);
                     break;
                 }
@@ -2420,7 +2418,6 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             state->bytes_read += nread;
             if (state->bytes_read == 0 && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
                 janet_schedule(fiber, janet_wrap_nil());
-                stream->read_fiber = NULL;
                 janet_async_end(fiber);
                 break;
             }
@@ -2444,7 +2441,6 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                     resume_val = janet_wrap_buffer(buffer);
                 }
                 janet_schedule(fiber, resume_val);
-                stream->read_fiber = NULL;
                 janet_async_end(fiber);
                 break;
             }
@@ -2537,7 +2533,6 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
         }
         case JANET_ASYNC_EVENT_CLOSE:
             janet_cancel(fiber, janet_cstringv("stream closed"));
-            stream->write_fiber = NULL;
             janet_async_end(fiber);
             break;
 #ifdef JANET_WINDOWS
@@ -2624,12 +2619,10 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
 #else
         case JANET_ASYNC_EVENT_ERR:
             janet_cancel(fiber, janet_cstringv("stream err"));
-            stream->write_fiber = NULL;
             janet_async_end(fiber);
             break;
         case JANET_ASYNC_EVENT_HUP:
             janet_cancel(fiber, janet_cstringv("stream hup"));
-            stream->write_fiber = NULL;
             janet_async_end(fiber);
             break;
         case JANET_ASYNC_EVENT_INIT:
@@ -2667,7 +2660,6 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 if (nwrote == -1) {
                     if (errno == EAGAIN || errno == EWOULDBLOCK) break;
                     janet_cancel(fiber, janet_ev_lasterr());
-                    stream->write_fiber = NULL;
                     janet_async_end(fiber);
                     break;
                 }
@@ -2675,7 +2667,6 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 /* Unless using datagrams, empty message is a disconnect */
                 if (nwrote == 0 && !dest_abst) {
                     janet_cancel(fiber, janet_cstringv("disconnect"));
-                    stream->write_fiber = NULL;
                     janet_async_end(fiber);
                     break;
                 }
@@ -2689,7 +2680,6 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
             state->start = start;
             if (start >= len) {
                 janet_schedule(fiber, janet_wrap_nil());
-                stream->write_fiber = NULL;
                 janet_async_end(fiber);
                 break;
             }
