@@ -255,6 +255,12 @@ static void add_timeout(JanetTimeout to) {
 
 void janet_async_end(JanetFiber *fiber) {
     if (fiber->ev_callback) {
+        if (fiber->ev_stream->read_fiber == fiber) {
+            fiber->ev_stream->read_fiber = NULL;
+        }
+        if (fiber->ev_stream->write_fiber == fiber) {
+            fiber->ev_stream->write_fiber = NULL;
+        }
         fiber->ev_callback(fiber, JANET_ASYNC_EVENT_DEINIT);
         janet_gcunroot(janet_wrap_abstract(fiber->ev_stream));
         fiber->ev_callback = NULL;
