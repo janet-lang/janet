@@ -4057,6 +4057,7 @@
   (defn- copyfile
     [from to]
     (def mode (os/stat from :permissions))
+    (if-not mode (errorf "file %s does not exist" from))
     (def b (buffer/new 0x10000))
     (with [ffrom (file/open from :rb)]
       (with [fto (file/open to :wb)]
@@ -4382,12 +4383,15 @@
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def s (sep))
-    (case (os/stat src :mode)
+    (def mode (os/stat src :mode))
+    (if-not mode (errorf "file %s does not exist" src))
+    (case mode
       :directory
       (let [absdest (bundle/add-directory manifest dest chmod-mode)]
         (each d (os/dir src) (bundle/add manifest (string src s d) (string dest s d) chmod-mode))
         absdest)
-      :file (bundle/add-file manifest src dest chmod-mode)))
+      :file (bundle/add-file manifest src dest chmod-mode)
+      (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
     `Shorthand for adding scripts during an install. Scripts will be installed to
