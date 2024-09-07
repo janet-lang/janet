@@ -4056,16 +4056,18 @@
 
   (defn- copyfile
     [from to]
-    (def mode (os/stat from :permissions))
-    (if-not mode (errorf "file %s does not exist" from))
-    (def b (buffer/new 0x10000))
-    (with [ffrom (file/open from :rb)]
-      (with [fto (file/open to :wb)]
-        (forever
-          (file/read ffrom 0x10000 b)
-          (when (empty? b) (buffer/trim b) (os/chmod to mode) (break))
-          (file/write fto b)
-          (buffer/clear b)))))
+    (if-with [ffrom (file/open from :rb)]
+      (if-with [fto (file/open to :wb)]
+        (do
+          (def perm (os/stat from :permissions))
+          (def b (buffer/new 0x10000))
+          (forever
+            (file/read ffrom 0x10000 b)
+            (when (empty? b) (buffer/trim b) (os/chmod to perm) (break))
+            (file/write fto b)
+            (buffer/clear b)))
+         (errorf "destination file %s cannot be opened for writing" to))
+      (errorf "source file %s cannot be opened for reading" from)))
 
   (defn- copyrf
     [from to]
