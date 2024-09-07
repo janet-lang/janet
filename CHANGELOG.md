@@ -2,17 +2,20 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Improve error messages in `bundle/add*` functions.
+- Add CI testing and verify tests pass on the s390x architecture.
 - Save `:source-form` in environment entries when `*debug*` is set.
-- Add experimental `filewatch/` module for listening to file system changes.
+- Add experimental `filewatch/` module for listening to file system changes on Linux and Windows.
 - Add `bundle/who-is` to query which bundle a file on disk was installed by.
 - Add `geomean` function
 - Add `:R` and `:W` flags to `os/pipe` to create blocking pipes on Posix and Windows systems.
   These streams cannot be directly read to and written from, but can be passed to subprocesses.
 - Add `array/join`
 - Add `tuple/join`
-- Fix marshalling weak tables and weak arrays.
-- Expose C functions for constructing weak tables in janet.h
 - Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
+- Fix marshalling weak tables and weak arrays.
+- Fix bug in `ev/` module that could accidentally close sockets on accident.
+- Expose C functions for constructing weak tables in janet.h
 - Let range take non-integer values.
 
 ## 1.35.2 - 2024-06-16
