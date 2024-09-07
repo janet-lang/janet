@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.36.0 - 2024-09-07
 - Improve error messages in `bundle/add*` functions.
 - Add CI testing and verify tests pass on the s390x architecture.
 - Save `:source-form` in environment entries when `*debug*` is set.
