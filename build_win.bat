@@ -121,7 +121,6 @@ copy README.md dist\README.md
 
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
-copy janet.def dist\janet.def
 
 janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h build\janet.h
 copy build\janet.h dist\janet.h
