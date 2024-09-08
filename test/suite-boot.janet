@@ -754,7 +754,7 @@
     (default name (string "has-key? " (++ test-has-key-auto)))
     (assert (= expected (has-key? col key)) name)
     (if
-      # guarenteed by `has-key?` to never fail
+      # guaranteed by `has-key?` to never fail
       expected (in col key)
       # if `has-key?` is false, then `in` should fail (for indexed types)
       #
@@ -989,5 +989,12 @@
 (assert (= -67 (man-or-boy 10)))
 (assert (= :a (with-env @{:b :a} (dyn :b))) "with-env dyn")
 (assert-error "unknown symbol +" (with-env @{} (eval '(+ 1 2))))
+
+(setdyn *debug* true)
+(def source '(defn a [x] (+ x x)))
+(eval source)
+(assert (= 20 (a 10)))
+(assert (deep= (get (dyn 'a) :source-form) source))
+(setdyn *debug* nil)
 
 (end-suite)

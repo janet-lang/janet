@@ -34,9 +34,9 @@
  * because E is a valid digit in bases 15 or greater. For bases greater than
  * 10, the letters are used as digits. A through Z correspond to the digits 10
  * through 35, and the lowercase letters have the same values. The radix number
- * is always in base 10. For example, a hexidecimal number could be written
+ * is always in base 10. For example, a hexadecimal number could be written
  * '16rdeadbeef'. janet_scan_number also supports some c style syntax for
- * hexidecimal literals. The previous number could also be written
+ * hexadecimal literals. The previous number could also be written
  * '0xdeadbeef'.
  */
 
@@ -487,6 +487,40 @@ int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out) {
         }
     }
     return 0;
+}
+
+/* Similar to janet_scan_number but allows for
+ * more numeric types with a given suffix. */
+int janet_scan_numeric(
+    const uint8_t *str,
+    int32_t len,
+    Janet *out) {
+    int result;
+    double num;
+    int64_t i64 = 0;
+    uint64_t u64 = 0;
+    if (len < 2 || str[len - 2] != ':') {
+        result = janet_scan_number_base(str, len, 0, &num);
+        *out = janet_wrap_number(num);
+        return result;
+    }
+    switch (str[len - 1]) {
+        default:
+            return 1;
+        case 'n':
+            result = janet_scan_number_base(str, len - 2, 0, &num);
+            *out = janet_wrap_number(num);
+            return result;
+        /* Condition is inverted janet_scan_int64 and janet_scan_uint64 */
+        case 's':
+            result = !janet_scan_int64(str, len - 2, &i64);
+            *out = janet_wrap_s64(i64);
+            return result;
+        case 'u':
+            result = !janet_scan_uint64(str, len - 2, &u64);
+            *out = janet_wrap_u64(u64);
+            return result;
+    }
 }
 
 #endif

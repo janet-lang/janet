@@ -4,23 +4,46 @@
 (var num-tests-run 0)
 (var suite-name 0)
 (var start-time 0)
+(var skip-count 0)
+(var skip-n 0)
 
 (def is-verbose (os/getenv "VERBOSE"))
 
-(defn assert
+(defn- assert-no-tail
   "Override's the default assert with some nice error handling."
   [x &opt e]
-  (default e "assert error")
   (++ num-tests-run)
+  (when (pos? skip-n)
+    (-- skip-n)
+    (++ skip-count)
+    (break x))
+  (default e "assert error")
   (when x (++ num-tests-passed))
   (def str (string e))
-  (def frame (last (debug/stack (fiber/current))))
+  (def stack (debug/stack (fiber/current)))
+  (def frame (last stack))
   (def line-info (string/format "%s:%d"
                               (frame :source) (frame :source-line)))
   (if x
     (when is-verbose (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x))
-    (do (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
+    (do
+      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
   x)
+
+(defn skip-asserts
+  "Skip some asserts"
+  [n]
+  (+= skip-n n)
+  nil)
+
+(defmacro assert
+  [x &opt e]
+  (def xx (gensym))
+  (default e ~',x)
+  ~(do
+     (def ,xx ,x)
+     (,assert-no-tail ,xx ,e)
+     ,xx))
 
 (defmacro assert-error
   [msg & forms]
@@ -52,5 +75,22 @@
 (defn end-suite []
   (def delta (- (os/clock) start-time))
   (eprinf "Finished suite %s in %.3f seconds - " suite-name delta)
-  (eprint num-tests-passed " of " num-tests-run " tests passed.")
-  (if (not= num-tests-passed num-tests-run) (os/exit 1)))
+  (eprint num-tests-passed " of " num-tests-run " tests passed (" skip-count " skipped).")
+  (if (not= (+ skip-count num-tests-passed) num-tests-run) (os/exit 1)))
+
+(defn rmrf
+  "rm -rf in janet"
+  [x]
+  (case (os/lstat x :mode)
+    nil nil
+    :directory (do
+                 (each y (os/dir x)
+                   (rmrf (string x "/" y)))
+                 (os/rmdir x))
+    (os/rm x))
+  nil)
+
+(defn randdir
+  "Get a random directory name"
+  []
+  (string "tmp_dir_" (slice (string (math/random) ".tmp") 2)))

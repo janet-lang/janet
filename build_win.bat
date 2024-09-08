@@ -50,6 +50,7 @@ for %%f in (src\boot\*.c) do (
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
 @if not errorlevel 0 goto :BUILDFAIL
 build\janet_boot . > build\c\janet.c
+@if not errorlevel 0 goto :BUILDFAIL
 
 @rem Build the sources
 %JANET_COMPILE% /Fobuild\janet.obj build\c\janet.c
@@ -59,6 +60,7 @@ build\janet_boot . > build\c\janet.c
 
 @rem Build the resources
 rc /nologo /fobuild\janet_win.res janet_win.rc
+@if not errorlevel 0 goto :BUILDFAIL
 
 @rem Link everything to main client
 %JANET_LINK% /out:janet.exe build\janet.obj build\shell.obj build\janet_win.res
@@ -119,7 +121,6 @@ copy README.md dist\README.md
 
 copy janet.lib dist\janet.lib
 copy janet.exp dist\janet.exp
-copy janet.def dist\janet.def
 
 janet.exe tools\patch-header.janet src\include\janet.h src\conf\janetconf.h build\janet.h
 copy build\janet.h dist\janet.h

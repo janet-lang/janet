@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /*
- * Detect OS and endianess.
+ * Detect OS and endianness.
  * From webkit source. There is likely some extreneous
  * detection for unsupported platforms
  */
@@ -210,6 +210,11 @@ extern "C" {
 #define JANET_EV
 #endif
 
+/* Enable or disable the filewatch/ module */
+#if !defined(JANET_NO_FILEWATCH)
+#define JANET_FILEWATCH
+#endif
+
 /* Enable or disable networking */
 #if defined(JANET_EV) && !defined(JANET_NO_NET) && !defined(__EMSCRIPTEN__)
 #define JANET_NET
@@ -262,7 +267,7 @@ extern "C" {
 #endif
 #endif
 
-/* Tell complier some functions don't return */
+/* Tell compiler some functions don't return */
 #ifndef JANET_NO_RETURN
 #ifdef JANET_WINDOWS
 #define JANET_NO_RETURN __declspec(noreturn)
@@ -272,7 +277,7 @@ extern "C" {
 #endif
 
 /* Prevent some recursive functions from recursing too deeply
- * ands crashing (the parser). Instead, error out. */
+ * and crashing (the parser). Instead, error out. */
 #define JANET_RECURSION_GUARD 1024
 
 /* Maximum depth to follow table prototypes before giving up and returning nil. */
@@ -354,6 +359,7 @@ typedef struct {
 #ifdef JANET_EV
 typedef struct JanetOSMutex JanetOSMutex;
 typedef struct JanetOSRWLock JanetOSRWLock;
+typedef struct JanetChannel JanetChannel;
 #endif
 
 /***** END SECTION CONFIG *****/
@@ -628,7 +634,9 @@ typedef void (*JanetEVCallback)(JanetFiber *fiber, JanetAsyncEvent event);
  * call when ever an event is sent from the event loop. state is an optional (can be NULL)
  * pointer to data allocated with janet_malloc. This pointer will be passed to callback as
  * fiber->ev_state. It will also be freed for you by the runtime when the event loop determines
- * it can no longer be referenced. On windows, the contents of state MUST contained an OVERLAPPED struct. */
+ * it can no longer be referenced. On windows, the contents of state MUST contained an OVERLAPPED struct at the 0 offset. */
+
+JANET_API void janet_async_start_fiber(JanetFiber *fiber, JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
 JANET_API JANET_NO_RETURN void janet_async_start(JanetStream *stream, JanetAsyncMode mode, JanetEVCallback callback, void *state);
 
 /* Do not send any more events to the given callback. Call this after scheduling fiber to be resume
@@ -1414,6 +1422,7 @@ JANET_API void janet_loop1_interrupt(JanetVM *vm);
 
 /* Wrapper around streams */
 JANET_API JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod *methods);
+JANET_API JanetStream *janet_stream_ext(JanetHandle handle, uint32_t flags, const JanetMethod *methods, size_t size); /* Allow for type punning streams */
 JANET_API void janet_stream_close(JanetStream *stream);
 JANET_API Janet janet_cfun_stream_close(int32_t argc, Janet *argv);
 JANET_API Janet janet_cfun_stream_read(int32_t argc, Janet *argv);
@@ -1443,6 +1452,14 @@ JANET_API void *janet_abstract_end_threaded(void *x);
 JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size);
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
+
+/* Expose channel utilities */
+JanetChannel *janet_channel_make(uint32_t limit);
+JanetChannel *janet_channel_make_threaded(uint32_t limit);
+JanetChannel *janet_getchannel(const Janet *argv, int32_t n);
+JanetChannel *janet_optchannel(const Janet *argv, int32_t argc, int32_t n, JanetChannel *dflt);
+JANET_API int janet_channel_give(JanetChannel *channel, Janet x);
+JANET_API int janet_channel_take(JanetChannel *channel, Janet *out);
 
 /* Expose some OS sync primitives */
 JANET_API size_t janet_os_mutex_size(void);
@@ -1599,6 +1616,9 @@ JANET_API int janet_scan_number(const uint8_t *str, int32_t len, double *out);
 JANET_API int janet_scan_number_base(const uint8_t *str, int32_t len, int32_t base, double *out);
 JANET_API int janet_scan_int64(const uint8_t *str, int32_t len, int64_t *out);
 JANET_API int janet_scan_uint64(const uint8_t *str, int32_t len, uint64_t *out);
+#ifdef JANET_INT_TYPES
+JANET_API int janet_scan_numeric(const uint8_t *str, int32_t len, Janet *out);
+#endif
 
 /* Debugging */
 JANET_API void janet_debug_break(JanetFuncDef *def, int32_t pc);
@@ -1723,6 +1743,9 @@ JANET_API void janet_table_merge_struct(JanetTable *table, JanetStruct other);
 JANET_API JanetKV *janet_table_find(JanetTable *t, Janet key);
 JANET_API JanetTable *janet_table_clone(JanetTable *table);
 JANET_API void janet_table_clear(JanetTable *table);
+JANET_API JanetTable *janet_table_weakk(int32_t capacity);
+JANET_API JanetTable *janet_table_weakv(int32_t capacity);
+JANET_API JanetTable *janet_table_weakkv(int32_t capacity);
 
 /* Fiber */
 JANET_API JanetFiber *janet_fiber(JanetFunction *callee, int32_t capacity, int32_t argc, const Janet *argv);
@@ -1786,6 +1809,7 @@ JANET_API void janet_gcpressure(size_t s);
 /* Functions */
 JANET_API JanetFuncDef *janet_funcdef_alloc(void);
 JANET_API JanetFunction *janet_thunk(JanetFuncDef *def);
+JANET_API JanetFunction *janet_thunk_delay(Janet x);
 JANET_API int janet_verify(JanetFuncDef *def);
 
 /* Pretty printing */
@@ -2151,7 +2175,7 @@ typedef enum {
     RULE_TO,           /* [rule] */
     RULE_THRU,         /* [rule] */
     RULE_LENPREFIX,    /* [rule_a, rule_b (repeat rule_b rule_a times)] */
-    RULE_READINT,      /* [(signedness << 4) | (endianess << 5) | bytewidth, tag] */
+    RULE_READINT,      /* [(signedness << 4) | (endianness << 5) | bytewidth, tag] */
     RULE_LINE,         /* [tag] */
     RULE_COLUMN,       /* [tag] */
     RULE_UNREF,        /* [rule, tag] */

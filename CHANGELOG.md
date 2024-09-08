@@ -1,6 +1,27 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.36.0 - 2024-09-07
+- Improve error messages in `bundle/add*` functions.
+- Add CI testing and verify tests pass on the s390x architecture.
+- Save `:source-form` in environment entries when `*debug*` is set.
+- Add experimental `filewatch/` module for listening to file system changes on Linux and Windows.
+- Add `bundle/who-is` to query which bundle a file on disk was installed by.
+- Add `geomean` function
+- Add `:R` and `:W` flags to `os/pipe` to create blocking pipes on Posix and Windows systems.
+  These streams cannot be directly read to and written from, but can be passed to subprocesses.
+- Add `array/join`
+- Add `tuple/join`
+- Add `bundle/add-bin` to make installing scripts easier. This also establishes a packaging convention for it.
+- Fix marshalling weak tables and weak arrays.
+- Fix bug in `ev/` module that could accidentally close sockets on accident.
+- Expose C functions for constructing weak tables in janet.h
+- Let range take non-integer values.
+
+## 1.35.2 - 2024-06-16
+- Fix some documentation typos.
+- Allow using `:only` in import without quoting.
+
 ## 1.35.0 - 2024-06-15
 - Add `:only` argument to `import` to allow for easier control over imported bindings.
 - Add extra optional `env` argument to `eval` and `eval-string`.
@@ -114,7 +135,7 @@ All notable changes to this project will be documented in this file.
   See http://no-color.org/
 - Disallow using `(splice x)` in contexts where it doesn't make sense rather than silently coercing to `x`.
   Instead, raise a compiler error.
-- Change the names of `:user8` and `:user9` sigals to `:interrupt` and `:await`
+- Change the names of `:user8` and `:user9` signals to `:interrupt` and `:await`
 - Change the names of `:user8` and `:user9` fiber statuses to `:interrupted` and `:suspended`.
 - Add `ev/all-tasks` to see all currently suspended fibers.
 - Add `keep-syntax` and `keep-syntax!` functions to make writing macros easier.
@@ -285,7 +306,7 @@ All notable changes to this project will be documented in this file.
 - Add the ability to close channels with `ev/chan-close` (or `:close`).
 - Add threaded channels with `ev/thread-chan`.
 - Add `JANET_FN` and `JANET_REG` macros to more easily define C functions that export their source mapping information.
-- Add `janet_interpreter_interupt` and `janet_loop1_interrupt` to interrupt the interpreter while running.
+- Add `janet_interpreter_interrupt` and `janet_loop1_interrupt` to interrupt the interpreter while running.
 - Add `table/clear`
 - Add build option to disable the threading library without disabling all threads.
 - Remove JPM from the main Janet distribution. Instead, JPM must be installed
@@ -339,7 +360,7 @@ saving and restoring the entire VM state.
 - Sort keys in pretty printing output.
 
 ## 1.15.3 - 2021-02-28
-- Fix a fiber bug that occured in deeply nested fibers
+- Fix a fiber bug that occurred in deeply nested fibers
 - Add `unref` combinator to pegs.
 - Small docstring changes.
 
@@ -489,13 +510,13 @@ saving and restoring the entire VM state.
 - Add `symbol/slice`
 - Add `keyword/slice`
 - Allow cross compilation with Makefile.
-- Change `compare-primitve` to `cmp` and make it more efficient.
+- Change `compare-primitive` to `cmp` and make it more efficient.
 - Add `reverse!` for reversing an array or buffer in place.
 - `janet_dobytes` and `janet_dostring` return parse errors in \*out
 - Add `repeat` macro for iterating something n times.
 - Add `eachy` (each yield) macro for iterating a fiber.
 - Fix `:generate` verb in loop macro to accept non symbols as bindings.
-- Add `:h`, `:h+`, and `:h*` in `default-peg-grammar` for hexidecimal digits.
+- Add `:h`, `:h+`, and `:h*` in `default-peg-grammar` for hexadecimal digits.
 - Fix `%j` formatter to print numbers precisely (using the `%.17g` format string to printf).
 
 ## 1.10.1 - 2020-06-18

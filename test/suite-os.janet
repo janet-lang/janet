@@ -131,6 +131,12 @@
 (assert (= (os/perm-string 8r755) "rwxr-xr-x") "perm 8")
 (assert (= (os/perm-string 8r644) "rw-r--r--") "perm 9")
 
+# Pipes
+(assert-no-error (os/pipe))
+(assert-no-error (os/pipe :RW))
+(assert-no-error (os/pipe :R))
+(assert-no-error (os/pipe :W))
+
 # os/execute with environment variables
 # issue #636 - 7e2c433ab
 (assert (= 0 (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe

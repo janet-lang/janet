@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose & contributors
+# Copyright (c) 2023 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -21,36 +21,10 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
-(def has-ffi (dyn 'ffi/native))
-(def has-full-ffi
-  (and has-ffi
-       (when-let [entry (dyn 'ffi/calling-conventions)]
-         (def fficc (entry :value))
-         (> (length (fficc)) 1)))) # all arches support :none
-
-# FFI check
-# d80356158
-(compwhen has-ffi
-  (ffi/context))
-
-(compwhen has-ffi
-  (ffi/defbind memcpy :ptr [dest :ptr src :ptr n :size]))
-(compwhen has-full-ffi
-  (def buffer1 @"aaaa")
-  (def buffer2 @"bbbb")
-  (memcpy buffer1 buffer2 4)
-  (assert (= (string buffer1) "bbbb") "ffi 1 - memcpy"))
-
-# cfaae47ce
-(compwhen has-ffi
-  (assert (= 8 (ffi/size [:int :char])) "size unpacked struct 1")
-  (assert (= 5 (ffi/size [:pack :int :char])) "size packed struct 1")
-  (assert (= 5 (ffi/size [:int :pack-all :char])) "size packed struct 2")
-  (assert (= 4 (ffi/align [:int :char])) "align 1")
-  (assert (= 1 (ffi/align [:pack :int :char])) "align 2")
-  (assert (= 1 (ffi/align [:int :char :pack-all])) "align 3")
-  (assert (= 26 (ffi/size [:char :pack :int @[:char 21]]))
-          "array struct size"))
+(assert (= [1 2 3] (tuple/join [1] [2] [3])) "tuple/join 1")
+(assert (= [] (tuple/join)) "tuple/join 2")
+(assert (= [:a :b :c] (tuple/join @[:a :b] [] [:c])) "tuple/join 3")
+(assert (= ["abc123" "def456"] (tuple/join ["abc123" "def456"])) "tuple/join 4")
 
 (end-suite)
 

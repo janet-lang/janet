@@ -39,6 +39,7 @@
       (buffer/format buf "%j" (in args index))
       (set index (+ index 1)))
     (array/push modifiers (string buf ")\n\n" docstr))
+    (if (dyn :debug) (array/push modifiers {:source-form (dyn :macro-form)}))
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
@@ -116,7 +117,7 @@
 (defn nil? "Check if x is nil." [x] (= x nil))
 (defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
 
-# For macros, we define an imcomplete odd? function that will be overriden.
+# For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
 
 (def- non-atomic-types
@@ -152,6 +153,51 @@
      (if ,v
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
+
+(defmacro defdyn
+  ``Define an alias for a keyword that is used as a dynamic binding. The
+  alias is a normal, lexically scoped binding that can be used instead of
+  a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
+  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
+  called "earmuffs".``
+  [alias & more]
+  (assert (symbol? alias) "alias must be a symbol")
+  (assert (> (length alias) 2) "name must have leading and trailing '*' characters")
+  (assert (= 42 (get alias 0) (get alias (- (length alias) 1))) "name must have leading and trailing '*' characters")
+  (def prefix (dyn :defdyn-prefix))
+  (def kw (keyword prefix (slice alias 1 -2)))
+  ~(def ,alias :dyn ,;more ,kw))
+
+(defdyn *macro-form*
+  "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *lint-error*
+  "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
+
+(defdyn *lint-warn*
+  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+
+(defdyn *lint-levels*
+  "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
+
+(defdyn *macro-lints*
+  ``Bound to an array of lint messages that will be reported by the compiler inside a macro.
+  To indicate an error or warning, a macro author should use `maclintf`.``)
+
+(defn maclintf
+  ``When inside a macro, call this function to add a linter warning. Takes
+  a `fmt` argument like `string/format`, which is used to format the message.``
+  [level fmt & args]
+  (def lints (dyn *macro-lints*))
+  (if lints
+    (do
+      (def form (dyn *macro-form*))
+      (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
+      (def l (if (not= -1 l) l))
+      (def c (if (not= -1 c) c))
+      (def msg (string/format fmt ;args))
+      (array/push lints [level l c msg])))
+  nil)
 
 (defn errorf
   "A combination of `error` and `string/format`. Equivalent to `(error (string/format fmt ;args))`."
@@ -541,6 +587,11 @@
   [x ds & body]
   (each-template x ds :each body))
 
+(defn- check-empty-body
+  [body]
+  (if (= (length body) 0)
+    (maclintf :normal "empty loop body")))
+
 (defmacro loop
   ```
   A general purpose loop macro. This macro is similar to the Common Lisp loop
@@ -619,6 +670,7 @@
   See `loop` for details.``
   [head & body]
   (def $accum (gensym))
+  (check-empty-body body)
   ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro catseq
@@ -626,6 +678,7 @@
   See `loop` for details.``
   [head & body]
   (def $accum (gensym))
+  (check-empty-body body)
   ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
 
 (defmacro tabseq
@@ -639,6 +692,7 @@
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
+  (check-empty-body body)
   ~(,fiber/new (fn :generate [] (loop ,head (yield (do ,;body)))) :yi))
 
 (defmacro coro
@@ -667,6 +721,19 @@
       (var [accum total] [0 0])
       (each x xs (+= accum x) (++ total))
       (/ accum total))))
+
+(defn geomean
+  "Returns the geometric mean of xs. If empty, returns NaN."
+  [xs]
+  (if (lengthable? xs)
+    (do
+      (var accum 0)
+      (each x xs (+= accum (math/log x)))
+      (math/exp (/ accum (length xs))))
+    (do
+      (var [accum total] [0 0])
+      (each x xs (+= accum (math/log x)) (++ total))
+      (math/exp (/ accum total)))))
 
 (defn product
   "Returns the product of xs. If xs is empty, returns 1."
@@ -776,11 +843,21 @@
 
 (defmacro- do-compare
   [x y]
-  ~(if (def f (get ,x :compare))
-     (f ,x ,y)
-     (if (def f (get ,y :compare))
-       (- (f ,y ,x))
-       (cmp ,x ,y))))
+  (def f (gensym))
+  (def f-res (gensym))
+  (def g (gensym))
+  (def g-res (gensym))
+  ~(do
+     (def ,f (,get ,x :compare))
+     (def ,f-res (if ,f (,f ,x ,y)))
+     (if ,f-res
+       ,f-res
+       (do
+         (def ,g (,get ,y :compare))
+         (def ,g-res (if ,g (,- (,g ,y ,x))))
+         (if ,g-res
+           ,g-res
+           (,cmp ,x ,y))))))
 
 (defn compare
   ``Polymorphic compare. Returns -1, 0, 1 for x < y, x = y, x > y respectively.
@@ -1217,19 +1294,6 @@
     (array/push parts (tuple apply f $args)))
   (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
-(defmacro defdyn
-  ``Define an alias for a keyword that is used as a dynamic binding. The
-  alias is a normal, lexically scoped binding that can be used instead of
-  a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
-  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
-  called "earmuffs".``
-  [alias & more]
-  (assert (symbol? alias) "alias must be a symbol")
-  (assert (and (> (length alias) 2) (= 42 (first alias) (last alias))) "name must have leading and trailing '*' characters")
-  (def prefix (dyn :defdyn-prefix))
-  (def kw (keyword prefix (slice alias 1 -2)))
-  ~(def ,alias :dyn ,;more ,kw))
-
 (defn has-key?
   "Check if a data structure `ds` contains the key `key`."
   [ds key]
@@ -1249,18 +1313,6 @@
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
-
-(defdyn *macro-form*
-  "Inside a macro, is bound to the source form that invoked the macro")
-
-(defdyn *lint-error*
-  "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
-
-(defdyn *lint-warn*
-  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
-
-(defdyn *lint-levels*
-  "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
 
 (defdyn *current-file*
   "Bound to the name of the currently compiling file.")
@@ -2044,24 +2096,6 @@
 ### Macro Expansion
 ###
 ###
-
-(defdyn *macro-lints*
-  ``Bound to an array of lint messages that will be reported by the compiler inside a macro.
-  To indicate an error or warning, a macro author should use `maclintf`.``)
-
-(defn maclintf
-  ``When inside a macro, call this function to add a linter warning. Takes
-  a `fmt` argument like `string/format`, which is used to format the message.``
-  [level fmt & args]
-  (def lints (dyn *macro-lints*))
-  (when lints
-    (def form (dyn *macro-form*))
-    (def [l c] (if (tuple? form) (tuple/sourcemap form) [nil nil]))
-    (def l (if-not (= -1 l) l))
-    (def c (if-not (= -1 c) c))
-    (def msg (string/format fmt ;args))
-    (array/push lints [level l c msg]))
-  nil)
 
 (defn macex1
   ``Expand macros in a form, but do not recursively expand macros.
@@ -3857,7 +3891,7 @@
     (string/replace-all "-" "_" name))
 
   (defn ffi/context
-    "Set the path of the dynamic library to implictly bind, as well
+    "Set the path of the dynamic library to implicitly bind, as well
      as other global state for ease of creating native bindings."
     [&opt native-path &named map-symbols lazy]
     (default map-symbols default-mangle)
@@ -4032,15 +4066,18 @@
 
   (defn- copyfile
     [from to]
-    (def mode (os/stat from :permissions))
-    (def b (buffer/new 0x10000))
-    (with [ffrom (file/open from :rb)]
-      (with [fto (file/open to :wb)]
-        (forever
-          (file/read ffrom 0x10000 b)
-          (when (empty? b) (buffer/trim b) (os/chmod to mode) (break))
-          (file/write fto b)
-          (buffer/clear b)))))
+    (if-with [ffrom (file/open from :rb)]
+      (if-with [fto (file/open to :wb)]
+        (do
+          (def perm (os/stat from :permissions))
+          (def b (buffer/new 0x10000))
+          (forever
+            (file/read ffrom 0x10000 b)
+            (when (empty? b) (buffer/trim b) (os/chmod to perm) (break))
+            (file/write fto b)
+            (buffer/clear b)))
+         (errorf "destination file %s cannot be opened for writing" to))
+      (errorf "source file %s cannot be opened for reading" from)))
 
   (defn- copyrf
     [from to]
@@ -4189,14 +4226,15 @@
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/install
-    "Install a bundle from the local filesystem. The name of the bundle will be infered from the bundle, or passed as a parameter :name in `config`."
+    "Install a bundle from the local filesystem. The name of the bundle will be inferred from the bundle, or passed as a parameter :name in `config`."
     [path &keys config]
     (def path (bundle-rpath path))
     (def clean (get config :clean))
     (def check (get config :check))
     (def s (sep))
     # Check meta file for dependencies and default name
-    (def infofile-pre (string path s "bundle" s "info.jdn"))
+    (def infofile-pre-1 (string path s "bundle" s "info.jdn"))
+    (def infofile-pre (if (fexists infofile-pre-1) infofile-pre-1 (string path s "info.jdn"))) # allow for alias
     (var default-bundle-name nil)
     (when (os/stat infofile-pre :mode)
       (def info (-> infofile-pre slurp parse))
@@ -4216,6 +4254,10 @@
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
+    # Aliases for common bundle/ files
+    (def bundle.janet (string path s "bundle.janet"))
+    (when (fexists bundle.janet) (copyfile bundle.janet (bundle-file bundle-name "init.janet")))
+    (when (fexists infofile-pre) (copyfile infofile-pre (bundle-file bundle-name "info.jdn")))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
@@ -4316,6 +4358,19 @@
     (print "add " absdest)
     absdest)
 
+  (defn bundle/whois
+    "Given a file path, figure out which bundle installed it."
+    [path]
+    (var ret nil)
+    (def rpath (bundle-rpath path))
+    (each bundle-name (bundle/list)
+      (def files (get (bundle/manifest bundle-name) :files []))
+      (def has-file (index-of rpath files))
+      (when has-file
+        (set ret bundle-name)
+        (break)))
+    ret)
+
   (defn bundle/add-file
     "Add files during an install relative to `(dyn *syspath*)`"
     [manifest src &opt dest chmod-mode]
@@ -4340,12 +4395,24 @@
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def s (sep))
-    (case (os/stat src :mode)
+    (def mode (os/stat src :mode))
+    (if-not mode (errorf "file %s does not exist" src))
+    (case mode
       :directory
       (let [absdest (bundle/add-directory manifest dest chmod-mode)]
         (each d (os/dir src) (bundle/add manifest (string src s d) (string dest s d) chmod-mode))
         absdest)
-      :file (bundle/add-file manifest src dest chmod-mode)))
+      :file (bundle/add-file manifest src dest chmod-mode)
+      (errorf "bad path %s - file is a %s" src mode)))
+
+  (defn bundle/add-bin
+    `Shorthand for adding scripts during an install. Scripts will be installed to
+    (string (dyn *syspath*) "/bin") by default and will be set to be executable.`
+    [manifest src &opt dest chmod-mode]
+    (default dest (last (string/split "/" src)))
+    (default chmod-mode 8r755)
+    (os/mkdir (string (dyn *syspath*) (sep) "bin"))
+    (bundle/add-file manifest src (string "bin" (sep) dest) chmod-mode))
 
   (defn bundle/update-all
     "Reinstall all bundles"
@@ -4485,7 +4552,13 @@
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))
            (def e (dofile path))
-           (spit (in args (+ i 2)) (make-image e))
+           (def output-path
+             (if (< (+ i 2) (length args))
+               (in args (+ i 2))
+               (string
+                 (if (string/has-suffix? ".janet" path) (string/slice path 0 -7) path)
+                 ".jimage")))
+           (spit output-path (make-image e))
            (set no-file false)
            3)
      "-" (fn [&] (set handleopts false) 1)
@@ -4598,6 +4671,10 @@
       (put flat :doc nil))
     (when (boot/config :no-sourcemaps)
       (put flat :source-map nil))
+    (unless (boot/config :no-docstrings)
+      (unless (v :private)
+        (unless (v :doc)
+          (errorf "no docs: %v %p" k v)))) # make sure we have docs
     # Fix directory separators on windows to make image identical between windows and non-windows
     (when-let [sm (get flat :source-map)]
       (put flat :source-map [(string/replace-all "\\" "/" (sm 0)) (sm 1) (sm 2)]))
@@ -4656,6 +4733,7 @@
      "src/core/ev.c"
      "src/core/ffi.c"
      "src/core/fiber.c"
+     "src/core/filewatch.c"
      "src/core/gc.c"
      "src/core/inttypes.c"
      "src/core/io.c"

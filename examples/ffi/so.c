@@ -36,6 +36,11 @@ typedef struct {
 } intintint;
 
 typedef struct {
+    uint64_t a;
+    uint64_t b;
+} uint64pair;
+
+typedef struct {
     int64_t a;
     int64_t b;
     int64_t c;
@@ -202,4 +207,21 @@ int sixints_fn_2(int x, SixInts s) {
 EXPORTER
 int sixints_fn_3(SixInts s, int x) {
     return x + s.u + s.v + s.w + s.x + s.y + s.z;
+}
+
+EXPORTER
+intint stack_spill_fn(uint8_t a, uint8_t b, uint8_t c, uint8_t d,
+                      uint8_t e, uint8_t f, uint8_t g, uint8_t h,
+                      float i, float j, float k, float l,
+                      float m, float n, float o, float p,
+                      float s1, int8_t s2, uint8_t s3, double s4, uint8_t s5, intint s6) {
+    return (intint) {
+        (a | b | c | d | e | f | g | h) + (i + j + k + l + m + n + o + p),
+        s1 *s6.a + s2 *s6.b + s3 *s4 *s5
+    };
+}
+
+EXPORTER
+double stack_spill_fn_2(uint64pair a, uint64pair b, uint64pair c, int8_t d, uint64pair e, int8_t f) {
+    return (double)(a.a * c.a + a.b * c.b + b.a * e.a) * f - (double)(b.b * e.b) + d;
 }

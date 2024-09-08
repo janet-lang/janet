@@ -275,6 +275,31 @@ JANET_CORE_FN(cfun_array_concat,
     return janet_wrap_array(array);
 }
 
+JANET_CORE_FN(cfun_array_join,
+              "(array/join arr & parts)",
+              "Join a variable number of arrays and tuples into the first argument, "
+              "which must be an array. "
+              "Return the modified array `arr`.") {
+    int32_t i;
+    janet_arity(argc, 1, -1);
+    JanetArray *array = janet_getarray(argv, 0);
+    for (i = 1; i < argc; i++) {
+        int32_t j, len = 0;
+        const Janet *vals = NULL;
+        if (!janet_indexed_view(argv[i], &vals, &len)) {
+            janet_panicf("expected indexed type for argument %d, got %v", i, argv[i]);
+        }
+        if (array->data == vals) {
+            int32_t newcount = array->count + len;
+            janet_array_ensure(array, newcount, 2);
+            janet_indexed_view(argv[i], &vals, &len);
+        }
+        for (j = 0; j < len; j++)
+            janet_array_push(array, vals[j]);
+    }
+    return janet_wrap_array(array);
+}
+
 JANET_CORE_FN(cfun_array_insert,
               "(array/insert arr at & xs)",
               "Insert all `xs` into array `arr` at index `at`. `at` should be an integer between "
@@ -385,6 +410,7 @@ void janet_lib_array(JanetTable *env) {
         JANET_CORE_REG("array/remove", cfun_array_remove),
         JANET_CORE_REG("array/trim", cfun_array_trim),
         JANET_CORE_REG("array/clear", cfun_array_clear),
+        JANET_CORE_REG("array/join", cfun_array_join),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, array_cfuns);

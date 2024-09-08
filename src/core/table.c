@@ -67,7 +67,7 @@ static JanetTable *janet_table_init_impl(JanetTable *table, int32_t capacity, in
     return table;
 }
 
-/* Initialize a table (for use withs scratch memory) */
+/* Initialize a table (for use with scratch memory) */
 JanetTable *janet_table_init(JanetTable *table, int32_t capacity) {
     return janet_table_init_impl(table, capacity, 1);
 }

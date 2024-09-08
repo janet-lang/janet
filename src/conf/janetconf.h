@@ -4,10 +4,10 @@
 #define JANETCONF_H
 
 #define JANET_VERSION_MAJOR 1
-#define JANET_VERSION_MINOR 35
+#define JANET_VERSION_MINOR 36
 #define JANET_VERSION_PATCH 0
 #define JANET_VERSION_EXTRA ""
-#define JANET_VERSION "1.35.0"
+#define JANET_VERSION "1.36.0"
 
 /* #define JANET_BUILD "local" */
 
@@ -29,6 +29,7 @@
 /* #define JANET_NO_NET */
 /* #define JANET_NO_INT_TYPES */
 /* #define JANET_NO_EV */
+/* #define JANET_NO_FILEWATCH */
 /* #define JANET_NO_REALPATH */
 /* #define JANET_NO_SYMLINKS */
 /* #define JANET_NO_UMASK */

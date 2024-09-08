@@ -262,7 +262,7 @@ void janetc_popscope(JanetCompiler *c);
 void janetc_popscope_keepslot(JanetCompiler *c, JanetSlot retslot);
 JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c);
 
-/* Create a destory slots */
+/* Create a destroy slot */
 JanetSlot janetc_cslot(Janet x);
 
 /* Search for a symbol */

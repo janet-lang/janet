@@ -375,4 +375,94 @@
 (ev/cancel f (gensym))
 (ev/take superv)
 
+# Chat server test
+(def conmap @{})
+
+(defn broadcast [em msg]
+  (eachk par conmap
+         (if (not= par em)
+           (if-let [tar (get conmap par)]
+             (net/write tar (string/format "[%s]:%s" em msg))))))
+
+(defn handler
+  [connection]
+  (net/write connection "Whats your name?\n")
+  (def name (string/trim (string (ev/read connection 100))))
+  (if (get conmap name)
+    (do
+      (net/write connection "Name already taken!")
+      (:close connection))
+    (do
+      (put conmap name connection)
+      (net/write connection (string/format "Welcome %s\n" name))
+      (defer (do
+               (put conmap name nil)
+               (:close connection))
+        (while (def msg (ev/read connection 100))
+          (broadcast name (string msg)))))))
+
+# Now launch the chat server
+(def chat-server (net/listen test-host test-port))
+(ev/spawn
+    (forever
+      (def [ok connection] (protect (net/accept chat-server)))
+      (if (and ok connection)
+        (ev/call handler connection)
+        (break))))
+
+# Read from socket
+
+(defn expect-read
+  [stream text]
+  (def result (string (net/read stream 100)))
+  (assert (= result text) (string/format "expected %v, got %v" text result)))
+
+# Now do our telnet chat
+(def bob (net/connect test-host test-port))
+(expect-read bob "Whats your name?\n")
+(net/write bob "bob")
+(expect-read bob "Welcome bob\n")
+(def alice (net/connect test-host test-port))
+(expect-read alice "Whats your name?\n")
+(net/write alice "alice")
+(expect-read alice "Welcome alice\n")
+
+# Bob says hello, alice gets the message
+(net/write bob "hello\n")
+(expect-read alice "[bob]:hello\n")
+
+# Alice says hello, bob gets the message
+(net/write alice "hi\n")
+(expect-read bob "[alice]:hi\n")
+
+# Ted joins the chat server
+(def ted (net/connect test-host test-port))
+(expect-read ted "Whats your name?\n")
+(net/write ted "ted")
+(expect-read ted "Welcome ted\n")
+
+# Ted says hi, alice and bob get message
+(net/write ted "hi\n")
+(expect-read alice "[ted]:hi\n")
+(expect-read bob "[ted]:hi\n")
+
+# Bob leaves for work. Now it's just ted and alice
+(:close bob)
+
+# Alice messages ted, ted gets message
+(net/write alice "wuzzup\n")
+(expect-read ted "[alice]:wuzzup\n")
+(net/write ted "not much\n")
+(expect-read alice "[ted]:not much\n")
+
+# Alice bounces
+(:close alice)
+
+# Ted can send messages, nobody gets them :(
+(net/write ted "hello?\n")
+(:close ted)
+
+# Close chat server
+(:close chat-server)
+
 (end-suite)

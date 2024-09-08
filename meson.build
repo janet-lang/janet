@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose and contributors
+# Copyright (c) 2024 Calvin Rose and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.35.0')
+  version : '1.36.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -79,6 +79,7 @@ conf.set('JANET_EV_NO_KQUEUE', not get_option('kqueue'))
 conf.set('JANET_NO_INTERPRETER_INTERRUPT', not get_option('interpreter_interrupt'))
 conf.set('JANET_NO_FFI', not get_option('ffi'))
 conf.set('JANET_NO_FFI_JIT', not get_option('ffi_jit'))
+conf.set('JANET_NO_FILEWATCH', not get_option('filewatch'))
 conf.set('JANET_NO_CRYPTORAND', not get_option('cryptorand'))
 if get_option('os_name') != ''
   conf.set('JANET_OS_NAME', get_option('os_name'))
@@ -123,6 +124,7 @@ core_src = [
   'src/core/ev.c',
   'src/core/ffi.c',
   'src/core/fiber.c',
+  'src/core/filewatch.c',
   'src/core/gc.c',
   'src/core/inttypes.c',
   'src/core/io.c',
@@ -260,6 +262,7 @@ test_files = [
   'test/suite-debug.janet',
   'test/suite-ev.janet',
   'test/suite-ffi.janet',
+  'test/suite-filewatch.janet',
   'test/suite-inttypes.janet',
   'test/suite-io.janet',
   'test/suite-marsh.janet',
@@ -274,6 +277,7 @@ test_files = [
   'test/suite-struct.janet',
   'test/suite-symcache.janet',
   'test/suite-table.janet',
+  'test/suite-tuple.janet',
   'test/suite-unknown.janet',
   'test/suite-value.janet',
   'test/suite-vm.janet'

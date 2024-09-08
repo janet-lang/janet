@@ -69,6 +69,13 @@
                (seq [n :range [0 10]] (% n 5 3))
                [0 1 2 0 1 0 1 2 0 1]) "variadic mod")
 
+# linspace range
+(assert (deep= @[0 1 2 3] (range 4)) "range 1")
+(assert (deep= @[0 1 2 3] (range 3.01)) "range 2")
+(assert (deep= @[0 1 2 3] (range 3.999)) "range 3")
+(assert (deep= @[0.8 1.8 2.8 3.8] (range 0.8 3.999)) "range 4")
+(assert (deep= @[0.8 1.8 2.8 3.8] (range 0.8 3.999)) "range 5")
+
 (assert (< 1.0 nil false true
            (fiber/new (fn [] 1))
            "hi"

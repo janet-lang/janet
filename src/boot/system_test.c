@@ -22,7 +22,7 @@
 
 #include <janet.h>
 #include <assert.h>
-#include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #include "tests.h"
@@ -34,6 +34,11 @@ int system_test() {
 #else
     assert(sizeof(void *) == 8);
 #endif
+
+    /* Check the version defines are self consistent */
+    char version_combined[256];
+    sprintf(version_combined, "%d.%d.%d%s", JANET_VERSION_MAJOR, JANET_VERSION_MINOR, JANET_VERSION_PATCH, JANET_VERSION_EXTRA);
+    assert(!strcmp(JANET_VERSION, version_combined));
 
     /* Reflexive testing and nanbox testing */
     assert(janet_equals(janet_wrap_nil(), janet_wrap_nil()));

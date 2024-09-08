@@ -174,6 +174,8 @@ JANET_CORE_FN(os_arch,
               "* :riscv64\n\n"
               "* :sparc\n\n"
               "* :wasm\n\n"
+              "* :s390\n\n"
+              "* :s390x\n\n"
               "* :unknown\n") {
     janet_fixarity(argc, 0);
     (void) argv;
@@ -200,6 +202,10 @@ JANET_CORE_FN(os_arch,
     return janet_ckeywordv("ppc");
 #elif (defined(__ppc64__) || defined(_ARCH_PPC64) || defined(_M_PPC))
     return janet_ckeywordv("ppc64");
+#elif (defined(__s390x__))
+    return janet_ckeywordv("s390x");
+#elif (defined(__s390__))
+    return janet_ckeywordv("s390");
 #else
     return janet_ckeywordv("unknown");
 #endif
@@ -1413,7 +1419,7 @@ JANET_CORE_FN(os_spawn,
 JANET_CORE_FN(os_posix_exec,
               "(os/posix-exec args &opt flags env)",
               "Use the execvpe or execve system calls to replace the current process with an interface similar to os/execute. "
-              "Hoever, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
+              "However, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
               "does not allow redirection of stdio.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
 }
@@ -1582,8 +1588,8 @@ JANET_CORE_FN(os_clock,
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_arity(argc, 0, 2);
 
-    JanetKeyword sourcestr = janet_optkeyword(argv, argc, 0, (const uint8_t *) "realtime");
-    if (janet_cstrcmp(sourcestr, "realtime") == 0) {
+    JanetKeyword sourcestr = janet_optkeyword(argv, argc, 0, NULL);
+    if (sourcestr == NULL || janet_cstrcmp(sourcestr, "realtime") == 0) {
         source = JANET_TIME_REALTIME;
     } else if (janet_cstrcmp(sourcestr, "monotonic") == 0) {
         source = JANET_TIME_MONOTONIC;
@@ -1596,8 +1602,8 @@ JANET_CORE_FN(os_clock,
     struct timespec tv;
     if (janet_gettime(&tv, source)) janet_panic("could not get time");
 
-    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, (const uint8_t *) "double");
-    if (janet_cstrcmp(formatstr, "double") == 0) {
+    JanetKeyword formatstr = janet_optkeyword(argv, argc, 1, NULL);
+    if (formatstr == NULL || janet_cstrcmp(formatstr, "double") == 0) {
         double dtime = (double)(tv.tv_sec + (tv.tv_nsec / 1E9));
         return janet_wrap_number(dtime);
     } else if (janet_cstrcmp(formatstr, "int") == 0) {
@@ -2668,7 +2674,7 @@ JANET_CORE_FN(os_open,
     } else if (write_flag && !read_flag) {
         open_flags |= O_WRONLY;
     } else {
-        open_flags = O_RDWR;
+        open_flags |= O_RDWR;
     }
 
     do {
@@ -2680,16 +2686,24 @@ JANET_CORE_FN(os_open,
 }
 
 JANET_CORE_FN(os_pipe,
-              "(os/pipe)",
+              "(os/pipe &opt flags)",
               "Create a readable stream and a writable stream that are connected. Returns a two-element "
               "tuple where the first element is a readable stream and the second element is the writable "
-              "stream.") {
+              "stream. `flags` is a keyword set of flags to disable non-blocking settings on the ends of the pipe. "
+              "This may be desired if passing the pipe to a subprocess with `os/spawn`.\n\n"
+              "* :W - sets the writable end of the pipe to a blocking stream.\n"
+              "* :R - sets the readable end of the pipe to a blocking stream.\n\n"
+              "By default, both ends of the pipe are non-blocking for use with the `ev` module.") {
     (void) argv;
-    janet_fixarity(argc, 0);
+    janet_arity(argc, 0, 1);
     JanetHandle fds[2];
-    if (janet_make_pipe(fds, 0)) janet_panicv(janet_ev_lasterr());
-    JanetStream *reader = janet_stream(fds[0], JANET_STREAM_READABLE, NULL);
-    JanetStream *writer = janet_stream(fds[1], JANET_STREAM_WRITABLE, NULL);
+    int flags = 0;
+    if (argc > 0 && !janet_checktype(argv[0], JANET_NIL)) {
+        flags = (int) janet_getflags(argv, 0, "WR");
+    }
+    if (janet_make_pipe(fds, flags)) janet_panicv(janet_ev_lasterr());
+    JanetStream *reader = janet_stream(fds[0], (flags & 2) ? 0 : JANET_STREAM_READABLE, NULL);
+    JanetStream *writer = janet_stream(fds[1], (flags & 1) ? 0 : JANET_STREAM_WRITABLE, NULL);
     Janet tup[2] = {janet_wrap_abstract(reader), janet_wrap_abstract(writer)};
     return janet_wrap_tuple(janet_tuple_n(tup, 2));
 }

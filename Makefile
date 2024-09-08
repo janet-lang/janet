@@ -140,6 +140,7 @@ JANET_CORE_SOURCES=src/core/abstract.c \
 				   src/core/ev.c \
 				   src/core/ffi.c \
 				   src/core/fiber.c \
+				   src/core/filewatch.c \
 				   src/core/gc.c \
 				   src/core/inttypes.c \
 				   src/core/io.c \
@@ -207,9 +208,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.35.dylib
+SONAME=libjanet.1.36.dylib
 else
-SONAME=libjanet.so.1.35
+SONAME=libjanet.so.1.36
 endif
 
 build/c/shell.c: src/mainclient/shell.c
