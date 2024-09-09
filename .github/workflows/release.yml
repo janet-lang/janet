@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-13 ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
@@ -29,6 +29,35 @@ jobs:
         run: make clean && make
       - name: Build the artifact
         run: JANET_DIST_DIR=janet-${{ env.version }}-${{ env.platform }} make build/janet-${{ env.version }}-${{ env.platform }}-x64.tar.gz
+      - name: Draft the release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: |
+            build/*.gz
+            build/janet.h
+            build/c/janet.c
+            build/c/shell.c
+
+  release-arm:
+    permissions:
+      contents: write  # for softprops/action-gh-release to create GitHub release
+    name: Build release binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ macos-latest ]
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Set the version
+        run: echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
+      - name: Set the platform
+        run: echo "platform=$(tr '[A-Z]' '[a-z]' <<< $RUNNER_OS)" >> $GITHUB_ENV
+      - name: Compile the project
+        run: make clean && make
+      - name: Build the artifact
+        run: JANET_DIST_DIR=janet-${{ env.version }}-${{ env.platform }} make build/janet-${{ env.version }}-${{ env.platform }}-aarch64.tar.gz
       - name: Draft the release
         uses: softprops/action-gh-release@v1
         with:

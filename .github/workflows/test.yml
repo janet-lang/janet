@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-latest, macos-13 ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
@@ -23,7 +23,10 @@ jobs:
 
   test-windows:
     name: Build and test on Windows
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [ windows-latest, windows-2019 ]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
