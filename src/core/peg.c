@@ -498,6 +498,7 @@ tail:
 
         case RULE_NTH: {
             uint32_t nth = rule[1];
+            if (nth > INT32_MAX) nth = INT32_MAX;
             uint32_t tag = rule[3];
             int oldmode = s->mode;
             CapState cs = cap_save(s);
