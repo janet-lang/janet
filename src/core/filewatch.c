@@ -588,6 +588,7 @@ JANET_CORE_FN(cfun_filewatch_make,
         "* `:wd-path` -- the string path for watched directory of file. For files, will be the same as `:file-name`, and for directories, will be the same as `:dir-name`.\n\n"
         "* `:cookie` -- a randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
         "") {
+    janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, -1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     JanetWatcher *watcher = janet_abstract(&janet_filewatch_at, sizeof(JanetWatcher));
