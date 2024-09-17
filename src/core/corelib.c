@@ -700,7 +700,15 @@ JANET_CORE_FN(janet_core_is_lengthable,
 
 JANET_CORE_FN(janet_core_signal,
               "(signal what x)",
-              "Raise a signal with payload x. ") {
+              "Raise a signal with payload x. `what` can be an integer\n"
+              "from 0 through 7 indicating user(0-7), or one of:\n\n"
+              "* :ok\n"
+              "* :error\n"
+              "* :debug\n"
+              "* :yield\n"
+              "* :user(0-7)\n"
+              "* :interrupt\n"
+              "* :await") {
     janet_arity(argc, 1, 2);
     Janet payload = argc == 2 ? argv[1] : janet_wrap_nil();
     if (janet_checkint(argv[0])) {
