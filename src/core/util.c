@@ -79,6 +79,7 @@ const char *const janet_type_names[16] = {
     "pointer"
 };
 
+/* Docstring for signal lists these */
 const char *const janet_signal_names[14] = {
     "ok",
     "error",
@@ -96,6 +97,7 @@ const char *const janet_signal_names[14] = {
     "await"
 };
 
+/* Docstring for fiber/status lists these */
 const char *const janet_status_names[16] = {
     "dead",
     "error",
