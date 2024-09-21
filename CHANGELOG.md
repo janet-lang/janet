@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Change how JANET_PROFILE is loaded to allow more easily customizing the environment.
+- Add `*repl-prompt*` dynamic binding to allow customizing the built in repl.
 - Add multiple path support in the `JANET_PATH` environment variables. This lets
   user more easily import modules from many directories.
 

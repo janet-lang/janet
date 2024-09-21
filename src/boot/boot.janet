@@ -1853,6 +1853,9 @@
 (defdyn *pretty-format*
   "Format specifier for the `pp` function")
 
+(defdyn *repl-prompt*
+  "Allow setting a custom prompt at the default REPL. Not all REPLs will respect this binding.")
+
 (defn pp
   ``Pretty-print to stdout or `(dyn *out*)`. The format string used is `(dyn *pretty-format* "%q")`.``
   [x]
@@ -4643,17 +4646,15 @@
         (if-not quiet
           (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) "/" (os/compiler) " - '(doc)' for help"))
         (flush)
+        (def env (make-env))
         (defn getprompt [p]
+          (when-let [custom-prompt (get env *repl-prompt*)] (break (custom-prompt p)))
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
         (defn getstdin [prompt buf _]
           (file/write stdout prompt)
           (file/flush stdout)
           (file/read stdin :line buf))
-        (def env (make-env))
-        (when-let [profile.janet (dyn *profilepath*)]
-          (def new-env (dofile profile.janet :exit true))
-          (merge-module env new-env "" false))
         (when debug-flag
           (put env *debug* true)
           (put env *redef* true))
@@ -4665,6 +4666,8 @@
         (setdyn *doc-color* (if colorize true))
         (setdyn *lint-error* error-level)
         (setdyn *lint-warn* error-level)
+        (when-let [profile.janet (dyn *profilepath*)]
+          (dofile profile.janet :exit true :env env))
         (repl getchunk nil env)))))
 
 ###
