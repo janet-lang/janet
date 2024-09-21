@@ -255,7 +255,8 @@ and then arguments to the script.
 .RS
 The location to look for Janet libraries. This is the only environment variable Janet needs to
 find native and source code modules. If no JANET_PATH is set, Janet will look in
-the default location set at compile time.
+the default location set at compile time. This should be a list of as well as a colon
+separate list of such directories.
 .RE
 
 .B JANET_PROFILE

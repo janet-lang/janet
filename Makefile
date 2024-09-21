@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose
+# Copyright (c) 2024 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -43,6 +43,7 @@ JANET_DIST_DIR?=janet-dist
 JANET_BOOT_FLAGS:=. JANET_PATH '$(JANET_PATH)'
 JANET_TARGET_OBJECTS=build/janet.o build/shell.o
 JPM_TAG?=master
+SPORK_TAG?=master
 HAS_SHARED?=1
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
@@ -205,9 +206,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.36.dylib
+SONAME=libjanet.1.37.dylib
 else
-SONAME=libjanet.so.1.36
+SONAME=libjanet.so.1.37
 endif
 
 build/c/shell.c: src/mainclient/shell.c
@@ -358,6 +359,12 @@ install-jpm-git: $(JANET_TARGET)
 		JANET_BINPATH='$(BINDIR)' \
 		JANET_LIBPATH='$(LIBDIR)' \
 		$(RUN) ../../$(JANET_TARGET) ./bootstrap.janet
+
+install-spork-git: $(JANET_TARGET)
+	mkdir -p build
+	rm -rf build/spork
+	git clone --depth=1 --branch='$(SPORK_TAG)' https://github.com/janet-lang/spork.git build/spork
+	$(JANET_TARGET) -e '(bundle/install "build/spork")'
 
 uninstall:
 	-rm '$(DESTDIR)$(BINDIR)/janet'
