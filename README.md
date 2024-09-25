@@ -1,4 +1,4 @@
-[![Join the chat](https://badges.gitter.im/janet-language/community.svg)](https://gitter.im/janet-language/community)
+[![Join the chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://janet.zulipchat.com)
 &nbsp;
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml?)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml?)
