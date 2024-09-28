@@ -664,6 +664,8 @@
   @[]) "peg if not")
 
 (defn test [name peg input expected]
+  (assert-no-error "compile peg" (peg/compile peg))
+  (assert-no-error "marshal/unmarshal peg" (-> peg marshal unmarshal))
   (assert (deep= (peg/match peg input) expected) name))
 
 (test "sub: matches the same input twice"
@@ -755,6 +757,20 @@
   ~(* (split "," ':w+) 0)
   "a,b,c"
   @["a" "b" "c"])
+
+(test "nth 1"
+  ~{:prefix (number :d+ nil :n)
+    :word '(lenprefix (-> :n) :w)
+    :main (some (nth 1 (* :prefix ":" :word)))}
+  "5:apple6:banana6:cherry"
+  @["apple" "banana" "cherry"])
+
+(test "only-tags 1"
+  ~{:prefix (number :d+ nil :n)
+    :word (capture (lenprefix (-> :n) :w) :W)
+    :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
+  "5:apple6:banana6:cherry"
+  @["apple" "banana" "cherry"])
 
 (end-suite)
 

@@ -465,6 +465,16 @@ tail:
             return result;
         }
 
+        case RULE_ONLY_TAGS: {
+            CapState cs = cap_save(s);
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            if (!result) return NULL;
+            cap_load_keept(s, cs);
+            return result;
+        }
+
         case RULE_GROUP: {
             uint32_t tag = rule[2];
             int oldmode = s->mode;
@@ -483,6 +493,30 @@ tail:
             sub_captures->count = num_sub_captures;
             cap_load_keept(s, cs);
             pushcap(s, janet_wrap_array(sub_captures), tag);
+            return result;
+        }
+
+        case RULE_NTH: {
+            uint32_t nth = rule[1];
+            if (nth > INT32_MAX) nth = INT32_MAX;
+            uint32_t tag = rule[3];
+            int oldmode = s->mode;
+            CapState cs = cap_save(s);
+            s->mode = PEG_MODE_NORMAL;
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[2], text);
+            up1(s);
+            s->mode = oldmode;
+            if (!result) return NULL;
+            int32_t num_sub_captures = s->captures->count - cs.cap;
+            Janet cap;
+            if (num_sub_captures > (int32_t) nth) {
+                cap = s->captures->data[cs.cap + nth];
+            } else {
+                return NULL;
+            }
+            cap_load_keept(s, cs);
+            pushcap(s, cap, tag);
             return result;
         }
 
@@ -1061,6 +1095,9 @@ static void spec_thru(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_drop(Builder *b, int32_t argc, const Janet *argv) {
     spec_onerule(b, argc, argv, RULE_DROP);
 }
+static void spec_only_tags(Builder *b, int32_t argc, const Janet *argv) {
+    spec_onerule(b, argc, argv, RULE_ONLY_TAGS);
+}
 
 /* Rule of the form [rule, tag] */
 static void spec_cap1(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
@@ -1082,6 +1119,15 @@ static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
 }
 static void spec_unref(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_UNREF);
+}
+
+static void spec_nth(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 2, 3);
+    Reserve r = reserve(b, 4);
+    uint32_t nth = peg_getnat(b, argv[0]);
+    uint32_t rule = peg_compile1(b, argv[1]);
+    uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
+    emit_3(r, RULE_NTH, nth, rule, tag);
 }
 
 static void spec_capture_number(Builder *b, int32_t argc, const Janet *argv) {
@@ -1262,7 +1308,9 @@ static const SpecialPair peg_specials[] = {
     {"line", spec_line},
     {"look", spec_look},
     {"not", spec_not},
+    {"nth", spec_nth},
     {"number", spec_capture_number},
+    {"only-tags", spec_only_tags},
     {"opt", spec_opt},
     {"position", spec_position},
     {"quote", spec_capture},
@@ -1619,6 +1667,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 break;
             case RULE_ERROR:
             case RULE_DROP:
+            case RULE_ONLY_TAGS:
             case RULE_NOT:
             case RULE_TO:
             case RULE_THRU:
@@ -1631,6 +1680,12 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 /* [ width | (endianness << 5) | (signedness << 6), tag ] */
                 if (rule[1] > JANET_MAX_READINT_WIDTH) goto bad;
                 i += 3;
+                break;
+            case RULE_NTH:
+                /* [nth, rule, tag] */
+                if (rule[2] >= blen) goto bad;
+                op_flags[rule[2]] |= 0x01;
+                i += 4;
                 break;
             default:
                 goto bad;

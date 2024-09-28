@@ -1863,6 +1863,9 @@
 (defdyn *pretty-format*
   "Format specifier for the `pp` function")
 
+(defdyn *repl-prompt*
+  "Allow setting a custom prompt at the default REPL. Not all REPLs will respect this binding.")
+
 (defn pp
   ``Pretty-print to stdout or `(dyn *out*)`. The format string used is `(dyn *pretty-format* "%q")`.``
   [x]
@@ -2836,6 +2839,24 @@
   (def curall-index (find-prefix ":cur:/:all:"))
   (array/insert mp curall-index [(string ":cur:/:all:" ext) loader check-relative])
   mp)
+
+# Don't expose this externally yet - could break if custom module/paths is setup.
+(defn- module/add-syspath
+  ```
+  Add a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
+  adding duplicates with a specific path prefix instead.
+  ```
+  [path]
+  (def copies @[])
+  (var last-index 0)
+  (def mp (dyn *module-paths* module/paths))
+  (eachp [index entry] mp
+    (def pattern (first entry))
+    (when (and (string? pattern) (string/has-prefix? ":sys:/" pattern))
+      (set last-index index)
+      (array/push copies [(string/replace ":sys:" path pattern) ;(drop 1 entry)])))
+   (array/insert mp (+ 1 last-index) ;copies)
+   mp)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
@@ -4498,7 +4519,12 @@
   (var error-level nil)
   (var expect-image false)
 
-  (if-let [jp (getenv-alias "JANET_PATH")] (setdyn *syspath* jp))
+  (when-let [jp (getenv-alias "JANET_PATH")]
+    (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
+    (def paths (reverse! (string/split path-sep jp)))
+    (for i 1 (length paths)
+      (module/add-syspath (get paths i)))
+    (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
   (set colorize (and
                   (not (getenv-alias "NO_COLOR"))
@@ -4630,17 +4656,15 @@
         (if-not quiet
           (print "Janet " janet/version "-" janet/build " " (os/which) "/" (os/arch) "/" (os/compiler) " - '(doc)' for help"))
         (flush)
+        (def env (make-env))
         (defn getprompt [p]
+          (when-let [custom-prompt (get env *repl-prompt*)] (break (custom-prompt p)))
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
         (defn getstdin [prompt buf _]
           (file/write stdout prompt)
           (file/flush stdout)
           (file/read stdin :line buf))
-        (def env (make-env))
-        (when-let [profile.janet (dyn *profilepath*)]
-          (def new-env (dofile profile.janet :exit true))
-          (merge-module env new-env "" false))
         (when debug-flag
           (put env *debug* true)
           (put env *redef* true))
@@ -4652,6 +4676,8 @@
         (setdyn *doc-color* (if colorize true))
         (setdyn *lint-error* error-level)
         (setdyn *lint-warn* error-level)
+        (when-let [profile.janet (dyn *profilepath*)]
+          (dofile profile.janet :exit true :env env))
         (repl getchunk nil env)))))
 
 ###
