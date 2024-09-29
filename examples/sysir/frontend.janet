@@ -55,6 +55,7 @@
   (add-prim-type 'double 'f64)
   (add-prim-type 'int 's32)
   (add-prim-type 'long 's64)
+  (add-prim-type 'ulong 'u64)
   (add-prim-type 'pointer 'pointer)
   (add-prim-type 'boolean 'boolean)
   (add-prim-type 's16 's16)
@@ -75,6 +76,8 @@
 ### Inside functions
 ###
 
+(defdyn *ret-type* "Return type hint if inside function body")
+
 (defn visit1
   "Take in a form and compile code and put it into `into`. Return result slot."
   [code into &opt no-return type-hint]
@@ -83,7 +86,11 @@
     # Compile a constant
     (string? code) ~(pointer ,code)
     (boolean? code) ~(boolean ,code)
-    (number? code) ~(,(or type-hint 'long) ,code)
+    (number? code) ~(,(or type-hint 'long) ,code) # TODO - should default to double
+
+    # Needed?
+    (= :core/u64 (type code)) ~(,(or type-hint 'ulong) ,code)
+    (= :core/s64 (type code)) ~(,(or type-hint 'long) ,code)
 
     # Binding
     (symbol? code)
@@ -102,7 +109,7 @@
         '* (do-binop 'multiply args into type-hint)
         '/ (do-binop 'divide args into type-hint)
         '<< (do-binop 'shl args into type-hint)
-        '>> (do-binop 'shl args into type-hint)
+        '>> (do-binop 'shr args into type-hint)
 
         # Comparison
         '= (do-comp 'eq args into)
@@ -159,7 +166,7 @@
         (do
           (assert (= 2 (length args)))
           (def [to x] args)
-          (def result (visit1 x into))
+          (def result (visit1 x into false))
           (def toslot (named-slot to))
           (array/push into ~(move ,toslot ,result))
           toslot)
@@ -172,7 +179,7 @@
             (array/push into '(return))
             (do
               (def [x] args)
-              (array/push into ~(return ,(visit1 x into)))))
+              (array/push into ~(return ,(visit1 x into false (dyn *ret-type*))))))
           nil)
 
         # Sequence of operations
@@ -189,7 +196,7 @@
           (assert (< 1 (length args)))
           (def [cnd & body] args)
           (array/push into lab-test)
-          (def condition-slot (visit1 cnd into))
+          (def condition-slot (visit1 cnd into false 'boolean))
           (array/push into ~(branch-not ,condition-slot ,lab-exit))
           (each code body
             (visit1 code into true))
@@ -254,7 +261,7 @@
            (let [result (get-slot)]
              # TODO - finish type inference - we should be able to omit the bind
              # call and sysir should be able to infer the type
-             (array/push into ~(bind ,result int))
+             (array/push into ~(bind ,result int)) # Why int?
              (array/push into ~(,opcode ,result ,final ,right))
              result)
            right)))
@@ -311,8 +318,9 @@
         (def [name tp] (type-extract arg 'int))
         (def slot (get-slot name))
         (array/push ir-asm ~(bind ,slot ,tp)))
-      (each part body
-        (visit1 part ir-asm true))
+      (with-dyns [*ret-type* fn-tp]
+        (each part body
+          (visit1 part ir-asm true)))
       # (eprintf "%.99M" ir-asm)
       (sysir/asm ctx ir-asm))
 

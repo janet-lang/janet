@@ -7,7 +7,7 @@
 (def simple
   '(defn simple:int [x:int]
      (def xyz:int (+ 1 2 3))
-     (return (the int (* x 2 x)))))
+     (return (* x 2 x))))
 
 (def myprog
   '(defn myprog:int []
