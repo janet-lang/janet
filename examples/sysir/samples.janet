@@ -2,7 +2,7 @@
 
 (def square
   '(defn square:int [num:int]
-     (return (* num num))))
+     (return (* 1 num num))))
 
 (def simple
   '(defn simple:int [x:int]
@@ -13,10 +13,10 @@
   '(defn myprog:int []
      (def xyz:int (+ 1 2 3))
      (def abc:int (* 4 5 6))
-     (def x:boolean (= (the int 5) xyz))
+     (def x:boolean (= xyz 5))
      (var i:int 0)
-     (while (< i (the int 10))
-       (set i (the int (+ 1 i)))
+     (while (< i 10)
+       (set i (+ 1 i))
        (printf "i = %d\n" i))
      (printf "hello, world!\n%d\n" (the int (if x abc xyz)))
      #(return (* abc xyz))))
@@ -46,5 +46,5 @@
 (compile1 doloop)
 (compile1 main-fn)
 #(dump)
-#(dumpc)
-(dumpx64)
+(dumpc)
+#(dumpx64)
