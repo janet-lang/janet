@@ -1256,7 +1256,12 @@ static void op_or_const(JanetSysIR *ir, JanetBuffer *buf, uint32_t reg) {
         janet_formatb(buf, "_r%u", reg);
     } else {
         uint32_t constant_id = reg - JANET_SYS_CONSTANT_PREFIX;
-        janet_formatb(buf, "%v", ir->constants[constant_id].value);
+        if (janet_checktype(ir->constants[constant_id].value, JANET_ABSTRACT)) {
+            /* Allow printing int types */
+            janet_formatb(buf, "%V", ir->constants[constant_id].value);
+        } else {
+            janet_formatb(buf, "%v", ir->constants[constant_id].value);
+        }
     }
 }
 

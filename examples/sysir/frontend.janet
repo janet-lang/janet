@@ -1,16 +1,6 @@
 # Make a language frontend for the sysir.
 # Dialect:
 # TODO -
-# * basic types
-# * constants
-# * sequence (do)
-# * basic arithmetic
-# * bindings
-# * branch (if)
-# * looping
-# * returns
-# * tail call returns
-# * function definitions
 # * arrays (declaration, loads, stores)
 
 (defdyn *ret-type* "Current function return type")
@@ -20,6 +10,7 @@
 (def type-to-name @[])
 (def name-to-type @{})
 (def slot-types @{})
+(def functions @{})
 
 (defn get-slot
   [&opt new-name]
@@ -263,9 +254,14 @@
           # Assume function call
           (do
             (def slots @[])
+            (def signature (get functions op))
+            (assert signature (string "unknown function " op))
             (def ret (if no-return nil (get-slot)))
-            (each arg args
-              (array/push slots (visit1 arg into)))
+            (when ret
+              (array/push into ~(bind ,ret ,(first signature)))
+              (assign-type ret (first signature)))
+            (each [arg-type arg] (map tuple (drop 1 signature) args)
+              (array/push slots (visit1 arg into false arg-type)))
             (array/push into ~(call :default ,ret [pointer ,op] ,;slots))
             ret)))
 
@@ -345,6 +341,57 @@
   (def [head & rest] form)
   (case head
 
+    # Declare a struct
+    'defstruct
+    (do
+      (def into @[])
+      (def [name & fields] rest)
+      (assert (even? (length fields)) "expected an even number of fields for struct definition")
+      (def field-types @[])
+      (each [field-name typ] (partition 2 fields)
+        # TODO - don't ignore field names
+        (array/push field-types typ))
+      (array/push into ~(type-struct ,name ,;field-types))
+      # (eprintf "%.99M" into)
+      (sysir/asm ctx into))
+
+    # Declare a union
+    'defunion
+    (do
+      (def into @[])
+      (def [name & fields] rest)
+      (assert (even? (length fields)) "expected an even number of fields for struct definition")
+      (def field-types @[])
+      (each [field-name typ] (partition 2 fields)
+        # TODO - don't ignore field names
+        (array/push field-types typ))
+      (array/push into ~(type-union ,name ,;field-types))
+      # (eprintf "%.99M" into)
+      (sysir/asm ctx into))
+
+    # Declare an array type
+    'defarray
+    (do
+      (def into @[])
+      (def [name element cnt] rest)
+      (assert (and (pos? cnt) (int? cnt)) "expected positive integer for array count")
+      (array/push into ~(type-array ,name ,element ,cnt))
+      # (eprintf "%.99M" into)
+      (sysir/asm ctx into))
+    
+    # External function
+    'defn-external
+    (do
+      (def [name args] rest)
+      (assert (tuple? args))
+      (def [fn-name fn-tp] (type-extract name 'void))
+      (def pcount (length args)) #TODO - more complicated signatures
+      (def signature @[fn-tp])
+      (each arg args
+        (def [name tp] (type-extract arg 'int))
+        (array/push signature tp))
+      (put functions fn-name (freeze signature)))
+
     # Top level function definition
     'defn
     (do
@@ -354,23 +401,26 @@
       (array/clear slot-to-name)
       (def [name args & body] rest)
       (assert (tuple? args))
-      (def [fn-name fn-tp] (type-extract name 'int))
+      (def [fn-name fn-tp] (type-extract name 'void))
       (def pcount (length args)) #TODO - more complicated signatures
       (def ir-asm
         @[~(link-name ,(string fn-name))
           ~(parameter-count ,pcount)])
+      (def signature @[fn-tp])
       (each arg args
         (def [name tp] (type-extract arg 'int))
         (def slot (get-slot name))
         (assign-type name tp)
+        (array/push signature tp)
         (array/push ir-asm ~(bind ,slot ,tp)))
       (with-dyns [*ret-type* fn-tp]
         (each part body
           (visit1 part ir-asm true)))
-      (eprintf "%.99M" ir-asm)
+      (put functions fn-name (freeze signature))
+      # (eprintf "%.99M" ir-asm)
       (sysir/asm ctx ir-asm))
 
-    (errorf "unknown form %v" form)))
+    (errorf "unknown form %p" form)))
 
 ###
 ### Setup
@@ -398,3 +448,13 @@
 (defn dumpc
   []
   (print (sysir/to-c ctx)))
+
+###
+### Top Level aliases
+###
+
+(defmacro defstruct [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defstruct ,;args))])
+(defmacro defunion [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defunion ,;args))])
+(defmacro defarray [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defarray ,;args))])
+(defmacro defn-external [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn-external ,;args))])
+(defmacro defsys [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn ,;args))])
