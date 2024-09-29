@@ -1220,7 +1220,7 @@ static void janet_sys_ir_init(JanetSysIR *out, JanetView instructions, JanetSysI
 
     /* Patch up name mapping arrays */
     /* TODO - make more efficient, don't rebuild from scratch every time */
-    if (linkage->type_names) janet_free(linkage->type_names);
+    if (linkage->type_names) janet_free((void *) linkage->type_names);
     linkage->type_names = table_to_string_array(linkage->type_name_lookup, linkage->type_def_count);
     ir.register_names = table_to_string_array(ir.register_name_lookup, ir.register_count);
 
@@ -1774,7 +1774,7 @@ static int sysir_gc(void *p, size_t s) {
     janet_free(ir->constants);
     janet_free(ir->types);
     janet_free(ir->instructions);
-    janet_free(ir->register_names);
+    janet_free((void *) ir->register_names);
     return 0;
 }
 
@@ -1804,7 +1804,7 @@ static int sysir_context_gc(void *p, size_t s) {
     (void) s;
     janet_free(linkage->field_defs);
     janet_free(linkage->type_defs);
-    janet_free(linkage->type_names);
+    janet_free((void *) linkage->type_names);
     return 0;
 }
 
