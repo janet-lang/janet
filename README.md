@@ -1,4 +1,4 @@
-[![Join the chat](https://badges.gitter.im/janet-language/community.svg)](https://gitter.im/janet-language/community)
+[![Join the chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://janet.zulipchat.com)
 &nbsp;
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/freebsd.yml?)
 [![builds.sr.ht status](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml.svg)](https://builds.sr.ht/~bakpakin/janet/commits/master/openbsd.yml?)
@@ -17,9 +17,6 @@ There is a REPL for trying out the language, as well as the ability
 to run script files. This client program is separate from the core runtime, so
 Janet can be embedded in other programs. Try Janet in your browser at
 <https://janet-lang.org>.
-
-If you'd like to financially support the ongoing development of Janet, consider
-[sponsoring its primary author](https://github.com/sponsors/bakpakin) through GitHub.
 
 <br>
 
