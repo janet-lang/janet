@@ -11,6 +11,7 @@
   c long)
 
 (defarray myvec float 4)
+(defarray mymat myvec 4)
 
 (defn-external printf:int [fmt:pointer x:int]) # TODO varargs
 
@@ -38,7 +39,7 @@
 (defsys doloop [x:int y:int]
   (var i:int x)
   (while (< i y)
-    (set i (the int (+ 1 i)))
+    (set i (+ 1 i))
     (printf "i = %d\n" i))
   (myprog)
   (return x))
@@ -57,8 +58,12 @@
   (return (+ a b)))
 
 (defsys make_array:myvec []
-  (def vec:myvec 0)
+  (def vec:myvec [0 0 0 0])
   (return vec))
+
+(defsys make_mat:mymat []
+  (def mat:mymat [[1 0 0 0] [0 1 0 0] [0 0 1 0] [0 0 0 1]])
+  (return mat))
 
 ####
 

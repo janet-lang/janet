@@ -315,6 +315,7 @@ static uint32_t instr_read_operand_or_const(Janet x, JanetSysIR *ir) {
         Janet c = tup[1];
         jsc.type = instr_read_type_operand(tup[0], ir, READ_TYPE_REFERENCE);
         jsc.value = c;
+        /* TODO - Use a hash table or something better than linear lookup */
         for (int32_t i = 0; i < janet_v_count(ir->constants); i++) {
             if (ir->constants[i].type != jsc.type) continue;
             if (!janet_equals(ir->constants[i].value, c)) continue;
@@ -1047,6 +1048,63 @@ static JanetString rname(JanetSysIR *sysir, uint32_t regid) {
     return name;
 }
 
+/* Check if a constant value is compatible with a type.
+ * - Janet numbers are compatible with all numeric types (if in range)
+ * - Booleans are compatible with booleans
+ * - Signed integers are compatible with all integer types (if in range)
+ * - Strings and Pointers are compatible with pointers.
+ * - Tuples of the correct length are compatible with array types if all elements are compatible with the element type
+ * - TODO - structs and tables */
+static int check_const_valid(JanetSysIR *sysir, Janet constant, uint32_t t) {
+    JanetSysIRLinkage *linkage = sysir->linkage;
+    JanetSysTypeInfo *tinfo = &linkage->type_defs[t];
+    JanetPrim p = tinfo->prim;
+    switch (janet_type(constant)) {
+        default:
+            return 0;
+        case JANET_TUPLE:
+            {
+                const Janet *elements = janet_unwrap_tuple(constant);
+                int32_t len = janet_tuple_length(elements);
+                if (p != JANET_PRIM_ARRAY) return 0;
+                if ((uint64_t) len != tinfo->array.fixed_count) return 0;
+                for (int32_t i = 0; i < len; i++) {
+                    if (!check_const_valid(sysir, elements[i], tinfo->array.type)) return 0;
+                }
+                return 1;
+            }
+        case JANET_BOOLEAN:
+            return p == JANET_PRIM_BOOLEAN;
+        case JANET_STRING:
+        case JANET_POINTER:
+            return p == JANET_PRIM_POINTER;
+        case JANET_NUMBER:
+            {
+                double x = janet_unwrap_number(constant);
+                if (p == JANET_PRIM_F64) return 1;
+                if (p == JANET_PRIM_F32) return 1;
+                if (x != floor(x)) return 0; /* Filter out non-integers */
+                if (p == JANET_PRIM_U8 && (x >= 0 && x <= UINT8_MAX)) return 1;
+                if (p == JANET_PRIM_S8 && (x >= INT8_MIN && x <= INT8_MAX)) return 1;
+                if (p == JANET_PRIM_U16 && (x >= 0 && x <= UINT16_MAX)) return 1;
+                if (p == JANET_PRIM_S16 && (x >= INT16_MIN && x <= INT16_MAX)) return 1;
+                if (p == JANET_PRIM_U32 && (x >= 0 && x <= UINT32_MAX)) return 1;
+                if (p == JANET_PRIM_S32 && (x >= INT32_MIN && x <= INT32_MAX)) return 1;
+                if (p == JANET_PRIM_U64 && (x >= 0 && x <= UINT64_MAX)) return 1;
+                if (p == JANET_PRIM_S64 && (x >= INT64_MIN && x <= INT64_MAX)) return 1;
+                return 0;
+            }
+        case JANET_ABSTRACT:
+            {
+                void *point = janet_unwrap_abstract(constant);
+                const JanetAbstractType *at = janet_abstract_type(point);
+                if (at == &janet_s64_type && p == JANET_PRIM_S64) return 1;
+                if (at == &janet_u64_type && p == JANET_PRIM_U64) return 1;
+                return 0;
+            }
+    }
+}
+
 static void janet_sysir_type_check(JanetSysIR *sysir) {
 
     /* Assert no unknown types */
@@ -1251,17 +1309,35 @@ static const char *c_prim_names[] = {
     "bool"
 };
 
+/* Print a C constant */
+static void print_const_c(JanetSysIR *ir, JanetBuffer *buf, Janet c, uint32_t tid) {
+    /* JanetSysTypeInfo *tinfo = &ir->linkage->type_defs[tid]; */
+    if (janet_checktype(c, JANET_TUPLE)) {
+        const Janet *elements = janet_unwrap_tuple(c);
+        janet_formatb(buf, "((_t%d){", tid);
+        for (int32_t i = 0; i < janet_tuple_length(elements); i++) {
+            if (i > 0) janet_formatb(buf, ", ");
+            /* TODO - limit recursion? */
+            uint32_t sub_type = ir->linkage->type_defs[tid].array.type;
+            print_const_c(ir, buf, elements[i], sub_type);
+        }
+        janet_formatb(buf, "})");
+    } else if (janet_checktype(c, JANET_ABSTRACT)) {
+        /* Allow printing int types */
+        janet_formatb(buf, "%V", c);
+    } else {
+        janet_formatb(buf, "%v", c);
+    }
+}
+
 static void op_or_const(JanetSysIR *ir, JanetBuffer *buf, uint32_t reg) {
     if (reg < JANET_SYS_MAX_OPERAND) {
         janet_formatb(buf, "_r%u", reg);
     } else {
         uint32_t constant_id = reg - JANET_SYS_CONSTANT_PREFIX;
-        if (janet_checktype(ir->constants[constant_id].value, JANET_ABSTRACT)) {
-            /* Allow printing int types */
-            janet_formatb(buf, "%V", ir->constants[constant_id].value);
-        } else {
-            janet_formatb(buf, "%v", ir->constants[constant_id].value);
-        }
+        uint32_t tid = ir->constants[constant_id].type;
+        Janet c = ir->constants[constant_id].value;
+        print_const_c(ir, buf, c, tid);
     }
 }
 
@@ -1322,7 +1398,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 #define EMITBINOP(OP) emit_binop(ir, buffer, tempbuf, instruction, OP)
 
     /* Prelude */
-    janet_formatb(buffer, "#include <stddef.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n#include <sys/syscall.h>\n\n");
+    janet_formatb(buffer, "#include <stddef.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n#include <sys/syscall.h>\n#define _t0 void\n\n");
 
     /* Emit type defs */
     for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {

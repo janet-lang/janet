@@ -11,6 +11,7 @@
 (def name-to-type @{})
 (def slot-types @{})
 (def functions @{})
+(def type-fields @{})
 
 (defn get-slot
   [&opt new-name]
@@ -104,6 +105,12 @@
       # Binding
       (symbol? code)
       (named-slot code)
+
+      # Array literals
+      (and (tuple? code) (= :brackets (tuple/type code)))
+      (do
+        (assert type-hint (string/format "unknown type for array literal %v" code))
+        ~(,type-hint ,code))
 
       # Compile forms
       (and (tuple? code) (= :parens (tuple/type code)))
