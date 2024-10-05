@@ -4667,7 +4667,8 @@
         (setdyn *lint-error* error-level)
         (setdyn *lint-warn* error-level)
         (when-let [profile.janet (dyn *profilepath*)]
-          (dofile profile.janet :exit true :env env))
+          (dofile profile.janet :exit true :env env)
+          (put env *current-file* nil))
         (repl getchunk nil env)))))
 
 ###
