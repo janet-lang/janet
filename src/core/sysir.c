@@ -1076,6 +1076,7 @@ static int check_const_valid(JanetSysIR *sysir, Janet constant, uint32_t t) {
         case JANET_BOOLEAN:
             return p == JANET_PRIM_BOOLEAN;
         case JANET_STRING:
+        case JANET_SYMBOL:
         case JANET_POINTER:
             return p == JANET_PRIM_POINTER;
         case JANET_NUMBER:
@@ -1102,6 +1103,20 @@ static int check_const_valid(JanetSysIR *sysir, Janet constant, uint32_t t) {
                 if (at == &janet_u64_type && p == JANET_PRIM_U64) return 1;
                 return 0;
             }
+    }
+}
+
+/* Check if a register is const-valid. Const-valid here means
+ * that, if the register is a constant, the constant literal type-matches
+ * the register type. */
+static void rcheck_const_valid(JanetSysIR *sysir, uint32_t r) {
+    if (r >= JANET_SYS_MAX_OPERAND) {
+        /* r is a constant */
+        JanetSysConstant jsc = sysir->constants[r - JANET_SYS_CONSTANT_PREFIX];
+        int valid = check_const_valid(sysir, jsc.value, jsc.type);
+        if (!valid) {
+            janet_panicf("invalid constant %v, expected value of type %p", jsc.value, tname(sysir, jsc.type));
+        }
     }
 }
 
@@ -1139,6 +1154,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_RETURN: {
                 uint32_t ret_type = 0;
                 if (instruction.ret.has_value) {
+                    rcheck_const_valid(sysir, instruction.ret.value);
                     ret_type = sysir->types[instruction.ret.value];
                 }
                 if (found_return) {
@@ -1162,19 +1178,25 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 break;
             }
             case JANET_SYSOP_MOVE:
+                rcheck_const_valid(sysir, instruction.two.src);
                 rcheck_equal(sysir, instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_CAST:
+                rcheck_const_valid(sysir, instruction.two.src);
                 rcheck_cast(sysir, instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_POINTER_ADD:
             case JANET_SYSOP_POINTER_SUBTRACT:
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
                 rcheck_pointer_math(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.rhs);
                 break;
             case JANET_SYSOP_ADD:
             case JANET_SYSOP_SUBTRACT:
             case JANET_SYSOP_MULTIPLY:
             case JANET_SYSOP_DIVIDE:
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
                 tcheck_number(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.dest]));
                 rcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
                 rcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
@@ -1182,24 +1204,31 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_BAND:
             case JANET_SYSOP_BOR:
             case JANET_SYSOP_BXOR:
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
                 tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.dest]));
                 rcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
                 rcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
                 break;
             case JANET_SYSOP_BNOT:
+                rcheck_const_valid(sysir, instruction.two.src);
                 tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.two.src]));
                 rcheck_equal(sysir, instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_SHL:
             case JANET_SYSOP_SHR:
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
                 tcheck_integer(sysir, tcheck_array_element(sysir, sysir->types[instruction.three.lhs]));
                 rcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
                 rcheck_equal(sysir, instruction.three.dest, instruction.three.lhs);
                 break;
             case JANET_SYSOP_LOAD:
+                rcheck_const_valid(sysir, instruction.two.src);
                 rcheck_pointer_equals(sysir, instruction.two.src, instruction.two.dest);
                 break;
             case JANET_SYSOP_STORE:
+                rcheck_const_valid(sysir, instruction.two.src);
                 rcheck_pointer_equals(sysir, instruction.two.dest, instruction.two.src);
                 break;
             case JANET_SYSOP_GT:
@@ -1208,6 +1237,8 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_NEQ:
             case JANET_SYSOP_GTE:
             case JANET_SYSOP_LTE:
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
                 /* TODO - allow arrays */
                 rcheck_number_or_pointer(sysir, instruction.three.lhs);
                 rcheck_equal(sysir, instruction.three.lhs, instruction.three.rhs);
@@ -1220,18 +1251,25 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
             case JANET_SYSOP_BRANCH:
             case JANET_SYSOP_BRANCH_NOT:
                 rcheck_boolean(sysir, instruction.branch.cond);
+                rcheck_const_valid(sysir, instruction.branch.cond);
                 break;
             case JANET_SYSOP_SYSCALL:
                 rcheck_integer(sysir, instruction.call.callee);
+                rcheck_const_valid(sysir, instruction.call.callee);
                 break;
             case JANET_SYSOP_CALL:
                 rcheck_pointer(sysir, instruction.call.callee);
+                rcheck_const_valid(sysir, instruction.call.callee);
                 break;
             case JANET_SYSOP_ARRAY_GETP:
-                rcheck_array_getp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
+                rcheck_array_getp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.rhs);
                 break;
             case JANET_SYSOP_ARRAY_PGETP:
-                rcheck_array_pgetp(sysir, instruction.three.dest, instruction.three.lhs, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.lhs);
+                rcheck_const_valid(sysir, instruction.three.rhs);
+                rcheck_array_pgetp(sysir, instruction.three.dest, instruction.three.rhs, instruction.three.rhs);
                 break;
             case JANET_SYSOP_FIELD_GETP:
                 rcheck_fgetp(sysir, instruction.field.r, instruction.field.st, instruction.field.field);
@@ -1695,7 +1733,7 @@ void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into) {
                     build_tuple[0] = janet_csymbolv("type-array");
                     build_tuple[1] = janet_sys_get_desttype(linkage, instruction.array.dest_type);
                     build_tuple[2] = janet_sys_get_desttype(linkage, instruction.array.type);
-                    build_tuple[4] = janet_wrap_number((double) instruction.array.fixed_count);
+                    build_tuple[3] = janet_wrap_number((double) instruction.array.fixed_count);
                     break;
             }
             const Janet *tuple = janet_tuple_end(build_tuple);

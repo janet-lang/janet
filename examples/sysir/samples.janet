@@ -67,6 +67,6 @@
 
 ####
 
-#(dump)
-(dumpc)
+(dump)
+#(dumpc)
 #(dumpx64)
