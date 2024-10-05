@@ -4295,10 +4295,10 @@
         (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
-      (when check
-        (do-hook module bundle-name :check man))
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
-      (sync-manifest man))
+      (sync-manifest man)
+      (when check
+        (do-hook module bundle-name :check man)))
     (print "installed " bundle-name)
     bundle-name)
 
