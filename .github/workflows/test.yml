@@ -45,13 +45,16 @@ jobs:
     defaults:
       run:
         shell: msys2 {0}
+    strategy:
+      matrix:
+        msystem: [ UCRT64, MINGW64, MINGW32, CLANG64 ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
       - name: Setup Mingw
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: ${{ matrix.msystem }}
           update: true
           install: >-
             base-devel
