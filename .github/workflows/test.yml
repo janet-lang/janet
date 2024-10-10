@@ -41,7 +41,7 @@ jobs:
 
   test-mingw:
     name: Build on Windows with Mingw
-    runs-on: windows-latest
+    runs-on: windows-2019
     defaults:
       run:
         shell: msys2 {0}
