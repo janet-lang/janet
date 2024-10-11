@@ -19,3 +19,8 @@ tasks:
     ninja
     ninja test
     sudo ninja install
+- meson_min: |
+    cd janet
+    meson setup build_meson_min --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dreduced_os=true -Dffi=false
+    cd build_meson_min
+    ninja
