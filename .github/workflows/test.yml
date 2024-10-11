@@ -62,10 +62,10 @@ jobs:
             gcc
       - name: Build
         shell: cmd
-        run: make -j4 CC=gcc JANET_NO_AMALG=1
+        run: make -j4 CC=gcc
       - name: Test 
         shell: cmd
-        run: make test -j4 CC=gcc JANET_NO_AMALG=1
+        run: make test -j4 CC=gcc
 
   test-mingw-linux:
     name: Build and test with Mingw on Linux + Wine
