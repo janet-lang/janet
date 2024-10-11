@@ -31,9 +31,12 @@
 #ifndef JANET_SINGLE_THREADED
 #ifndef JANET_WINDOWS
 #include <pthread.h>
-#else
-#include <windows.h>
 #endif
+#endif
+
+/* Even if single threaded, include this for atomics! */
+#ifdef JANET_WINDOWS
+#include <windows.h>
 #endif
 
 #ifdef JANET_USE_STDATOMIC
