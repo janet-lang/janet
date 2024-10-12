@@ -31,9 +31,11 @@
 #ifndef JANET_SINGLE_THREADED
 #ifndef JANET_WINDOWS
 #include <pthread.h>
-#else
-#include <windows.h>
 #endif
+#endif
+
+#ifdef JANET_WINDOWS
+#include <windows.h>
 #endif
 
 #ifdef JANET_USE_STDATOMIC
@@ -546,8 +548,8 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
 /* Atomic refcounts */
 
 JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
-#ifdef JANET_WINDOWS
-    return InterlockedIncrement(x);
+#ifdef _MSC_VER
+    return _InterlockedIncrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, 1, memory_order_relaxed) + 1;
 #else
@@ -556,8 +558,8 @@ JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
 }
 
 JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
-#ifdef JANET_WINDOWS
-    return InterlockedDecrement(x);
+#ifdef _MSC_VER
+    return _InterlockedDecrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, -1, memory_order_acq_rel) - 1;
 #else
@@ -566,8 +568,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 }
 
 JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
-#ifdef JANET_WINDOWS
-    return InterlockedOr(x, 0);
+#ifdef _MSC_VER
+    return _InterlockedOr(x, 0);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_acquire);
 #else

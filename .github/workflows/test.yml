@@ -39,27 +39,57 @@ jobs:
         shell: cmd
         run: build_win test
 
+  test-windows-min:
+    name: Build and test on Windows Minimal build
+    strategy:
+      matrix:
+        os: [ windows-2019 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install Python Dependencies
+        run: pip install meson ninja
+      - name: Build
+        shell: cmd
+        run: |
+          meson setup build_meson_min --buildtype=release -Dsingle_threaded=true -Dnanbox=false -Ddynamic_modules=false -Ddocstrings=false -Dnet=false -Dsourcemaps=false -Dpeg=false -Dassembler=false -Dint_types=false -Dreduced_os=true -Dffi=false
+          cd build_meson_min
+          ninja
+
   test-mingw:
-    name: Build on Windows with Mingw (no test yet)
+    name: Build on Windows with Mingw
     runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
+    strategy:
+      matrix:
+        msystem: [ UCRT64, CLANG64 ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
       - name: Setup Mingw
         uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: ${{ matrix.msystem }}
           update: true
           install: >-
             base-devel
             git
             gcc
-      - name: Build the project
+      - name: Build
         shell: cmd
-        run: make -j4 CC=gcc JANET_NO_AMALG=1
+        run: make -j4 CC=gcc
+      - name: Test
+        shell: cmd
+        run: make -j4 CC=gcc test
 
   test-mingw-linux:
     name: Build and test with Mingw on Linux + Wine

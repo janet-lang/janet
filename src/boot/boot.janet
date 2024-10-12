@@ -4305,10 +4305,10 @@
         (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
-      (when check
-        (do-hook module bundle-name :check man))
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
-      (sync-manifest man))
+      (sync-manifest man)
+      (when check
+        (do-hook module bundle-name :check man)))
     (print "installed " bundle-name)
     bundle-name)
 
@@ -4677,7 +4677,8 @@
         (setdyn *lint-error* error-level)
         (setdyn *lint-warn* error-level)
         (when-let [profile.janet (dyn *profilepath*)]
-          (dofile profile.janet :exit true :env env))
+          (dofile profile.janet :exit true :env env)
+          (put env *current-file* nil))
         (repl getchunk nil env)))))
 
 ###
