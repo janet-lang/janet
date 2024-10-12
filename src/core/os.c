@@ -27,9 +27,10 @@
 #include "gc.h"
 #endif
 
+#include <stdlib.h>
+
 #ifndef JANET_REDUCED_OS
 
-#include <stdlib.h>
 #include <time.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -251,7 +252,7 @@ JANET_CORE_FN(os_exit,
     }
     janet_deinit();
     if (argc >= 2 && janet_truthy(argv[1])) {
-        _exit(status);
+        _Exit(status);
     } else {
         exit(status);
     }
