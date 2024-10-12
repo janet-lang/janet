@@ -47,7 +47,7 @@ typedef struct {
 #ifndef JANET_WINDOWS
     JanetStream *stream;
 #endif
-    JanetTable* watch_descriptors;
+    JanetTable *watch_descriptors;
     JanetChannel *channel;
     uint32_t default_flags;
     int is_watching;
@@ -85,9 +85,9 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
         }
         JanetKeyword keyw = janet_unwrap_keyword(options[i]);
         const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_linux,
-                sizeof(watcher_flags_linux) / sizeof(JanetWatchFlagName),
-                sizeof(JanetWatchFlagName),
-                keyw);
+                                           sizeof(watcher_flags_linux) / sizeof(JanetWatchFlagName),
+                                           sizeof(JanetWatchFlagName),
+                                           keyw);
         if (!result) {
             janet_panicf("unknown inotify flag %v", options[i]);
         }
@@ -154,99 +154,97 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             janet_schedule(fiber, janet_wrap_nil());
             janet_async_end(fiber);
             break;
-        case JANET_ASYNC_EVENT_ERR:
-            {
-                janet_schedule(fiber, janet_wrap_nil());
+        case JANET_ASYNC_EVENT_ERR: {
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            break;
+        }
+    read_more:
+        case JANET_ASYNC_EVENT_HUP:
+        case JANET_ASYNC_EVENT_INIT:
+        case JANET_ASYNC_EVENT_READ: {
+            Janet name = janet_wrap_nil();
+
+            /* Assumption - read will never return partial events *
+             * From documentation:
+             *
+             * The behavior when the buffer given to read(2) is too small to
+             * return information about the next event depends on the kernel
+             * version: before Linux 2.6.21, read(2) returns 0; since Linux
+             * 2.6.21, read(2) fails with the error EINVAL.  Specifying a buffer
+             * of size
+             *
+             *     sizeof(struct inotify_event) + NAME_MAX + 1
+             *
+             * will be sufficient to read at least one event. */
+            ssize_t nread;
+            do {
+                nread = read(stream->handle, buf, sizeof(buf));
+            } while (nread == -1 && errno == EINTR);
+
+            /* Check for errors - special case errors that can just be waited on to fix */
+            if (nread == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break;
+                }
+                janet_cancel(fiber, janet_ev_lasterr());
+                fiber->ev_state = NULL;
                 janet_async_end(fiber);
                 break;
             }
-    read_more:
-    case JANET_ASYNC_EVENT_HUP:
-    case JANET_ASYNC_EVENT_INIT:
-    case JANET_ASYNC_EVENT_READ:
-            {
-                Janet name = janet_wrap_nil();
+            if (nread < (ssize_t) sizeof(struct inotify_event)) break;
 
-                /* Assumption - read will never return partial events *
-                 * From documentation:
-                 *
-                 * The behavior when the buffer given to read(2) is too small to
-                 * return information about the next event depends on the kernel
-                 * version: before Linux 2.6.21, read(2) returns 0; since Linux
-                 * 2.6.21, read(2) fails with the error EINVAL.  Specifying a buffer
-                 * of size
-                 *
-                 *     sizeof(struct inotify_event) + NAME_MAX + 1
-                 *
-                 * will be sufficient to read at least one event. */
-                ssize_t nread;
-                do {
-                    nread = read(stream->handle, buf, sizeof(buf));
-                } while (nread == -1 && errno == EINTR);
-
-                /* Check for errors - special case errors that can just be waited on to fix */
-                if (nread == -1) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                        break;
-                    }
-                    janet_cancel(fiber, janet_ev_lasterr());
-                    fiber->ev_state = NULL;
-                    janet_async_end(fiber);
-                    break;
+            /* Iterate through all events read from the buffer */
+            char *cursor = buf;
+            while (cursor < buf + nread) {
+                struct inotify_event inevent;
+                memcpy(&inevent, cursor, sizeof(inevent));
+                cursor += sizeof(inevent);
+                /* Read path of inevent */
+                if (inevent.len) {
+                    name = janet_cstringv(cursor);
+                    cursor += inevent.len;
                 }
-                if (nread < (ssize_t) sizeof(struct inotify_event)) break;
 
-                /* Iterate through all events read from the buffer */
-                char *cursor = buf;
-                while (cursor < buf + nread) {
-                    struct inotify_event inevent;
-                    memcpy(&inevent, cursor, sizeof(inevent));
-                    cursor += sizeof(inevent);
-                    /* Read path of inevent */
-                    if (inevent.len) {
-                        name = janet_cstringv(cursor);
-                        cursor += inevent.len;
+                /* Got an event */
+                Janet path = janet_table_get(watcher->watch_descriptors, janet_wrap_integer(inevent.wd));
+                JanetKV *event = janet_struct_begin(6);
+                janet_struct_put(event, janet_ckeywordv("wd"), janet_wrap_integer(inevent.wd));
+                janet_struct_put(event, janet_ckeywordv("wd-path"), path);
+                if (janet_checktype(name, JANET_NIL)) {
+                    /* We were watching a file directly, so path is the full path. Split into dirname / basename */
+                    JanetString spath = janet_unwrap_string(path);
+                    const uint8_t *cursor = spath + janet_string_length(spath);
+                    const uint8_t *cursor_end = cursor;
+                    while (cursor > spath && cursor[0] != '/') {
+                        cursor--;
                     }
-
-                    /* Got an event */
-                    Janet path = janet_table_get(watcher->watch_descriptors, janet_wrap_integer(inevent.wd));
-                    JanetKV *event = janet_struct_begin(6);
-                    janet_struct_put(event, janet_ckeywordv("wd"), janet_wrap_integer(inevent.wd));
-                    janet_struct_put(event, janet_ckeywordv("wd-path"), path);
-                    if (janet_checktype(name, JANET_NIL)) {
-                        /* We were watching a file directly, so path is the full path. Split into dirname / basename */
-                        JanetString spath = janet_unwrap_string(path);
-                        const uint8_t *cursor = spath + janet_string_length(spath);
-                        const uint8_t *cursor_end = cursor;
-                        while (cursor > spath && cursor[0] != '/') {
-                            cursor--;
-                        }
-                        if (cursor == spath) {
-                            janet_struct_put(event, janet_ckeywordv("dir-name"), path);
-                            janet_struct_put(event, janet_ckeywordv("file-name"), name);
-                        } else {
-                            janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(janet_string(spath, (cursor - spath))));
-                            janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(janet_string(cursor + 1, (cursor_end - cursor - 1))));
-                        }
-                    } else {
+                    if (cursor == spath) {
                         janet_struct_put(event, janet_ckeywordv("dir-name"), path);
                         janet_struct_put(event, janet_ckeywordv("file-name"), name);
+                    } else {
+                        janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(janet_string(spath, (cursor - spath))));
+                        janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(janet_string(cursor + 1, (cursor_end - cursor - 1))));
                     }
-                    janet_struct_put(event, janet_ckeywordv("cookie"), janet_wrap_integer(inevent.cookie));
-                    Janet etype = janet_ckeywordv("type");
-                    const JanetWatchFlagName *wfn_end = watcher_flags_linux + sizeof(watcher_flags_linux) / sizeof(watcher_flags_linux[0]);
-                    for (const JanetWatchFlagName *wfn = watcher_flags_linux; wfn < wfn_end; wfn++) {
-                        if ((inevent.mask & wfn->flag) == wfn->flag) janet_struct_put(event, etype, janet_ckeywordv(wfn->name));
-                    }
-                    Janet eventv = janet_wrap_struct(janet_struct_end(event));
-
-                    janet_channel_give(watcher->channel, eventv);
+                } else {
+                    janet_struct_put(event, janet_ckeywordv("dir-name"), path);
+                    janet_struct_put(event, janet_ckeywordv("file-name"), name);
                 }
+                janet_struct_put(event, janet_ckeywordv("cookie"), janet_wrap_integer(inevent.cookie));
+                Janet etype = janet_ckeywordv("type");
+                const JanetWatchFlagName *wfn_end = watcher_flags_linux + sizeof(watcher_flags_linux) / sizeof(watcher_flags_linux[0]);
+                for (const JanetWatchFlagName *wfn = watcher_flags_linux; wfn < wfn_end; wfn++) {
+                    if ((inevent.mask & wfn->flag) == wfn->flag) janet_struct_put(event, etype, janet_ckeywordv(wfn->name));
+                }
+                Janet eventv = janet_wrap_struct(janet_struct_end(event));
 
-                /* Read some more if possible */
-                goto read_more;
+                janet_channel_give(watcher->channel, eventv);
             }
-            break;
+
+            /* Read some more if possible */
+            goto read_more;
+        }
+        break;
     }
 }
 
@@ -273,7 +271,8 @@ static void janet_watcher_unlisten(JanetWatcher *watcher) {
 #define WATCHFLAG_RECURSIVE 0x100000u
 
 static const JanetWatchFlagName watcher_flags_windows[] = {
-    {"all", 
+    {
+        "all",
         FILE_NOTIFY_CHANGE_ATTRIBUTES |
         FILE_NOTIFY_CHANGE_CREATION |
         FILE_NOTIFY_CHANGE_DIR_NAME |
@@ -282,7 +281,8 @@ static const JanetWatchFlagName watcher_flags_windows[] = {
         FILE_NOTIFY_CHANGE_LAST_WRITE |
         FILE_NOTIFY_CHANGE_SECURITY |
         FILE_NOTIFY_CHANGE_SIZE |
-        WATCHFLAG_RECURSIVE},
+        WATCHFLAG_RECURSIVE
+    },
     {"attributes", FILE_NOTIFY_CHANGE_ATTRIBUTES},
     {"creation", FILE_NOTIFY_CHANGE_CREATION},
     {"dir-name", FILE_NOTIFY_CHANGE_DIR_NAME},
@@ -302,9 +302,9 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
         }
         JanetKeyword keyw = janet_unwrap_keyword(options[i]);
         const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_windows,
-                sizeof(watcher_flags_windows) / sizeof(JanetWatchFlagName),
-                sizeof(JanetWatchFlagName),
-                keyw);
+                                           sizeof(watcher_flags_windows) / sizeof(JanetWatchFlagName),
+                                           sizeof(JanetWatchFlagName),
+                                           keyw);
         if (!result) {
             janet_panicf("unknown windows filewatch flag %v", options[i]);
         }
@@ -339,19 +339,19 @@ typedef struct {
 
 static void read_dir_changes(OverlappedWatch *ow) {
     BOOL result = ReadDirectoryChangesW(ow->stream->handle,
-            (NotifyChange *) ow->buf,
-            FILE_INFO_PADDING,
-            (ow->flags & WATCHFLAG_RECURSIVE) ? TRUE : FALSE,
-            ow->flags & ~WATCHFLAG_RECURSIVE,
-            NULL,
-            (OVERLAPPED *) ow,
-            NULL);
+                                        (NotifyChange *) ow->buf,
+                                        FILE_INFO_PADDING,
+                                        (ow->flags & WATCHFLAG_RECURSIVE) ? TRUE : FALSE,
+                                        ow->flags & ~WATCHFLAG_RECURSIVE,
+                                        NULL,
+                                        (OVERLAPPED *) ow,
+                                        NULL);
     if (!result) {
         janet_panicv(janet_ev_lasterr());
     }
 }
 
-static const char* watcher_actions_windows[] = {
+static const char *watcher_actions_windows[] = {
     "unknown",
     "added",
     "removed",
@@ -382,48 +382,47 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_FAILED:
             janet_stream_close(ow->stream);
             break;
-        case JANET_ASYNC_EVENT_COMPLETE:
-            {
-                if (!watcher->is_watching) {
-                    janet_stream_close(ow->stream);
-                    break;
-                }
-
-                NotifyChange *fni = (NotifyChange *) ow->buf;
-
-                while (1) {
-                    /* Got an event */
-
-                    /* Extract name */
-                    Janet filename;
-                    if (fni->FileNameLength) {
-                        int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), NULL, 0, NULL, NULL);
-                        janet_assert(nbytes, "bad utf8 path");
-                        uint8_t *into = janet_string_begin(nbytes);
-                        WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), (char *) into, nbytes, NULL, NULL);
-                        filename = janet_wrap_string(janet_string_end(into));
-                    } else {
-                        filename = janet_cstringv("");
-                    }
-
-                    JanetKV *event = janet_struct_begin(3);
-                    janet_struct_put(event, janet_ckeywordv("type"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
-                    janet_struct_put(event, janet_ckeywordv("file-name"), filename);
-                    janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(ow->dir_path));
-                    Janet eventv = janet_wrap_struct(janet_struct_end(event));
-
-                    janet_channel_give(watcher->channel, eventv);
-
-                    /* Next event */
-                    if (!fni->NextEntryOffset) break;
-                    fni = (NotifyChange *) ((char *)fni + fni->NextEntryOffset);
-                }
-
-                /* Make another call to read directory changes */
-                read_dir_changes(ow);
-                janet_async_in_flight(fiber);
+        case JANET_ASYNC_EVENT_COMPLETE: {
+            if (!watcher->is_watching) {
+                janet_stream_close(ow->stream);
+                break;
             }
-            break;
+
+            NotifyChange *fni = (NotifyChange *) ow->buf;
+
+            while (1) {
+                /* Got an event */
+
+                /* Extract name */
+                Janet filename;
+                if (fni->FileNameLength) {
+                    int32_t nbytes = (int32_t) WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), NULL, 0, NULL, NULL);
+                    janet_assert(nbytes, "bad utf8 path");
+                    uint8_t *into = janet_string_begin(nbytes);
+                    WideCharToMultiByte(CP_UTF8, 0, fni->FileName, fni->FileNameLength / sizeof(wchar_t), (char *) into, nbytes, NULL, NULL);
+                    filename = janet_wrap_string(janet_string_end(into));
+                } else {
+                    filename = janet_cstringv("");
+                }
+
+                JanetKV *event = janet_struct_begin(3);
+                janet_struct_put(event, janet_ckeywordv("type"), janet_ckeywordv(watcher_actions_windows[fni->Action]));
+                janet_struct_put(event, janet_ckeywordv("file-name"), filename);
+                janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(ow->dir_path));
+                Janet eventv = janet_wrap_struct(janet_struct_end(event));
+
+                janet_channel_give(watcher->channel, eventv);
+
+                /* Next event */
+                if (!fni->NextEntryOffset) break;
+                fni = (NotifyChange *)((char *)fni + fni->NextEntryOffset);
+            }
+
+            /* Make another call to read directory changes */
+            read_dir_changes(ow);
+            janet_async_in_flight(fiber);
+        }
+        break;
     }
 }
 
@@ -439,12 +438,12 @@ static void start_listening_ow(OverlappedWatch *ow) {
 
 static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t flags) {
     HANDLE handle = CreateFileA(path,
-            FILE_LIST_DIRECTORY | GENERIC_READ,
-            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_OVERLAPPED | FILE_FLAG_BACKUP_SEMANTICS,
-            NULL);
+                                FILE_LIST_DIRECTORY | GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                NULL,
+                                OPEN_EXISTING,
+                                FILE_FLAG_OVERLAPPED | FILE_FLAG_BACKUP_SEMANTICS,
+                                NULL);
     if (handle == INVALID_HANDLE_VALUE) {
         janet_panicv(janet_ev_lasterr());
     }
@@ -574,20 +573,20 @@ static const JanetAbstractType janet_filewatch_at = {
 };
 
 JANET_CORE_FN(cfun_filewatch_make,
-        "(filewatch/new channel &opt default-flags)",
-        "Create a new filewatcher that will give events to a channel channel. See `filewatch/add` for available flags.\n\n"
-        "When an event is triggered by the filewatcher, a struct containing information will be given to channel as with `ev/give`. "
-        "The contents of the channel depend on the OS, but will contain some common keys:\n\n"
-        "* `:type` -- the type of the event that was raised.\n\n"
-        "* `:file-name` -- the base file name of the file that triggered the event.\n\n"
-        "* `:dir-name` -- the directory name of the file that triggered the event.\n\n"
-        "Events also will contain keys specific to the host OS.\n\n"
-        "Windows has no extra properties on events.\n\n"
-        "Linux has the following extra properties on events:\n\n"
-        "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this.\n\n"
-        "* `:wd-path` -- the string path for watched directory of file. For files, will be the same as `:file-name`, and for directories, will be the same as `:dir-name`.\n\n"
-        "* `:cookie` -- a randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
-        "") {
+              "(filewatch/new channel &opt default-flags)",
+              "Create a new filewatcher that will give events to a channel channel. See `filewatch/add` for available flags.\n\n"
+              "When an event is triggered by the filewatcher, a struct containing information will be given to channel as with `ev/give`. "
+              "The contents of the channel depend on the OS, but will contain some common keys:\n\n"
+              "* `:type` -- the type of the event that was raised.\n\n"
+              "* `:file-name` -- the base file name of the file that triggered the event.\n\n"
+              "* `:dir-name` -- the directory name of the file that triggered the event.\n\n"
+              "Events also will contain keys specific to the host OS.\n\n"
+              "Windows has no extra properties on events.\n\n"
+              "Linux has the following extra properties on events:\n\n"
+              "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this.\n\n"
+              "* `:wd-path` -- the string path for watched directory of file. For files, will be the same as `:file-name`, and for directories, will be the same as `:dir-name`.\n\n"
+              "* `:cookie` -- a randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
+              "") {
     janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, -1);
     JanetChannel *channel = janet_getchannel(argv, 0);
@@ -598,44 +597,44 @@ JANET_CORE_FN(cfun_filewatch_make,
 }
 
 JANET_CORE_FN(cfun_filewatch_add,
-        "(filewatch/add watcher path &opt flags)",
-        "Add a path to the watcher. Available flags depend on the current OS, and are as follows:\n\n"
-        "Windows/MINGW (flags correspond to FILE_NOTIFY_CHANGE_* flags in win32 documentation):\n\n"
-        "* `:all` - trigger an event for all of the below triggers.\n\n"
-        "* `:attributes` - FILE_NOTIFY_CHANGE_ATTRIBUTES\n\n"
-        "* `:creation` - FILE_NOTIFY_CHANGE_CREATION\n\n"
-        "* `:dir-name` - FILE_NOTIFY_CHANGE_DIR_NAME\n\n"
-        "* `:last-access` - FILE_NOTIFY_CHANGE_LAST_ACCESS\n\n"
-        "* `:last-write` - FILE_NOTIFY_CHANGE_LAST_WRITE\n\n"
-        "* `:security` - FILE_NOTIFY_CHANGE_SECURITY\n\n"
-        "* `:size` - FILE_NOTIFY_CHANGE_SIZE\n\n"
-        "* `:recursive` - watch subdirectories recursively\n\n"
-        "Linux (flags correspond to IN_* flags from <sys/inotify.h>):\n\n"
-        "* `:access` - IN_ACCESS\n\n"
-        "* `:all` - IN_ALL_EVENTS\n\n"
-        "* `:attrib` - IN_ATTRIB\n\n"
-        "* `:close-nowrite` - IN_CLOSE_NOWRITE\n\n"
-        "* `:close-write` - IN_CLOSE_WRITE\n\n"
-        "* `:create` - IN_CREATE\n\n"
-        "* `:delete` - IN_DELETE\n\n"
-        "* `:delete-self` - IN_DELETE_SELF\n\n"
-        "* `:ignored` - IN_IGNORED\n\n"
-        "* `:modify` - IN_MODIFY\n\n"
-        "* `:move-self` - IN_MOVE_SELF\n\n"
-        "* `:moved-from` - IN_MOVED_FROM\n\n"
-        "* `:moved-to` - IN_MOVED_TO\n\n"
-        "* `:open` - IN_OPEN\n\n"
-        "* `:q-overflow` - IN_Q_OVERFLOW\n\n"
-        "* `:unmount` - IN_UNMOUNT\n\n\n"
-        "On Windows, events will have the following possible types:\n\n"
-        "* `:unknown`\n\n"
-        "* `:added`\n\n"
-        "* `:removed`\n\n"
-        "* `:modified`\n\n"
-        "* `:renamed-old`\n\n"
-        "* `:renamed-new`\n\n"
-        "On Linux, events will a `:type` corresponding to the possible flags, excluding `:all`.\n"
-        "") {
+              "(filewatch/add watcher path &opt flags)",
+              "Add a path to the watcher. Available flags depend on the current OS, and are as follows:\n\n"
+              "Windows/MINGW (flags correspond to FILE_NOTIFY_CHANGE_* flags in win32 documentation):\n\n"
+              "* `:all` - trigger an event for all of the below triggers.\n\n"
+              "* `:attributes` - FILE_NOTIFY_CHANGE_ATTRIBUTES\n\n"
+              "* `:creation` - FILE_NOTIFY_CHANGE_CREATION\n\n"
+              "* `:dir-name` - FILE_NOTIFY_CHANGE_DIR_NAME\n\n"
+              "* `:last-access` - FILE_NOTIFY_CHANGE_LAST_ACCESS\n\n"
+              "* `:last-write` - FILE_NOTIFY_CHANGE_LAST_WRITE\n\n"
+              "* `:security` - FILE_NOTIFY_CHANGE_SECURITY\n\n"
+              "* `:size` - FILE_NOTIFY_CHANGE_SIZE\n\n"
+              "* `:recursive` - watch subdirectories recursively\n\n"
+              "Linux (flags correspond to IN_* flags from <sys/inotify.h>):\n\n"
+              "* `:access` - IN_ACCESS\n\n"
+              "* `:all` - IN_ALL_EVENTS\n\n"
+              "* `:attrib` - IN_ATTRIB\n\n"
+              "* `:close-nowrite` - IN_CLOSE_NOWRITE\n\n"
+              "* `:close-write` - IN_CLOSE_WRITE\n\n"
+              "* `:create` - IN_CREATE\n\n"
+              "* `:delete` - IN_DELETE\n\n"
+              "* `:delete-self` - IN_DELETE_SELF\n\n"
+              "* `:ignored` - IN_IGNORED\n\n"
+              "* `:modify` - IN_MODIFY\n\n"
+              "* `:move-self` - IN_MOVE_SELF\n\n"
+              "* `:moved-from` - IN_MOVED_FROM\n\n"
+              "* `:moved-to` - IN_MOVED_TO\n\n"
+              "* `:open` - IN_OPEN\n\n"
+              "* `:q-overflow` - IN_Q_OVERFLOW\n\n"
+              "* `:unmount` - IN_UNMOUNT\n\n\n"
+              "On Windows, events will have the following possible types:\n\n"
+              "* `:unknown`\n\n"
+              "* `:added`\n\n"
+              "* `:removed`\n\n"
+              "* `:modified`\n\n"
+              "* `:renamed-old`\n\n"
+              "* `:renamed-new`\n\n"
+              "On Linux, events will a `:type` corresponding to the possible flags, excluding `:all`.\n"
+              "") {
     janet_arity(argc, 2, -1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
     const char *path = janet_getcstring(argv, 1);
@@ -645,8 +644,8 @@ JANET_CORE_FN(cfun_filewatch_add,
 }
 
 JANET_CORE_FN(cfun_filewatch_remove,
-        "(filewatch/remove watcher path)",
-        "Remove a path from the watcher.") {
+              "(filewatch/remove watcher path)",
+              "Remove a path from the watcher.") {
     janet_fixarity(argc, 2);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
     const char *path = janet_getcstring(argv, 1);
@@ -655,8 +654,8 @@ JANET_CORE_FN(cfun_filewatch_remove,
 }
 
 JANET_CORE_FN(cfun_filewatch_listen,
-        "(filewatch/listen watcher)",
-        "Listen for changes in the watcher.") {
+              "(filewatch/listen watcher)",
+              "Listen for changes in the watcher.") {
     janet_fixarity(argc, 1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
     janet_watcher_listen(watcher);
@@ -664,8 +663,8 @@ JANET_CORE_FN(cfun_filewatch_listen,
 }
 
 JANET_CORE_FN(cfun_filewatch_unlisten,
-        "(filewatch/unlisten watcher)",
-        "Stop listening for changes on a given watcher.") {
+              "(filewatch/unlisten watcher)",
+              "Stop listening for changes on a given watcher.") {
     janet_fixarity(argc, 1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
     janet_watcher_unlisten(watcher);
