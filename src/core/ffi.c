@@ -400,7 +400,7 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
 
     JanetFFIStruct *st = janet_abstract(&janet_struct_type,
                                         sizeof(JanetFFIStruct) + argc * sizeof(JanetFFIStructMember));
-    st->field_count = member_count;
+    st->field_count = 0;
     st->size = 0;
     st->align = 1;
     if (argc == 0) {
@@ -418,13 +418,13 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         st->fields[i].type = decode_ffi_type(argv[j]);
         size_t el_size = type_size(st->fields[i].type);
         size_t el_align = type_align(st->fields[i].type);
+        if (el_align <= 0) janet_panicf("bad field type %V", argv[j]);
         if (all_packed || pack_one) {
             if (st->size % el_align != 0) is_aligned = 0;
             st->fields[i].offset = st->size;
             st->size += (uint32_t) el_size;
         } else {
             if (el_align > st->align) st->align = (uint32_t) el_align;
-            if (el_align <= 0) el_align = 1;
             st->fields[i].offset = (uint32_t)(((st->size + el_align - 1) / el_align) * el_align);
             st->size = (uint32_t)(el_size + st->fields[i].offset);
         }
@@ -434,6 +434,7 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
     st->size += (st->align - 1);
     st->size /= st->align;
     st->size *= st->align;
+    st->field_count = member_count;
     return st;
 }
 
