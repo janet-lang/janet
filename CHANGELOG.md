@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 - Add `*repl-prompt*` dynamic binding to allow customizing the built in repl.
 - Add multiple path support in the `JANET_PATH` environment variables. This lets
   user more easily import modules from many directories.
+- Add `nth` and `only-tags` PEG specials to select from sub-captures while
+  dropping the rest.
 
 ## 1.36.0 - 2024-09-07
 - Improve error messages in `bundle/add*` functions.
