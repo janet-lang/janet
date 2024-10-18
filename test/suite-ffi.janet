@@ -52,5 +52,10 @@
   (assert (= 26 (ffi/size [:char :pack :int @[:char 21]]))
           "array struct size"))
 
-(end-suite)
+(compwhen has-ffi
+  (assert-no-error "bad struct issue #1512" (ffi/struct :void))
+  (def s (ffi/struct :void))
+  (assert (= 0 (ffi/size s)))
+  (assert (= 1 (ffi/align s))))
 
+(end-suite)

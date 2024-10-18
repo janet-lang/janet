@@ -424,6 +424,7 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
             st->size += (uint32_t) el_size;
         } else {
             if (el_align > st->align) st->align = (uint32_t) el_align;
+            if (el_align <= 0) el_align = 1;
             st->fields[i].offset = (uint32_t)(((st->size + el_align - 1) / el_align) * el_align);
             st->size = (uint32_t)(el_size + st->fields[i].offset);
         }
