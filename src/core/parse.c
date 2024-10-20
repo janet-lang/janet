@@ -231,7 +231,7 @@ static void delim_error(JanetParser *parser, size_t stack_index, char c, const c
                 janet_buffer_push_u8(buffer, '`');
             }
         }
-        janet_formatb(buffer, " opened at line %d, column %d", s->line, s->column);
+        janet_formatb(buffer, " opened at line %d, column %d", (int32_t) s->line, (int32_t) s->column);
     }
     parser->error = (const char *) janet_string(buffer->data, buffer->count);
     parser->flag |= JANET_PARSER_GENERATED_ERROR;
