@@ -125,7 +125,7 @@ jobs:
 
   test-s390x-linux:
     name: Build and test s390x in qemu
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: Checkout the repository
       uses: actions/checkout@master
