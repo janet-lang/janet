@@ -71,10 +71,10 @@ int janet_string_compare(const uint8_t *lhs, const uint8_t *rhs) {
 int janet_string_equalconst(const uint8_t *lhs, const uint8_t *rhs, int32_t rlen, int32_t rhash) {
     int32_t lhash = janet_string_hash(lhs);
     int32_t llen = janet_string_length(lhs);
-    if (lhs == rhs)
-        return 1;
     if (lhash != rhash || llen != rlen)
         return 0;
+    if (lhs == rhs)
+        return 1;
     return !memcmp(lhs, rhs, rlen);
 }
 
