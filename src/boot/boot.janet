@@ -154,6 +154,11 @@
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
+(defmacro assertf
+  "Convenience macro that combines `assert` and `string/format`."
+  [x & args]
+  ~(as-macro ,assert ,x (,string/format ,;args)))
+
 (defmacro defdyn
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
@@ -3944,7 +3949,7 @@
     (defn make-sig []
       (ffi/signature :default real-ret-type ;computed-type-args))
     (defn make-ptr []
-      (assert (ffi/lookup (if lazy (llib) lib) raw-symbol) (string "failed to find ffi symbol " raw-symbol)))
+      (assertf (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find ffi symbol %v" raw-symbol))
     (if lazy
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
@@ -4121,7 +4126,7 @@
     "Get the manifest for a give installed bundle"
     [bundle-name]
     (def name (get-manifest-filename bundle-name))
-    (assert (fexists name) (string "no bundle " bundle-name " found"))
+    (assertf (fexists name) "no bundle %v found" bundle-name)
     (parse (slurp name)))
 
   (defn- get-bundle-module
@@ -4264,11 +4269,9 @@
       (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
       (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
     (def bundle-name (get config :name default-bundle-name))
-    (assert bundle-name (errorf "unable to infer bundle name for %v, use :name argument" path))
-    (assert (not (string/check-set "\\/" bundle-name))
-            (string "bundle name "
-                    bundle-name
-                    " cannot contain path separators"))
+    (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
+    (assertf (not (string/check-set "\\/" bundle-name))
+             "bundle name %v cannot contain path separators" bundle-name)
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assert (not (fexists (get-manifest-filename bundle-name)))
             "bundle is already installed")
@@ -4320,7 +4323,7 @@
     (var i 0)
     (def man (bundle/manifest bundle-name))
     (def files (get man :files @[]))
-    (assert (os/mkdir dest-dir) (string "could not create directory " dest-dir " (or it already exists)"))
+    (assertf (os/mkdir dest-dir) "could not create directory %v (or it already exists)" dest-dir)
     (def s (sep))
     (os/mkdir (string dest-dir s "bundle"))
     (def install-hook (string dest-dir s "bundle" s "init.janet"))

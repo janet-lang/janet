@@ -119,7 +119,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install gcc-arm-linux-gnueabi qemu-user
       - name: Compile the project
-        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" CC=arm-linux-gnueabi-gcc LD=arm-linux-gnueabi-gcc 
+        run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" CC=arm-linux-gnueabi-gcc LD=arm-linux-gnueabi-gcc
       - name: Test the project
         run: make RUN="qemu-arm -L /usr/arm-linux-gnueabi/" SUBRUN="qemu-arm -L /usr/arm-linux-gnueabi/" test VERBOSE=1
 
@@ -132,4 +132,4 @@ jobs:
     - name: Do Qemu build and test
       run: |
         docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        docker run --rm -v .:/janet s390x/ubuntu bash -c "apt-get -y update && apt-get -y install git build-essential && cd /janet && make -j3 && make test"
+        docker run --rm -v .:/janet --platform linux/s390x ubuntu bash -c "apt-get -y update && apt-get -y install git build-essential && cd /janet && make -j3 && make test"

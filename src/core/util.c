@@ -117,14 +117,20 @@ const char *const janet_status_names[16] = {
     "alive"
 };
 
+uint32_t janet_hash_mix(uint32_t input, uint32_t more) {
+    uint32_t mix1 = (more + 0x9e3779b9 + (input << 6) + (input >> 2));
+    return input ^ (0x9e3779b9 + (mix1 << 6) + (mix1 >> 2));
+}
+
 #ifndef JANET_PRF
 
 int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
-    if (NULL == str) return 5381;
+    if (NULL == str || len == 0) return 5381;
     const uint8_t *end = str + len;
     uint32_t hash = 5381;
     while (str < end)
         hash = (hash << 5) + hash + *str++;
+    hash = janet_hash_mix(hash, (uint32_t) len);
     return (int32_t) hash;
 }
 
@@ -239,11 +245,6 @@ int32_t janet_string_calchash(const uint8_t *str, int32_t len) {
 }
 
 #endif
-
-uint32_t janet_hash_mix(uint32_t input, uint32_t more) {
-    uint32_t mix1 = (more + 0x9e3779b9 + (input << 6) + (input >> 2));
-    return input ^ (0x9e3779b9 + (mix1 << 6) + (mix1 >> 2));
-}
 
 /* Computes hash of an array of values */
 int32_t janet_array_calchash(const Janet *array, int32_t len) {
