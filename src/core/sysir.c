@@ -97,9 +97,9 @@ const char *janet_sysop_names[] = {
     "return", /* JANET_SYSOP_RETURN */
     "jump", /* JANET_SYSOP_JUMP */
     "branch", /* JANET_SYSOP_BRANCH */
-    "branch_not", /* JANET_SYSOP_BRANCH_NOT */
+    "branch-not", /* JANET_SYSOP_BRANCH_NOT */
     "address", /* JANET_SYSOP_ADDRESS */
-    "type-primitive", /* JANET_SYSOP_TYPE_PRIMITIVE */
+    "type-prim", /* JANET_SYSOP_TYPE_PRIMITIVE */
     "type-struct", /* JANET_SYSOP_TYPE_STRUCT */
     "type-bind", /* JANET_SYSOP_TYPE_BIND */
     "arg", /* JANET_SYSOP_ARG */
@@ -553,6 +553,13 @@ static void janet_sysir_init_instructions(JanetSysIR *out, JanetView instruction
                 instr_assert_length(tuple, 3, opvalue);
                 instruction.type_prim.dest_type = instr_read_type_operand(tuple[1], out, READ_TYPE_DEFINITION);
                 instruction.type_prim.prim = instr_read_prim(tuple[2]);
+                if (instruction.type_prim.prim == JANET_PRIM_UNKNOWN ||
+                        instruction.type_prim.prim == JANET_PRIM_STRUCT ||
+                        instruction.type_prim.prim == JANET_PRIM_UNION ||
+                        instruction.type_prim.prim == JANET_PRIM_POINTER ||
+                        instruction.type_prim.prim == JANET_PRIM_ARRAY) {
+                    janet_panic("bad primitive");
+                }
                 janet_v_push(ir, instruction);
                 break;
             }
@@ -1129,7 +1136,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
         JanetSysTypeInfo tinfo = linkage->type_defs[type];
         sysir->error_ctx = janet_wrap_number(i);
         if (tinfo.prim == JANET_PRIM_UNKNOWN) {
-            janet_panicf("in %p, unable to infer type for %s", sysir->error_ctx, rname(sysir, i));
+            janet_panicf("unable to infer type for %s (type %p), %d", rname(sysir, i), tname(sysir, type), type);
         }
     }
 
@@ -1155,7 +1162,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 uint32_t ret_type = 0;
                 if (instruction.ret.has_value) {
                     rcheck_const_valid(sysir, instruction.ret.value);
-                    ret_type = sysir->types[instruction.ret.value];
+                    ret_type = janet_sys_optype(sysir, instruction.ret.value);
                 }
                 if (found_return) {
                     if (instruction.ret.has_value && !sysir->has_return_type) {
@@ -1246,7 +1253,7 @@ static void janet_sysir_type_check(JanetSysIR *sysir) {
                 tcheck_boolean(sysir, sysir->types[instruction.three.dest]);
                 break;
             case JANET_SYSOP_ADDRESS:
-                rcheck_pointer(sysir, sysir->types[instruction.two.dest]);
+                rcheck_pointer(sysir, instruction.two.dest);
                 break;
             case JANET_SYSOP_BRANCH:
             case JANET_SYSOP_BRANCH_NOT:
@@ -1523,7 +1530,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
                     break;
                 }
                 case JANET_SYSOP_ADDRESS:
-                    janet_formatb(buffer, "  _r%u = (char *) &", instruction.two.dest);
+                    janet_formatb(buffer, "  _r%u = (void *) &", instruction.two.dest);
                     op_or_const(ir, buffer, instruction.two.src);
                     janet_formatb(buffer, ";\n");
                     break;

@@ -12,6 +12,7 @@
 (def slot-types @{})
 (def functions @{})
 (def type-fields @{})
+(def pointer-derefs @{})
 
 (defn get-slot
   [&opt new-name]
@@ -65,11 +66,14 @@
   (add-prim-type 'float 'f32)
   (add-prim-type 'double 'f64)
   (add-prim-type 'int 's32)
+  (add-prim-type 'uint 'u32)
   (add-prim-type 'long 's64)
   (add-prim-type 'ulong 'u64)
-  (add-prim-type 'pointer 'pointer)
   (add-prim-type 'boolean 'boolean)
   (add-prim-type 's16 's16)
+  (add-prim-type 'byte 'u8)
+  (array/push into ~(type-pointer pointer byte))
+  (make-type 'pointer)
   (sysir/asm ctx into)
   ctx)
 
@@ -177,6 +181,41 @@
             (array/push into ~(move ,slot ,result))
             slot)
 
+          # Address of (& operator in C)
+          'address
+          (do
+            (assert (= 1 (length args)))
+            (def [thing] args)
+            (def [name tp] (type-extract thing 'int))
+            (def result (visit1 thing into false tp))
+            (def slot (get-slot))
+            #(assign-type name 'pointer)
+            (array/push into ~(bind ,slot pointer))
+            (array/push into ~(address ,slot ,result))
+            slot)
+
+          'load
+          (do
+            (assert (= 1 (length args)))
+            (def [thing] args)
+            (def [name tp] (type-extract thing 'pointer))
+            (def result (visit1 thing into false tp))
+            (def slot (get-slot))
+            (def ptype (or type-hint 'char))
+            (array/push into ~(bind ,slot ,ptype))
+            (array/push into ~(load ,slot ,result))
+            slot)
+
+          'store
+          (do
+            (assert (= 2 (length args)))
+            (def [dest value] args)
+            (def [name tp] (type-extract dest 'pointer))
+            (def dest-r (visit1 dest into false tp))
+            (def value-r (visit1 value into false))
+            (array/push into ~(store ,dest-r ,value-r))
+            value-r)
+
           # Assignment
           'set
           (do
@@ -229,15 +268,19 @@
             (assert (< 2 (length args) 4))
             (def [cnd tru fal] args)
             (def condition-slot (visit1 cnd into false 'boolean))
-            (def ret (get-slot))
-            (array/push into ~(bind ,ret ,type-hint))
+            (def ret (if type-hint (get-slot)))
+            (when type-hint (array/push into ~(bind ,ret ,type-hint)))
             (array/push into ~(branch ,condition-slot ,lab))
             # false path
-            (array/push into ~(move ,ret ,(visit1 tru into false type-hint)))
+            (if type-hint
+              (array/push into ~(move ,ret ,(visit1 fal into false type-hint)))
+              (visit1 fal into true))
             (array/push into ~(jump ,lab-end))
             (array/push into lab)
             # true path
-            (array/push into ~(move ,ret ,(visit1 fal into false type-hint)))
+            (if type-hint
+              (array/push into ~(move ,ret ,(visit1 tru into false type-hint)))
+              (visit1 tru into true))
             (array/push into lab-end)
             ret)
 
@@ -376,6 +419,16 @@
       # (eprintf "%.99M" into)
       (sysir/asm ctx into))
 
+    # Declare a pointer type
+    'defpointer
+    (do
+      (def into @[])
+      (def [name element] rest)
+      (def field-types @[])
+      (array/push into ~(type-pointer ,name ,element))
+      # (eprintf "%.99M" into)
+      (sysir/asm ctx into))
+
     # Declare an array type
     'defarray
     (do
@@ -424,7 +477,7 @@
         (each part body
           (visit1 part ir-asm true)))
       (put functions fn-name (freeze signature))
-      # (eprintf "%.99M" ir-asm)
+      (when (dyn :verbose) (eprintf "%.99M" ir-asm))
       (sysir/asm ctx ir-asm))
 
     (errorf "unknown form %p" form)))
@@ -463,5 +516,6 @@
 (defmacro defstruct [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defstruct ,;args))])
 (defmacro defunion [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defunion ,;args))])
 (defmacro defarray [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defarray ,;args))])
+(defmacro defpointer [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defpointer ,;args))])
 (defmacro defn-external [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn-external ,;args))])
 (defmacro defsys [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn ,;args))])
