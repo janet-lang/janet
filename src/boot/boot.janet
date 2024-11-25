@@ -154,11 +154,6 @@
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
-(defmacro assertf
-  "Convenience macro that combines `assert` and `string/format`."
-  [x & args]
-  ~(as-macro ,assert ,x (,string/format ,;args)))
-
 (defmacro defdyn
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
@@ -208,6 +203,16 @@
   "A combination of `error` and `string/format`. Equivalent to `(error (string/format fmt ;args))`."
   [fmt & args]
   (error (string/format fmt ;args)))
+
+(defmacro assertf
+  "Convenience macro that combines `assert` and `string/format`."
+  [x fmt & args]
+  (def v (gensym))
+  ~(do
+     (def ,v ,x)
+     (if ,v
+       ,v
+       (,errorf ,fmt ,;args))))
 
 (defmacro default
   ``Define a default value for an optional argument.

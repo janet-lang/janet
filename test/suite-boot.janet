@@ -987,11 +987,10 @@
 (setdyn *debug* nil)
 
 # issue #1516
-(assert (assertf true) "assertf 1 argument")
+(assert-error "assertf 1 argument" (macex '(assertf true)))
 (assert (assertf true "fun message") "assertf 2 arguments")
 (assert (assertf true "%s message" "mystery") "assertf 3 arguments")
 (assert (assertf (not nil) "%s message" "ordinary") "assertf not nil")
-(assert-error "assertf error 1" (assertf false))
 (assert-error "assertf error 2" (assertf false "fun message"))
 (assert-error "assertf error 3" (assertf false "%s message" "mystery"))
 (assert-error "assertf error 4" (assertf nil "%s %s" "alice" "bob"))
