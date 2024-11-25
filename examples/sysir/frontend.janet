@@ -12,7 +12,6 @@
 (def slot-types @{})
 (def functions @{})
 (def type-fields @{})
-(def pointer-derefs @{})
 
 (defn get-slot
   [&opt new-name]
@@ -71,8 +70,9 @@
   (add-prim-type 'ulong 'u64)
   (add-prim-type 'boolean 'boolean)
   (add-prim-type 's16 's16)
+  (add-prim-type 'u16 'u16)
   (add-prim-type 'byte 'u8)
-  (array/push into ~(type-pointer pointer byte))
+  (array/push into ~(type-pointer pointer uint))
   (make-type 'pointer)
   (sysir/asm ctx into)
   ctx)
@@ -139,6 +139,18 @@
           '> (do-comp 'gt args into)
           '>= (do-comp 'gte args into)
 
+          # Pointers
+          'pointer-add
+          (do
+            (assert (= 2 (length args)))
+            (def [base offset] args)
+            (def base-slot (visit1 base into false type-hint))
+            (def offset-slot (visit1 offset into false 'int))
+            (def slot (get-slot))
+            (when type-hint (array/push into ~(bind ,slot ,type-hint)))
+            (array/push into ~(pointer-add ,slot ,base-slot ,offset-slot))
+            slot)
+
           # Type hinting
           'the
           (do
@@ -198,8 +210,8 @@
           (do
             (assert (= 1 (length args)))
             (def [thing] args)
-            (def [name tp] (type-extract thing 'pointer))
-            (def result (visit1 thing into false tp))
+            # (def [name tp] (type-extract thing 'pointer))
+            (def result (visit1 thing into false))
             (def slot (get-slot))
             (def ptype (or type-hint 'char))
             (array/push into ~(bind ,slot ,ptype))
@@ -210,8 +222,8 @@
           (do
             (assert (= 2 (length args)))
             (def [dest value] args)
-            (def [name tp] (type-extract dest 'pointer))
-            (def dest-r (visit1 dest into false tp))
+            # (def [name tp] (type-extract dest 'pointer))
+            (def dest-r (visit1 dest into false))
             (def value-r (visit1 value into false))
             (array/push into ~(store ,dest-r ,value-r))
             value-r)

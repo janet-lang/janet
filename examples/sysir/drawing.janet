@@ -5,10 +5,11 @@
 (use ./frontend)
 
 (defpointer p32 uint)
+(defpointer cursor p32)
 (defn-external write:void [fd:int mem:pointer size:uint])
 (defn-external exit:void [x:int])
-(defn-external malloc:p32 [x:uint])
-(defn-external free:void [m:p32])
+(defn-external malloc:pointer [x:uint])
+(defn-external free:void [m:pointer])
 
 # assume 128x128 32 bit color image
 #   Size : 128 * 128 * 4 + align(14 + 40, 4) = 65592
@@ -16,13 +17,18 @@
 
 (setdyn :verbose true)
 
-
 (defsys write_32:void [x:uint]
   (write 1 (address x) 4)
   (return))
 
 (defsys write_16:void [x:uint]
   (write 1 (address x) 2)
+  (return))
+
+(defsys w32:void [c:cursor x:uint]
+  (def p:p32 (load c))
+  (store p x)
+  (store c (the p32 (pointer-add p 1)))
   (return))
 
 (defsys write_header:void [w:uint h:uint]
@@ -39,8 +45,8 @@
   (write_16 32) # bits per pixel
   (write_32 0) # compression method - no compression
   (write_32 0) # image size - not needed when no compression, 0 should be fine
-  (write_32 8192) # pixels per meter - horizontal resolution
-  (write_32 8192) # pixels per meter - vertical resolution
+  (write_32 4096) # pixels per meter - horizontal resolution
+  (write_32 4096) # pixels per meter - vertical resolution
   (write_32 0) # number of colors in palette - no palette so 0
   (write_32 0) # number of "important colors" ignored in practice
   (write_16 0) # add "gap 1" to align pixel array to multiple of 4 bytes
@@ -50,7 +56,7 @@
   (def red:uint 0xFFFF0000)
   (def blue:uint 0xFF0000FF)
   (def size:uint (* w h 4))
-  (def mem:p32 (malloc size))
+  (def mem:pointer (malloc size))
   (store mem (the uint 10))
   (var y:uint 0)
   (while (< y h)

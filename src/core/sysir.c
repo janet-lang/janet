@@ -897,8 +897,9 @@ static void rcheck_pointer_equals(JanetSysIR *sysir, uint32_t preg, uint32_t elr
         janet_panicf("type failure in %p, expected pointer for array, got %p", sysir->error_ctx, tname(sysir, t1));
     }
     uint32_t tp = linkage->type_defs[t1].pointer.type;
+    JanetPrim tpprim = linkage->type_defs[tp].prim;
     uint32_t t2 = janet_sys_optype(sysir, elreg);
-    if (t2 != tp) {
+    if (t2 != tp && tpprim != JANET_PRIM_VOID) { /* void pointer is compatible with everything TODO - can we get rid of this? */
         janet_panicf("type failure in %p, %p is not compatible with a pointer to %p",
                      sysir->error_ctx,
                      tname(sysir, t2),
@@ -1351,7 +1352,12 @@ static const char *c_prim_names[] = {
     "float",
     "double",
     "void *",
-    "bool"
+    "bool",
+    "!!!struct",
+    "!!!union",
+    "!!!array",
+    "void",
+    "!!!unknown"
 };
 
 /* Print a C constant */
