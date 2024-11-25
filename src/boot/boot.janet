@@ -2665,7 +2665,6 @@
 
       (do
         (var pindex 0)
-        (var pstatus nil)
         (def len (length buf))
         (when (= len 0)
           (:eof p)
