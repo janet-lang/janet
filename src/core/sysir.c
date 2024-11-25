@@ -894,16 +894,17 @@ static void rcheck_pointer_equals(JanetSysIR *sysir, uint32_t preg, uint32_t elr
     JanetSysIRLinkage *linkage = sysir->linkage;
     uint32_t t1 = janet_sys_optype(sysir, preg);
     if (linkage->type_defs[t1].prim != JANET_PRIM_POINTER) {
-        janet_panicf("type failure in %p, expected pointer for array, got %p", sysir->error_ctx, tname(sysir, t1));
+        janet_panicf("type failure in %p, expected pointer, got %p", sysir->error_ctx, tname(sysir, t1));
     }
     uint32_t tp = linkage->type_defs[t1].pointer.type;
     JanetPrim tpprim = linkage->type_defs[tp].prim;
     uint32_t t2 = janet_sys_optype(sysir, elreg);
     if (t2 != tp && tpprim != JANET_PRIM_VOID) { /* void pointer is compatible with everything TODO - can we get rid of this? */
-        janet_panicf("type failure in %p, %p is not compatible with a pointer to %p",
+        janet_panicf("type failure in %p, %p is not compatible with a pointer to %p (%p)",
                      sysir->error_ctx,
                      tname(sysir, t2),
-                     tname(sysir, tp));
+                     tname(sysir, tp),
+                     tname(sysir, t1));
     }
 }
 
@@ -1040,7 +1041,12 @@ static void rcheck_fgetp(JanetSysIR *sysir, uint32_t dest, uint32_t st, uint32_t
 
 /* Unlike C, only allow pointer on lhs for addition and subtraction */
 static void rcheck_pointer_math(JanetSysIR *sysir, uint32_t dest, uint32_t lhs, uint32_t rhs) {
-    rcheck_pointer_equals(sysir, dest, lhs);
+    rcheck_equal(sysir, dest, lhs);
+    JanetSysIRLinkage *linkage = sysir->linkage;
+    uint32_t t1 = janet_sys_optype(sysir, dest);
+    if (linkage->type_defs[t1].prim != JANET_PRIM_POINTER) {
+        janet_panicf("type failure in %p, expected pointer, got %p", sysir->error_ctx, tname(sysir, t1));
+    }
     rcheck_integer(sysir, rhs);
 }
 
@@ -1400,7 +1406,7 @@ static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf
     JanetSysIRLinkage *linkage = ir->linkage;
 
     /* Top-level pointer semantics */
-    if (linkage->type_defs[operand_type].prim == JANET_PRIM_POINTER) {
+    if (janet_sys_optype(ir, instruction.three.dest) == JANET_PRIM_POINTER) {
         operand_type = linkage->type_defs[operand_type].pointer.type;
         is_pointer = 1;
     }
