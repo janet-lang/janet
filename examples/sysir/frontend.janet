@@ -166,6 +166,18 @@
                 (array/push into ~(bind ,result ,xtype))
                 result)))
 
+          # Casting
+          'cast
+          (do
+            (assert (= 1 (length args)))
+            (assert type-hint) # should we add an explicit cast type?
+            (def [x] args)
+            (def slot (get-slot))
+            (def result (visit1 x into false))
+            (array/push into ~(bind ,slot ,type-hint))
+            (array/push into ~(cast ,slot ,result))
+            slot)
+
           # Named bindings
           'def
           (do
@@ -202,19 +214,20 @@
             (def [name tp] (type-extract thing 'int))
             (def result (visit1 thing into false tp))
             (def slot (get-slot))
-            #(assign-type name 'pointer)
-            (array/push into ~(bind ,slot pointer))
+            # 
+            (array/push into ~(bind ,slot ,type-hint))
             (array/push into ~(address ,slot ,result))
             slot)
 
           'load
           (do
             (assert (= 1 (length args)))
+            (assert type-hint)
             (def [thing] args)
             # (def [name tp] (type-extract thing 'pointer))
             (def result (visit1 thing into false))
             (def slot (get-slot))
-            (def ptype (or type-hint 'char))
+            (def ptype type-hint)
             (array/push into ~(bind ,slot ,ptype))
             (array/push into ~(load ,slot ,result))
             slot)

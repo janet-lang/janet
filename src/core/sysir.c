@@ -897,9 +897,8 @@ static void rcheck_pointer_equals(JanetSysIR *sysir, uint32_t preg, uint32_t elr
         janet_panicf("type failure in %p, expected pointer, got %p", sysir->error_ctx, tname(sysir, t1));
     }
     uint32_t tp = linkage->type_defs[t1].pointer.type;
-    JanetPrim tpprim = linkage->type_defs[tp].prim;
     uint32_t t2 = janet_sys_optype(sysir, elreg);
-    if (t2 != tp && tpprim != JANET_PRIM_VOID) { /* void pointer is compatible with everything TODO - can we get rid of this? */
+    if (t2 != tp) {
         janet_panicf("type failure in %p, %p is not compatible with a pointer to %p (%p)",
                      sysir->error_ctx,
                      tname(sysir, t2),
@@ -950,6 +949,9 @@ static int tcheck_cast(JanetSysIR *sysir, uint32_t td, uint32_t ts) {
         }
         return 0;
         */
+        if (primd == JANET_PRIM_POINTER) {
+            return 0;
+        }
         return -1; /* TODO */
     }
     /* Check that both src and dest are primitive numerics */
