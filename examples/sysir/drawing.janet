@@ -51,14 +51,14 @@
   (while (< y h)
     (var x:uint 0)
     (while (< x w)
-      (write_32 (if (< y 32) blue red))
+      (write_32 (if (> y 64) blue red))
       (set x (+ 1 x)))
     (set y (+ y 1)))
   (return))
 
 (defsys main:int []
-  (def w:uint 128)
-  (def h:uint 128)
+  (def w:uint 512)
+  (def h:uint 512)
   (write_header w h)
   (draw w h)
   (return 0))

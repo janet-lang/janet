@@ -1400,7 +1400,7 @@ static void op_or_const(JanetSysIR *ir, JanetBuffer *buf, uint32_t reg) {
     }
 }
 
-static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf, JanetSysInstruction instruction, const char *op) {
+static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf, JanetSysInstruction instruction, const char *op, int pointer_sugar) {
     uint32_t operand_type = ir->types[instruction.three.dest];
     tempbuf->count = 0;
     uint32_t index_index = 0;
@@ -1408,7 +1408,7 @@ static void emit_binop(JanetSysIR *ir, JanetBuffer *buffer, JanetBuffer *tempbuf
     JanetSysIRLinkage *linkage = ir->linkage;
 
     /* Top-level pointer semantics */
-    if (janet_sys_optype(ir, instruction.three.dest) == JANET_PRIM_POINTER) {
+    if (pointer_sugar && janet_sys_optype(ir, instruction.three.dest) == JANET_PRIM_POINTER) {
         operand_type = linkage->type_defs[operand_type].pointer.type;
         is_pointer = 1;
     }
@@ -1454,7 +1454,8 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 
     JanetBuffer *tempbuf = janet_buffer(0);
 
-#define EMITBINOP(OP) emit_binop(ir, buffer, tempbuf, instruction, OP)
+#define EMITBINOP(OP) emit_binop(ir, buffer, tempbuf, instruction, OP, 1)
+#define EMITBINOP_NOSUGAR(OP) emit_binop(ir, buffer, tempbuf, instruction, OP, 0)
 
     /* Prelude */
     janet_formatb(buffer, "#include <stddef.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n#include <sys/syscall.h>\n#define _t0 void\n\n");
@@ -1567,12 +1568,16 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
                     }
                     break;
                 case JANET_SYSOP_ADD:
-                case JANET_SYSOP_POINTER_ADD:
                     EMITBINOP("+");
                     break;
+                case JANET_SYSOP_POINTER_ADD:
+                    EMITBINOP_NOSUGAR("+");
+                    break;
                 case JANET_SYSOP_SUBTRACT:
-                case JANET_SYSOP_POINTER_SUBTRACT:
                     EMITBINOP("-");
+                    break;
+                case JANET_SYSOP_POINTER_SUBTRACT:
+                    EMITBINOP_NOSUGAR("-");
                     break;
                 case JANET_SYSOP_MULTIPLY:
                     EMITBINOP("*");
@@ -1683,6 +1688,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 
         janet_buffer_push_cstring(buffer, "}\n");
 #undef EMITBINOP
+#undef EMITBINOP_NOSUGAR
     }
 
 }
