@@ -158,16 +158,18 @@ static x64RegKind get_slot_regkind(JanetSysx64Context *ctx, uint32_t o) {
     }
 }
 
+
 void assign_registers(JanetSysx64Context *ctx) {
 
     /* simplest register assignment algorithm - first n variables
      * get registers, rest get assigned temporary registers and spill on every use. */
+    /* TODO - add option to allocate ALL variables on stack. Makes debugging easier. */
     /* TODO - linear scan or graph coloring. Require calculating live ranges */
     /* TODO - avoid spills inside loops if possible i.e. not all spills are equal */
     /* TODO - move into sysir.c and allow reuse for multiple targets */
 
     JanetSysCallingConvention cc = ctx->calling_convention;
-
+    
     /* Make trivial assigments */
     uint32_t next_loc = 16;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
@@ -175,7 +177,8 @@ void assign_registers(JanetSysx64Context *ctx) {
     uint32_t occupied = 0;
     assigned |= 1 << RSP;
     assigned |= 1 << RBP;
-    assigned |= 1 << RAX; // return reg, div, etc.
+    assigned |= 1 << RAX; // return reg, div, temporary, etc.
+    assigned |= 1 << RBX; // another temp reg.
     for (uint32_t i = 0; i < ctx->ir->register_count; i++) {
         ctx->regs[i].kind = get_slot_regkind(ctx, i);
         if (i < ctx->ir->parameter_count) {
@@ -263,13 +266,37 @@ static int operand_isreg(JanetSysx64Context *ctx, uint32_t o, uint32_t regindex)
     return reg.index == regindex;
 }
 
+static const char *sysemit_sizestr(x64RegKind kind) {
+    switch (kind) {
+        case JANET_SYSREG_8:
+            return "byte";
+        case JANET_SYSREG_16:
+            return "word";
+        case JANET_SYSREG_32:
+            return "dword";
+        case JANET_SYSREG_64:
+            return "qword";
+        default:
+            return "qword";
+    }
+}
+
+static const char *sysemit_sizestr_reg(x64Reg reg) {
+    return sysemit_sizestr(reg.kind);
+}
+
+static const char *sysemit_sizestr_slot(JanetSysx64Context *ctx, uint32_t slot) {
+    return sysemit_sizestr(get_slot_regkind(ctx, slot));
+}
+
 static void sysemit_reg(JanetSysx64Context *ctx, x64Reg reg, const char *after) {
+    const char *sizestr = sysemit_sizestr_reg(reg);
     if (reg.storage == JANET_SYSREG_STACK) {
         // TODO - use LEA for parameters larger than a qword
-        janet_formatb(ctx->buffer, "[rbp-%u]", reg.index);
+        janet_formatb(ctx->buffer, "%s [rbp-%u]", sizestr, reg.index);
     } else if (reg.storage == JANET_SYSREG_STACK_PARAMETER) {
         // TODO - use LEA for parameters larger than a qword
-        janet_formatb(ctx->buffer, "[rbp+%u]", reg.index);
+        janet_formatb(ctx->buffer, "%s [rbp+%u]", sizestr, reg.index);
     } else if (reg.kind == JANET_SYSREG_64) {
         janet_formatb(ctx->buffer, "%s", register_names[reg.index]);
     } else if (reg.kind == JANET_SYSREG_32) {
@@ -310,6 +337,7 @@ static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest
     if (operand_isstack(ctx, dest) && operand_isstack(ctx, src)) {
         /* Use a temporary register for src */
         x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
         tempreg.kind = get_slot_regkind(ctx, dest);
         tempreg.index = RAX;
         janet_formatb(ctx->buffer, "mov ");
@@ -321,6 +349,145 @@ static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest
     } else {
         janet_formatb(ctx->buffer, "%s ", op);
         sysemit_operand(ctx, dest, ", ");
+        sysemit_operand(ctx, src, "\n");
+    }
+}
+
+/* dest = src[0] */
+static void sysemit_load(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
+    /* This seems verbose... */
+    int src_is_stack = operand_isstack(ctx, src);
+    int dest_is_stack = operand_isstack(ctx, dest);
+    if (!src_is_stack && !dest_is_stack) {
+        /* Simplest case */
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_operand(ctx, dest, ", [");
+        sysemit_operand(ctx, src, "]\n");
+    } else if (src_is_stack && dest_is_stack) {
+        /* Most complicated case. */
+        /* RAX = src */
+        /* RAX = RAX[0] */
+        /* dest = RAX */
+        /* Copy src to temp reg first */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, src);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, src, "\n");
+        /* Now to load to second tempreg */
+        x64Reg tempreg2;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg2.kind = get_slot_regkind(ctx, dest);
+        tempreg2.index = RAX; /* We can reuse RAX */
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg2, ", [");
+        sysemit_reg(ctx, tempreg, "]\n");
+        /* Finally, move tempreg2 to dest */
+        /* Now move tempreg to dest */
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_operand(ctx, dest, ", ");
+        sysemit_reg(ctx, tempreg2, "\n");
+    } else if (src_is_stack) {
+        /* RAX = src */
+        /* dest = RAX[0] */
+        /* Copy src to temp reg first */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, src);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, src, "\n");
+        /* Now do load to dest */
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_operand(ctx, dest, ", [");
+        sysemit_reg(ctx, tempreg, "]\n");
+    } else { /* dest_is_stack */
+        /* RAX = src[0] */
+        /* dest = RAX */
+        /* Copy temp reg to dest after */
+        /* Load to tempreg first */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, src);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", [");
+        sysemit_operand(ctx, src, "]\n");
+        /* Now move tempreg to dest */
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_operand(ctx, dest, ", ");
+        sysemit_reg(ctx, tempreg, "\n");
+    }
+}
+
+/* dest[0] = src */
+static void sysemit_store(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
+    /* This seems verbose... */
+    int src_is_stack = operand_isstack(ctx, src);
+    int dest_is_stack = operand_isstack(ctx, dest);
+    const char *store_size = sysemit_sizestr_slot(ctx, src);
+    if (!src_is_stack && !dest_is_stack) {
+        /* Simplest case */
+        janet_formatb(ctx->buffer, "mov %s [", store_size);
+        sysemit_operand(ctx, dest, "], ");
+        sysemit_operand(ctx, src, "\n");
+    } else if (src_is_stack && dest_is_stack) {
+        /* Most complicated case. */
+        /* dest = RAX */
+        /* src = RBX */
+        /* RAX = RBX[0] */
+        /* Copy dest to temp reg first */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, dest);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, dest, "\n");
+        /* Now to load to second tempreg */
+        x64Reg tempreg2;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg2.kind = get_slot_regkind(ctx, dest);
+        tempreg2.index = RBX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg2, ", ");
+        sysemit_operand(ctx, src, "\n");
+        /* Finally, move tempreg2 to dest */
+        janet_formatb(ctx->buffer, "mov %s [", store_size);
+        sysemit_reg(ctx, tempreg, "], ");
+        sysemit_reg(ctx, tempreg2, "\n");
+    } else if (src_is_stack) {
+        /* Copy src to temp reg first */
+        /* RAX = src */
+        /* dest[0] = RAX */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, src);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, src, "\n");
+        /* Now do load to dest */
+        janet_formatb(ctx->buffer, "mov %s [", store_size);
+        sysemit_operand(ctx, dest, "], ");
+        sysemit_reg(ctx, tempreg, "\n");
+    } else { /* dest_is_stack */
+        /* Copy temp reg to dest after */
+        /* RAX = dest */
+        /* RAX[0] = src */
+        /* Load to tempreg first */
+        x64Reg tempreg;
+        tempreg.storage = JANET_SYSREG_REGISTER;
+        tempreg.kind = get_slot_regkind(ctx, dest);
+        tempreg.index = RAX;
+        janet_formatb(ctx->buffer, "mov ");
+        sysemit_reg(ctx, tempreg, ", ");
+        sysemit_operand(ctx, dest, "\n");
+        janet_formatb(ctx->buffer, "mov %s [", store_size);
+        sysemit_reg(ctx, tempreg, "], ");
         sysemit_operand(ctx, src, "\n");
     }
 }
@@ -458,7 +625,22 @@ static void sysemit_cast(JanetSysx64Context *ctx, JanetSysInstruction instructio
      */
     (void) destinfo;
     (void) srcinfo;
-    janet_formatb(ctx->buffer, "; cast nyi\n");
+    x64RegKind srckind = get_slot_regkind(ctx, src);
+    x64RegKind destkind = get_slot_regkind(ctx, dest);
+    if (srckind == destkind) {
+        sysemit_mov(ctx, dest, src);
+    } else {
+        uint32_t regindex = RAX;
+        /* Check if we can optimize out temporary register */
+        if (src <= JANET_SYS_MAX_OPERAND) {
+            x64Reg reg = ctx->regs[src];
+            if (reg.storage == JANET_SYSREG_REGISTER) {
+                regindex = reg.index;
+            }
+        }
+        sysemit_movreg(ctx, regindex, src);
+        sysemit_movfromreg(ctx, dest, regindex);
+    }
 }
 
 static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instruction, uint32_t *args, uint32_t argcount) {
@@ -637,6 +819,12 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetSysTarget target
             switch (instruction.opcode) {
                 default:
                     janet_formatb(buffer, "; nyi: %s\n", janet_sysop_names[instruction.opcode]);
+                    break;
+                case JANET_SYSOP_LOAD:
+                    sysemit_load(&ctx, instruction.two.dest, instruction.two.src);
+                    break;
+                case JANET_SYSOP_STORE:
+                    sysemit_store(&ctx, instruction.two.dest, instruction.two.src);
                     break;
                 case JANET_SYSOP_TYPE_PRIMITIVE:
                 case JANET_SYSOP_TYPE_UNION:

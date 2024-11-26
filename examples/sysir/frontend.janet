@@ -12,6 +12,7 @@
 (def slot-types @{})
 (def functions @{})
 (def type-fields @{})
+(def syscalls @{})
 
 (defn get-slot
   [&opt new-name]
@@ -317,20 +318,11 @@
             (array/push into ;args)
             nil)
 
-          # Syscall
-          'syscall
-          (do
-            (def slots @[])
-            (def ret (if no-return nil (get-slot)))
-            (each arg args
-              (array/push slots (visit1 arg into)))
-            (array/push into ~(syscall :default ,ret ,;slots))
-            ret)
-
-          # Assume function call
+          # Assume function call or syscall
           (do
             (def slots @[])
             (def signature (get functions op))
+            (def is-syscall (get syscalls op))
             (assert signature (string "unknown function " op))
             (def ret (if no-return nil (get-slot)))
             (when ret
@@ -338,7 +330,9 @@
               (assign-type ret (first signature)))
             (each [arg-type arg] (map tuple (drop 1 signature) args)
               (array/push slots (visit1 arg into false arg-type)))
-            (array/push into ~(call :default ,ret [pointer ,op] ,;slots))
+            (if is-syscall
+              (array/push into ~(syscall :default ,ret (int ,is-syscall) ,;slots))
+              (array/push into ~(call :default ,ret [pointer ,op] ,;slots)))
             ret)))
 
       (errorf "cannot compile %q" code)))
@@ -478,6 +472,20 @@
         (array/push signature tp))
       (put functions fn-name (freeze signature)))
 
+    # External syscall
+    'defn-syscall
+    (do
+      (def [name sysnum args] rest)
+      (assert (tuple? args))
+      (def [fn-name fn-tp] (type-extract name 'void))
+      (def pcount (length args)) #TODO - more complicated signatures
+      (def signature @[fn-tp])
+      (each arg args
+        (def [name tp] (type-extract arg 'int))
+        (array/push signature tp))
+      (put syscalls fn-name sysnum)
+      (put functions fn-name (freeze signature)))
+
     # Top level function definition
     'defn
     (do
@@ -544,4 +552,5 @@
 (defmacro defarray [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defarray ,;args))])
 (defmacro defpointer [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defpointer ,;args))])
 (defmacro defn-external [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn-external ,;args))])
+(defmacro defn-syscall [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn-syscall ,;args))])
 (defmacro defsys [& args] [compile1 ~',(keep-syntax! (dyn *macro-form*) ~(defn ,;args))])
