@@ -625,6 +625,18 @@ void janet_addtimeout(double sec) {
     add_timeout(to);
 }
 
+/* Set timeout for the current root fiber but resume with nil instead of raising an error */
+void janet_addtimeout_nil(double sec) {
+    JanetFiber *fiber = janet_vm.root_fiber;
+    JanetTimeout to;
+    to.when = ts_delta(ts_now(), sec);
+    to.fiber = fiber;
+    to.curr_fiber = NULL;
+    to.sched_id = fiber->sched_id;
+    to.is_error = 0;
+    add_timeout(to);
+}
+
 void janet_ev_inc_refcount(void) {
     janet_atomic_inc(&janet_vm.listener_count);
 }

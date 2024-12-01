@@ -1442,6 +1442,7 @@ JANET_NO_RETURN JANET_API void janet_sleep_await(double sec);
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
 JANET_API void janet_addtimeout(double sec);
+JANET_API void janet_addtimeout_nil(double sec);
 JANET_API void janet_ev_inc_refcount(void);
 JANET_API void janet_ev_dec_refcount(void);
 

@@ -829,7 +829,7 @@ JANET_CORE_FN(cfun_stream_accept_loop,
 JANET_CORE_FN(cfun_stream_accept,
               "(net/accept stream &opt timeout)",
               "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns a new duplex stream which represents a connection to the client.") {
     janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
@@ -864,7 +864,7 @@ JANET_CORE_FN(cfun_stream_read,
 JANET_CORE_FN(cfun_stream_chunk,
               "(net/chunk stream nbytes &opt buf timeout)",
               "Same a net/read, but will wait for all n bytes to arrive rather than return early. "
-              "Takes an optional timeout in seconds, after which will return nil.") {
+              "Takes an optional timeout in seconds, after which will raise an error.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
@@ -878,7 +878,7 @@ JANET_CORE_FN(cfun_stream_chunk,
 JANET_CORE_FN(cfun_stream_recv_from,
               "(net/recv-from stream nbytes buf &opt timeout)",
               "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
-              "packet came from. Takes an optional timeout in seconds, after which will return nil.") {
+              "packet came from. Takes an optional timeout in seconds, after which will raise an error.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
@@ -892,7 +892,7 @@ JANET_CORE_FN(cfun_stream_recv_from,
 JANET_CORE_FN(cfun_stream_write,
               "(net/write stream data &opt timeout)",
               "Write data to a stream, suspending the current fiber until the write "
-              "completes. Takes an optional timeout in seconds, after which will return nil. "
+              "completes. Takes an optional timeout in seconds, after which will raise an error. "
               "Returns nil, or raises an error if the write failed.") {
     janet_arity(argc, 2, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
@@ -911,7 +911,7 @@ JANET_CORE_FN(cfun_stream_write,
 JANET_CORE_FN(cfun_stream_send_to,
               "(net/send-to stream dest data &opt timeout)",
               "Writes a datagram to a server stream. dest is a the destination address of the packet. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns stream.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
