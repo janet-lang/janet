@@ -153,6 +153,17 @@
             (array/push into ~(pointer-add ,slot ,base-slot ,offset-slot))
             slot)
 
+          'pointer-sub
+          (do
+            (assert (= 2 (length args)))
+            (def [base offset] args)
+            (def base-slot (visit1 base into false type-hint))
+            (def offset-slot (visit1 offset into false 'int))
+            (def slot (get-slot))
+            (when type-hint (array/push into ~(bind ,slot ,type-hint)))
+            (array/push into ~(pointer-subtract ,slot ,base-slot ,offset-slot))
+            slot)
+
           # Type hinting
           'the
           (do

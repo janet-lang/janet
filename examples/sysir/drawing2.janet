@@ -15,9 +15,15 @@
 (defpointer cursor p32)
 
 # Linux syscalls
-(defn-syscall brk:p32 12 [amount:uint])
-(defn-syscall exit:void 60 [code:int])
-(defn-syscall write:void 1 [fd:int data:p32 size:uint])
+# (defn-syscall brk:p32 12 [amount:uint])
+# (defn-syscall exit:void 60 [code:int])
+# (defn-syscall write:void 1 [fd:int data:p32 size:uint])
+# (defn-syscall write_string 1 [fd:int data:pointer size:uint])
+
+# External
+(defn-external write:void [fd:int mem:pointer size:uint])
+(defn-external exit:void [x:int])
+(defn-external malloc:p32 [size:uint])
 
 (defsys w32:void [c:cursor x:uint]
   (def p:p32 (load c))
@@ -34,10 +40,10 @@
 
 (defsys makebmp:p32 [w:uint h:uint]
   (def size:uint (+ 56 (* w h 4)))
-  (def mem:p32 (brk size))
+  (def mem:p32 (malloc size))
+  (def c:cursor (cast (malloc 4)))
   #(def cursor_data:p32 mem)
   #(def c:cursor (address cursor_data))
-  (def c:cursor (cast (brk 4)))
   (store c mem)
   (w16 c 0x4D42) # ascii "BM"
   (w32 c size)
@@ -72,18 +78,15 @@
   (write 1 mem size)
   (return mem))
 
-(defsys _start:void []
+(defsys main:int []
   (def w:uint 512)
   (def h:uint 512)
-  # (makebmp w h)
-  (def size:uint (+ 56 (* w h 4)))
-  (def mem:p32 (brk size))
-  (store mem (the uint 0x4d424d42))
-  (write 1 mem 4)
-  #(write 1 (cast "hello, world!\n") 14)
-  (exit 0)
-  (return))
+  (makebmp w h)
+  (return 0))
 
 ####
 
-(dumpx64)
+#(dumpx64)
+
+(print "#include <unistd.h>")
+(dumpc)

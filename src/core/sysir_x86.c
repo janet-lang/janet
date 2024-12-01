@@ -682,7 +682,6 @@ static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instr
         janet_formatb(buffer, "call ");
         sysemit_operand(ctx, instruction.call.callee, "\n");
     }
-    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(ctx, RAX, instruction.call.dest);
     if (save_r11) sysemit_popreg(ctx, 11);
     if (save_r10) sysemit_popreg(ctx, 10);
     if (save_r9) sysemit_popreg(ctx, 9);
@@ -691,6 +690,7 @@ static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instr
     if (save_rdx) sysemit_popreg(ctx, RDX);
     if (save_rsi) sysemit_popreg(ctx, RSI);
     if (save_rdi) sysemit_popreg(ctx, RDI);
+    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movfromreg(ctx, instruction.call.dest, RAX);
 }
 
 static void sysemit_win64_call(JanetSysx64Context *ctx, JanetSysInstruction instruction, uint32_t *args, uint32_t argcount) {
@@ -726,13 +726,13 @@ static void sysemit_win64_call(JanetSysx64Context *ctx, JanetSysInstruction inst
     if (argcount > 4) {
         janet_formatb(buffer, "add rsp, %u\n", 8 * (argcount - 4));
     }
-    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movreg(ctx, RAX, instruction.call.dest);
     if (save_r11) sysemit_popreg(ctx, 11);
     if (save_r10) sysemit_popreg(ctx, 10);
     if (save_r9) sysemit_popreg(ctx, 9);
     if (save_r8) sysemit_popreg(ctx, 8);
     if (save_rdx) sysemit_popreg(ctx, RDX);
     if (save_rcx) sysemit_popreg(ctx, RCX);
+    if (instruction.call.flags & JANET_SYS_CALLFLAG_HAS_DEST) sysemit_movfromreg(ctx, instruction.call.dest, RAX);
 }
 
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetSysTarget target, JanetBuffer *buffer) {
