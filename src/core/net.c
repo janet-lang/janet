@@ -844,7 +844,7 @@ JANET_CORE_FN(cfun_stream_read,
               "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
               "`n` can also be the keyword `:all` to read into the buffer until end of stream. "
               "If less than n bytes are available (and more than 0), will push those bytes and return early. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
