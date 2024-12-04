@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Fix meson cross compilation
 - Update timeout documentation for networking APIs: timeouts raise errors and do not return nil.
 - Add `janet_addtimeout_nil(double sec);` to the C API.
 - Change string hashing.
