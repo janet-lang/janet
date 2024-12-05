@@ -544,6 +544,42 @@ tail:
             return window_end;
         }
 
+        case RULE_TIL: {
+            const uint32_t *rule_terminus = s->bytecode + rule[1];
+            const uint32_t *rule_subpattern = s->bytecode + rule[2];
+
+            const uint8_t *terminus_start = text;
+            const uint8_t *terminus_end = NULL;
+            down1(s);
+            while (terminus_start <= s->text_end) {
+                CapState cs2 = cap_save(s);
+                terminus_end = peg_rule(s, rule_terminus, terminus_start);
+                cap_load(s, cs2);
+                if (terminus_end) {
+                    break;
+                }
+                terminus_start++;
+            }
+            up1(s);
+
+            if (!terminus_end) {
+              return NULL;
+            }
+
+            const uint8_t *saved_end = s->text_end;
+            s->text_end = terminus_start;
+            down1(s);
+            const uint8_t *matched = peg_rule(s, rule_subpattern, text);
+            up1(s);
+            s->text_end = saved_end;
+
+            if (!matched) {
+                return NULL;
+            }
+
+            return terminus_end;
+        }
+
         case RULE_SPLIT: {
             const uint8_t *saved_end = s->text_end;
             const uint32_t *rule_separator = s->bytecode + rule[1];
@@ -1227,6 +1263,14 @@ static void spec_sub(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_SUB, subrule1, subrule2);
 }
 
+static void spec_til(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t subrule1 = peg_compile1(b, argv[0]);
+    uint32_t subrule2 = peg_compile1(b, argv[1]);
+    emit_2(r, RULE_TIL, subrule1, subrule2);
+}
+
 static void spec_split(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 3);
@@ -1323,6 +1367,7 @@ static const SpecialPair peg_specials[] = {
     {"split", spec_split},
     {"sub", spec_sub},
     {"thru", spec_thru},
+    {"til", spec_til},
     {"to", spec_to},
     {"uint", spec_uint_le},
     {"uint-be", spec_uint_be},
@@ -1657,6 +1702,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 4;
                 break;
             case RULE_SUB:
+            case RULE_TIL:
             case RULE_SPLIT:
                 /* [rule, rule] */
                 if (rule[1] >= blen) goto bad;
