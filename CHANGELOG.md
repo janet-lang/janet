@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
+## 1.37.0 - 2024-12-05
 - Fix meson cross compilation
 - Update timeout documentation for networking APIs: timeouts raise errors and do not return nil.
 - Add `janet_addtimeout_nil(double sec);` to the C API.
