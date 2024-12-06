@@ -591,6 +591,8 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
+    if (janet_vm.hook != NULL) janet_mark(janet_wrap_function(janet_vm.hook));
+    if (janet_vm.hook_reset != NULL) janet_mark(janet_wrap_function(janet_vm.hook_reset));
     janet_mark_fiber(janet_vm.root_fiber);
     for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm.roots[i]);

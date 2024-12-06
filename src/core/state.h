@@ -87,6 +87,10 @@ struct JanetVM {
     /* How many VM stacks have been entered */
     int stackn;
 
+    /* Debug hook for advanced tracing */
+    JanetFunction *hook;
+    JanetFunction *hook_reset; /* In case of error/signal inside a hook */
+
     /* If this flag is true, suspend on function calls and backwards jumps.
      * When this occurs, this flag will be reset to 0. */
     volatile JanetAtomicInt auto_suspend;

@@ -428,6 +428,16 @@ JANET_CORE_FN(cfun_debug_step,
     return out;
 }
 
+JANET_CORE_FN(cfun_debug_hook,
+              "(debug/hook hookfn)",
+              "Add a hook that will be called on certain runtime events.") {
+    janet_arity(argc, 0, 1);
+    JanetFunction *func = janet_optfunction(argv, argc, 0, NULL);
+    janet_vm.hook = func;
+    janet_vm.hook_reset = func;
+    return janet_wrap_nil();
+}
+
 /* Module entry point */
 void janet_lib_debug(JanetTable *env) {
     JanetRegExt debug_cfuns[] = {
@@ -440,6 +450,7 @@ void janet_lib_debug(JanetTable *env) {
         JANET_CORE_REG("debug/stacktrace", cfun_debug_stacktrace),
         JANET_CORE_REG("debug/lineage", cfun_debug_lineage),
         JANET_CORE_REG("debug/step", cfun_debug_step),
+        JANET_CORE_REG("debug/hook", cfun_debug_hook),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, debug_cfuns);

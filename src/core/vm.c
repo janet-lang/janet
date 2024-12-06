@@ -80,12 +80,22 @@
     func = janet_stack_frame(stack)->func; \
 } while (0)
 #define vm_return(sig, val) do { \
-    janet_vm.return_reg[0] = (val); \
+    Janet val2 = (val); \
+    janet_vm.return_reg[0] = val2; \
     vm_commit(); \
+    if (janet_vm.hook) { \
+        vm_do_hook_return(val2); \
+        janet_vm.return_reg[0] = val2; \
+    } \
     return (sig); \
 } while (0)
 #define vm_return_no_restore(sig, val) do { \
-    janet_vm.return_reg[0] = (val); \
+    Janet val2 = (val); \
+    janet_vm.return_reg[0] = val2; \
+    if (janet_vm.hook) { \
+        vm_do_hook_return(val2); \
+        janet_vm.return_reg[0] = val2; \
+    } \
     return (sig); \
 } while (0)
 
@@ -278,6 +288,36 @@ static Janet call_nonfn(JanetFiber *fiber, Janet callee) {
     int32_t argc = fiber->stacktop - fiber->stackstart;
     fiber->stacktop = fiber->stackstart;
     return janet_method_invoke(callee, argc, fiber->data + fiber->stacktop);
+}
+
+static void vm_do_hook(int32_t argc, const Janet *argv) {
+    JanetFunction *old_hook = janet_vm.hook;
+    janet_vm.hook = NULL;
+    janet_call(old_hook, argc, argv);
+    janet_vm.hook = old_hook;
+}
+
+static void vm_do_hook_call(Janet callee, int32_t argc, const Janet *argv) {
+    Janet argvv[3];
+    argvv[0] = janet_ckeywordv("call");
+    argvv[1] = callee;
+    argvv[2] = janet_wrap_tuple(janet_tuple_n(argv, argc));
+    vm_do_hook(3, argvv);
+}
+
+static void vm_do_hook_tailcall(Janet callee, int32_t argc, const Janet *argv) {
+    Janet argvv[3];
+    argvv[0] = janet_ckeywordv("tailcall");
+    argvv[1] = callee;
+    argvv[2] = janet_wrap_tuple(janet_tuple_n(argv, argc));
+    vm_do_hook(3, argvv);
+}
+
+static void vm_do_hook_return(Janet result) {
+    Janet argvv[2];
+    argvv[0] = janet_ckeywordv("return");
+    argvv[1] = result;
+    vm_do_hook(2, argvv);
 }
 
 /* Method lookup could potentially handle tables specially... */
@@ -663,6 +703,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
+        if (janet_vm.hook) {
+            vm_do_hook_return(retval);
+        }
         vm_checkgc_pcnext();
     }
 
@@ -673,6 +716,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
+        if (janet_vm.hook) {
+            vm_do_hook_return(retval);
+        }
         vm_checkgc_pcnext();
     }
 
@@ -1013,6 +1059,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         if (fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
         }
+        if (janet_vm.hook) {
+            vm_commit();
+            vm_do_hook_call(callee, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
+        }
         if (janet_checktype(callee, JANET_KEYWORD)) {
             vm_commit();
             callee = resolve_method(callee, fiber);
@@ -1039,10 +1089,16 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             janet_fiber_popframe(fiber);
             stack = fiber->data + fiber->frame;
             stack[A] = ret;
+            if (janet_vm.hook) {
+                vm_do_hook_return(stack[A]);
+            }
             vm_checkgc_pcnext();
         } else {
             vm_commit();
             stack[A] = call_nonfn(fiber, callee);
+            if (janet_vm.hook) {
+                vm_do_hook_return(stack[A]);
+            }
             vm_pcnext();
         }
     }
@@ -1052,6 +1108,10 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         Janet callee = stack[D];
         if (fiber->stacktop > fiber->maxstack) {
             vm_throw("stack overflow");
+        }
+        if (janet_vm.hook) {
+            vm_commit();
+            vm_do_hook_tailcall(callee, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
         }
         if (janet_checktype(callee, JANET_KEYWORD)) {
             vm_commit();
@@ -1089,6 +1149,9 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
             }
             vm_restore();
             stack[A] = retreg;
+            if (janet_vm.hook) {
+                vm_do_hook_return(stack[A]);
+            }
             vm_checkgc_pcnext();
         }
     }
@@ -1440,6 +1503,8 @@ void janet_restore(JanetTryState *state) {
     janet_vm.fiber = state->vm_fiber;
     janet_vm.signal_buf = state->vm_jmp_buf;
     janet_vm.return_reg = state->vm_return_reg;
+    /* In case of error/signal thrown when inside a temporarily disabled hook */
+    janet_vm.hook = janet_vm.hook_reset;
 }
 
 static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *out) {
@@ -1630,6 +1695,10 @@ int janet_init(void) {
 
     /* Dynamic bindings */
     janet_vm.top_dyns = NULL;
+
+    /* Hooks */
+    janet_vm.hook = NULL;
+    janet_vm.hook_reset = NULL;
 
     /* Seed RNG */
     janet_rng_seed(janet_default_rng(), 0);
