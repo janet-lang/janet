@@ -138,7 +138,8 @@ if defined APPVEYOR_REPO_TAG_NAME (
     set RELEASE_VERSION=%JANET_VERSION%
 )
 if defined CI (
-    set WIXBIN="c:\Program Files (x86)\WiX Toolset v3.11\bin\"
+    set WIXBIN="%WIX%bin"
+    echo WIXBIN = %WIXBIN%
 ) else (
     set WIXBIN=
 )
