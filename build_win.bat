@@ -138,7 +138,7 @@ if defined APPVEYOR_REPO_TAG_NAME (
     set RELEASE_VERSION=%JANET_VERSION%
 )
 if defined CI (
-    set WIXBIN="%WIX%bin"
+    set WIXBIN="%WIX%bin\"
     echo WIXBIN = %WIXBIN%
 ) else (
     set WIXBIN=
