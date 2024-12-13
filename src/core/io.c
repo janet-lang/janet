@@ -31,6 +31,7 @@
 
 #ifndef JANET_WINDOWS
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
@@ -164,6 +165,14 @@ JANET_CORE_FN(cfun_io_fopen,
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
     if (f != NULL) {
+#ifndef JANET_WINDOWS
+        struct stat st;
+        fstat(f->_fileno, &st);
+        if (S_ISDIR(st.st_mode)) {
+            fclose(f);
+            janet_panicf("cannot open directory: %s", fname);
+        }
+#endif
         size_t bufsize = janet_optsize(argv, argc, 2, BUFSIZ);
         if (bufsize != BUFSIZ) {
             int result = setvbuf(f, NULL, bufsize ? _IOFBF : _IONBF, bufsize);
