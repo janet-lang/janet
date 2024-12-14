@@ -100,6 +100,7 @@ struct JanetVM {
      * return point for panics. */
     jmp_buf *signal_buf;
     Janet *return_reg;
+    int coerce_error;
 
     /* The global registry for c functions. Used to store meta-data
      * along with otherwise bare c function pointers. */

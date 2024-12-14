@@ -465,4 +465,13 @@
 # Close chat server
 (:close chat-server)
 
+# Issue #1531
+(def c (ev/chan 0))
+(ev/spawn (while (def x (ev/take c))))
+(defn print-to-chan [x] (ev/give c x))
+(assert-error "coerce await inside janet_call to error"
+              (with-dyns [*out* print-to-chan]
+                (pp :foo)))
+(ev/chan-close c)
+
 (end-suite)

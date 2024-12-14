@@ -1261,6 +1261,7 @@ typedef struct {
     /* new state */
     jmp_buf buf;
     Janet payload;
+    int coerce_error;
 } JanetTryState;
 
 /***** END SECTION TYPES *****/
