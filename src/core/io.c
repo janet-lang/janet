@@ -167,7 +167,7 @@ JANET_CORE_FN(cfun_io_fopen,
     if (f != NULL) {
 #ifndef JANET_WINDOWS
         struct stat st;
-        fstat(f->_fileno, &st);
+        fstat(fileno(f), &st);
         if (S_ISDIR(st.st_mode)) {
             fclose(f);
             janet_panicf("cannot open directory: %s", fname);
