@@ -3290,23 +3290,30 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
         int currindex = index;
         fmt[index++] = (currindex == 0) ? 'w' : '+';
     }
+    if (index == 0) return NULL;
     /* duplicate handle when converting stream to file */
     #ifdef JANET_WINDOWS
-    HANDLE prochandle = GetCurrentProcess();
-    HANDLE newHandle = INVALID_HANDLE_VALUE;
-    if (!DuplicateHandle(prochandle, handle, prochandle, &newHandle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-        return NULL;
+    int htype = 0;
+    if (fmt[0] == 'r' && fmt[1] == '+') {
+        htype = _O_RDWR;
+    } else if (fmt[0] == 'r') {
+        htype = _O_RDONLY;
+    } else if (fmt[0] == 'w') {
+        htype = _O_WRONLY;
     }
-    FILE *f = _fdopen(newHandle, fmt);
+    int fd = _open_osfhandle((intptr_t) stream->handle, htype);
+    if (fd < 0) return NULL;
+    int fd_dup = _dup(fd);
+    if (fd_dup < 0) return NULL;
+    FILE *f = _fdopen(fd_dup, fmt);
     if (NULL == f) {
-        _close(newHandle);
+        /* the stream isn't duplicated so this would close the stream
+        /* _close(fd); */
         return NULL;
     }
     #else
     int newHandle = dup(stream->handle);
-    if (newHandle < 0) {
-        return NULL;
-    }
+    if (newHandle < 0) return NULL;
     FILE *f = fdopen(newHandle, fmt);
     if (NULL == f) {
         close(newHandle);
