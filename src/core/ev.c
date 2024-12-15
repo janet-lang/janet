@@ -35,6 +35,7 @@
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
+#include <io.h>
 #else
 #include <pthread.h>
 #include <limits.h>
