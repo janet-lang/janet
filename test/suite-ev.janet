@@ -420,9 +420,13 @@
 # Now do our telnet chat
 (def bob (net/connect test-host test-port :stream))
 (expect-read bob "Whats your name?\n")
-(def fbob (ev/to-file bob))
-(file/write fbob "bob")
-(:close fbob)
+(if (= :mingw (os/which))
+  (net/write bob "bob")
+  (do
+    (def fbob (ev/to-file bob))
+    (file/write fbob "bob")
+    (file/flush fbob)
+    (:close fbob)))
 (expect-read bob "Welcome bob\n")
 (def alice (net/connect test-host test-port))
 (expect-read alice "Whats your name?\n")

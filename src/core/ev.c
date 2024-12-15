@@ -3309,10 +3309,7 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
     FILE *f = _fdopen(fd_dup, fmt);
     if (NULL == f) {
         /* the stream isn't duplicated so this would close the stream
-        /* _close(fd); */
-        return NULL;
-    }
-    if (setvbuf(f, NULL, _IONBF, 0)) {
+         * _close(fd); */
         return NULL;
     }
 #else
@@ -3323,10 +3320,6 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
         close(newHandle);
         return NULL;
     }
-    if (setvbuf(f, NULL, _IONBF, 0)) {
-        close(newHandle);
-        return NULL;
-    }
 #endif
     return janet_makejfile(f, flags);
 }
@@ -3334,13 +3327,19 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
 JANET_CORE_FN(janet_cfun_to_file,
               "(ev/to-file)",
               "Create core/file copy of the stream. This value can be used "
-              "when blocking IO behavior is needed. Buffering is turned off "
-              "for the file.") {
+              "when blocking IO behavior is needed.") {
     janet_fixarity(argc, 1);
+#ifdef JANET_MINGW
+    (void) argc;
+    (void) argv;
+    janet_panic("ev/to-file not supported on MinGW");
+    return janet_wrap_nil();
+#else
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     JanetFile *iof = get_file_for_stream(stream);
     if (iof == NULL) janet_panic("cannot make file from stream");
     return janet_wrap_abstract(iof);
+#endif
 }
 
 JANET_CORE_FN(janet_cfun_ev_all_tasks,
