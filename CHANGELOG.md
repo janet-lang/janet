@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Add `ev/to-file` for synchronous resource operations
+
 ## 1.37.1 - 2024-12-05
 - Fix meson cross compilation
 - Update timeout documentation for networking APIs: timeouts raise errors and do not return nil.

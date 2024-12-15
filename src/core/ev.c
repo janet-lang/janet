@@ -3275,6 +3275,58 @@ JANET_CORE_FN(janet_cfun_rwlock_write_release,
     return argv[0];
 }
 
+static JanetFile *get_file_for_stream(JanetStream *stream) {
+    int32_t flags = 0;
+    char fmt[4] = {0};
+    int index = 0;
+    if (stream->flags & JANET_STREAM_READABLE) {
+        flags |= JANET_FILE_READ;
+        janet_sandbox_assert(JANET_SANDBOX_FS_READ);
+        fmt[index++] = 'r';
+    }
+    if (stream->flags & JANET_STREAM_WRITABLE) {
+        flags |= JANET_FILE_WRITE;
+        janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
+        int currindex = index;
+        fmt[index++] = (currindex == 0) ? 'w' : '+';
+    }
+    /* duplicate handle when converting stream to file */
+    #ifdef JANET_WINDOWS
+    HANDLE prochandle = GetCurrentProcess();
+    HANDLE newHandle = INVALID_HANDLE_VALUE;
+    if (!DuplicateHandle(prochandle, handle, prochandle, &newHandle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        return NULL;
+    }
+    FILE *f = _fdopen(newHandle, fmt);
+    if (NULL == f) {
+        _close(newHandle);
+        return NULL;
+    }
+    #else
+    int newHandle = dup(stream->handle);
+    if (newHandle < 0) {
+        return NULL;
+    }
+    FILE *f = fdopen(newHandle, fmt);
+    if (NULL == f) {
+        close(newHandle);
+        return NULL;
+    }
+    #endif
+    return janet_makejfile(f, flags);
+}
+
+JANET_CORE_FN(janet_cfun_to_file,
+              "(ev/to-file)",
+              "Create core/file copy of the stream. This value can be used "
+              "when blocking IO behavior is needed.") {
+    janet_fixarity(argc, 1);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    JanetFile *iof = get_file_for_stream(stream);
+    if (iof == NULL) janet_panic("cannot make file from stream");
+    return janet_wrap_abstract(iof);
+}
+
 JANET_CORE_FN(janet_cfun_ev_all_tasks,
               "(ev/all-tasks)",
               "Get an array of all active fibers that are being used by the scheduler.") {
@@ -3319,6 +3371,7 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/acquire-wlock", janet_cfun_rwlock_write_lock),
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
+        JANET_CORE_REG("ev/to-file", janet_cfun_to_file),
         JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };
