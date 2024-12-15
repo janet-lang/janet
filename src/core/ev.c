@@ -32,6 +32,7 @@
 #ifdef JANET_EV
 
 #include <math.h>
+#include <fcntl.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
@@ -44,7 +45,6 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
@@ -3293,7 +3293,7 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
     }
     if (index == 0) return NULL;
     /* duplicate handle when converting stream to file */
-    #ifdef JANET_WINDOWS
+#ifdef JANET_WINDOWS
     int htype = 0;
     if (fmt[0] == 'r' && fmt[1] == '+') {
         htype = _O_RDWR;
@@ -3312,7 +3312,7 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
         /* _close(fd); */
         return NULL;
     }
-    #else
+#else
     int newHandle = dup(stream->handle);
     if (newHandle < 0) return NULL;
     FILE *f = fdopen(newHandle, fmt);
@@ -3320,7 +3320,7 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
         close(newHandle);
         return NULL;
     }
-    #endif
+#endif
     return janet_makejfile(f, flags);
 }
 
