@@ -422,7 +422,6 @@
 (expect-read bob "Whats your name?\n")
 (def fbob (ev/to-file bob))
 (file/write fbob "bob")
-(file/flush fbob)
 (:close fbob)
 (expect-read bob "Welcome bob\n")
 (def alice (net/connect test-host test-port))

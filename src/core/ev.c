@@ -3312,11 +3312,18 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
         /* _close(fd); */
         return NULL;
     }
+    if (setvbuf(f, NULL, _IONBF, 0)) {
+        return NULL;
+    }
 #else
     int newHandle = dup(stream->handle);
     if (newHandle < 0) return NULL;
     FILE *f = fdopen(newHandle, fmt);
     if (NULL == f) {
+        close(newHandle);
+        return NULL;
+    }
+    if (setvbuf(f, NULL, _IONBF, 0)) {
         close(newHandle);
         return NULL;
     }
@@ -3327,7 +3334,8 @@ static JanetFile *get_file_for_stream(JanetStream *stream) {
 JANET_CORE_FN(janet_cfun_to_file,
               "(ev/to-file)",
               "Create core/file copy of the stream. This value can be used "
-              "when blocking IO behavior is needed.") {
+              "when blocking IO behavior is needed. Buffering is turned off "
+              "for the file.") {
     janet_fixarity(argc, 1);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     JanetFile *iof = get_file_for_stream(stream);
