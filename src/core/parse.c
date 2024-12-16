@@ -363,8 +363,7 @@ static int stringend(JanetParser *p, JanetParseState *state) {
         JanetParseState top = p->states[p->statecount - 1];
         int32_t indent_col = (int32_t) top.column - 1;
         uint8_t *r = bufstart, *end = r + buflen;
-        /* Check if there are any characters before the start column -
-         * if so, do not reindent. */
+        /* Unless there are only spaces before EOLs, disable reindenting */
         int reindent = 1;
         while (reindent && (r < end)) {
             if (*r++ == '\n') {
@@ -374,34 +373,36 @@ static int stringend(JanetParser *p, JanetParseState *state) {
                         break;
                     }
                 }
+                if ((r + 1) < end && *r == '\r' && *(r + 1) == '\n') reindent = 1;
             }
         }
-        /* Now reindent if able to, otherwise just drop leading newline. */
-        if (!reindent) {
-            if (buflen > 0 && bufstart[0] == '\n') {
-                buflen--;
-                bufstart++;
-            }
-        } else {
+        /* Now reindent if able */
+        if (reindent) {
             uint8_t *w = bufstart;
             r = bufstart;
             while (r < end) {
                 if (*r == '\n') {
-                    if (r == bufstart) {
-                        /* Skip leading newline */
-                        r++;
-                    } else {
-                        *w++ = *r++;
-                    }
+                    *w++ = *r++;
                     for (int32_t j = 0; (r < end) && (*r != '\n') && (j < indent_col); j++, r++);
+                    if ((r + 1) < end && *r == '\r' && *(r + 1) == '\n') *w++ = *r++;
                 } else {
                     *w++ = *r++;
                 }
             }
             buflen = (int32_t)(w - bufstart);
         }
-        /* Check for trailing newline character so we can remove it */
-        if (buflen > 0 && bufstart[buflen - 1] == '\n') {
+        /* Check for leading EOL so we can remove it */
+        if (buflen > 1 && bufstart[0] == '\r' && bufstart[1] == '\n') { /* Windows EOL */
+            buflen = buflen - 2;
+            bufstart = bufstart + 2;
+        } else if (buflen > 0 && bufstart[0] == '\n') { /* Unix EOL */
+            buflen--;
+            bufstart++;
+        }
+        /* Check for trailing EOL so we can remove it */
+        if (buflen > 1 && bufstart[buflen - 2] == '\r' && bufstart[buflen - 1] == '\n') { /* Windows EOL */
+            buflen = buflen - 2;
+        } else if (buflen > 0 && bufstart[buflen - 1] == '\n') { /* Unix EOL */
             buflen--;
         }
     }
