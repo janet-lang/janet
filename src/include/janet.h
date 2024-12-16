@@ -2182,6 +2182,7 @@ typedef enum {
     RULE_UNREF,        /* [rule, tag] */
     RULE_CAPTURE_NUM,  /* [rule, tag] */
     RULE_SUB,          /* [rule, rule] */
+    RULE_TIL,          /* [rule, rule] */
     RULE_SPLIT,        /* [rule, rule] */
     RULE_NTH,          /* [nth, rule, tag] */
     RULE_ONLY_TAGS,    /* [rule] */

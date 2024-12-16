@@ -713,6 +713,41 @@
   "abcdef"
   @[])
 
+(test "til: basic matching"
+  ~(til "d" "abc")
+  "abcdef"
+  @[])
+
+(test "til: second pattern can't see past the first occurrence of first pattern"
+  ~(til "d" (* "abc" -1))
+  "abcdef"
+  @[])
+
+(test "til: fails if first pattern fails"
+  ~(til "x" "abc")
+  "abcdef"
+  nil)
+
+(test "til: fails if second pattern fails"
+  ~(til "abc" "x")
+  "abcdef"
+  nil)
+
+(test "til: discards captures from initial pattern"
+  ~(til '"d" '"abc")
+  "abcdef"
+  @["abc"])
+
+(test "til: positions inside second match are still relative to the entire input"
+  ~(* "one\ntw" (til 0 (* ($) (line) (column))))
+  "one\ntwo\nthree\n"
+  @[6 2 3])
+
+(test "til: advances to the end of the first pattern's first occurrence"
+  ~(* (til "d" "ab") "e")
+  "abcdef"
+  @[])
+
 (test "split: basic functionality"
   ~(split "," '1)
   "a,b,c"
