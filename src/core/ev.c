@@ -32,9 +32,11 @@
 #ifdef JANET_EV
 
 #include <math.h>
+#include <fcntl.h>
 #ifdef JANET_WINDOWS
 #include <winsock2.h>
 #include <windows.h>
+#include <io.h>
 #else
 #include <pthread.h>
 #include <limits.h>
@@ -43,7 +45,6 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
@@ -3275,6 +3276,64 @@ JANET_CORE_FN(janet_cfun_rwlock_write_release,
     return argv[0];
 }
 
+static JanetFile *get_file_for_stream(JanetStream *stream) {
+    int32_t flags = 0;
+    char fmt[4] = {0};
+    int index = 0;
+    if (stream->flags & JANET_STREAM_READABLE) {
+        flags |= JANET_FILE_READ;
+        janet_sandbox_assert(JANET_SANDBOX_FS_READ);
+        fmt[index++] = 'r';
+    }
+    if (stream->flags & JANET_STREAM_WRITABLE) {
+        flags |= JANET_FILE_WRITE;
+        janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
+        int currindex = index;
+        fmt[index++] = (currindex == 0) ? 'w' : '+';
+    }
+    if (index == 0) return NULL;
+    /* duplicate handle when converting stream to file */
+#ifdef JANET_WINDOWS
+    int htype = 0;
+    if (fmt[0] == 'r' && fmt[1] == '+') {
+        htype = _O_RDWR;
+    } else if (fmt[0] == 'r') {
+        htype = _O_RDONLY;
+    } else if (fmt[0] == 'w') {
+        htype = _O_WRONLY;
+    }
+    int fd = _open_osfhandle((intptr_t) stream->handle, htype);
+    if (fd < 0) return NULL;
+    int fd_dup = _dup(fd);
+    if (fd_dup < 0) return NULL;
+    FILE *f = _fdopen(fd_dup, fmt);
+    if (NULL == f) {
+        _close(fd_dup);
+        return NULL;
+    }
+#else
+    int fd_dup = dup(stream->handle);
+    if (fd_dup < 0) return NULL;
+    FILE *f = fdopen(fd_dup, fmt);
+    if (NULL == f) {
+        close(fd_dup);
+        return NULL;
+    }
+#endif
+    return janet_makejfile(f, flags);
+}
+
+JANET_CORE_FN(janet_cfun_to_file,
+              "(ev/to-file)",
+              "Create core/file copy of the stream. This value can be used "
+              "when blocking IO behavior is needed.") {
+    janet_fixarity(argc, 1);
+    JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
+    JanetFile *iof = get_file_for_stream(stream);
+    if (iof == NULL) janet_panic("cannot make file from stream");
+    return janet_wrap_abstract(iof);
+}
+
 JANET_CORE_FN(janet_cfun_ev_all_tasks,
               "(ev/all-tasks)",
               "Get an array of all active fibers that are being used by the scheduler.") {
@@ -3319,6 +3378,7 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/acquire-wlock", janet_cfun_rwlock_write_lock),
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
+        JANET_CORE_REG("ev/to-file", janet_cfun_to_file),
         JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };
