@@ -2219,43 +2219,6 @@
   (map-template :some res pred ind inds)
   res)
 
-(defn deep-not=
-  ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than `not=`.``
-  [x y]
-  (def tx (type x))
-  (or
-    (not= tx (type y))
-    (case tx
-      :tuple (or (not= (length x) (length y))
-                 (do
-                   (var ret false)
-                   (forv i 0 (length x)
-                     (def xx (in x i))
-                     (def yy (in y i))
-                     (if (deep-not= xx yy)
-                       (break (set ret true))))
-                   ret))
-      :array (or (not= (length x) (length y))
-                 (do
-                   (var ret false)
-                   (forv i 0 (length x)
-                     (def xx (in x i))
-                     (def yy (in y i))
-                     (if (deep-not= xx yy)
-                       (break (set ret true))))
-                   ret))
-      :struct (deep-not= (kvs x) (kvs y))
-      :table (deep-not= (table/to-struct x) (table/to-struct y))
-      :buffer (not= (string x) (string y))
-      (not= x y))))
-
-(defn deep=
-  ``Like `=`, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than `=`.``
-  [x y]
-  (not (deep-not= x y)))
-
 (defn freeze
   `Freeze an object (make it immutable) and do a deep copy, making
   child values also immutable. Closures, fibers, and abstract types
@@ -2283,6 +2246,53 @@
     :struct (walk-dict thaw (struct/proto-flatten ds))
     :string (buffer ds)
     ds))
+
+(def- mutable-types {:table true :array true :buffer true})
+
+(defn deep-not=
+  ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `not=`.``
+  [x y]
+  (def tx (type x))
+  (or
+    (not= tx (type y))
+    (cond
+      (or (= tx :tuple) (= tx :array))
+      (or (not= (length x) (length y))
+          (do
+            (var ret false)
+            (forv i 0 (length x)
+              (def xx (in x i))
+              (def yy (in y i))
+              (if (deep-not= xx yy)
+                (break (set ret true))))
+            ret))
+      (or (= tx :struct) (= tx :table))
+      (or (not= (length x) (length y))
+          (do
+            (var ret false)
+            (def mut-keys-x @{})
+            (eachp [k v] x
+              (if (get mutable-types (type k))
+                (let [kk (freeze k)]
+                  (put mut-keys-x kk (put (get mut-keys-x kk @{}) (freeze v) true)))
+                (if (deep-not= (get y k) v) (break (set ret true)))))
+            (when (next mut-keys-x) # handle case when we have mutable keys separately
+              (def mut-keys-y @{})
+              (eachp [k v] y
+                (if (get mutable-types (type k))
+                  (let [kk (freeze k)]
+                    (put mut-keys-y kk (put (get mut-keys-y kk @{}) (freeze v) true)))))
+              (set ret (deep-not= mut-keys-x mut-keys-y)))
+            ret))
+      (= tx :buffer) (not= 0 (- (length x) (length y)) (memcmp x y))
+      (not= x y))))
+
+(defn deep=
+  ``Like `=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `=`.``
+  [x y]
+  (not (deep-not= x y)))
 
 (defn macex
   ``Expand macros completely.
@@ -2854,8 +2864,8 @@
     (when (and (string? pattern) (string/has-prefix? ":sys:/" pattern))
       (set last-index index)
       (array/push copies [(string/replace ":sys:" path pattern) ;(drop 1 entry)])))
-   (array/insert mp (+ 1 last-index) ;copies)
-   mp)
+  (array/insert mp (+ 1 last-index) ;copies)
+  mp)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
@@ -4096,7 +4106,7 @@
             (when (empty? b) (buffer/trim b) (os/chmod to perm) (break))
             (file/write fto b)
             (buffer/clear b)))
-         (errorf "destination file %s cannot be opened for writing" to))
+        (errorf "destination file %s cannot be opened for writing" to))
       (errorf "source file %s cannot be opened for reading" from)))
 
   (defn- copyrf

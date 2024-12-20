@@ -995,4 +995,11 @@
 (assert-error "assertf error 3" (assertf false "%s message" "mystery"))
 (assert-error "assertf error 4" (assertf nil "%s %s" "alice" "bob"))
 
+# issue #1535
+(loop [i :range [1 1000]]
+  (assert (deep= @{:key1 "value1" @"key" "value2"}
+                  @{:key1 "value1" @"key" "value2"}) "deep= mutable keys"))
+(assert (deep-not= {"abc" 123} {@"abc" 123}) "deep= mutable keys vs immutable key")
+(assert (deep= {@"" 1 @"" 2 @"" 3} {@"" 1 @"" 2 @"" 3}) "deep= duplicate mutable keys")
+
 (end-suite)
