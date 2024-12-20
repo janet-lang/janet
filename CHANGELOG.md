@@ -2,7 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
-- Fix `deep=` and `deep-not=` to better handle degenerate cases with mutable table keys
+- Add `struct/rawget` to get values from a struct without a prototype.
+- Fix `deep=` and `deep-not=` to better handle degenerate cases with mutable table keys. Keys are now compared by value rather than
+  structure to avoid degenerate cases.
 - Long strings will now dedent on `\r\n` instead of just `\n`.
 - Add `ev/to-file` for synchronous resource operations
 

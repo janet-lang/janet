@@ -2247,8 +2247,6 @@
     :string (buffer ds)
     ds))
 
-(def- mutable-types {:table true :array true :buffer true})
-
 (defn deep-not=
   ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
   equal if they have identical structure. Much slower than `not=`.``
@@ -2270,20 +2268,12 @@
       (or (= tx :struct) (= tx :table))
       (or (not= (length x) (length y))
           (do
+            (def rawget (if (= tx :table) table/rawget struct/rawget))
             (var ret false)
-            (def mut-keys-x @{})
             (eachp [k v] x
-              (if (get mutable-types (type k))
-                (let [kk (freeze k)]
-                  (put mut-keys-x kk (put (get mut-keys-x kk @{}) (freeze v) true)))
-                (if (deep-not= (get y k) v) (break (set ret true)))))
-            (when (next mut-keys-x) # handle case when we have mutable keys separately
-              (def mut-keys-y @{})
-              (eachp [k v] y
-                (if (get mutable-types (type k))
-                  (let [kk (freeze k)]
-                    (put mut-keys-y kk (put (get mut-keys-y kk @{}) (freeze v) true)))))
-              (set ret (deep-not= mut-keys-x mut-keys-y)))
+              (def yv (rawget y k))
+              (if (= nil yv) (break (set ret true)))
+              (if (deep-not= yv v) (break (set ret true))))
             ret))
       (= tx :buffer) (not= 0 (- (length x) (length y)) (memcmp x y))
       (not= x y))))

@@ -168,7 +168,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= 1 (length a)) "array/weak marsh 4")
 (assert (= nil (get a 0)) "array/weak marsh 5")
 (assert (= nil (get aclone 0)) "array/weak marsh 6")
-(assert (deep= a aclone) "array/weak marsh 7")
+(assert (deep= (freeze a) (freeze aclone)) "array/weak marsh 7")
 
 # table weak keys and values
 (def t (table/weak 1))
@@ -196,7 +196,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (gccollect)
 (assert (= 1 (length tclone)) "table/weak-keys marsh 3")
 (assert (= 1 (length t)) "table/weak-keys marsh 4")
-(assert (deep= t tclone) "table/weak-keys marsh 5")
+(assert (deep= (freeze t) (freeze tclone)) "table/weak-keys marsh 5")
 
 # table weak values
 (def t (table/weak-values 1))
@@ -207,7 +207,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= 2 (length tclone)) "table/weak-values marsh 2")
 (gccollect)
 (assert (= 1 (length t)) "table/weak-value marsh 3")
-(assert (deep= t tclone) "table/weak-values marsh 4")
+(assert (deep= (freeze t) (freeze tclone)) "table/weak-values marsh 4")
 
 # tables with prototypes
 (def t (table/weak-values 1))
@@ -219,7 +219,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (= 2 (length tclone)) "marsh weak tables with prototypes 2")
 (gccollect)
 (assert (= 1 (length t)) "marsh weak tables with prototypes 3")
-(assert (deep= t tclone) "marsh weak tables with prototypes 4")
+(assert (deep= (freeze t) (freeze tclone)) "marsh weak tables with prototypes 4")
 (assert (deep= (getproto t) (getproto tclone)) "marsh weak tables with prototypes 5")
 
 (end-suite)
