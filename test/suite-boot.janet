@@ -896,10 +896,17 @@
   (struct/with-proto {:a [1 2 3]} :c 22 :b [1 2 3 4] :d "test" :e "test2"))
 (table/setproto table-to-freeze @{:a @[1 2 3]})
 
-(assert (deep= {:a [1 2 3] :b [1 2 3 4] :c 22 :d "test" :e "test2"}
-               (freeze table-to-freeze)))
+(assert (deep= struct-to-thaw (freeze table-to-freeze)))
 (assert (deep= table-to-freeze-with-inline-proto (thaw table-to-freeze)))
 (assert (deep= table-to-freeze-with-inline-proto (thaw struct-to-thaw)))
+
+# Check that freezing mutable keys is deterministic
+# for issue #1535
+(def hashes @{})
+(repeat 200
+  (def x (freeze {@"" 1 @"" 2 @"" 3 @"" 4 @"" 5}))
+  (put hashes (hash x) true))
+(assert (= 1 (length hashes)) "freeze mutable keys is deterministic")
 
 # Make sure Carriage Returns don't end up in doc strings
 # e528b86

@@ -2224,14 +2224,18 @@
   child values also immutable. Closures, fibers, and abstract types
   will not be recursively frozen, but all other types will.`
   [x]
-  (case (type x)
-    :array (tuple/slice (map freeze x))
-    :tuple (tuple/slice (map freeze x))
-    :table (if-let [p (table/getproto x)]
-             (freeze (merge (table/clone p) x))
-             (struct ;(map freeze (kvs x))))
-    :struct (struct ;(map freeze (kvs x)))
-    :buffer (string x)
+  (def tx (type x))
+  (cond
+    (or (= tx :array) (= tx :tuple))
+    (tuple/slice (map freeze x))
+
+    (or (= tx :table) (= tx :struct))
+    (let [sorted-kvs (array/join @[] ;(sort (map freeze (pairs x))))]
+      (struct/with-proto (freeze (getproto x)) ;sorted-kvs))
+
+    (= tx :buffer)
+    (string x)
+
     x))
 
 (defn thaw
