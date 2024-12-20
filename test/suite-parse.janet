@@ -57,6 +57,8 @@
     (for i (+ index 1) (+ index indent 1)
       (case (get text i)
         nil (break)
+        (chr "\r") (if-not (= (chr "\n") (get text (inc i)))
+                     (set rewrite false))
         (chr "\n") (break)
         (chr " ") nil
         (set rewrite false))))
@@ -64,12 +66,17 @@
   # Only re-indent if no dedented characters.
   (def str
     (if rewrite
-      (peg/replace-all ~(* "\n" (between 0 ,indent " ")) "\n" text)
+      (peg/replace-all ~(* '(* (? "\r") "\n") (between 0 ,indent " "))
+                      (fn [mtch eol] eol) text)
       text))
 
-  (def first-nl (= (chr "\n") (first str)))
-  (def last-nl (= (chr "\n") (last str)))
-  (string/slice str (if first-nl 1 0) (if last-nl -2)))
+  (def first-eol (cond
+                   (string/has-prefix? "\r\n" str) :crlf
+                   (string/has-prefix? "\n" str) :lf))
+  (def last-eol (cond
+                  (string/has-suffix? "\r\n" str) :crlf
+                  (string/has-suffix? "\n" str) :lf))
+  (string/slice str (case first-eol :crlf 2 :lf 1 0) (case last-eol :crlf -3 :lf -2)))
 
 (defn reindent-reference
   "Same as reindent but use parser functionality. Useful for
@@ -89,8 +96,10 @@
   (let [a (reindent text indent)
         b (reindent-reference text indent)]
     (assert (= a b)
-            (string "indent " indent-counter " (indent=" indent ")"))))
+            (string/format "reindent: %q, parse: %q (indent-test #%d with indent of %d)" a b indent-counter indent)
+            )))
 
+# Unix EOLs
 (check-indent "" 0)
 (check-indent "\n" 0)
 (check-indent "\n" 1)
@@ -106,6 +115,17 @@
 (check-indent "\n    Hello, world!\n    " 4)
 (check-indent "\n    Hello, world!\n   dedented text\n    " 4)
 (check-indent "\n    Hello, world!\n    indented text\n    " 4)
+# Windows EOLs
+(check-indent "\r\n" 0)
+(check-indent "\r\n" 1)
+(check-indent "\r\n\r\n" 0)
+(check-indent "\r\n\r\n" 1)
+(check-indent "\r\nHello, world!" 0)
+(check-indent "\r\nHello, world!" 1)
+(check-indent "\r\n    Hello, world!\r\n   " 4)
+(check-indent "\r\n    Hello, world!\r\n    " 4)
+(check-indent "\r\n    Hello, world!\r\n   dedented text\r\n    " 4)
+(check-indent "\r\n    Hello, world!\r\n    indented text\r\n    " 4)
 
 # Symbols with @ character
 # d68eae9
