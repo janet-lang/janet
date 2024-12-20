@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Fix `deep=` and `deep-not=` to better handle degenerate cases with mutable table keys
+- Long strings will now dedent on `\r\n` instead of just `\n`.
 - Add `ev/to-file` for synchronous resource operations
 
 ## 1.37.1 - 2024-12-05
