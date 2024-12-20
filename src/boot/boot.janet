@@ -2230,8 +2230,16 @@
     (tuple/slice (map freeze x))
 
     (or (= tx :table) (= tx :struct))
-    (let [sorted-kvs (array/join @[] ;(sort (map freeze (pairs x))))]
-      (struct/with-proto (freeze (getproto x)) ;sorted-kvs))
+    (let [temp-tab @{}]
+      # Handle multiple unique keys that freeze. Result should
+      # be independent of iteration order.
+      (eachp [k v] x
+        (def kk (freeze k))
+        (def vv (freeze v))
+        (def old (get temp-tab kk))
+        (def new (if (= nil old) vv (max vv old)))
+        (put temp-tab kk new))
+      (table/to-struct temp-tab (freeze (getproto x))))
 
     (= tx :buffer)
     (string x)

@@ -372,12 +372,14 @@ JANET_CORE_FN(cfun_table_setproto,
 }
 
 JANET_CORE_FN(cfun_table_tostruct,
-              "(table/to-struct tab)",
-              "Convert a table to a struct. Returns a new struct. This function "
-              "does not take into account prototype tables.") {
-    janet_fixarity(argc, 1);
+              "(table/to-struct tab &opt proto)",
+              "Convert a table to a struct. Returns a new struct.") {
+    janet_arity(argc, 1, 2);
     JanetTable *t = janet_gettable(argv, 0);
-    return janet_wrap_struct(janet_table_to_struct(t));
+    JanetStruct proto = janet_optstruct(argv, argc, 1, NULL);
+    JanetStruct st = janet_table_to_struct(t);
+    janet_struct_proto(st) = proto;
+    return janet_wrap_struct(st);
 }
 
 JANET_CORE_FN(cfun_table_rawget,
