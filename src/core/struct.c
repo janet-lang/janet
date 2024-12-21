@@ -294,6 +294,16 @@ JANET_CORE_FN(cfun_struct_to_table,
     return janet_wrap_table(tab);
 }
 
+JANET_CORE_FN(cfun_struct_rawget,
+              "(struct/rawget st key)",
+              "Gets a value from a struct `st` without looking at the prototype struct. "
+              "If `st` does not contain the key directly, the function will return "
+              "nil without checking the prototype. Returns the value in the struct.") {
+    janet_fixarity(argc, 2);
+    JanetStruct st = janet_getstruct(argv, 0);
+    return janet_struct_rawget(st, argv[1]);
+}
+
 /* Load the struct module */
 void janet_lib_struct(JanetTable *env) {
     JanetRegExt struct_cfuns[] = {
@@ -301,6 +311,7 @@ void janet_lib_struct(JanetTable *env) {
         JANET_CORE_REG("struct/getproto", cfun_struct_getproto),
         JANET_CORE_REG("struct/proto-flatten", cfun_struct_flatten),
         JANET_CORE_REG("struct/to-table", cfun_struct_to_table),
+        JANET_CORE_REG("struct/rawget", cfun_struct_rawget),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, struct_cfuns);

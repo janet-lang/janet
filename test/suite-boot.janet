@@ -1004,12 +1004,16 @@
 
 # issue #1535
 (loop [i :range [1 1000]]
-  (assert (deep= @{:key1 "value1" @"key" "value2"}
-                  @{:key1 "value1" @"key" "value2"}) "deep= mutable keys"))
+  (assert (deep-not= @{:key1 "value1" @"key" "value2"}
+                     @{:key1 "value1" @"key" "value2"}) "deep= mutable keys"))
 (assert (deep-not= {"abc" 123} {@"abc" 123}) "deep= mutable keys vs immutable key")
-(assert (deep= {@"" 1 @"" 2 @"" 3} {@"" 1 @"" 2 @"" 3}) "deep= duplicate mutable keys")
-(assert (deep= {@"" @"" @"" @"" @"" 3} {@"" @"" @"" @"" @"" 3}) "deep= duplicate mutable keys 2")
-(assert (deep= {@[] @"" @[] @"" @[] 3} {@[] @"" @[] @"" @[] 3}) "deep= duplicate mutable keys 3")
-(assert (deep= {@{} @"" @{} @"" @{} 3} {@{} @"" @{} @"" @{} 3}) "deep= duplicate mutable keys 4")
+(assert (deep-not= {@"" 1 @"" 2 @"" 3} {@"" 1 @"" 2 @"" 3}) "deep= duplicate mutable keys")
+(assert (deep-not= {@"" @"" @"" @"" @"" 3} {@"" @"" @"" @"" @"" 3}) "deep= duplicate mutable keys 2")
+(assert (deep-not= {@[] @"" @[] @"" @[] 3} {@[] @"" @[] @"" @[] 3}) "deep= duplicate mutable keys 3")
+(assert (deep-not= {@{} @"" @{} @"" @{} 3} {@{} @"" @{} @"" @{} 3}) "deep= duplicate mutable keys 4")
+(assert (deep-not= @{:key1 "value1" @"key2" @"value2"}
+                   @{:key1 "value1" @"key2" "value2"}) "deep= mutable keys")
+(assert (deep-not= @{:key1 "value1" [@"key2"] @"value2"}
+                   @{:key1 "value1" [@"key2"] @"value2"}) "deep= mutable keys")
 
 (end-suite)
