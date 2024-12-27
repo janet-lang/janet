@@ -1311,7 +1311,7 @@
 (defdyn *redef* "When set, allow dynamically rebinding top level defs. Will slow generated code and is intended to be used for development.")
 (defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
-(defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
+(defdyn *exit-value* "Set the return value from `run-context` upon an exit.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
 
 (defdyn *current-file*
