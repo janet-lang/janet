@@ -19,6 +19,11 @@
     <?define ProgramFilesFolder="ProgramFilesFolder" ?>
     <?define Win64="no" ?>
     <?define Arch="(x86)" ?>
+<?elseif $(sys.BUILDARCH)="arm64" ?>
+    <?define UpgradeCode="0bd4bab6-c838-4c2a-b9e6-56ea8064863c" ?>
+    <?define ProgramFilesFolder="ProgramFiles64Folder" ?>
+    <?define Win64="yes" ?>
+    <?define Arch="(Arm)" ?>
 <?else ?>
     <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
 <?endif?>
