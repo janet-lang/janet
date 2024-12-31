@@ -578,17 +578,19 @@ JANET_CORE_FN(cfun_net_connect,
     net_sched_connect(stream);
 }
 
-static const char *serverify_socket(JSock sfd) {
+static const char *serverify_socket(JSock sfd, int reuse) {
     /* Set various socket options */
     int enable = 1;
-    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
-        return "setsockopt(SO_REUSEADDR) failed";
-    }
+    if (reuse) {
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
+            return "setsockopt(SO_REUSEADDR) failed";
+        }
 #ifdef SO_REUSEPORT
-    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
-        return "setsockopt(SO_REUSEPORT) failed";
-    }
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+            return "setsockopt(SO_REUSEPORT) failed";
+        }
 #endif
+    }
     janet_net_socknoblock(sfd);
     return NULL;
 }
@@ -642,19 +644,21 @@ JANET_CORE_FN(cfun_net_shutdown,
 }
 
 JANET_CORE_FN(cfun_net_listen,
-              "(net/listen host port &opt type)",
+              "(net/listen host port &opt type no-reuse)",
               "Creates a server. Returns a new stream that is neither readable nor "
               "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
               "The type parameter specifies the type of network connection, either "
               "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
-              ":stream. The host and port arguments are the same as in net/address.") {
+              ":stream. The host and port arguments are the same as in net/address. The last boolean parameter `no-reuse` will "
+              "disable the use of SO_REUSEADDR and SO_REUSEPORT when creating a server on some operating systems.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_LISTEN);
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, 4);
 
     /* Get host, port, and handler*/
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
+    int reuse = !(argc >= 4 && janet_truthy(argv[3]));
 
     JSock sfd = JSOCKDEFAULT;
 #ifndef JANET_WINDOWS
@@ -664,7 +668,7 @@ JANET_CORE_FN(cfun_net_listen,
             janet_free(ai);
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
-        const char *err = serverify_socket(sfd);
+        const char *err = serverify_socket(sfd, reuse);
         if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
             janet_free(ai);
@@ -687,7 +691,7 @@ JANET_CORE_FN(cfun_net_listen,
             sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
             if (!JSOCKVALID(sfd)) continue;
-            const char *err = serverify_socket(sfd);
+            const char *err = serverify_socket(sfd, reuse);
             if (NULL != err) {
                 JSOCKCLOSE(sfd);
                 continue;

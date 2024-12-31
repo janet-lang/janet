@@ -410,6 +410,10 @@
         (ev/call handler connection)
         (break))))
 
+# Make sure we can't bind again with no-reuse
+(assert-error "no-reuse"
+              (net/listen test-host test-port :stream true))
+
 # Read from socket
 
 (defn expect-read
