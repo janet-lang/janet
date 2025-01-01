@@ -91,7 +91,7 @@ exit /b 0
 
 @rem Clean build artifacts
 :CLEAN
-del *.exe *.lib *.exp
+del *.exe *.lib *.exp *.msi *.wixpdb
 rd /s /q build
 if exist dist (
     rd /s /q dist
@@ -143,7 +143,13 @@ if defined CI (
 ) else (
     set WIXBIN=
 )
-%WIXBIN%candle.exe tools\msi\janet.wxs -arch %BUILDARCH% -out build\
+
+set WIXARCH=%BUILDARCH%
+if "%WIXARCH%"=="aarch64" (
+    set WIXARCH=arm64
+)
+
+%WIXBIN%candle.exe tools\msi\janet.wxs -arch %WIXARCH% -out build\
 %WIXBIN%light.exe "-sice:ICE38" -b tools\msi -ext WixUIExtension build\janet.wixobj -out janet-%RELEASE_VERSION%-windows-%BUILDARCH%-installer.msi
 exit /b 0
 

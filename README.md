@@ -207,7 +207,7 @@ Alternatively, install the package directly with `pkgin install janet`.
 
 To build an `.msi` installer executable, in addition to the above steps, you will have to:
 
-5. Install, or otherwise add to your PATH the [WiX 3.11 Toolset](https://github.com/wixtoolset/wix3/releases).
+5. Install, or otherwise add to your PATH the [WiX 3.14 Toolset](https://github.com/wixtoolset/wix3/releases).
 6. Run `build_win dist`.
 
 Now you should have an `.msi`. You can run `build_win install` to install the `.msi`, or execute the file itself.
