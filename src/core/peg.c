@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose
+* Copyright (c) 2025 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -549,36 +549,39 @@ tail:
             const uint32_t *rule_separator = s->bytecode + rule[1];
             const uint32_t *rule_subpattern = s->bytecode + rule[2];
 
-            const uint8_t *separator_end = NULL;
-            do {
-                const uint8_t *text_start = text;
+            const uint8_t *chunk_start = text;
+            const uint8_t *chunk_end = NULL;
+
+            while (text <= saved_end) {
+                /* Find next split (or end of text) */
                 CapState cs = cap_save(s);
                 down1(s);
-                while (text <= s->text_end) {
-                    separator_end = peg_rule(s, rule_separator, text);
+                while (text <= saved_end) {
+                    chunk_end = text;
+                    const uint8_t *check = peg_rule(s, rule_separator, text);
                     cap_load(s, cs);
-                    if (separator_end) {
+                    if (check) {
+                        text = check;
                         break;
                     }
                     text++;
                 }
                 up1(s);
 
-                if (separator_end) {
-                    s->text_end = text;
-                    text = separator_end;
-                }
-
+                /* Match between splits */
+                s->text_end = chunk_end;
                 down1(s);
-                const uint8_t *subpattern_end = peg_rule(s, rule_subpattern, text_start);
+                const uint8_t *subpattern_end = peg_rule(s, rule_subpattern, chunk_start);
                 up1(s);
                 s->text_end = saved_end;
+                if (!subpattern_end) return NULL; /* Don't match anything */
 
-                if (!subpattern_end) {
-                    return NULL;
-                }
-            } while (separator_end);
+                /* Ensure forward progress */
+                if (text == chunk_start) return NULL;
+                chunk_start = text;
+            }
 
+            s->text_end = saved_end;
             return s->text_end;
         }
 

@@ -772,5 +772,16 @@
   "5:apple6:banana6:cherry"
   @["apple" "banana" "cherry"])
 
+# Issue #1539 - make sure split with "" doesn't infinite loop/oom
+(test "issue 1539"
+      ~(split "" (capture (to -1)))
+      "hello there friends"
+      nil)
+
+(test "issue 1539 pt. 2"
+  ~(split "," (capture 0))
+  "abc123,,,,"
+  @["" "" "" "" ""])
+
 (end-suite)
 
