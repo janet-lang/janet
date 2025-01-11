@@ -205,7 +205,7 @@ JANET_CORE_FN(cfun_it_u64_new,
 
 JANET_CORE_FN(cfun_to_number,
               "(int/to-number value)",
-              "Convert an int/u64 or int/s64 to a number. Fails if the number is out of range for an int32.") {
+              "Convert an int/u64 or int/s64 to a number. Fails if the number is out of range for an int64.") {
     janet_fixarity(argc, 1);
     if (janet_type(argv[0]) == JANET_ABSTRACT) {
         void *abst = janet_unwrap_abstract(argv[0]);
