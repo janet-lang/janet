@@ -191,14 +191,14 @@ Janet janet_wrap_u64(uint64_t x) {
 
 JANET_CORE_FN(cfun_it_s64_new,
               "(int/s64 value)",
-              "Create a boxed signed 64 bit integer from a string value.") {
+              "Create a boxed signed 64 bit integer from a string value or a number.") {
     janet_fixarity(argc, 1);
     return janet_wrap_s64(janet_unwrap_s64(argv[0]));
 }
 
 JANET_CORE_FN(cfun_it_u64_new,
               "(int/u64 value)",
-              "Create a boxed unsigned 64 bit integer from a string value.") {
+              "Create a boxed unsigned 64 bit integer from a string value or a number.") {
     janet_fixarity(argc, 1);
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
