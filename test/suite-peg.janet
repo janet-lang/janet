@@ -783,5 +783,11 @@
   "abc123,,,,"
   @["" "" "" "" ""])
 
+# Issue #1549 - allow buffers as peg literals
+(test "issue 1549"
+      ''@"abc123"
+      "abc123"
+      @["abc123"])
+
 (end-suite)
 

@@ -1419,6 +1419,11 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             emit_bytes(b, RULE_LITERAL, len, str);
             break;
         }
+        case JANET_BUFFER: {
+            const JanetBuffer *buf = janet_unwrap_buffer(peg);
+            emit_bytes(b, RULE_LITERAL, buf->count, buf->data);
+            break;
+        }
         case JANET_TABLE: {
             /* Build grammar table */
             JanetTable *new_grammar = janet_table_clone(janet_unwrap_table(peg));
