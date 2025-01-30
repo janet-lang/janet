@@ -208,5 +208,8 @@
 (parser/consume p `")`)
 (assert (= (parser/produce p) ["hello"]))
 
+# Hex floats
+(assert (= math/pi +0x1.921fb54442d18p+0001))
+
 (end-suite)
 

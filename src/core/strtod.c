@@ -298,8 +298,10 @@ int janet_scan_number_base(
     }
 
     /* If still base is 0, set to default (10) */
+    int exp_base = base;
     if (base == 0) {
         base = 10;
+        exp_base = 10;
     }
 
     /* Skip leading zeros */
@@ -321,6 +323,12 @@ int janet_scan_number_base(
             seenpoint = 1;
         } else if (*str == '&') {
             foundexp = 1;
+            break;
+        } else if (base == 16 && (*str == 'P' || *str == 'p')) { /* IEEE hex float */
+            foundexp = 1;
+            exp_base = 10;
+            base = 2;
+            ex *= 4; /* We need to correct the current exponent after we change the base */
             break;
         } else if (base == 10 && (*str == 'E' || *str == 'e')) {
             foundexp = 1;
@@ -360,9 +368,9 @@ int janet_scan_number_base(
         }
         while (str < end) {
             int digit = digit_lookup[*str & 0x7F];
-            if (*str > 127 || digit >= base) goto error;
+            if (*str > 127 || digit >= exp_base) goto error;
             if (ee < (INT32_MAX / 40)) {
-                ee = base * ee + digit;
+                ee = exp_base * ee + digit;
             }
             str++;
             seenadigit = 1;
