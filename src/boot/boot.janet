@@ -996,7 +996,7 @@
 
 (defn reduce2
   ``The 2-argument version of `reduce` that does not take an initialization value.
-  Instead, the first element of the array is used for initialization.``
+  Instead, the first element of the array is used for initialization. If `ind` is empty, will evaluate to nil.``
   [f ind]
   (var k (next ind))
   (if (= nil k) (break nil))
