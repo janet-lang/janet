@@ -298,11 +298,10 @@ int janet_scan_number_base(
     }
 
     /* If still base is 0, set to default (10) */
-    int exp_base = base;
     if (base == 0) {
         base = 10;
-        exp_base = 10;
     }
+    int exp_base = base;
 
     /* Skip leading zeros */
     while (str < end && (*str == '0' || *str == '.')) {

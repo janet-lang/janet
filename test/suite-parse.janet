@@ -210,6 +210,12 @@
 
 # Hex floats
 (assert (= math/pi +0x1.921fb54442d18p+0001))
+(assert (= math/int-max +0x1.ffff_ffff_ffff_ffp+0052))
+(assert (= math/int-min -0x1.ffff_ffff_ffff_ffp+0052))
+(assert (= 1 0x1P0))
+(assert (= 2 0x1P1))
+(assert (= -2 -0x1p1))
+(assert (= -0.5 -0x1p-1))
 
 (end-suite)
 
