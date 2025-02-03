@@ -343,7 +343,7 @@ tail:
                 CapState cs2 = cap_save(s);
                 next_text = peg_rule(s, rule_a, text);
                 if (!next_text || next_text == text) {
-                    cap_load(s, cs2);
+                    if (!next_text || captured > 0) cap_load(s, cs2);
                     break;
                 }
                 captured++;

@@ -789,5 +789,13 @@
       "abc123"
       @["abc123"])
 
+# Issue 1554
+(test "issue 1554 case 1" '(any (> '1)) "abc" @["a"])
+(test "issue 1554 case 2" '(any (? (> '1))) "abc" @["a"])
+(test "issue 1554 case 3" '(any (> (? '1))) "abc" @["a"])
+(test "issue 1554 case 4" '(* "a" (> '1)) "abc" @["b"])
+(test "issue 1554 case 5" '(* "a" (? (> '1))) "abc" @["b"])
+(test "issue 1554 case 6" '(* "a" (> (? '1))) "abc" @["b"])
+
 (end-suite)
 
