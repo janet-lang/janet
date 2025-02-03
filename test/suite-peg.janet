@@ -789,13 +789,16 @@
       "abc123"
       @["abc123"])
 
-# Issue 1554
-(test "issue 1554 case 1" '(any (> '1)) "abc" @["a"])
-(test "issue 1554 case 2" '(any (? (> '1))) "abc" @["a"])
-(test "issue 1554 case 3" '(any (> (? '1))) "abc" @["a"])
+# Issue 1554 - 0-width match termination behavior
+(test "issue 1554 case 1" '(any (> '1)) "abc" @[])
+(test "issue 1554 case 2" '(any (? (> '1))) "abc" @[])
+(test "issue 1554 case 3" '(any (> (? '1))) "abc" @[])
 (test "issue 1554 case 4" '(* "a" (> '1)) "abc" @["b"])
 (test "issue 1554 case 5" '(* "a" (? (> '1))) "abc" @["b"])
 (test "issue 1554 case 6" '(* "a" (> (? '1))) "abc" @["b"])
+(test "issue 1554 case 7" '(between 0 2 (> '1)) "abc" @["a" "a"])
+(test "issue 1554 case 8" '(between 2 3 (? (> '1))) "abc" @["a" "a" "a"])
+(test "issue 1554 case 9" '(between 0 0 (> (? '1))) "abc" @[])
 
 (end-suite)
 
