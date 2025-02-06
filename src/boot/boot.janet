@@ -2345,17 +2345,11 @@
 
 (defmacro short-fn
   ```
-  Shorthand for `fn`. Arguments are given as `$n`, where `n` is the 0-indexed
-  argument of the function. `$` is also an alias for the first (index 0) argument.
-  The `$&` symbol will make the anonymous function variadic if it appears in the
-  body of the function, and can be combined with positional arguments.
-
-  Example usage:
-
-      (short-fn (+ $ $)) # A function that doubles its arguments.
-      (short-fn (string $0 $1)) # accepting multiple args.
-      |(+ $ $) # use pipe reader macro for terse function literals.
-      |(+ $&)  # variadic functions
+  Shorthand for `fn`. Arguments are given as `$n`, where `n` is the
+  0-indexed argument of the function. `$` is also an alias for the
+  first (index 0) argument. The `$&` symbol will make the anonymous
+  function variadic if it appears in the body of the function, and
+  can be combined with positional arguments.
   ```
   [arg &opt name]
   (var max-param-seen -1)
