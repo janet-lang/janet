@@ -1002,12 +1002,11 @@ static void make_apply(JanetTable *env) {
     janet_quick_asm(env, JANET_FUN_APPLY | JANET_FUNCDEF_FLAG_VARARG,
                     "apply", 1, 1, INT32_MAX, 6, apply_asm, sizeof(apply_asm),
                     JDOC("(apply f & args)\n\n"
-         "Applies a function to a variable number of arguments. Each element in args "
-         "is used as an argument to f, except the last element in args, which is expected to "
-         "be an array-like. Each element in this last argument is then also pushed as an argument to "
-         "f. For example:\n\n"
-         "\t(apply + 1000 (range 10))\n\n"
-         "sums the first 10 integers and 1000."));
+         "Applies a function f to a variable number of arguments. Each "
+         "element in args is used as an argument to f, except the last "
+         "element in args, which is expected to be an array or a tuple. "
+         "Each element in this last argument is then also pushed as an "
+         "argument to f."));
 }
 
 static const uint32_t error_asm[] = {
