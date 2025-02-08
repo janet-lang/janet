@@ -563,7 +563,7 @@ tail:
             up1(s);
 
             if (!terminus_end) {
-              return NULL;
+                return NULL;
             }
 
             const uint8_t *saved_end = s->text_end;
