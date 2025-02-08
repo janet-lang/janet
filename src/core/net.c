@@ -578,17 +578,21 @@ JANET_CORE_FN(cfun_net_connect,
     net_sched_connect(stream);
 }
 
-static const char *serverify_socket(JSock sfd, int reuse) {
+static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
     /* Set various socket options */
     int enable = 1;
-    if (reuse) {
+    if (reuse_addr) {
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
             return "setsockopt(SO_REUSEADDR) failed";
         }
+    }
+    if (reuse_port) {
 #ifdef SO_REUSEPORT
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
             return "setsockopt(SO_REUSEPORT) failed";
         }
+#else
+        (void) reuse_port;
 #endif
     }
     janet_net_socknoblock(sfd);
@@ -668,7 +672,7 @@ JANET_CORE_FN(cfun_net_listen,
             janet_free(ai);
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
-        const char *err = serverify_socket(sfd, reuse);
+        const char *err = serverify_socket(sfd, reuse, 0);
         if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
             janet_free(ai);
@@ -691,7 +695,7 @@ JANET_CORE_FN(cfun_net_listen,
             sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
             if (!JSOCKVALID(sfd)) continue;
-            const char *err = serverify_socket(sfd, reuse);
+            const char *err = serverify_socket(sfd, reuse, reuse);
             if (NULL != err) {
                 JSOCKCLOSE(sfd);
                 continue;

@@ -484,4 +484,10 @@
                 (pp :foo)))
 (ev/chan-close c)
 
+# soreuseport on unix domain sockets
+(compwhen (= :linux (os/which))
+  (assert-no-error "unix-domain socket reuseaddr"
+                   (let [s (net/listen :unix "./unix-domain-socket" :stream)]
+                     (:close s))))
+
 (end-suite)

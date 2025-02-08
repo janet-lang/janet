@@ -2283,7 +2283,7 @@
             (def rawget (if (= tx :struct) struct/rawget table/rawget))
             (var ret false)
             (eachp [k v] x
-                (if (deep-not= (rawget y k) v) (break (set ret true))))
+              (if (deep-not= (rawget y k) v) (break (set ret true))))
             ret))
       (= tx :buffer) (not= 0 (- (length x) (length y)) (memcmp x y))
       (not= x y))))
