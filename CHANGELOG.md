@@ -2,11 +2,17 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Improve `?` peg special termination behavior
 - Add IEEE hex floats to grammar.
+- Add buffer peg literal support
+- Improve `split` peg special edge case behavior
+- Add Arm64 .msi support
+- Add `no-reuse` argument to `net/listen` to disable reusing server sockets
 - Add `struct/rawget`
 - Fix `deep=` and `deep-not=` to better handle degenerate cases with mutable table keys
 - Long strings will now dedent on `\r\n` instead of just `\n`.
 - Add `ev/to-file` for synchronous resource operations
+- Improve `file/open` error message by including path
 
 ## 1.37.1 - 2024-12-05
 - Fix meson cross compilation
