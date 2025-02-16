@@ -3877,8 +3877,8 @@
 (compwhen (dyn 'net/listen)
   (defn net/server
     "Start a server asynchronously with `net/listen` and `net/accept-loop`. Returns the new server stream."
-    [host port &opt handler type]
-    (def s (net/listen host port type))
+    [host port &opt handler type no-reuse]
+    (def s (net/listen host port type no-reuse))
     (if handler
       (ev/go (fn [] (net/accept-loop s handler))))
     s))

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose
+* Copyright (c) 2025 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1789,6 +1789,22 @@ void janet_stream_edge_triggered(JanetStream *stream) {
 }
 
 void janet_stream_level_triggered(JanetStream *stream) {
+    /* On macos, we seem to need to delete any registered events before re-registering without
+     * EV_CLEAR, otherwise the new event will still have EV_CLEAR set erroneously. This could be a
+     * kernel bug, but unfortunately the specification is vague here, esp. in regards to where and when
+     * EV_CLEAR is set automatically. */
+    struct kevent kevs[2];
+    int length = 0;
+    if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_DELETE, 0, 0, stream);
+    }
+    if (stream->flags & JANET_STREAM_WRITABLE) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_DELETE, 0, 0, stream);
+    }
+    int status;
+    do {
+        status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
+    } while (status == -1 && errno == EINTR);
     janet_register_stream_impl(stream, 0);
 }
 

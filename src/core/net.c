@@ -554,7 +554,10 @@ JANET_CORE_FN(cfun_net_connect,
     int err = WSAGetLastError();
     freeaddrinfo(ai);
 #else
-    int status = connect(sock, addr, addrlen);
+    int status;
+    do {
+        status = connect(sock, addr, addrlen);
+    } while (status == -1 && errno == EINTR);
     int err = errno;
     if (is_unix) {
         janet_free(ai);
