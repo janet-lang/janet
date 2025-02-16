@@ -1388,6 +1388,11 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
 
     if (signal != JANET_SIGNAL_OK) {
         /* Should match logic in janet_signalv */
+#ifdef JANET_EV
+        if (janet_vm.root_fiber != NULL && signal == JANET_SIGNAL_EVENT) {
+            janet_vm.root_fiber->sched_id++;
+        }
+#endif
         if (signal != JANET_SIGNAL_ERROR) {
             *janet_vm.return_reg = janet_wrap_string(janet_formatc("%v coerced from %s to error", *janet_vm.return_reg, janet_signal_names[signal]));
         }

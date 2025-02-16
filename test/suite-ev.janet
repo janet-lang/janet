@@ -482,6 +482,14 @@
 (:close chat-server)
 
 # Issue #1531
+(defn sleep-print [x] (ev/sleep 0) (print x))
+(protect (with-dyns [*out* sleep-print] (prin :foo)))
+(defn level-trigger-handling [conn &] (:close conn))
+(def s (assert (net/server test-host test-port level-trigger-handling)))
+(def c (assert (net/connect test-host test-port)))
+(:close s)
+
+# Issue #1531 no. 2
 (def c (ev/chan 0))
 (ev/spawn (while (def x (ev/take c))))
 (defn print-to-chan [x] (ev/give c x))

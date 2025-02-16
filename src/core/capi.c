@@ -64,6 +64,11 @@ void janet_signalv(JanetSignal sig, Janet message) {
     if (janet_vm.return_reg != NULL) {
         /* Should match logic in janet_call for coercing everything not ok to an error (no awaits, yields, etc.) */
         if (janet_vm.coerce_error && sig != JANET_SIGNAL_OK) {
+#ifdef JANET_EV
+            if (NULL != janet_vm.root_fiber && sig == JANET_SIGNAL_EVENT) {
+                janet_vm.root_fiber->sched_id++;
+            }
+#endif
             if (sig != JANET_SIGNAL_ERROR) {
                 message = janet_wrap_string(janet_formatc("%v coerced from %s to error", message, janet_signal_names[sig]));
             }

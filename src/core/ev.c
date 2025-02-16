@@ -1037,6 +1037,9 @@ JANET_CORE_FN(cfun_channel_push,
               "Returns the channel if the write succeeded, nil otherwise.") {
     janet_fixarity(argc, 2);
     JanetChannel *channel = janet_getchannel(argv, 0);
+    if (janet_vm.coerce_error) {
+        janet_panic("cannot give to channel inside janet_call");
+    }
     if (janet_channel_push(channel, argv[1], 0)) {
         janet_await();
     }
@@ -1049,6 +1052,9 @@ JANET_CORE_FN(cfun_channel_pop,
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     Janet item;
+    if (janet_vm.coerce_error) {
+        janet_panic("cannot take from channel inside janet_call");
+    }
     if (janet_channel_pop(channel, &item, 0)) {
         janet_schedule(janet_vm.root_fiber, item);
     }
@@ -1084,6 +1090,10 @@ JANET_CORE_FN(cfun_channel_choice,
     janet_arity(argc, 1, -1);
     int32_t len;
     const Janet *data;
+
+    if (janet_vm.coerce_error) {
+        janet_panic("cannot select from channel inside janet_call");
+    }
 
     /* Check channels for immediate reads and writes */
     for (int32_t i = 0; i < argc; i++) {
