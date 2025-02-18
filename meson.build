@@ -20,14 +20,23 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.37.0')
+  version : '1.37.1')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
 header_path = join_paths(get_option('prefix'), get_option('includedir'), 'janet')
 
-# Link math library on all systems
+# Compilers
 cc = meson.get_compiler('c')
+native_cc = meson.get_compiler('c', native : true)
+
+# Native deps
+native_m_dep = native_cc.find_library('m', required : false)
+native_dl_dep = native_cc.find_library('dl', required : false)
+native_android_spawn_dep = native_cc.find_library('android-spawn', required : false)
+native_thread_dep = dependency('threads', native : true)
+
+# Deps
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
 android_spawn_dep = cc.find_library('android-spawn', required : false)
@@ -167,11 +176,18 @@ mainclient_src = [
   'src/mainclient/shell.c'
 ]
 
+janet_dependencies = [m_dep, dl_dep, android_spawn_dep]
+janet_native_dependencies = [native_m_dep, native_dl_dep, native_android_spawn_dep]
+if not get_option('single_threaded')
+  janet_dependencies += thread_dep
+  janet_native_dependencies += native_thread_dep
+endif
+
 # Build boot binary
 janet_boot = executable('janet-boot', core_src, boot_src,
   include_directories : incdir,
   c_args : '-DJANET_BOOTSTRAP',
-  dependencies : [m_dep, dl_dep, thread_dep, android_spawn_dep],
+  dependencies : janet_native_dependencies,
   native : true)
 
 # Build janet.c
@@ -183,11 +199,6 @@ janetc = custom_target('janetc',
     janet_boot, meson.current_source_dir(),
     'JANET_PATH', janet_path
   ])
-
-janet_dependencies = [m_dep, dl_dep, android_spawn_dep]
-if not get_option('single_threaded')
-  janet_dependencies += thread_dep
-endif
 
 # Allow building with no shared library
 if cc.has_argument('-fvisibility=hidden')
@@ -234,7 +245,7 @@ if meson.is_cross_build()
   endif
   janet_nativeclient = executable('janet-native', janetc, mainclient_src,
     include_directories : incdir,
-    dependencies : janet_dependencies,
+    dependencies : janet_native_dependencies,
     c_args : extra_native_cflags,
     native : true)
 else

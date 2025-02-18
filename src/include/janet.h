@@ -1262,6 +1262,7 @@ typedef struct {
     /* new state */
     jmp_buf buf;
     Janet payload;
+    int coerce_error;
 } JanetTryState;
 
 /***** END SECTION TYPES *****/
@@ -1443,6 +1444,7 @@ JANET_NO_RETURN JANET_API void janet_sleep_await(double sec);
 /* For use inside listeners - adds a timeout to the current fiber, such that
  * it will be resumed after sec seconds if no other event schedules the current fiber. */
 JANET_API void janet_addtimeout(double sec);
+JANET_API void janet_addtimeout_nil(double sec);
 JANET_API void janet_ev_inc_refcount(void);
 JANET_API void janet_ev_dec_refcount(void);
 
@@ -2181,6 +2183,7 @@ typedef enum {
     RULE_UNREF,        /* [rule, tag] */
     RULE_CAPTURE_NUM,  /* [rule, tag] */
     RULE_SUB,          /* [rule, rule] */
+    RULE_TIL,          /* [rule, rule] */
     RULE_SPLIT,        /* [rule, rule] */
     RULE_NTH,          /* [nth, rule, tag] */
     RULE_ONLY_TAGS,    /* [rule] */

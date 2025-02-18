@@ -38,6 +38,9 @@ jobs:
       - name: Test the project
         shell: cmd
         run: build_win test
+      - name: Test installer build
+        shell: cmd
+        run: build_win dist
 
   test-windows-min:
     name: Build and test on Windows Minimal build

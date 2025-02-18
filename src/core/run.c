@@ -28,7 +28,7 @@
 
 /* Run a string */
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
-    JanetParser parser;
+    JanetParser *parser;
     int errflags = 0, done = 0;
     int32_t index = 0;
     Janet ret = janet_wrap_nil();
@@ -37,14 +37,16 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
 
     if (where) janet_gcroot(janet_wrap_string(where));
     if (NULL == sourcePath) sourcePath = "<unknown>";
-    janet_parser_init(&parser);
+    parser = janet_abstract(&janet_parser_type, sizeof(JanetParser));
+    janet_parser_init(parser);
+    janet_gcroot(janet_wrap_abstract(parser));
 
     /* While we haven't seen an error */
     while (!done) {
 
         /* Evaluate parsed values */
-        while (janet_parser_has_more(&parser)) {
-            Janet form = janet_parser_produce(&parser);
+        while (janet_parser_has_more(parser)) {
+            Janet form = janet_parser_produce(parser);
             JanetCompileResult cres = janet_compile(form, env, where);
             if (cres.status == JANET_COMPILE_OK) {
                 JanetFunction *f = janet_thunk(cres.funcdef);
@@ -58,8 +60,8 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 }
             } else {
                 ret = janet_wrap_string(cres.error);
-                int32_t line = (int32_t) parser.line;
-                int32_t col = (int32_t) parser.column;
+                int32_t line = (int32_t) parser->line;
+                int32_t col = (int32_t) parser->column;
                 if ((cres.error_mapping.line > 0) &&
                         (cres.error_mapping.column > 0)) {
                     line = cres.error_mapping.line;
@@ -81,16 +83,16 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
         if (done) break;
 
         /* Dispatch based on parse state */
-        switch (janet_parser_status(&parser)) {
+        switch (janet_parser_status(parser)) {
             case JANET_PARSE_DEAD:
                 done = 1;
                 break;
             case JANET_PARSE_ERROR: {
-                const char *e = janet_parser_error(&parser);
+                const char *e = janet_parser_error(parser);
                 errflags |= 0x04;
                 ret = janet_cstringv(e);
-                int32_t line = (int32_t) parser.line;
-                int32_t col = (int32_t) parser.column;
+                int32_t line = (int32_t) parser->line;
+                int32_t col = (int32_t) parser->column;
                 janet_eprintf("%s:%d:%d: parse error: %s\n", sourcePath, line, col, e);
                 done = 1;
                 break;
@@ -98,9 +100,9 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
             case JANET_PARSE_ROOT:
             case JANET_PARSE_PENDING:
                 if (index >= len) {
-                    janet_parser_eof(&parser);
+                    janet_parser_eof(parser);
                 } else {
-                    janet_parser_consume(&parser, bytes[index++]);
+                    janet_parser_consume(parser, bytes[index++]);
                 }
                 break;
         }
@@ -108,7 +110,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
     }
 
     /* Clean up and return errors */
-    janet_parser_deinit(&parser);
+    janet_gcunroot(janet_wrap_abstract(parser));
     if (where) janet_gcunroot(janet_wrap_string(where));
 #ifdef JANET_EV
     /* Enter the event loop if we are not already in it */

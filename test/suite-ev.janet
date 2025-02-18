@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Calvin Rose & contributors
+# Copyright (c) 2025 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -199,7 +199,7 @@
   (assert s "made server 1")
 
   (defn test-echo [msg]
-    (with [conn (net/connect test-host test-port)]
+    (with [conn (assert (net/connect test-host test-port))]
       (net/write conn msg)
       (def res (net/read conn 1024))
       (assert (= (string res) msg) (string "echo " msg))))
@@ -213,6 +213,7 @@
 
 # Test on both server and client
 # 504411e
+(var iterations 0)
 (defn names-handler
   [stream]
   (defer (:close stream)
@@ -220,20 +221,25 @@
     (ev/read stream 1)
     (def [host port] (net/localname stream))
     (assert (= host test-host) "localname host server")
-    (assert (= port (scan-number test-port)) "localname port server")))
+    (assert (= port (scan-number test-port)) "localname port server")
+    (++ iterations)
+    (ev/write stream " ")))
 
 # Test localname and peername
 # 077bf5eba
 (repeat 10
   (with [s (net/server test-host test-port names-handler)]
     (repeat 10
-      (with [conn (net/connect test-host test-port)]
+      (with [conn (assert (net/connect test-host test-port))]
         (def [host port] (net/peername conn))
         (assert (= host test-host) "peername host client ")
         (assert (= port (scan-number test-port)) "peername port client")
-        # let server close
-        (ev/write conn " "))))
+        (++ iterations)
+        (ev/write conn " ")
+        (ev/read conn 1))))
   (gccollect))
+
+(assert (= iterations 200) "localname and peername not enough checks")
 
 # Create pipe
 # 12f09ad2d
@@ -410,6 +416,10 @@
         (ev/call handler connection)
         (break))))
 
+# Make sure we can't bind again with no-reuse
+(assert-error "no-reuse"
+              (net/listen test-host test-port :stream true))
+
 # Read from socket
 
 (defn expect-read
@@ -418,11 +428,17 @@
   (assert (= result text) (string/format "expected %v, got %v" text result)))
 
 # Now do our telnet chat
-(def bob (net/connect test-host test-port))
+(def bob (assert (net/connect test-host test-port :stream)))
 (expect-read bob "Whats your name?\n")
-(net/write bob "bob")
+(if (= :mingw (os/which))
+  (net/write bob "bob")
+  (do
+    (def fbob (ev/to-file bob))
+    (file/write fbob "bob")
+    (file/flush fbob)
+    (:close fbob)))
 (expect-read bob "Welcome bob\n")
-(def alice (net/connect test-host test-port))
+(def alice (assert (net/connect test-host test-port)))
 (expect-read alice "Whats your name?\n")
 (net/write alice "alice")
 (expect-read alice "Welcome alice\n")
@@ -436,7 +452,7 @@
 (expect-read bob "[alice]:hi\n")
 
 # Ted joins the chat server
-(def ted (net/connect test-host test-port))
+(def ted (assert (net/connect test-host test-port)))
 (expect-read ted "Whats your name?\n")
 (net/write ted "ted")
 (expect-read ted "Welcome ted\n")
@@ -464,5 +480,50 @@
 
 # Close chat server
 (:close chat-server)
+
+# Issue #1531
+(defn sleep-print [x] (ev/sleep 0) (print x))
+(protect (with-dyns [*out* sleep-print] (prin :foo)))
+(defn level-trigger-handling [conn &] (:close conn))
+(def s (assert (net/server test-host test-port level-trigger-handling)))
+(def c (assert (net/connect test-host test-port)))
+(:close s)
+
+# Issue #1531 no. 2
+(def c (ev/chan 0))
+(ev/spawn (while (def x (ev/take c))))
+(defn print-to-chan [x] (ev/give c x))
+(assert-error "coerce await inside janet_call to error"
+              (with-dyns [*out* print-to-chan]
+                (pp :foo)))
+(ev/chan-close c)
+
+# soreuseport on unix domain sockets
+(compwhen (or (= :macos (os/which)) (= :linux (os/which)))
+  (assert-no-error "unix-domain socket reuseaddr"
+                   (let [s (net/listen :unix "./unix-domain-socket" :stream)]
+                     (:close s))))
+
+# net/accept-loop level triggering
+(gccollect)
+(def maxconn 50)
+(var connect-count 0)
+(defn level-trigger-handling
+  [conn &]
+  (with [conn conn]
+    (ev/write conn (ev/read conn 4096))
+    (++ connect-count)))
+(def s (assert (net/server test-host test-port level-trigger-handling)))
+(def cons @[])
+(repeat maxconn (array/push cons (assert (net/connect test-host test-port))))
+(assert (= maxconn (length cons)))
+(defn do-connect [i]
+  (with [c (get cons i)]
+    (ev/write c "abc123")
+    (ev/read c 4096)))
+(for i 0 maxconn (ev/spawn (do-connect i)))
+(ev/sleep 0.1)
+(assert (= maxconn connect-count))
+(:close s)
 
 (end-suite)

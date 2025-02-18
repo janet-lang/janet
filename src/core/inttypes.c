@@ -191,21 +191,21 @@ Janet janet_wrap_u64(uint64_t x) {
 
 JANET_CORE_FN(cfun_it_s64_new,
               "(int/s64 value)",
-              "Create a boxed signed 64 bit integer from a string value.") {
+              "Create a boxed signed 64 bit integer from a string value or a number.") {
     janet_fixarity(argc, 1);
     return janet_wrap_s64(janet_unwrap_s64(argv[0]));
 }
 
 JANET_CORE_FN(cfun_it_u64_new,
               "(int/u64 value)",
-              "Create a boxed unsigned 64 bit integer from a string value.") {
+              "Create a boxed unsigned 64 bit integer from a string value or a number.") {
     janet_fixarity(argc, 1);
     return janet_wrap_u64(janet_unwrap_u64(argv[0]));
 }
 
 JANET_CORE_FN(cfun_to_number,
               "(int/to-number value)",
-              "Convert an int/u64 or int/s64 to a number. Fails if the number is out of range for an int32.") {
+              "Convert an int/u64 or int/s64 to a number. Fails if the number is out of range for an int64.") {
     janet_fixarity(argc, 1);
     if (janet_type(argv[0]) == JANET_ABSTRACT) {
         void *abst = janet_unwrap_abstract(argv[0]);

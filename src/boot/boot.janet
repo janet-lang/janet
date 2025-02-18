@@ -996,7 +996,7 @@
 
 (defn reduce2
   ``The 2-argument version of `reduce` that does not take an initialization value.
-  Instead, the first element of the array is used for initialization.``
+  Instead, the first element of the array is used for initialization. If `ind` is empty, will evaluate to nil.``
   [f ind]
   (var k (next ind))
   (if (= nil k) (break nil))
@@ -1311,7 +1311,7 @@
 (defdyn *redef* "When set, allow dynamically rebinding top level defs. Will slow generated code and is intended to be used for development.")
 (defdyn *debug* "Enables a built in debugger on errors and other useful features for debugging in a repl.")
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
-(defdyn *exit-value* "Set the return value from `run-context` upon an exit. By default, `run-context` will return nil.")
+(defdyn *exit-value* "Set the return value from `run-context` upon an exit.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
 
 (defdyn *current-file*
@@ -2219,56 +2219,31 @@
   (map-template :some res pred ind inds)
   res)
 
-(defn deep-not=
-  ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than `not=`.``
-  [x y]
-  (def tx (type x))
-  (or
-    (not= tx (type y))
-    (case tx
-      :tuple (or (not= (length x) (length y))
-                 (do
-                   (var ret false)
-                   (forv i 0 (length x)
-                     (def xx (in x i))
-                     (def yy (in y i))
-                     (if (deep-not= xx yy)
-                       (break (set ret true))))
-                   ret))
-      :array (or (not= (length x) (length y))
-                 (do
-                   (var ret false)
-                   (forv i 0 (length x)
-                     (def xx (in x i))
-                     (def yy (in y i))
-                     (if (deep-not= xx yy)
-                       (break (set ret true))))
-                   ret))
-      :struct (deep-not= (kvs x) (kvs y))
-      :table (deep-not= (table/to-struct x) (table/to-struct y))
-      :buffer (not= (string x) (string y))
-      (not= x y))))
-
-(defn deep=
-  ``Like `=`, but mutable types (arrays, tables, buffers) are considered
-  equal if they have identical structure. Much slower than `=`.``
-  [x y]
-  (not (deep-not= x y)))
-
 (defn freeze
   `Freeze an object (make it immutable) and do a deep copy, making
   child values also immutable. Closures, fibers, and abstract types
   will not be recursively frozen, but all other types will.`
   [x]
-  (case (type x)
-    :array (tuple/slice (map freeze x))
-    :tuple (tuple/slice (map freeze x))
-    :table (if-let [p (table/getproto x)]
-             (freeze (merge (table/clone p) x))
-             (struct ;(map freeze (kvs x))))
-    :struct (struct ;(map freeze (kvs x)))
-    :buffer (string x)
+  (def tx (type x))
+  (cond
+    (or (= tx :array) (= tx :tuple))
+    (tuple/slice (map freeze x))
+
+    (or (= tx :table) (= tx :struct))
+    (let [temp-tab @{}]
+      # Handle multiple unique keys that freeze. Result should
+      # be independent of iteration order.
+      (eachp [k v] x
+        (def kk (freeze k))
+        (def vv (freeze v))
+        (def old (get temp-tab kk))
+        (def new (if (= nil old) vv (max vv old)))
+        (put temp-tab kk new))
+      (table/to-struct temp-tab (freeze (getproto x))))
+
+    (= tx :buffer)
+    (string x)
+
     x))
 
 (defn thaw
@@ -2283,6 +2258,41 @@
     :struct (walk-dict thaw (struct/proto-flatten ds))
     :string (buffer ds)
     ds))
+
+(defn deep-not=
+  ``Like `not=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `not=`.``
+  [x y]
+  (def tx (type x))
+  (or
+    (not= tx (type y))
+    (cond
+      (or (= tx :tuple) (= tx :array))
+      (or (not= (length x) (length y))
+          (do
+            (var ret false)
+            (forv i 0 (length x)
+              (def xx (in x i))
+              (def yy (in y i))
+              (if (deep-not= xx yy)
+                (break (set ret true))))
+            ret))
+      (or (= tx :struct) (= tx :table))
+      (or (not= (length x) (length y))
+          (do
+            (def rawget (if (= tx :struct) struct/rawget table/rawget))
+            (var ret false)
+            (eachp [k v] x
+              (if (deep-not= (rawget y k) v) (break (set ret true))))
+            ret))
+      (= tx :buffer) (not= 0 (- (length x) (length y)) (memcmp x y))
+      (not= x y))))
+
+(defn deep=
+  ``Like `=`, but mutable types (arrays, tables, buffers) are considered
+  equal if they have identical structure. Much slower than `=`.``
+  [x y]
+  (not (deep-not= x y)))
 
 (defn macex
   ``Expand macros completely.
@@ -2335,17 +2345,11 @@
 
 (defmacro short-fn
   ```
-  Shorthand for `fn`. Arguments are given as `$n`, where `n` is the 0-indexed
-  argument of the function. `$` is also an alias for the first (index 0) argument.
-  The `$&` symbol will make the anonymous function variadic if it appears in the
-  body of the function, and can be combined with positional arguments.
-
-  Example usage:
-
-      (short-fn (+ $ $)) # A function that doubles its arguments.
-      (short-fn (string $0 $1)) # accepting multiple args.
-      |(+ $ $) # use pipe reader macro for terse function literals.
-      |(+ $&)  # variadic functions
+  Shorthand for `fn`. Arguments are given as `$n`, where `n` is the
+  0-indexed argument of the function. `$` is also an alias for the
+  first (index 0) argument. The `$&` symbol will make the anonymous
+  function variadic if it appears in the body of the function, and
+  can be combined with positional arguments.
   ```
   [arg &opt name]
   (var max-param-seen -1)
@@ -2665,7 +2669,6 @@
 
       (do
         (var pindex 0)
-        (var pstatus nil)
         (def len (length buf))
         (when (= len 0)
           (:eof p)
@@ -2855,8 +2858,8 @@
     (when (and (string? pattern) (string/has-prefix? ":sys:/" pattern))
       (set last-index index)
       (array/push copies [(string/replace ":sys:" path pattern) ;(drop 1 entry)])))
-   (array/insert mp (+ 1 last-index) ;copies)
-   mp)
+  (array/insert mp (+ 1 last-index) ;copies)
+  mp)
 
 (module/add-paths ":native:" :native)
 (module/add-paths "/init.janet" :source)
@@ -3874,8 +3877,8 @@
 (compwhen (dyn 'net/listen)
   (defn net/server
     "Start a server asynchronously with `net/listen` and `net/accept-loop`. Returns the new server stream."
-    [host port &opt handler type]
-    (def s (net/listen host port type))
+    [host port &opt handler type no-reuse]
+    (def s (net/listen host port type no-reuse))
     (if handler
       (ev/go (fn [] (net/accept-loop s handler))))
     s))
@@ -4097,7 +4100,7 @@
             (when (empty? b) (buffer/trim b) (os/chmod to perm) (break))
             (file/write fto b)
             (buffer/clear b)))
-         (errorf "destination file %s cannot be opened for writing" to))
+        (errorf "destination file %s cannot be opened for writing" to))
       (errorf "source file %s cannot be opened for reading" from)))
 
   (defn- copyrf

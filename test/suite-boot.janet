@@ -896,10 +896,17 @@
   (struct/with-proto {:a [1 2 3]} :c 22 :b [1 2 3 4] :d "test" :e "test2"))
 (table/setproto table-to-freeze @{:a @[1 2 3]})
 
-(assert (deep= {:a [1 2 3] :b [1 2 3 4] :c 22 :d "test" :e "test2"}
-               (freeze table-to-freeze)))
+(assert (deep= struct-to-thaw (freeze table-to-freeze)))
 (assert (deep= table-to-freeze-with-inline-proto (thaw table-to-freeze)))
 (assert (deep= table-to-freeze-with-inline-proto (thaw struct-to-thaw)))
+
+# Check that freezing mutable keys is deterministic
+# for issue #1535
+(def hashes @{})
+(repeat 200
+  (def x (freeze {@"" 1 @"" 2 @"" 3 @"" 4 @"" 5}))
+  (put hashes (hash x) true))
+(assert (= 1 (length hashes)) "freeze mutable keys is deterministic")
 
 # Make sure Carriage Returns don't end up in doc strings
 # e528b86
@@ -1005,5 +1012,19 @@
 (assert-error "assertf error 2" (assertf false "fun message"))
 (assert-error "assertf error 3" (assertf false "%s message" "mystery"))
 (assert-error "assertf error 4" (assertf nil "%s %s" "alice" "bob"))
+
+# issue #1535
+(loop [i :range [1 1000]]
+  (assert (deep-not= @{:key1 "value1" @"key" "value2"}
+                     @{:key1 "value1" @"key" "value2"}) "deep= mutable keys"))
+(assert (deep-not= {"abc" 123} {@"abc" 123}) "deep= mutable keys vs immutable key")
+(assert (deep-not= {@"" 1 @"" 2 @"" 3} {@"" 1 @"" 2 @"" 3}) "deep= duplicate mutable keys")
+(assert (deep-not= {@"" @"" @"" @"" @"" 3} {@"" @"" @"" @"" @"" 3}) "deep= duplicate mutable keys 2")
+(assert (deep-not= {@[] @"" @[] @"" @[] 3} {@[] @"" @[] @"" @[] 3}) "deep= duplicate mutable keys 3")
+(assert (deep-not= {@{} @"" @{} @"" @{} 3} {@{} @"" @{} @"" @{} 3}) "deep= duplicate mutable keys 4")
+(assert (deep-not= @{:key1 "value1" @"key2" @"value2"}
+                   @{:key1 "value1" @"key2" "value2"}) "deep= mutable keys")
+(assert (deep-not= @{:key1 "value1" [@"key2"] @"value2"}
+                   @{:key1 "value1" [@"key2"] @"value2"}) "deep= mutable keys")
 
 (end-suite)

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose
+* Copyright (c) 2025 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -342,7 +342,7 @@ tail:
             while (captured < hi) {
                 CapState cs2 = cap_save(s);
                 next_text = peg_rule(s, rule_a, text);
-                if (!next_text || next_text == text) {
+                if (!next_text || ((next_text == text) && (hi == UINT32_MAX))) {
                     cap_load(s, cs2);
                     break;
                 }
@@ -544,41 +544,80 @@ tail:
             return window_end;
         }
 
+        case RULE_TIL: {
+            const uint32_t *rule_terminus = s->bytecode + rule[1];
+            const uint32_t *rule_subpattern = s->bytecode + rule[2];
+
+            const uint8_t *terminus_start = text;
+            const uint8_t *terminus_end = NULL;
+            down1(s);
+            while (terminus_start <= s->text_end) {
+                CapState cs2 = cap_save(s);
+                terminus_end = peg_rule(s, rule_terminus, terminus_start);
+                cap_load(s, cs2);
+                if (terminus_end) {
+                    break;
+                }
+                terminus_start++;
+            }
+            up1(s);
+
+            if (!terminus_end) {
+                return NULL;
+            }
+
+            const uint8_t *saved_end = s->text_end;
+            s->text_end = terminus_start;
+            down1(s);
+            const uint8_t *matched = peg_rule(s, rule_subpattern, text);
+            up1(s);
+            s->text_end = saved_end;
+
+            if (!matched) {
+                return NULL;
+            }
+
+            return terminus_end;
+        }
+
         case RULE_SPLIT: {
             const uint8_t *saved_end = s->text_end;
             const uint32_t *rule_separator = s->bytecode + rule[1];
             const uint32_t *rule_subpattern = s->bytecode + rule[2];
 
-            const uint8_t *separator_end = NULL;
-            do {
-                const uint8_t *text_start = text;
+            const uint8_t *chunk_start = text;
+            const uint8_t *chunk_end = NULL;
+
+            while (text <= saved_end) {
+                /* Find next split (or end of text) */
                 CapState cs = cap_save(s);
                 down1(s);
-                while (text <= s->text_end) {
-                    separator_end = peg_rule(s, rule_separator, text);
+                while (text <= saved_end) {
+                    chunk_end = text;
+                    const uint8_t *check = peg_rule(s, rule_separator, text);
                     cap_load(s, cs);
-                    if (separator_end) {
+                    if (check) {
+                        text = check;
                         break;
                     }
                     text++;
                 }
                 up1(s);
 
-                if (separator_end) {
-                    s->text_end = text;
-                    text = separator_end;
-                }
-
+                /* Match between splits */
+                s->text_end = chunk_end;
                 down1(s);
-                const uint8_t *subpattern_end = peg_rule(s, rule_subpattern, text_start);
+                const uint8_t *subpattern_end = peg_rule(s, rule_subpattern, chunk_start);
                 up1(s);
                 s->text_end = saved_end;
+                if (!subpattern_end) return NULL; /* Don't match anything */
 
-                if (!subpattern_end) {
-                    return NULL;
-                }
-            } while (separator_end);
+                /* Ensure forward progress */
+                if (text == chunk_start) return NULL;
+                chunk_start = text;
+            }
 
+            s->text_end = saved_end;
             return s->text_end;
         }
 
@@ -1227,6 +1266,14 @@ static void spec_sub(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_SUB, subrule1, subrule2);
 }
 
+static void spec_til(Builder *b, int32_t argc, const Janet *argv) {
+    peg_fixarity(b, argc, 2);
+    Reserve r = reserve(b, 3);
+    uint32_t subrule1 = peg_compile1(b, argv[0]);
+    uint32_t subrule2 = peg_compile1(b, argv[1]);
+    emit_2(r, RULE_TIL, subrule1, subrule2);
+}
+
 static void spec_split(Builder *b, int32_t argc, const Janet *argv) {
     peg_fixarity(b, argc, 2);
     Reserve r = reserve(b, 3);
@@ -1323,6 +1370,7 @@ static const SpecialPair peg_specials[] = {
     {"split", spec_split},
     {"sub", spec_sub},
     {"thru", spec_thru},
+    {"til", spec_til},
     {"to", spec_to},
     {"uint", spec_uint_le},
     {"uint-be", spec_uint_be},
@@ -1414,6 +1462,11 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             const uint8_t *str = janet_unwrap_string(peg);
             int32_t len = janet_string_length(str);
             emit_bytes(b, RULE_LITERAL, len, str);
+            break;
+        }
+        case JANET_BUFFER: {
+            const JanetBuffer *buf = janet_unwrap_buffer(peg);
+            emit_bytes(b, RULE_LITERAL, buf->count, buf->data);
             break;
         }
         case JANET_TABLE: {
@@ -1657,6 +1710,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 4;
                 break;
             case RULE_SUB:
+            case RULE_TIL:
             case RULE_SPLIT:
                 /* [rule, rule] */
                 if (rule[1] >= blen) goto bad;

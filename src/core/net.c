@@ -554,7 +554,10 @@ JANET_CORE_FN(cfun_net_connect,
     int err = WSAGetLastError();
     freeaddrinfo(ai);
 #else
-    int status = connect(sock, addr, addrlen);
+    int status;
+    do {
+        status = connect(sock, addr, addrlen);
+    } while (status == -1 && errno == EINTR);
     int err = errno;
     if (is_unix) {
         janet_free(ai);
@@ -578,17 +581,23 @@ JANET_CORE_FN(cfun_net_connect,
     net_sched_connect(stream);
 }
 
-static const char *serverify_socket(JSock sfd) {
+static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
     /* Set various socket options */
     int enable = 1;
-    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
-        return "setsockopt(SO_REUSEADDR) failed";
+    if (reuse_addr) {
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *) &enable, sizeof(int)) < 0) {
+            return "setsockopt(SO_REUSEADDR) failed";
+        }
     }
+    if (reuse_port) {
 #ifdef SO_REUSEPORT
-    if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
-        return "setsockopt(SO_REUSEPORT) failed";
-    }
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
+            return "setsockopt(SO_REUSEPORT) failed";
+        }
+#else
+        (void) reuse_port;
 #endif
+    }
     janet_net_socknoblock(sfd);
     return NULL;
 }
@@ -642,19 +651,21 @@ JANET_CORE_FN(cfun_net_shutdown,
 }
 
 JANET_CORE_FN(cfun_net_listen,
-              "(net/listen host port &opt type)",
+              "(net/listen host port &opt type no-reuse)",
               "Creates a server. Returns a new stream that is neither readable nor "
               "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
               "The type parameter specifies the type of network connection, either "
               "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
-              ":stream. The host and port arguments are the same as in net/address.") {
+              ":stream. The host and port arguments are the same as in net/address. The last boolean parameter `no-reuse` will "
+              "disable the use of SO_REUSEADDR and SO_REUSEPORT when creating a server on some operating systems.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_LISTEN);
-    janet_arity(argc, 2, 3);
+    janet_arity(argc, 2, 4);
 
     /* Get host, port, and handler*/
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
     struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
+    int reuse = !(argc >= 4 && janet_truthy(argv[3]));
 
     JSock sfd = JSOCKDEFAULT;
 #ifndef JANET_WINDOWS
@@ -664,7 +675,7 @@ JANET_CORE_FN(cfun_net_listen,
             janet_free(ai);
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
-        const char *err = serverify_socket(sfd);
+        const char *err = serverify_socket(sfd, reuse, 0);
         if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
             JSOCKCLOSE(sfd);
             janet_free(ai);
@@ -687,7 +698,7 @@ JANET_CORE_FN(cfun_net_listen,
             sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
             if (!JSOCKVALID(sfd)) continue;
-            const char *err = serverify_socket(sfd);
+            const char *err = serverify_socket(sfd, reuse, reuse);
             if (NULL != err) {
                 JSOCKCLOSE(sfd);
                 continue;
@@ -829,7 +840,7 @@ JANET_CORE_FN(cfun_stream_accept_loop,
 JANET_CORE_FN(cfun_stream_accept,
               "(net/accept stream &opt timeout)",
               "Get the next connection on a server stream. This would usually be called in a loop in a dedicated fiber. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns a new duplex stream which represents a connection to the client.") {
     janet_arity(argc, 1, 2);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
@@ -844,7 +855,7 @@ JANET_CORE_FN(cfun_stream_read,
               "Read up to n bytes from a stream, suspending the current fiber until the bytes are available. "
               "`n` can also be the keyword `:all` to read into the buffer until end of stream. "
               "If less than n bytes are available (and more than 0), will push those bytes and return early. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns a buffer with up to n more bytes in it, or raises an error if the read failed.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
@@ -864,7 +875,7 @@ JANET_CORE_FN(cfun_stream_read,
 JANET_CORE_FN(cfun_stream_chunk,
               "(net/chunk stream nbytes &opt buf timeout)",
               "Same a net/read, but will wait for all n bytes to arrive rather than return early. "
-              "Takes an optional timeout in seconds, after which will return nil.") {
+              "Takes an optional timeout in seconds, after which will raise an error.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE | JANET_STREAM_SOCKET);
@@ -878,7 +889,7 @@ JANET_CORE_FN(cfun_stream_chunk,
 JANET_CORE_FN(cfun_stream_recv_from,
               "(net/recv-from stream nbytes buf &opt timeout)",
               "Receives data from a server stream and puts it into a buffer. Returns the socket-address the "
-              "packet came from. Takes an optional timeout in seconds, after which will return nil.") {
+              "packet came from. Takes an optional timeout in seconds, after which will raise an error.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_UDPSERVER | JANET_STREAM_SOCKET);
@@ -892,7 +903,7 @@ JANET_CORE_FN(cfun_stream_recv_from,
 JANET_CORE_FN(cfun_stream_write,
               "(net/write stream data &opt timeout)",
               "Write data to a stream, suspending the current fiber until the write "
-              "completes. Takes an optional timeout in seconds, after which will return nil. "
+              "completes. Takes an optional timeout in seconds, after which will raise an error. "
               "Returns nil, or raises an error if the write failed.") {
     janet_arity(argc, 2, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
@@ -911,7 +922,7 @@ JANET_CORE_FN(cfun_stream_write,
 JANET_CORE_FN(cfun_stream_send_to,
               "(net/send-to stream dest data &opt timeout)",
               "Writes a datagram to a server stream. dest is a the destination address of the packet. "
-              "Takes an optional timeout in seconds, after which will return nil. "
+              "Takes an optional timeout in seconds, after which will raise an error. "
               "Returns stream.") {
     janet_arity(argc, 3, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);

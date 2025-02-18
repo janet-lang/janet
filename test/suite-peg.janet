@@ -713,6 +713,41 @@
   "abcdef"
   @[])
 
+(test "til: basic matching"
+  ~(til "d" "abc")
+  "abcdef"
+  @[])
+
+(test "til: second pattern can't see past the first occurrence of first pattern"
+  ~(til "d" (* "abc" -1))
+  "abcdef"
+  @[])
+
+(test "til: fails if first pattern fails"
+  ~(til "x" "abc")
+  "abcdef"
+  nil)
+
+(test "til: fails if second pattern fails"
+  ~(til "abc" "x")
+  "abcdef"
+  nil)
+
+(test "til: discards captures from initial pattern"
+  ~(til '"d" '"abc")
+  "abcdef"
+  @["abc"])
+
+(test "til: positions inside second match are still relative to the entire input"
+  ~(* "one\ntw" (til 0 (* ($) (line) (column))))
+  "one\ntwo\nthree\n"
+  @[6 2 3])
+
+(test "til: advances to the end of the first pattern's first occurrence"
+  ~(* (til "d" "ab") "e")
+  "abcdef"
+  @[])
+
 (test "split: basic functionality"
   ~(split "," '1)
   "a,b,c"
@@ -771,6 +806,34 @@
     :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
   "5:apple6:banana6:cherry"
   @["apple" "banana" "cherry"])
+
+# Issue #1539 - make sure split with "" doesn't infinite loop/oom
+(test "issue 1539"
+      ~(split "" (capture (to -1)))
+      "hello there friends"
+      nil)
+
+(test "issue 1539 pt. 2"
+  ~(split "," (capture 0))
+  "abc123,,,,"
+  @["" "" "" "" ""])
+
+# Issue #1549 - allow buffers as peg literals
+(test "issue 1549"
+      ''@"abc123"
+      "abc123"
+      @["abc123"])
+
+# Issue 1554 - 0-width match termination behavior
+(test "issue 1554 case 1" '(any (> '1)) "abc" @[])
+(test "issue 1554 case 2" '(any (? (> '1))) "abc" @[])
+(test "issue 1554 case 3" '(any (> (? '1))) "abc" @[])
+(test "issue 1554 case 4" '(* "a" (> '1)) "abc" @["b"])
+(test "issue 1554 case 5" '(* "a" (? (> '1))) "abc" @["b"])
+(test "issue 1554 case 6" '(* "a" (> (? '1))) "abc" @["b"])
+(test "issue 1554 case 7" '(between 0 2 (> '1)) "abc" @["a" "a"])
+(test "issue 1554 case 8" '(between 2 3 (? (> '1))) "abc" @["a" "a" "a"])
+(test "issue 1554 case 9" '(between 0 0 (> (? '1))) "abc" @[])
 
 (end-suite)
 

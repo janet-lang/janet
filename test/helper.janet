@@ -39,7 +39,7 @@
 (defmacro assert
   [x &opt e]
   (def xx (gensym))
-  (default e ~',x)
+  (default e (string/format "%j" x))
   ~(do
      (def ,xx ,x)
      (,assert-no-tail ,xx ,e)

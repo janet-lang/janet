@@ -449,8 +449,9 @@ JANET_CORE_FN(janet_core_range,
     }
     count = (count > 0) ? count : 0;
     int32_t int_count;
+    janet_assert(count >= 0, "bad range code");
     if (count > (double) INT32_MAX) {
-        int_count = INT32_MAX;
+        janet_panicf("range is too large, %f elements", count);
     } else {
         int_count = (int32_t) ceil(count);
     }
@@ -1001,12 +1002,11 @@ static void make_apply(JanetTable *env) {
     janet_quick_asm(env, JANET_FUN_APPLY | JANET_FUNCDEF_FLAG_VARARG,
                     "apply", 1, 1, INT32_MAX, 6, apply_asm, sizeof(apply_asm),
                     JDOC("(apply f & args)\n\n"
-                         "Applies a function to a variable number of arguments. Each element in args "
-                         "is used as an argument to f, except the last element in args, which is expected to "
-                         "be an array-like. Each element in this last argument is then also pushed as an argument to "
-                         "f. For example:\n\n"
-                         "\t(apply + 1000 (range 10))\n\n"
-                         "sums the first 10 integers and 1000."));
+         "Applies a function f to a variable number of arguments. Each "
+         "element in args is used as an argument to f, except the last "
+         "element in args, which is expected to be an array or a tuple. "
+         "Each element in this last argument is then also pushed as an "
+         "argument to f."));
 }
 
 static const uint32_t error_asm[] = {
@@ -1159,82 +1159,82 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_quick_asm(env, JANET_FUN_CMP,
                     "cmp", 2, 2, 2, 2, cmp_asm, sizeof(cmp_asm),
                     JDOC("(cmp x y)\n\n"
-                         "Returns -1 if x is strictly less than y, 1 if y is strictly greater "
-                         "than x, and 0 otherwise. To return 0, x and y must be the exact same type."));
+         "Returns -1 if x is strictly less than y, 1 if y is strictly greater "
+         "than x, and 0 otherwise. To return 0, x and y must be the exact same type."));
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
                     JDOC("(next ds &opt key)\n\n"
-                         "Gets the next key in a data structure. Can be used to iterate through "
-                         "the keys of a data structure in an unspecified order. Keys are guaranteed "
-                         "to be seen only once per iteration if the data structure is not mutated "
-                         "during iteration. If key is nil, next returns the first key. If next "
-                         "returns nil, there are no more keys to iterate through."));
+         "Gets the next key in a data structure. Can be used to iterate through "
+         "the keys of a data structure in an unspecified order. Keys are guaranteed "
+         "to be seen only once per iteration if the data structure is not mutated "
+         "during iteration. If key is nil, next returns the first key. If next "
+         "returns nil, there are no more keys to iterate through."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"
-                         "Propagate a signal from a fiber to the current fiber and "
-                         "set the last value of the current fiber to `x`.  The signal "
-                         "value is then available as the status of the current fiber. "
-                         "The resulting stack trace from the current fiber will include "
-                         "frames from fiber. If fiber is in a state that can be resumed, "
-                         "resuming the current fiber will first resume `fiber`. "
-                         "This function can be used to re-raise an error without losing "
-                         "the original stack trace."));
+         "Propagate a signal from a fiber to the current fiber and "
+         "set the last value of the current fiber to `x`.  The signal "
+         "value is then available as the status of the current fiber. "
+         "The resulting stack trace from the current fiber will include "
+         "frames from fiber. If fiber is in a state that can be resumed, "
+         "resuming the current fiber will first resume `fiber`. "
+         "This function can be used to re-raise an error without losing "
+         "the original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"
-                         "Throws a debug signal that can be caught by a parent fiber and used to inspect "
-                         "the running state of the current fiber. Returns the value passed in by resume."));
+         "Throws a debug signal that can be caught by a parent fiber and used to inspect "
+         "the running state of the current fiber. Returns the value passed in by resume."));
     janet_quick_asm(env, JANET_FUN_ERROR,
                     "error", 1, 1, 1, 1, error_asm, sizeof(error_asm),
                     JDOC("(error e)\n\n"
-                         "Throws an error e that can be caught and handled by a parent fiber."));
+         "Throws an error e that can be caught and handled by a parent fiber."));
     janet_quick_asm(env, JANET_FUN_YIELD,
                     "yield", 1, 0, 1, 2, yield_asm, sizeof(yield_asm),
                     JDOC("(yield &opt x)\n\n"
-                         "Yield a value to a parent fiber. When a fiber yields, its execution is paused until "
-                         "another thread resumes it. The fiber will then resume, and the last yield call will "
-                         "return the value that was passed to resume."));
+         "Yield a value to a parent fiber. When a fiber yields, its execution is paused until "
+         "another thread resumes it. The fiber will then resume, and the last yield call will "
+         "return the value that was passed to resume."));
     janet_quick_asm(env, JANET_FUN_CANCEL,
                     "cancel", 2, 2, 2, 2, cancel_asm, sizeof(cancel_asm),
                     JDOC("(cancel fiber err)\n\n"
-                         "Resume a fiber but have it immediately raise an error. This lets a programmer unwind a pending fiber. "
-                         "Returns the same result as resume."));
+         "Resume a fiber but have it immediately raise an error. This lets a programmer unwind a pending fiber. "
+         "Returns the same result as resume."));
     janet_quick_asm(env, JANET_FUN_RESUME,
                     "resume", 2, 1, 2, 2, resume_asm, sizeof(resume_asm),
                     JDOC("(resume fiber &opt x)\n\n"
-                         "Resume a new or suspended fiber and optionally pass in a value to the fiber that "
-                         "will be returned to the last yield in the case of a pending fiber, or the argument to "
-                         "the dispatch function in the case of a new fiber. Returns either the return result of "
-                         "the fiber's dispatch function, or the value from the next yield call in fiber."));
+         "Resume a new or suspended fiber and optionally pass in a value to the fiber that "
+         "will be returned to the last yield in the case of a pending fiber, or the argument to "
+         "the dispatch function in the case of a new fiber. Returns either the return result of "
+         "the fiber's dispatch function, or the value from the next yield call in fiber."));
     janet_quick_asm(env, JANET_FUN_IN,
                     "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
                     JDOC("(in ds key &opt dflt)\n\n"
-                         "Get value in ds at key, works on associative data structures. Arrays, tuples, tables, structs, "
-                         "strings, symbols, and buffers are all associative and can be used. Arrays, tuples, strings, buffers, "
-                         "and symbols must use integer keys that are in bounds or an error is raised. Structs and tables can "
-                         "take any value as a key except nil and will return nil or dflt if not found."));
+         "Get value in ds at key, works on associative data structures. Arrays, tuples, tables, structs, "
+         "strings, symbols, and buffers are all associative and can be used. Arrays, tuples, strings, buffers, "
+         "and symbols must use integer keys that are in bounds or an error is raised. Structs and tables can "
+         "take any value as a key except nil and will return nil or dflt if not found."));
     janet_quick_asm(env, JANET_FUN_GET,
                     "get", 3, 2, 3, 4, get_asm, sizeof(in_asm),
                     JDOC("(get ds key &opt dflt)\n\n"
-                         "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
-                         "Similar to in, but will not throw an error if the key is invalid for the data structure "
-                         "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
-                         "an error."));
+         "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
+         "Similar to in, but will not throw an error if the key is invalid for the data structure "
+         "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
+         "an error."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"
-                         "Associate a key with a value in any mutable associative data structure. Indexed data structures "
-                         "(arrays and buffers) only accept non-negative integer keys, and will expand if an out of bounds "
-                         "value is provided. In an array, extra space will be filled with nils, and in a buffer, extra "
-                         "space will be filled with 0 bytes. In a table, putting a key that is contained in the table prototype "
-                         "will hide the association defined by the prototype, but will not mutate the prototype table. Putting "
-                         "a value nil into a table will remove the key from the table. Returns the data structure ds."));
+         "Associate a key with a value in any mutable associative data structure. Indexed data structures "
+         "(arrays and buffers) only accept non-negative integer keys, and will expand if an out of bounds "
+         "value is provided. In an array, extra space will be filled with nils, and in a buffer, extra "
+         "space will be filled with 0 bytes. In a table, putting a key that is contained in the table prototype "
+         "will hide the association defined by the prototype, but will not mutate the prototype table. Putting "
+         "a value nil into a table will remove the key from the table. Returns the data structure ds."));
     janet_quick_asm(env, JANET_FUN_LENGTH,
                     "length", 1, 1, 1, 1, length_asm, sizeof(length_asm),
                     JDOC("(length ds)\n\n"
-                         "Returns the length or count of a data structure in constant time as an integer. For "
-                         "structs and tables, returns the number of key-value pairs in the data structure."));
+         "Returns the length or count of a data structure in constant time as an integer. For "
+         "structs and tables, returns the number of key-value pairs in the data structure."));
     janet_quick_asm(env, JANET_FUN_BNOT,
                     "bnot", 1, 1, 1, 1, bnot_asm, sizeof(bnot_asm),
                     JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
@@ -1243,74 +1243,74 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Variadic ops */
     templatize_varop(env, JANET_FUN_ADD, "+", 0, 0, JOP_ADD,
                      JDOC("(+ & xs)\n\n"
-                          "Returns the sum of all xs. xs must be integers or real numbers only. If xs is empty, return 0."));
+         "Returns the sum of all xs. xs must be integers or real numbers only. If xs is empty, return 0."));
     templatize_varop(env, JANET_FUN_SUBTRACT, "-", 0, 0, JOP_SUBTRACT,
                      JDOC("(- & xs)\n\n"
-                          "Returns the difference of xs. If xs is empty, returns 0. If xs has one element, returns the "
-                          "negative value of that element. Otherwise, returns the first element in xs minus the sum of "
-                          "the rest of the elements."));
+         "Returns the difference of xs. If xs is empty, returns 0. If xs has one element, returns the "
+         "negative value of that element. Otherwise, returns the first element in xs minus the sum of "
+         "the rest of the elements."));
     templatize_varop(env, JANET_FUN_MULTIPLY, "*", 1, 1, JOP_MULTIPLY,
                      JDOC("(* & xs)\n\n"
-                          "Returns the product of all elements in xs. If xs is empty, returns 1."));
+         "Returns the product of all elements in xs. If xs is empty, returns 1."));
     templatize_varop(env, JANET_FUN_DIVIDE, "/", 1, 1, JOP_DIVIDE,
                      JDOC("(/ & xs)\n\n"
-                          "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
-                          "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
-                          "values."));
+         "Returns the quotient of xs. If xs is empty, returns 1. If xs has one value x, returns "
+         "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
+         "values."));
     templatize_varop(env, JANET_FUN_DIVIDE_FLOOR, "div", 1, 1, JOP_DIVIDE_FLOOR,
                      JDOC("(div & xs)\n\n"
-                          "Returns the floored division of xs. If xs is empty, returns 1. If xs has one value x, returns "
-                          "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
-                          "values."));
+         "Returns the floored division of xs. If xs is empty, returns 1. If xs has one value x, returns "
+         "the reciprocal of x. Otherwise return the first value of xs repeatedly divided by the remaining "
+         "values."));
     templatize_varop(env, JANET_FUN_MODULO, "mod", 0, 1, JOP_MODULO,
                      JDOC("(mod & xs)\n\n"
-                          "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
-                          "`(mod x 0)` is defined to be `x`."));
+         "Returns the result of applying the modulo operator on the first value of xs with each remaining value. "
+         "`(mod x 0)` is defined to be `x`."));
     templatize_varop(env, JANET_FUN_REMAINDER, "%", 0, 1, JOP_REMAINDER,
                      JDOC("(% & xs)\n\n"
-                          "Returns the remainder of dividing the first value of xs by each remaining value."));
+         "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
                      JDOC("(band & xs)\n\n"
-                          "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
+         "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_BOR, "bor", 0, 0, JOP_BOR,
                      JDOC("(bor & xs)\n\n"
-                          "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
+         "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
                      JDOC("(bxor & xs)\n\n"
-                          "Returns the bit-wise xor of all values in xs. Each in xs must be an integer."));
+         "Returns the bit-wise xor of all values in xs. Each in xs must be an integer."));
     templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
                      JDOC("(blshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted left by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+         "Returns the value of x bit shifted left by the sum of all values in shifts. x "
+         "and each element in shift must be an integer."));
     templatize_varop(env, JANET_FUN_RSHIFT, "brshift", 1, 1, JOP_SHIFT_RIGHT,
                      JDOC("(brshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+         "Returns the value of x bit shifted right by the sum of all values in shifts. x "
+         "and each element in shift must be an integer."));
     templatize_varop(env, JANET_FUN_RSHIFTU, "brushift", 1, 1, JOP_SHIFT_RIGHT_UNSIGNED,
                      JDOC("(brushift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer. The sign of x is not preserved, so "
-                          "for positive shifts the return value will always be positive."));
+         "Returns the value of x bit shifted right by the sum of all values in shifts. x "
+         "and each element in shift must be an integer. The sign of x is not preserved, so "
+         "for positive shifts the return value will always be positive."));
 
     /* Variadic comparators */
     templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_GREATER_THAN,
                           JDOC("(> & xs)\n\n"
-                               "Check if xs is in descending order. Returns a boolean."));
+         "Check if xs is in descending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_LT, "<", 0, JOP_LESS_THAN,
                           JDOC("(< & xs)\n\n"
-                               "Check if xs is in ascending order. Returns a boolean."));
+         "Check if xs is in ascending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_GTE, ">=", 0, JOP_GREATER_THAN_EQUAL,
                           JDOC("(>= & xs)\n\n"
-                               "Check if xs is in non-ascending order. Returns a boolean."));
+         "Check if xs is in non-ascending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_LTE, "<=", 0, JOP_LESS_THAN_EQUAL,
                           JDOC("(<= & xs)\n\n"
-                               "Check if xs is in non-descending order. Returns a boolean."));
+         "Check if xs is in non-descending order. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_EQ, "=", 0, JOP_EQUALS,
                           JDOC("(= & xs)\n\n"
-                               "Check if all values in xs are equal. Returns a boolean."));
+         "Check if all values in xs are equal. Returns a boolean."));
     templatize_comparator(env, JANET_FUN_NEQ, "not=", 1, JOP_EQUALS,
                           JDOC("(not= & xs)\n\n"
-                               "Check if any values in xs are not equal. Returns a boolean."));
+         "Check if any values in xs are not equal. Returns a boolean."));
 
     /* Platform detection */
     janet_def(env, "janet/version", janet_cstringv(JANET_VERSION),
@@ -1319,7 +1319,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
               JDOC("The build identifier of the running janet program."));
     janet_def(env, "janet/config-bits", janet_wrap_integer(JANET_CURRENT_CONFIG_BITS),
               JDOC("The flag set of config options from janetconf.h which is used to check "
-                   "if native modules are compatible with the host program."));
+         "if native modules are compatible with the host program."));
 
     /* Allow references to the environment */
     janet_def(env, "root-env", janet_wrap_table(env),

@@ -1373,7 +1373,10 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
 
     /* Run vm */
     janet_vm.fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL | JANET_FIBER_RESUME_NO_SKIP;
+    int old_coerce_error = janet_vm.coerce_error;
+    janet_vm.coerce_error = 1;
     JanetSignal signal = run_vm(janet_vm.fiber, janet_wrap_nil());
+    janet_vm.coerce_error = old_coerce_error;
 
     /* Teardown */
     janet_vm.stackn = oldn;
@@ -1384,6 +1387,15 @@ Janet janet_call(JanetFunction *fun, int32_t argc, const Janet *argv) {
     }
 
     if (signal != JANET_SIGNAL_OK) {
+        /* Should match logic in janet_signalv */
+#ifdef JANET_EV
+        if (janet_vm.root_fiber != NULL && signal == JANET_SIGNAL_EVENT) {
+            janet_vm.root_fiber->sched_id++;
+        }
+#endif
+        if (signal != JANET_SIGNAL_ERROR) {
+            *janet_vm.return_reg = janet_wrap_string(janet_formatc("%v coerced from %s to error", *janet_vm.return_reg, janet_signal_names[signal]));
+        }
         janet_panicv(*janet_vm.return_reg);
     }
 
@@ -1430,8 +1442,10 @@ void janet_try_init(JanetTryState *state) {
     state->vm_fiber = janet_vm.fiber;
     state->vm_jmp_buf = janet_vm.signal_buf;
     state->vm_return_reg = janet_vm.return_reg;
+    state->coerce_error = janet_vm.coerce_error;
     janet_vm.return_reg = &(state->payload);
     janet_vm.signal_buf = &(state->buf);
+    janet_vm.coerce_error = 0;
 }
 
 void janet_restore(JanetTryState *state) {
@@ -1440,6 +1454,7 @@ void janet_restore(JanetTryState *state) {
     janet_vm.fiber = state->vm_fiber;
     janet_vm.signal_buf = state->vm_jmp_buf;
     janet_vm.return_reg = state->vm_return_reg;
+    janet_vm.coerce_error = state->coerce_error;
 }
 
 static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *out) {

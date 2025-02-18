@@ -174,6 +174,7 @@
 (assert (deep= (range 0 17 4) @[0 4 8 12 16]) "(range 0 17 4)")
 (assert (deep= (range 16 0 -4) @[16 12 8 4]) "(range 16 0 -4)")
 (assert (deep= (range 17 0 -4) @[17 13 9 5 1]) "(range 17 0 -4)")
+(assert-error "large range" (range 0xFFFFFFFFFF))
 
 (assert (= (length (range 10)) 10) "(range 10)")
 (assert (= (length (range -10)) 0) "(range -10)")
