@@ -637,7 +637,6 @@ JANET_CORE_FN(os_proc_wait,
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
     os_proc_wait_impl(proc);
-    return janet_wrap_nil();
 #else
     return os_proc_wait_impl(proc);
 #endif
@@ -776,7 +775,6 @@ JANET_CORE_FN(os_proc_kill,
     if (argc > 1 && janet_truthy(argv[1])) {
 #ifdef JANET_EV
         os_proc_wait_impl(proc);
-        return janet_wrap_nil();
 #else
         return os_proc_wait_impl(proc);
 #endif
@@ -807,7 +805,6 @@ JANET_CORE_FN(os_proc_close,
     }
 #ifdef JANET_EV
     os_proc_wait_impl(proc);
-    return janet_wrap_nil();
 #else
     return os_proc_wait_impl(proc);
 #endif
@@ -1268,9 +1265,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
 
     /* exec mode */
     if (mode == JANET_EXECUTE_EXEC) {
-#ifdef JANET_WINDOWS
-        janet_panic("not supported on windows");
-#else
         int status;
         if (!use_environ) {
             environ = envp;
@@ -1283,7 +1277,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
             }
         } while (status == -1 && errno == EINTR);
         janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
-#endif
     }
 
     /* Use posix_spawn to spawn new process */
@@ -1429,7 +1422,11 @@ JANET_CORE_FN(os_posix_exec,
               "Use the execvpe or execve system calls to replace the current process with an interface similar to os/execute. "
               "However, instead of creating a subprocess, the current process is replaced. Is not supported on Windows, and "
               "does not allow redirection of stdio.") {
+#ifdef JANET_WINDOWS
+    janet_panic("not supported on Windows");
+#else
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
+#endif
 }
 
 JANET_CORE_FN(os_posix_fork,
@@ -1440,7 +1437,7 @@ JANET_CORE_FN(os_posix_fork,
     janet_fixarity(argc, 0);
     (void) argv;
 #ifdef JANET_WINDOWS
-    janet_panic("not supported");
+    janet_panic("not supported on Windows");
 #else
     pid_t result;
     do {
@@ -1887,7 +1884,6 @@ JANET_CORE_FN(os_mktime,
         /* utc time */
 #ifdef JANET_NO_UTC_MKTIME
         janet_panic("os/mktime UTC not supported on this platform");
-        return janet_wrap_nil();
 #else
         t = timegm(&t_info);
 #endif
@@ -1954,8 +1950,7 @@ JANET_CORE_FN(os_link,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/link not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -1973,8 +1968,7 @@ JANET_CORE_FN(os_symlink,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/symlink not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -2076,8 +2070,7 @@ JANET_CORE_FN(os_readlink,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/readlink not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     static char buffer[PATH_MAX];
     const char *path = janet_getcstring(argv, 0);
@@ -2333,7 +2326,6 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
             return sg->fn(&st);
         }
         janet_panicf("unexpected keyword %v", janet_wrap_keyword(key));
-        return janet_wrap_nil();
     }
 }
 
