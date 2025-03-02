@@ -526,4 +526,28 @@
 (assert (= maxconn connect-count))
 (:close s)
 
+# Cancel os/proc-wait with ev/deadline
+(let [p (os/spawn [;run janet "-e" "(os/sleep 4)"] :p)]
+  (var terminated-normally false)
+  (assert-error "deadline expired"
+                (ev/with-deadline 0.01
+                  (os/proc-wait p)
+                  (print "uhoh")
+                  (set terminated-normally true)))
+  (assert (not terminated-normally) "early termination failure")
+  # Without this kill, janet will wait the full 4 seconds for the subprocess to complete before exiting.
+  (assert-no-error "kill proc after wait failed" (os/proc-kill p)))
+
+# Cancel os/proc-wait with ev/deadline 2
+(let [p (os/spawn [;run janet "-e" "(os/sleep 0.1)"] :p)]
+  (var terminated-normally false)
+  (assert-error "deadline expired"
+                (ev/with-deadline 0.05
+                  (os/proc-wait p)
+                  (print "uhoh")
+                  (set terminated-normally true)))
+  (assert (not terminated-normally) "early termination failure 2")
+  (ev/sleep 0.15)
+  (assert (not terminated-normally) "early termination failure 3"))
+
 (end-suite)

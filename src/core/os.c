@@ -541,11 +541,12 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
         proc->flags &= ~JANET_PROC_WAITING;
         janet_gcunroot(janet_wrap_abstract(proc));
         janet_gcunroot(janet_wrap_fiber(args.fiber));
-        if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
-            JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
-            janet_cancel(args.fiber, janet_wrap_string(s));
-        } else {
-            if (janet_fiber_can_resume(args.fiber)) {
+        uint32_t sched_id = (uint32_t) args.argi;
+        if (janet_fiber_can_resume(args.fiber) && args.fiber->sched_id == sched_id) {
+            if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
+                JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
+                janet_cancel(args.fiber, janet_wrap_string(s));
+            } else {
                 janet_schedule(args.fiber, janet_wrap_integer(status));
             }
         }
@@ -603,6 +604,7 @@ os_proc_wait_impl(JanetProc *proc) {
     memset(&targs, 0, sizeof(targs));
     targs.argp = proc;
     targs.fiber = janet_root_fiber();
+    targs.argi = (uint32_t) targs.fiber->sched_id;
     janet_gcroot(janet_wrap_abstract(proc));
     janet_gcroot(janet_wrap_fiber(targs.fiber));
     janet_ev_threaded_call(janet_proc_wait_subr, targs, janet_proc_wait_cb);
