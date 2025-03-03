@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2024 © Calvin Rose
+# Copyright 2025 © Calvin Rose
 
 ###
 ###
@@ -4271,8 +4271,8 @@
     (assertf (not (string/check-set "\\/" bundle-name))
              "bundle name %v cannot contain path separators" bundle-name)
     (assert (next bundle-name) "cannot use empty bundle-name")
-    (assert (not (fexists (get-manifest-filename bundle-name)))
-            "bundle is already installed")
+    (assertf (not (fexists (get-manifest-filename bundle-name)))
+            "bundle %v is already installed" bundle-name)
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
@@ -4497,6 +4497,12 @@
    "-nocolor" "n"
    "-color" "N"
    "-library" "l"
+   "-install" "b"
+   "-reinstall" "B"
+   "-uninstall" "u"
+   "-update-all" "U"
+   "-list" "L"
+   "-prune" "P"
    "-lint-warn" "w"
    "-lint-error" "x"})
 
@@ -4507,7 +4513,7 @@
 
   (setdyn *args* args)
 
-  (var should-repl false)
+  (var should-repl nil)
   (var no-file true)
   (var quiet false)
   (var raw-stdin false)
@@ -4562,6 +4568,12 @@
                --library (-l) lib      : Use a module before processing more arguments
                --lint-warn (-w) level  : Set the lint warning level - default is "normal"
                --lint-error (-x) level : Set the lint error level - default is "none"
+               --install (-b) dirpath  : Install a bundle from a directory
+               --reinstall (-B) name   : Reinstall a bundle by bundle name
+               --uninstall (-u) name   : Uninstall a bundle by bundle name
+               --update-all (-U)       : Reinstall all installed bundles
+               --prune (-P)            : Uninstalled all bundles that are orphaned
+               --list (-L)             : List all installed bundles
                --                      : Stop handling options
              ```)
            (os/exit 0)
@@ -4606,6 +4618,30 @@
              ((thunk) ;subargs)
              (error (get thunk :error)))
            math/inf)
+     "b"
+     (compif (dyn 'bundle/install)
+       (fn [i &] (bundle/install (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--install not supported with reduced os") 2))
+     "B"
+     (compif (dyn 'bundle/reinstall)
+       (fn [i &] (bundle/reinstall (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--reinstall not supported with reduced os") 2))
+     "u"
+     (compif (dyn 'bundle/uninstall)
+       (fn [i &] (bundle/uninstall (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--uninstall not supported with reduced os") 2))
+     "P"
+     (compif (dyn 'bundle/prune)
+       (fn [i &] (bundle/prune) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--prune not supported with reduced os") 1))
+     "U"
+     (compif (dyn 'bundle/update-all)
+       (fn [i &] (bundle/update-all) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--update-all not supported with reduced os") 1))
+     "L"
+     (compif (dyn 'bundle/list)
+       (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--list not supported with reduced os") 1))
      "d" (fn [&] (set debug-flag true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)

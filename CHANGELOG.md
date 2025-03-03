@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## ??? - Unreleased
+- Add CLI flags for the `bundle/` module to install and manage bundles.
 - Improve `?` peg special termination behavior
 - Add IEEE hex floats to grammar.
 - Add buffer peg literal support
