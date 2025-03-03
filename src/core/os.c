@@ -631,10 +631,9 @@ JANET_CORE_FN(os_proc_wait,
               "(os/proc-wait proc)",
               "Suspend the current fiber until the subprocess `proc` completes. Once `proc` "
               "completes, return the exit code of `proc`. If called more than once on the same "
-              "core/process value, will raise an error. Note that an error can occur even if "
-              "`os/proc-wait` is apparently canceled (e.g. with `ev/with-deadline`) due to the way "
-              "`os/proc-wait` is implemented. When creating subprocesses using `os/spawn`, this "
-              "function should be called on the returned value to avoid zombie processes.") {
+              "core/process value, will raise an error. When creating subprocesses using "
+              "`os/spawn`, this function should be called on the returned value to avoid zombie "
+              "processes.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -746,10 +745,10 @@ JANET_CORE_FN(os_proc_kill,
               "Kill the subprocess `proc` by sending SIGKILL to it on POSIX systems, or by closing "
               "the process handle on Windows. If `proc` has already completed, raise an error. If "
               "`wait` is truthy, will wait for `proc` to complete and return the exit code (this "
-              "will raise an error if `proc` is being awaited by another fiber). Otherwise, return "
-              "`proc`. If `signal` is provided, send it instead of SIGKILL. Signal keywords are "
-              "named after their C counterparts but in lowercase with the leading SIG stripped. "
-              "`signal` is ignored on Windows.") {
+              "will raise an error if `proc` is being waited for). Otherwise, return `proc`. If "
+              "`signal` is provided, send it instead of SIGKILL. Signal keywords are named after "
+              "their C counterparts but in lowercase with the leading SIG stripped. `signal` is "
+              "ignored on Windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
@@ -788,9 +787,8 @@ JANET_CORE_FN(os_proc_kill,
 JANET_CORE_FN(os_proc_close,
               "(os/proc-close proc)",
               "Close pipes created for subprocess `proc` by `os/spawn` if they have not been "
-              "closed. Then, if `proc` is not being awaited by another fiber, wait. If this "
-              "function waits, when `proc` completes, return the exit code of `proc`. Otherwise, "
-              "return nil.") {
+              "closed. Then, if `proc` is not being waited for, wait. If this function waits, when "
+              "`proc` completes, return the exit code of `proc`. Otherwise, return nil.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -1384,19 +1382,18 @@ JANET_CORE_FN(os_execute,
               "of strings. The first string is the name of the program and the remainder are "
               "arguments passed to the program. `flags` is a keyword made from the following "
               "characters that modifies how the program executes:\n"
-              "* 'e' - enables passing an environment to the program. Without 'e', the "
+              "* :e - enables passing an environment to the program. Without 'e', the "
               "current environment is inherited.\n"
-              "* 'p' - allows searching the current PATH for the program to execute. "
-              "Without this flag, the first element of `args` must be the absolute path.\n"
-              "* 'x' - raises error if exit code is non-zero.\n"
-              "* 'd' - prevents garbage collector from terminating the process (allows zombie "
-              "processes).\n"
+              "* :p - allows searching the current PATH for the program to execute. "
+              "Without this flag, the first element of `args` must be an absolute path.\n"
+              "* :x - raises error if exit code is non-zero.\n"
+              "* :d - prevents the garbage collector terminating the program (if still running) "
+              "and calling the equivalent of `os/proc-wait` (allows zombie processes).\n"
               "`env` is a table/struct mapping environment variables to values. It can also "
               "contain the keys :in, :out, and :err, which allow redirecting stdio in the "
               "subprocess. :in, :out, and :err should be core/file or core/stream values. "
-              "If a core/stream value created by `os/pipe` is passed to :out and :err, the caller "
-              "is responsible for reading from the respective pipe from a different fiber to avoid "
-              "potential deadlock from the program blocking on writes to these pipes.") {
+              "If core/stream values are used, the caller is responsible for ensuring pipes do not "
+              "cause the program to block and deadlock.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXECUTE);
 }
 
@@ -1414,9 +1411,8 @@ JANET_CORE_FN(os_spawn,
               "non-zero exit code will cause a waiting fiber to raise an error. The use of "
               "`:pipe` may fail if there are too many active file descriptors. The caller is "
               "responsible for closing pipes created by `:pipe` (either individually or using "
-              "`os/proc-close`). Similar to `os/execute`, the caller is responsible for reading "
-              "from output pipes to avoid potential deadlock from the program blocking on writes "
-              "to these pipes.") {
+              "`os/proc-close`). Similar to `os/execute`, the caller is responsible for ensuring "
+              "pipes do not cause the program to block and deadlock.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
 }
 
