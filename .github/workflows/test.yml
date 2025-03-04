@@ -133,6 +133,16 @@ jobs:
     - name: Checkout the repository
       uses: actions/checkout@master
     - name: Do Qemu build and test
-      run: |
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        docker run --rm -v .:/janet --platform linux/s390x ubuntu bash -c "apt-get -y update && apt-get -y install git build-essential && cd /janet && make -j3 && make test"
+      uses: uraimo/run-on-arch-action@v3
+      with:
+        arch: s390x
+        distro: ubuntu_latest
+        dockerRunArgs: |
+          --volume ".:/janet"
+        install: |
+          apt-get -y update
+          apt-get -y install git build-essential
+        run: |
+          cd /janet
+          make -j3
+          make test
