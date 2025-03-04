@@ -132,7 +132,7 @@ jobs:
     steps:
     - name: Checkout the repository
       uses: actions/checkout@master
-    - name: Do Qemu build and test
-      run: |
-        docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-        docker run --rm -v .:/janet --platform linux/s390x ubuntu bash -c "apt-get -y update && apt-get -y install git build-essential && cd /janet && make -j3 && make test"
+    - name: Enable qemu
+      run: docker run --privileged --rm tonistiigi/binfmt --install s390x
+    - name: Build and run on emulated architecture
+      run: docker run --rm -v .:/janet --platform linux/s390x alpine sh -c "apk update && apk add --no-interactive git build-base && cd /janet && make -j3 && make test"
