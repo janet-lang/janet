@@ -3133,7 +3133,7 @@ JANET_CORE_FN(cfun_ev_deadline,
               "After `sec` seconds, the event loop will attempt cancellation of `tocancel` if the "
               "`tocheck` fiber is resumable. `sec` is a number that can have a fractional part. "
               "`tocancel` defaults to `(fiber/root)`, but if specified, must be a task (root "
-              "fiber). `tocheck` defaults to `(fiber/current)`, but if specified, must be a fiber."
+              "fiber). `tocheck` defaults to `(fiber/current)`, but if specified, must be a fiber. "
               "Returns `tocancel` immediately. If `interrupt?` is set to true, will create a "
               "background thread to interrupt the VM if the timeout expires.") {
     janet_arity(argc, 1, 4);
