@@ -3102,21 +3102,45 @@ JANET_CORE_FN(cfun_ev_sleep,
     janet_sleep_await(sec);
 }
 
+static JanetEVGenericMessage janet_intr_wait_subr(JanetEVGenericMessage args) {
+    /* Timestamp won't match timestamp of timeout exactly */
+    JanetTimestamp when = ts_delta(ts_now(), janet_unwrap_number(args.argj));
+    JanetFiberStatus status = janet_fiber_status(args.fiber);
+    while (when > ts_now()) {
+        sleep(0);
+        status = janet_fiber_status(args.fiber);
+        if (status == JANET_STATUS_DEAD || status == JANET_STATUS_ERROR) break;
+    }
+    if (status == JANET_STATUS_ALIVE) {
+        JanetVM *vm = (JanetVM *)(args.argp);
+        janet_interpreter_interrupt(vm);
+        args.argi = 1;
+    } else {
+        args.argi = 0;
+    }
+    return args;
+}
+
+static void janet_intr_wait_cb(JanetEVGenericMessage args) {
+    janet_gcunroot(args.argj);
+    janet_gcunroot(janet_wrap_fiber(args.fiber));
+    if (args.argi) janet_interpreter_interrupt_handled(NULL);
+}
+
 JANET_CORE_FN(cfun_ev_deadline,
-              "(ev/deadline sec &opt tocancel tocheck)",
-              "Schedules the event loop to try to cancel the `tocancel` "
-              "task as with `ev/cancel`. After `sec` seconds, the event "
-              "loop will attempt cancellation of `tocancel` if the "
-              "`tocheck` fiber is resumable. `sec` is a number that can "
-              "have a fractional part. `tocancel` defaults to "
-              "`(fiber/root)`, but if specified, must be a task (root "
-              "fiber). `tocheck` defaults to `(fiber/current)`, but if "
-              "specified, should be a fiber. Returns `tocancel` "
-              "immediately.") {
-    janet_arity(argc, 1, 3);
+              "(ev/deadline sec &opt tocancel tocheck intr?)",
+              "Schedules the event loop to try to cancel the `tocancel` task as with `ev/cancel`. "
+              "After `sec` seconds, the event loop will attempt cancellation of `tocancel` if the "
+              "`tocheck` fiber is resumable. `sec` is a number that can have a fractional part. "
+              "`tocancel` defaults to `(fiber/root)`, but if specified, must be a task (root "
+              "fiber). `tocheck` defaults to `(fiber/current)`, but if specified, must be a fiber."
+              "Returns `tocancel` immediately. If `interrupt?` is set to true, will create a "
+              "background thread to interrupt the VM if the timeout expires.") {
+    janet_arity(argc, 1, 4);
     double sec = janet_getnumber(argv, 0);
     JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm.root_fiber);
     JanetFiber *tocheck = janet_optfiber(argv, argc, 2, janet_vm.fiber);
+    int use_interrupt = janet_optboolean(argv, argc, 3, 0);
     JanetTimeout to;
     to.when = ts_delta(ts_now(), sec);
     to.fiber = tocancel;
@@ -3124,6 +3148,16 @@ JANET_CORE_FN(cfun_ev_deadline,
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
     add_timeout(to);
+    if (use_interrupt) {
+        JanetEVGenericMessage targs;
+        memset(&targs, 0, sizeof(targs));
+        targs.argp = &janet_vm;
+        targs.argj = argv[0];
+        targs.fiber = tocancel;
+        janet_gcroot(argv[0]);
+        janet_gcroot(janet_wrap_fiber(targs.fiber));
+        janet_ev_threaded_call(janet_intr_wait_subr, targs, janet_intr_wait_cb);
+    }
     return janet_wrap_fiber(tocancel);
 }
 
