@@ -3984,7 +3984,7 @@
 
 (def- safe-forms {'defn true 'varfn true 'defn- true 'defmacro true 'defmacro- true
                   'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
-                  'defglobal is-safe-def 'varglobal is-safe-def})
+                  'defglobal is-safe-def 'varglobal is-safe-def 'defdyn true})
 
 (def- importers {'import true 'import* true 'dofile true 'require true})
 (defn- use-2 [evaluator args]
@@ -4137,7 +4137,7 @@
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
     (defer (os/cd dir)
-      (def new-env (make-env (curenv)))
+      (def new-env (make-env))
       (put new-env *module-cache* @{})
       (put new-env *module-loading* @{})
       (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
@@ -4152,7 +4152,6 @@
     [module bundle-name hook & args]
     (def hookf (module/value module (symbol hook)))
     (unless hookf (break))
-    (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (os/cd (get module :workdir "."))
     (defer (os/cd dir)
