@@ -57,6 +57,7 @@ LDFLAGS?=-rdynamic
 LIBJANET_LDFLAGS?=$(LD_FLAGS)
 RUN:=$(RUN)
 
+
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 $(COMMON_CFLAGS) -g
 BUILD_CFLAGS:=$(CFLAGS) $(COMMON_CFLAGS)
@@ -94,12 +95,18 @@ endif
 endif
 
 # Mingw
+MINGW_COMPILER=
 ifeq ($(findstring MINGW,$(UNAME)), MINGW)
+	MINGW_COMPILER=gcc
 	CLIBS:=-lws2_32 -lpsapi -lwsock32
 	LDFLAGS:=-Wl,--out-implib,$(JANET_IMPORT_LIB)
 	LIBJANET_LDFLAGS:=-Wl,--out-implib,$(JANET_LIBRARY_IMPORT_LIB)
 	JANET_TARGET:=$(JANET_TARGET).exe
 	JANET_BOOT:=$(JANET_BOOT).exe
+	COMPILER_VERSION:=$(shell $(CC) --version)
+	ifeq ($(findstring clang,$(COMPILER_VERSION)), clang)
+		MINGW_COMPILER=clang
+	endif
 endif
 
 
@@ -209,6 +216,11 @@ ifeq ($(UNAME), Darwin)
 SONAME=libjanet.1.37.dylib
 else
 SONAME=libjanet.so.1.37
+endif
+
+ifeq ($(MINGW_COMPILER), clang)
+	SONAME=
+	SONAME_SETTER=
 endif
 
 build/c/shell.c: src/mainclient/shell.c
