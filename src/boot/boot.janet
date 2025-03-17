@@ -4275,7 +4275,7 @@
              "bundle name %v cannot contain path separators" bundle-name)
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assertf (not (fexists (get-manifest-filename bundle-name)))
-            "bundle %v is already installed" bundle-name)
+             "bundle %v is already installed" bundle-name)
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
@@ -4348,14 +4348,15 @@
       (spit install-hook b))
     dest-dir)
 
-  (defn bundle/reinstall
-    "Reinstall an existing bundle from the local source code."
-    [bundle-name &keys new-config]
+  (defn bundle/replace
+    "Reinstall an existing bundle from a new directory. Similar to bundle/reinstall,
+     but installs the replacement bundle from any directory. This is necesarry to replace a package without
+     breaking any dependencies."
+    [bundle-name path &keys new-config]
     (def manifest (bundle/manifest bundle-name))
-    (def path (get manifest :local-source))
     (def config (get manifest :config @{}))
     (def s (sep))
-    (assert (= :directory (os/stat path :mode)) "local source not available")
+    (assertf (= :directory (os/stat path :mode)) "local source %v not available" path)
     (def backup-dir (string (dyn *syspath*) s bundle-name ".backup"))
     (rmrf backup-dir)
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
@@ -4366,6 +4367,14 @@
       (bundle-uninstall-unchecked bundle-name)
       (bundle/install path :name bundle-name ;(kvs config) ;(kvs new-config)))
     (rmrf backup-bundle-source)
+    bundle-name)
+
+  (defn bundle/reinstall
+    "Reinstall an existing bundle from the local source code."
+    [bundle-name &keys new-config]
+    (def manifest (bundle/manifest bundle-name))
+    (def path (get manifest :local-source))
+    (bundle/replace bundle-name path ;(kvs new-config))
     bundle-name)
 
   (defn bundle/add-directory
