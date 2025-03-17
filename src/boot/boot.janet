@@ -4118,7 +4118,11 @@
     [manifest]
     (def bn (get manifest :name))
     (def manifest-name (get-manifest-filename bn))
-    (spit manifest-name (string/format "%j\n" manifest)))
+    (def b @"")
+    (buffer/format b "%j" manifest) # make sure it is valid jdn
+    (buffer/clear b)
+    (buffer/format b "%.99m\n" manifest)
+    (spit manifest-name b))
 
   (defn bundle/manifest
     "Get the manifest for a give installed bundle"
@@ -4430,10 +4434,11 @@
     `Shorthand for adding scripts during an install. Scripts will be installed to
     (string (dyn *syspath*) "/bin") by default and will be set to be executable.`
     [manifest src &opt dest chmod-mode]
-    (default dest (last (string/split "/" src)))
+    (def s (sep))
+    (default dest (last (string/split s src)))
     (default chmod-mode 8r755)
-    (os/mkdir (string (dyn *syspath*) (sep) "bin"))
-    (bundle/add-file manifest src (string "bin" (sep) dest) chmod-mode))
+    (os/mkdir (string (dyn *syspath*) s "bin"))
+    (bundle/add-file manifest src (string "bin" s dest) chmod-mode))
 
   (defn bundle/update-all
     "Reinstall all bundles"
