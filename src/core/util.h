@@ -205,9 +205,9 @@ int janet_make_pipe(JanetHandle handles[2], int mode);
 #ifdef JANET_FILEWATCH
 void janet_lib_filewatch(JanetTable *env);
 #endif
+#endif
 #ifdef JANET_FFI
 void janet_lib_ffi(JanetTable *env);
-#endif
 #endif
 
 #endif
