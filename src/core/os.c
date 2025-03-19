@@ -1424,6 +1424,8 @@ JANET_CORE_FN(os_posix_exec,
               "However, instead of creating a subprocess, the current process is replaced. Is not supported on Windows, and "
               "does not allow redirection of stdio.") {
 #ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
     janet_panic("not supported on Windows");
 #else
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
