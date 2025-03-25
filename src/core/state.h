@@ -27,7 +27,9 @@
 #include <stdint.h>
 
 #ifdef JANET_EV
-#ifndef JANET_WINDOWS
+#ifdef JANET_WINDOWS
+#include <windows.h>
+#else
 #include <pthread.h>
 #endif
 #endif
