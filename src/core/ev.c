@@ -630,6 +630,7 @@ void janet_addtimeout(double sec) {
     to.curr_fiber = NULL;
     to.sched_id = fiber->sched_id;
     to.is_error = 1;
+    to.has_worker = 0;
     add_timeout(to);
 }
 
@@ -642,8 +643,52 @@ void janet_addtimeout_nil(double sec) {
     to.curr_fiber = NULL;
     to.sched_id = fiber->sched_id;
     to.is_error = 0;
+    to.has_worker = 0;
     add_timeout(to);
 }
+
+#ifdef JANET_WINDOWS
+static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
+    UNREFERENCED_PARAMETER(ptr);
+    ExitThread(0);
+}
+#endif
+
+static void janet_timeout_cb(JanetEVGenericMessage msg) {
+    (void) msg;
+    janet_interpreter_interrupt_handled(&janet_vm);
+}
+
+#ifdef JANET_WINDOWS
+static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
+    JanetThreadedTimeout *tto = (JanetThreadedTimeout *)ptr;
+    double sec = (tto->sec > 0) ? tto->sec : 0;
+    SleepEx((DWORD)(sec * 1000), TRUE);
+    if (janet_fiber_can_resume(tto->fiber)) {
+        janet_interpreter_interrupt(tto->vm);
+        JanetEVGenericMessage msg = {0};
+        janet_ev_post_event(tto->vm, janet_timeout_cb, msg);
+    }
+    return 0;
+}
+#else
+static void *janet_timeout_body(void *ptr) {
+    JanetThreadedTimeout *tto = (JanetThreadedTimeout *)ptr;
+    struct timespec ts;
+    ts.tv_sec = (time_t) tto->sec;
+    ts.tv_nsec = (tto->sec <= UINT32_MAX)
+                 ? (long)((tto->sec - ((uint32_t)tto->sec)) * 1000000000)
+                 : 0;
+    nanosleep(&ts, &ts);
+    if (janet_fiber_can_resume(tto->fiber)) {
+        janet_interpreter_interrupt(tto->vm);
+        JanetEVGenericMessage msg = {0};
+        janet_ev_post_event(tto->vm, janet_timeout_cb, msg);
+    }
+    return NULL;
+}
+#endif
+
 
 void janet_ev_inc_refcount(void) {
     janet_atomic_inc(&janet_vm.listener_count);
@@ -3119,48 +3164,6 @@ JANET_CORE_FN(cfun_ev_sleep,
     double sec = janet_getnumber(argv, 0);
     janet_sleep_await(sec);
 }
-
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#endif
-
-static void janet_timeout_cb(JanetEVGenericMessage msg) {
-    (void) msg;
-    janet_interpreter_interrupt_handled(&janet_vm);
-}
-
-#ifdef JANET_WINDOWS
-static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
-    JanetThreadedTimeout *tto = (JanetThreadedTimeout *)ptr;
-    double sec = (tto->sec > 0) ? tto->sec : 0;
-    SleepEx((DWORD)(tto->sec * 1000), TRUE);
-    if (janet_fiber_can_resume(tto->fiber)) {
-        janet_interpreter_interrupt(tto->vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto->vm, janet_timeout_cb, msg);
-    }
-    return 0;
-}
-#else
-static void *janet_timeout_body(void *ptr) {
-    JanetThreadedTimeout *tto = (JanetThreadedTimeout *)ptr;
-    struct timespec ts;
-    ts.tv_sec = (time_t) tto->sec;
-    ts.tv_nsec = (tto->sec <= UINT32_MAX)
-                 ? (long)((tto->sec - ((uint32_t)tto->sec)) * 1000000000)
-                 : 0;
-    nanosleep(&ts, &ts);
-    if (janet_fiber_can_resume(tto->fiber)) {
-        janet_interpreter_interrupt(tto->vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto->vm, janet_timeout_cb, msg);
-    }
-    return NULL;
-}
-#endif
 
 JANET_CORE_FN(cfun_ev_deadline,
               "(ev/deadline sec &opt tocancel tocheck intr?)",
