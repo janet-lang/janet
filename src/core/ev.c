@@ -662,8 +662,7 @@ static void janet_timeout_cb(JanetEVGenericMessage msg) {
 #ifdef JANET_WINDOWS
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout *tto = (JanetThreadedTimeout *)ptr;
-    double sec = (tto->sec > 0) ? tto->sec : 0;
-    SleepEx((DWORD)(sec * 1000), TRUE);
+    SleepEx((DWORD)(tto->sec * 1000), TRUE);
     if (janet_fiber_can_resume(tto->fiber)) {
         janet_interpreter_interrupt(tto->vm);
         JanetEVGenericMessage msg = {0};
@@ -3176,6 +3175,7 @@ JANET_CORE_FN(cfun_ev_deadline,
               "background thread to try to interrupt the VM if the timeout expires.") {
     janet_arity(argc, 1, 4);
     double sec = janet_getnumber(argv, 0);
+    sec = (sec < 0) ? 0 : sec;
     JanetFiber *tocancel = janet_optfiber(argv, argc, 1, janet_vm.root_fiber);
     JanetFiber *tocheck = janet_optfiber(argv, argc, 2, janet_vm.fiber);
     int use_interrupt = janet_optboolean(argv, argc, 3, 0);
