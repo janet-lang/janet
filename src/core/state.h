@@ -59,6 +59,12 @@ typedef struct {
     JanetFiber *curr_fiber;
     uint32_t sched_id;
     int is_error;
+    int has_worker;
+#ifdef JANET_WINDOWS
+    HANDLE worker;
+#else
+    pthread_t worker;
+#endif
 } JanetTimeout;
 
 /* Registry table for C functions - contains metadata that can

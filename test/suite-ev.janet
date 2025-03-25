@@ -550,4 +550,8 @@
   (ev/sleep 0.15)
   (assert (not terminated-normally) "early termination failure 3"))
 
+(let [f (coro (forever :foo))]
+  (ev/deadline 0.01 nil f true)
+  (assert-error "deadline expired" (resume f)))
+
 (end-suite)
