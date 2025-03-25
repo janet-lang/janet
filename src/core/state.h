@@ -55,6 +55,7 @@ typedef struct {
     void *data;
 } JanetQueue;
 
+#ifdef JANET_EV
 typedef struct {
     JanetTimestamp when;
     JanetFiber *fiber;
@@ -68,6 +69,7 @@ typedef struct {
     pthread_t worker;
 #endif
 } JanetTimeout;
+#endif
 
 /* Registry table for C functions - contains metadata that can
  * be looked up by cfunction pointer. All strings here are pointing to
