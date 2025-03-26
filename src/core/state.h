@@ -27,7 +27,9 @@
 #include <stdint.h>
 
 #ifdef JANET_EV
-#ifndef JANET_WINDOWS
+#ifdef JANET_WINDOWS
+#include <windows.h>
+#else
 #include <pthread.h>
 #endif
 #endif
@@ -53,13 +55,21 @@ typedef struct {
     void *data;
 } JanetQueue;
 
+#ifdef JANET_EV
 typedef struct {
     JanetTimestamp when;
     JanetFiber *fiber;
     JanetFiber *curr_fiber;
     uint32_t sched_id;
     int is_error;
+    int has_worker;
+#ifdef JANET_WINDOWS
+    HANDLE worker;
+#else
+    pthread_t worker;
+#endif
 } JanetTimeout;
+#endif
 
 /* Registry table for C functions - contains metadata that can
  * be looked up by cfunction pointer. All strings here are pointing to
