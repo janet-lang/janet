@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2024 © Calvin Rose
+# Copyright 2025 © Calvin Rose
 
 ###
 ###
@@ -3984,7 +3984,7 @@
 
 (def- safe-forms {'defn true 'varfn true 'defn- true 'defmacro true 'defmacro- true
                   'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
-                  'defglobal is-safe-def 'varglobal is-safe-def})
+                  'defglobal is-safe-def 'varglobal is-safe-def 'defdyn true})
 
 (def- importers {'import true 'import* true 'dofile true 'require true})
 (defn- use-2 [evaluator args]
@@ -4118,7 +4118,11 @@
     [manifest]
     (def bn (get manifest :name))
     (def manifest-name (get-manifest-filename bn))
-    (spit manifest-name (string/format "%j\n" manifest)))
+    (def b @"")
+    (buffer/format b "%j" manifest) # make sure it is valid jdn
+    (buffer/clear b)
+    (buffer/format b "%.99m\n" manifest)
+    (spit manifest-name b))
 
   (defn bundle/manifest
     "Get the manifest for a give installed bundle"
@@ -4137,7 +4141,7 @@
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
     (defer (os/cd dir)
-      (def new-env (make-env (curenv)))
+      (def new-env (make-env))
       (put new-env *module-cache* @{})
       (put new-env *module-loading* @{})
       (put new-env *module-make-env* (fn make-bundle-env [&] (make-env new-env)))
@@ -4152,7 +4156,6 @@
     [module bundle-name hook & args]
     (def hookf (module/value module (symbol hook)))
     (unless hookf (break))
-    (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (os/cd (get module :workdir "."))
     (defer (os/cd dir)
@@ -4271,8 +4274,8 @@
     (assertf (not (string/check-set "\\/" bundle-name))
              "bundle name %v cannot contain path separators" bundle-name)
     (assert (next bundle-name) "cannot use empty bundle-name")
-    (assert (not (fexists (get-manifest-filename bundle-name)))
-            "bundle is already installed")
+    (assertf (not (fexists (get-manifest-filename bundle-name)))
+             "bundle %v is already installed" bundle-name)
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
@@ -4345,14 +4348,15 @@
       (spit install-hook b))
     dest-dir)
 
-  (defn bundle/reinstall
-    "Reinstall an existing bundle from the local source code."
-    [bundle-name &keys new-config]
+  (defn bundle/replace
+    "Reinstall an existing bundle from a new directory. Similar to bundle/reinstall,
+     but installs the replacement bundle from any directory. This is necesarry to replace a package without
+     breaking any dependencies."
+    [bundle-name path &keys new-config]
     (def manifest (bundle/manifest bundle-name))
-    (def path (get manifest :local-source))
     (def config (get manifest :config @{}))
     (def s (sep))
-    (assert (= :directory (os/stat path :mode)) "local source not available")
+    (assertf (= :directory (os/stat path :mode)) "local source %v not available" path)
     (def backup-dir (string (dyn *syspath*) s bundle-name ".backup"))
     (rmrf backup-dir)
     (def backup-bundle-source (bundle/pack bundle-name backup-dir true))
@@ -4363,6 +4367,14 @@
       (bundle-uninstall-unchecked bundle-name)
       (bundle/install path :name bundle-name ;(kvs config) ;(kvs new-config)))
     (rmrf backup-bundle-source)
+    bundle-name)
+
+  (defn bundle/reinstall
+    "Reinstall an existing bundle from the local source code."
+    [bundle-name &keys new-config]
+    (def manifest (bundle/manifest bundle-name))
+    (def path (get manifest :local-source))
+    (bundle/replace bundle-name path ;(kvs new-config))
     bundle-name)
 
   (defn bundle/add-directory
@@ -4431,10 +4443,11 @@
     `Shorthand for adding scripts during an install. Scripts will be installed to
     (string (dyn *syspath*) "/bin") by default and will be set to be executable.`
     [manifest src &opt dest chmod-mode]
-    (default dest (last (string/split "/" src)))
+    (def s (sep))
+    (default dest (last (string/split s src)))
     (default chmod-mode 8r755)
-    (os/mkdir (string (dyn *syspath*) (sep) "bin"))
-    (bundle/add-file manifest src (string "bin" (sep) dest) chmod-mode))
+    (os/mkdir (string (dyn *syspath*) s "bin"))
+    (bundle/add-file manifest src (string "bin" s dest) chmod-mode))
 
   (defn bundle/update-all
     "Reinstall all bundles"
@@ -4497,6 +4510,12 @@
    "-nocolor" "n"
    "-color" "N"
    "-library" "l"
+   "-install" "b"
+   "-reinstall" "B"
+   "-uninstall" "u"
+   "-update-all" "U"
+   "-list" "L"
+   "-prune" "P"
    "-lint-warn" "w"
    "-lint-error" "x"})
 
@@ -4507,7 +4526,7 @@
 
   (setdyn *args* args)
 
-  (var should-repl false)
+  (var should-repl nil)
   (var no-file true)
   (var quiet false)
   (var raw-stdin false)
@@ -4562,6 +4581,12 @@
                --library (-l) lib      : Use a module before processing more arguments
                --lint-warn (-w) level  : Set the lint warning level - default is "normal"
                --lint-error (-x) level : Set the lint error level - default is "none"
+               --install (-b) dirpath  : Install a bundle from a directory
+               --reinstall (-B) name   : Reinstall a bundle by bundle name
+               --uninstall (-u) name   : Uninstall a bundle by bundle name
+               --update-all (-U)       : Reinstall all installed bundles
+               --prune (-P)            : Uninstalled all bundles that are orphaned
+               --list (-L)             : List all installed bundles
                --                      : Stop handling options
              ```)
            (os/exit 0)
@@ -4606,6 +4631,30 @@
              ((thunk) ;subargs)
              (error (get thunk :error)))
            math/inf)
+     "b"
+     (compif (dyn 'bundle/install)
+       (fn [i &] (bundle/install (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--install not supported with reduced os") 2))
+     "B"
+     (compif (dyn 'bundle/reinstall)
+       (fn [i &] (bundle/reinstall (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--reinstall not supported with reduced os") 2))
+     "u"
+     (compif (dyn 'bundle/uninstall)
+       (fn [i &] (bundle/uninstall (in args (+ i 1))) (set no-file false) (if (= nil should-repl) (set should-repl false)) 2)
+       (fn [i &] (eprint "--uninstall not supported with reduced os") 2))
+     "P"
+     (compif (dyn 'bundle/prune)
+       (fn [i &] (bundle/prune) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--prune not supported with reduced os") 1))
+     "U"
+     (compif (dyn 'bundle/update-all)
+       (fn [i &] (bundle/update-all) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--update-all not supported with reduced os") 1))
+     "L"
+     (compif (dyn 'bundle/list)
+       (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
+       (fn [i &] (eprint "--list not supported with reduced os") 1))
      "d" (fn [&] (set debug-flag true) 1)
      "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
      "x" (fn [i &] (set error-level (get-lint-level i)) 2)

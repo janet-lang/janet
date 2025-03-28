@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose
+* Copyright (c) 2025 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -205,9 +205,9 @@ int janet_make_pipe(JanetHandle handles[2], int mode);
 #ifdef JANET_FILEWATCH
 void janet_lib_filewatch(JanetTable *env);
 #endif
+#endif
 #ifdef JANET_FFI
 void janet_lib_ffi(JanetTable *env);
-#endif
 #endif
 
 #endif

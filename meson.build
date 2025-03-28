@@ -1,4 +1,4 @@
-# Copyright (c) 2024 Calvin Rose and contributors
+# Copyright (c) 2025 Calvin Rose and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.37.1')
+  version : '1.38.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -39,6 +39,15 @@ native_thread_dep = dependency('threads', native : true)
 # Deps
 m_dep = cc.find_library('m', required : false)
 dl_dep = cc.find_library('dl', required : false)
+
+# for MINGW/MSYS2
+native_ws2_dep = native_cc.find_library('ws2_32', required: false)
+native_psapi_dep = native_cc.find_library('psapi', required: false)
+native_wsock_dep = native_cc.find_library('wsock32', required: false)
+ws2_dep = cc.find_library('ws2_32', required: false)
+psapi_dep = cc.find_library('psapi', required: false)
+wsock_dep = cc.find_library('wsock32', required: false)
+
 android_spawn_dep = cc.find_library('android-spawn', required : false)
 thread_dep = dependency('threads')
 
@@ -176,8 +185,8 @@ mainclient_src = [
   'src/mainclient/shell.c'
 ]
 
-janet_dependencies = [m_dep, dl_dep, android_spawn_dep]
-janet_native_dependencies = [native_m_dep, native_dl_dep, native_android_spawn_dep]
+janet_dependencies = [m_dep, dl_dep, android_spawn_dep, ws2_dep, psapi_dep, wsock_dep]
+janet_native_dependencies = [native_m_dep, native_dl_dep, native_android_spawn_dep, native_ws2_dep, native_psapi_dep, native_wsock_dep]
 if not get_option('single_threaded')
   janet_dependencies += thread_dep
   janet_native_dependencies += native_thread_dep

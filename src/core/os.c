@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose and contributors.
+* Copyright (c) 2025 Calvin Rose and contributors.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -541,11 +541,12 @@ static void janet_proc_wait_cb(JanetEVGenericMessage args) {
         proc->flags &= ~JANET_PROC_WAITING;
         janet_gcunroot(janet_wrap_abstract(proc));
         janet_gcunroot(janet_wrap_fiber(args.fiber));
-        if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
-            JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
-            janet_cancel(args.fiber, janet_wrap_string(s));
-        } else {
-            if (janet_fiber_can_resume(args.fiber)) {
+        uint32_t sched_id = (uint32_t) args.argi;
+        if (janet_fiber_can_resume(args.fiber) && args.fiber->sched_id == sched_id) {
+            if ((status != 0) && (proc->flags & JANET_PROC_ERROR_NONZERO)) {
+                JanetString s = janet_formatc("command failed with non-zero exit code %d", status);
+                janet_cancel(args.fiber, janet_wrap_string(s));
+            } else {
                 janet_schedule(args.fiber, janet_wrap_integer(status));
             }
         }
@@ -603,6 +604,7 @@ os_proc_wait_impl(JanetProc *proc) {
     memset(&targs, 0, sizeof(targs));
     targs.argp = proc;
     targs.fiber = janet_root_fiber();
+    targs.argi = (uint32_t) targs.fiber->sched_id;
     janet_gcroot(janet_wrap_abstract(proc));
     janet_gcroot(janet_wrap_fiber(targs.fiber));
     janet_ev_threaded_call(janet_proc_wait_subr, targs, janet_proc_wait_cb);
@@ -629,16 +631,15 @@ os_proc_wait_impl(JanetProc *proc) {
 
 JANET_CORE_FN(os_proc_wait,
               "(os/proc-wait proc)",
-              "Suspend the current fiber until the subprocess completes. Returns the subprocess return code. "
-              "os/proc-wait cannot be called twice on the same process. If `ev/with-deadline` cancels `os/proc-wait` "
-              "with an error or os/proc-wait is cancelled with any error caused by anything else, os/proc-wait still "
-              "finishes in the background. Only after os/proc-wait finishes, a process is cleaned up by the operating "
-              "system. Thus, a process becomes a zombie process if os/proc-wait is not called.") {
+              "Suspend the current fiber until the subprocess `proc` completes. Once `proc` "
+              "completes, return the exit code of `proc`. If called more than once on the same "
+              "core/process value, will raise an error. When creating subprocesses using "
+              "`os/spawn`, this function should be called on the returned value to avoid zombie "
+              "processes.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
     os_proc_wait_impl(proc);
-    return janet_wrap_nil();
 #else
     return os_proc_wait_impl(proc);
 #endif
@@ -743,12 +744,13 @@ static int get_signal_kw(const Janet *argv, int32_t n) {
 
 JANET_CORE_FN(os_proc_kill,
               "(os/proc-kill proc &opt wait signal)",
-              "Kill a subprocess by sending SIGKILL to it on posix systems, or by closing the process "
-              "handle on windows. If os/proc-wait already finished for proc, os/proc-kill raises an error. After "
-              "sending signal to proc, if `wait` is truthy, will wait for the process to finish and return the exit "
-              "code by calling os/proc-wait. Otherwise, returns `proc`. If signal is specified, send it instead. "
-              "Signal keywords are named after their C counterparts but in lowercase with the leading `SIG` stripped. "
-              "Signals are ignored on windows.") {
+              "Kill the subprocess `proc` by sending SIGKILL to it on POSIX systems, or by closing "
+              "the process handle on Windows. If `proc` has already completed, raise an error. If "
+              "`wait` is truthy, will wait for `proc` to complete and return the exit code (this "
+              "will raise an error if `proc` is being waited for). Otherwise, return `proc`. If "
+              "`signal` is provided, send it instead of SIGKILL. Signal keywords are named after "
+              "their C counterparts but in lowercase with the leading SIG stripped. `signal` is "
+              "ignored on Windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
     if (proc->flags & JANET_PROC_WAITED) {
@@ -776,7 +778,6 @@ JANET_CORE_FN(os_proc_kill,
     if (argc > 1 && janet_truthy(argv[1])) {
 #ifdef JANET_EV
         os_proc_wait_impl(proc);
-        return janet_wrap_nil();
 #else
         return os_proc_wait_impl(proc);
 #endif
@@ -787,9 +788,9 @@ JANET_CORE_FN(os_proc_kill,
 
 JANET_CORE_FN(os_proc_close,
               "(os/proc-close proc)",
-              "Close pipes created by `os/spawn` if they have not been closed. Then, if os/proc-wait was not already "
-              "called on proc, os/proc-wait is called on it, and it returns the exit code returned by os/proc-wait. "
-              "Otherwise, returns nil.") {
+              "Close pipes created for subprocess `proc` by `os/spawn` if they have not been "
+              "closed. Then, if `proc` is not being waited for, wait. If this function waits, when "
+              "`proc` completes, return the exit code of `proc`. Otherwise, return nil.") {
     janet_fixarity(argc, 1);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
 #ifdef JANET_EV
@@ -807,7 +808,6 @@ JANET_CORE_FN(os_proc_close,
     }
 #ifdef JANET_EV
     os_proc_wait_impl(proc);
-    return janet_wrap_nil();
 #else
     return os_proc_wait_impl(proc);
 #endif
@@ -1268,9 +1268,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
 
     /* exec mode */
     if (mode == JANET_EXECUTE_EXEC) {
-#ifdef JANET_WINDOWS
-        janet_panic("not supported on windows");
-#else
         int status;
         if (!use_environ) {
             environ = envp;
@@ -1283,7 +1280,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
             }
         } while (status == -1 && errno == EINTR);
         janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
-#endif
     }
 
     /* Use posix_spawn to spawn new process */
@@ -1384,45 +1380,56 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
 
 JANET_CORE_FN(os_execute,
               "(os/execute args &opt flags env)",
-              "Execute a program on the system and pass it string arguments. `flags` "
-              "is a keyword that modifies how the program will execute.\n"
-              "* :e - enables passing an environment to the program. Without :e, the "
+              "Execute a program on the system and return the exit code. `args` is an array/tuple "
+              "of strings. The first string is the name of the program and the remainder are "
+              "arguments passed to the program. `flags` is a keyword made from the following "
+              "characters that modifies how the program executes:\n"
+              "* :e - enables passing an environment to the program. Without 'e', the "
               "current environment is inherited.\n"
-              "* :p - allows searching the current PATH for the binary to execute. "
-              "Without this flag, binaries must use absolute paths.\n"
-              "* :x - raise error if exit code is non-zero.\n"
-              "* :d - Don't try and terminate the process on garbage collection (allow spawning zombies).\n"
-              "`env` is a table or struct mapping environment variables to values. It can also "
-              "contain the keys :in, :out, and :err, which allow redirecting stdio in the subprocess. "
-              ":in, :out, and :err should be core/file values or core/stream values. core/file values and core/stream "
-              "values passed to :in, :out, and :err should be closed manually because os/execute doesn't close them. "
-              "Returns the exit code of the program.") {
+              "* :p - allows searching the current PATH for the program to execute. "
+              "Without this flag, the first element of `args` must be an absolute path.\n"
+              "* :x - raises error if exit code is non-zero.\n"
+              "* :d - prevents the garbage collector terminating the program (if still running) "
+              "and calling the equivalent of `os/proc-wait` (allows zombie processes).\n"
+              "`env` is a table/struct mapping environment variables to values. It can also "
+              "contain the keys :in, :out, and :err, which allow redirecting stdio in the "
+              "subprocess. :in, :out, and :err should be core/file or core/stream values. "
+              "If core/stream values are used, the caller is responsible for ensuring pipes do not "
+              "cause the program to block and deadlock.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXECUTE);
 }
 
 JANET_CORE_FN(os_spawn,
               "(os/spawn args &opt flags env)",
-              "Execute a program on the system and return a handle to the process. Otherwise, takes the "
-              "same arguments as `os/execute`. Does not wait for the process. For each of the :in, :out, and :err keys "
-              "of the `env` argument, one can also pass in the keyword `:pipe` to get streams for standard IO of the "
-              "subprocess that can be read from and written to. The returned value `proc` has the fields :in, :out, "
-              ":err, and the additional field :pid on unix-like platforms. `(os/proc-wait proc)` must be called to "
-              "rejoin the subprocess. After `(os/proc-wait proc)` finishes, proc gains a new field, :return-code. "
-              "If :x flag is passed to os/spawn, non-zero exit code will cause os/proc-wait to raise an error. "
-              "If pipe streams created with :pipe keyword are not closed in time, janet can run out of file "
-              "descriptors. They can be closed individually, or `os/proc-close` can close all pipe streams on proc. "
-              "If pipe streams aren't read before `os/proc-wait` finishes, then pipe buffers become full, and the "
-              "process cannot finish because the process cannot print more on pipe buffers which are already full. "
-              "If the process cannot finish, os/proc-wait cannot finish, either.") {
+              "Execute a program on the system and return a core/process value representing the "
+              "spawned subprocess. Takes the same arguments as `os/execute` but does not wait for "
+              "the subprocess to complete. Unlike `os/execute`, the value `:pipe` can be used for "
+              ":in, :out and :err keys in `env`. If used, the returned core/process will have a "
+              "writable stream in the :in field and readable streams in the :out and :err fields. "
+              "On non-Windows systems, the subprocess PID will be in the :pid field. The caller is "
+              "responsible for waiting on the process (e.g. by calling `os/proc-wait` on the "
+              "returned core/process value) to avoid creating zombie process. After the subprocess "
+              "completes, the exit value is in the :return-code field. If `flags` includes 'x', a "
+              "non-zero exit code will cause a waiting fiber to raise an error. The use of "
+              "`:pipe` may fail if there are too many active file descriptors. The caller is "
+              "responsible for closing pipes created by `:pipe` (either individually or using "
+              "`os/proc-close`). Similar to `os/execute`, the caller is responsible for ensuring "
+              "pipes do not cause the program to block and deadlock.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
 }
 
 JANET_CORE_FN(os_posix_exec,
               "(os/posix-exec args &opt flags env)",
               "Use the execvpe or execve system calls to replace the current process with an interface similar to os/execute. "
-              "However, instead of creating a subprocess, the current process is replaced. Is not supported on windows, and "
+              "However, instead of creating a subprocess, the current process is replaced. Is not supported on Windows, and "
               "does not allow redirection of stdio.") {
+#ifdef JANET_WINDOWS
+    (void) argc;
+    (void) argv;
+    janet_panic("not supported on Windows");
+#else
     return os_execute_impl(argc, argv, JANET_EXECUTE_EXEC);
+#endif
 }
 
 JANET_CORE_FN(os_posix_fork,
@@ -1433,7 +1440,7 @@ JANET_CORE_FN(os_posix_fork,
     janet_fixarity(argc, 0);
     (void) argv;
 #ifdef JANET_WINDOWS
-    janet_panic("not supported");
+    janet_panic("not supported on Windows");
 #else
     pid_t result;
     do {
@@ -1880,7 +1887,6 @@ JANET_CORE_FN(os_mktime,
         /* utc time */
 #ifdef JANET_NO_UTC_MKTIME
         janet_panic("os/mktime UTC not supported on this platform");
-        return janet_wrap_nil();
 #else
         t = timegm(&t_info);
 #endif
@@ -1947,8 +1953,7 @@ JANET_CORE_FN(os_link,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/link not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -1966,8 +1971,7 @@ JANET_CORE_FN(os_symlink,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/symlink not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -2069,8 +2073,7 @@ JANET_CORE_FN(os_readlink,
 #ifdef JANET_WINDOWS
     (void) argc;
     (void) argv;
-    janet_panic("os/readlink not supported on Windows");
-    return janet_wrap_nil();
+    janet_panic("not supported on Windows");
 #else
     static char buffer[PATH_MAX];
     const char *path = janet_getcstring(argv, 0);
@@ -2326,7 +2329,6 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
             return sg->fn(&st);
         }
         janet_panicf("unexpected keyword %v", janet_wrap_keyword(key));
-        return janet_wrap_nil();
     }
 }
 

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2024 Calvin Rose
+* Copyright (c) 2025 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1686,7 +1686,7 @@ JANET_CORE_FN(cfun_ffi_buffer_write,
     JanetFFIType type = decode_ffi_type(argv[0]);
     uint32_t el_size = (uint32_t) type_size(type);
     JanetBuffer *buffer = janet_optbuffer(argv, argc, 2, el_size);
-    int32_t index = janet_optnat(argv, argc, 3, 0);
+    int32_t index = janet_optnat(argv, argc, 3, buffer->count);
     int32_t old_count = buffer->count;
     if (index > old_count) janet_panic("index out of bounds");
     buffer->count = index;
