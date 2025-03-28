@@ -55,4 +55,11 @@
 (compwhen has-ffi
   (assert-error "bad struct issue #1512" (ffi/struct :void)))
 
+(compwhen has-ffi
+  (def buf @"")
+  (ffi/write :u8 10 buf)
+  (assert (= 1 (length buf)))
+  (ffi/write :u8 10 buf)
+  (assert (= 2 (length buf))))
+
 (end-suite)

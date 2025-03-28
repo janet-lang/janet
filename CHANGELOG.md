@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Make `ffi/write` append to a buffer instead of insert at 0 by default.
+
 ## 1.38.0 - 2025-03-18
 - Add `bundle/replace`
 - Add CLI flags for the `bundle/` module to install and manage bundles.
