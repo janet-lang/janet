@@ -28,32 +28,40 @@
 #include "util.h"
 #endif
 
+#include <assert.h>
+
 #define RAX 0
 #define RCX 1
 #define RDX 2
 #define RBX 3
-#define RSI 4
-#define RDI 5
-#define RSP 6
-#define RBP 7
+#define RSP 4
+#define RBP 5
+#define RSI 6
+#define RDI 7
+
+#define REX   0x40
+#define REX_W 0x48
+#define REX_R 0x44
+#define REX_X 0x42
+#define REX_B 0x41
 
 static const char *register_names[] = {
-    "rax", "rcx", "rdx", "rbx", "rsi", "rdi", "rsp", "rbp",
+    "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
     "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 };
 
 static const char *register_names_32[] = {
-    "eax", "ecx", "edx", "ebx", "esi", "edi", "esp", "ebp",
+    "eax", "ecx", "edx", "ebx", "rsp", "rbp", "esi", "edi",
     "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
 };
 
 static const char *register_names_16[] = {
-    "ax", "cx", "dx", "bx", "si", "di", "sp", "bp",
+    "ax", "cx", "dx", "bx", "sp", "bp", "si", "di",
     "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w"
 };
 
 static const char *register_names_8[] = {
-    "al", "cl", "dl", "bl", "sil", "dil", "spl", "bpl",
+    "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil",
     "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"
 };
 
@@ -75,6 +83,7 @@ typedef enum {
     JANET_SYSREG_REGISTER,
     JANET_SYSREG_STACK, /* Indexed from base pointer */
     JANET_SYSREG_STACK_PARAMETER, /* Index from base pointer in other direction */
+    /* TODO - immediates */
 } x64Storage;
 
 typedef struct {
@@ -265,6 +274,190 @@ static int operand_isreg(JanetSysx64Context *ctx, uint32_t o, uint32_t regindex)
     if (reg.storage != JANET_SYSREG_REGISTER) return 0;
     return reg.index == regindex;
 }
+
+/*
+ * Machine code emission
+ */
+
+/* One piece of a x86 instruction */
+typedef struct {
+    int bytes;
+    uint64_t data;
+} InstrChunk;
+
+static const InstrChunk empty_chunk = { 0, 0 };
+
+static void i_chunk(JanetSysx64Context *C, InstrChunk c) {
+    for (int i = 0; i < c.bytes; i++) {
+        janet_buffer_push_u8(C->buffer, c.data & 0xFF);
+        c.data = c.data >> 8;
+    }
+}
+
+/* Emit one x86_64 instruction given all of the individual components */
+static void i_combine(JanetSysx64Context *C,
+        InstrChunk prefix,
+        uint16_t opcode,
+        InstrChunk mod_reg_rm,
+        InstrChunk scaled_index,
+        InstrChunk displacement,
+        InstrChunk immediate) {
+    assert(mod_reg_rm.bytes < 3);
+    assert(scaled_index.bytes < 2);
+    assert(opcode < 512);
+    int len_total = prefix.bytes + mod_reg_rm.bytes + scaled_index.bytes + displacement.bytes + immediate.bytes;
+    if (opcode >= 256) len_total++;
+    janet_buffer_extra(C->buffer, len_total);
+    int32_t final_len = C->buffer->count + len_total;
+    i_chunk(C, prefix);
+    if (opcode >= 256) {
+        janet_buffer_push_u8(C->buffer, 0x0Fu);
+        opcode -= 256;
+    }
+    janet_buffer_push_u8(C->buffer, opcode);
+    i_chunk(C, mod_reg_rm);
+    i_chunk(C, scaled_index);
+    i_chunk(C, displacement);
+    i_chunk(C, immediate);
+    assert(C->buffer->count == final_len);
+}
+
+static void debug_chunk(JanetSysx64Context *C, InstrChunk c) {
+    for (int i = 0; i < c.bytes; i++) {
+        janet_formatb(C->buffer, "0x%.2X,", c.data & 0xFF);
+        c.data = c.data >> 8;
+    }
+}
+
+/* Emit one x86_64 instruction given all of the individual components */
+static void debug_combine(JanetSysx64Context *C,
+        InstrChunk prefix,
+        uint16_t opcode,
+        InstrChunk mod_reg_rm,
+        InstrChunk scaled_index,
+        InstrChunk displacement,
+        InstrChunk immediate) {
+    assert(mod_reg_rm.bytes < 3);
+    assert(scaled_index.bytes < 2);
+    assert(opcode < 512);
+    janet_buffer_push_cstring(C->buffer, "db ");
+    debug_chunk(C, prefix);
+    if (opcode >= 256) {
+        janet_formatb(C->buffer, "0x%.2X,", 0x0Fu);
+        opcode -= 256;
+    }
+    janet_formatb(C->buffer, "0x%.2X,", opcode);
+    debug_chunk(C, mod_reg_rm);
+    debug_chunk(C, scaled_index);
+    debug_chunk(C, displacement);
+    debug_chunk(C, immediate);
+    janet_buffer_push_cstring(C->buffer, " ; ");
+}
+
+/* Return 1 if actually emitted, 0 if falling back to textual assembly */
+static int e_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
+    assert(dest <= JANET_SYS_MAX_OPERAND);
+    x64Reg d = ctx->regs[dest];
+    x64RegKind sk = get_slot_regkind(ctx, src);
+    uint8_t rex = 0;
+    uint8_t mod_rm = 0;
+    uint16_t opcode;
+    int32_t disp = 0;
+    int has_disp = 0;
+    if (sk >= JANET_SYSREG_64) rex |= REX_W;
+    if (src <= JANET_SYS_MAX_OPERAND) {
+        /* src is not a constant */
+        x64Reg s = ctx->regs[src];
+        opcode = 0;
+        if (s.storage == JANET_SYSREG_REGISTER) {
+            opcode = 0x88;
+            mod_rm |= (uint8_t) (s.index & 7) << 3;
+            if (s.index >= 8) rex |= REX_R;
+            if (d.storage == JANET_SYSREG_REGISTER) {
+                mod_rm |= 0xC0u; /* reg, reg mode */
+                mod_rm |= (uint8_t) (d.index & 7);
+                if (d.index >= 8) rex |= REX_B;
+            } else {
+                /* d is memory */
+                has_disp = 1;
+                mod_rm |= 0x80; /* 32 bit displacement */
+                mod_rm |= 42; /* reg, BP + disp */
+                disp = (d.storage == JANET_SYSREG_STACK_PARAMETER) ? ((int32_t) d.index) : -((int32_t) d.index);
+            }
+        } else if (d.storage == JANET_SYSREG_REGISTER) {
+            opcode = 0x8A;
+            mod_rm |= (d.index & 7) << 3;
+            if (d.index >= 8) rex |= REX_R;
+            /* s is memory */
+            has_disp = 1;
+            mod_rm |= 0x80; /* 32 bit displacement */
+            mod_rm |= 42; /* reg, BP + disp */
+            disp = (s.storage == JANET_SYSREG_STACK_PARAMETER) ? ((int32_t) s.index) : -((int32_t) s.index);
+        } else {
+            /* mem -> mem, we need to use a temporary register */
+            /* mem -> RAX -> mem */
+            janet_formatb(ctx->buffer, "; mem -> RAX -> mem NYI\n");
+            return 0;
+        }
+        if (sk != JANET_SYSREG_8) opcode++;
+        // TODO - make a little nicer - no need for InstrChunks, we could probably just pass the bytes directly. */
+        InstrChunk prefix = {1, rex};
+        if (!rex) prefix.bytes = 0;
+        InstrChunk modregrm = {1, mod_rm};
+        InstrChunk dispchunk = empty_chunk;
+        if (has_disp) {
+            dispchunk.bytes = 4;
+            dispchunk.data = (uint64_t) disp;
+        }
+        debug_combine(ctx, prefix, opcode, modregrm, empty_chunk, dispchunk, empty_chunk);
+        return 1;
+    } else {
+        /* src is a constant */
+        Janet c = ctx->ir->constants[src - JANET_SYS_CONSTANT_PREFIX].value;
+        int32_t imm = 0;
+        if (janet_checktype(c, JANET_STRING)) {
+            janet_formatb(ctx->buffer, "; nyi - immediate pointer\n");
+            return 0;
+        } else if (sk >= JANET_SYSREG_64) {
+            janet_formatb(ctx->buffer, "; nyi - immediate 64 bit value\n");
+            return 0;
+        } else {
+            if (janet_checktype(c, JANET_BOOLEAN)) {
+                imm = janet_truthy(c);
+            } else {
+                imm = janet_unwrap_integer(c);
+            }
+        }
+        if (d.storage == JANET_SYSREG_REGISTER) {
+            opcode = 0xB0;
+            mod_rm |= 0xC0u; /* reg, reg mode */
+            mod_rm |= (d.index & 7) << 3;
+            if (d.index >= 8) rex |= REX_R;
+            if (sk != JANET_SYSREG_8) opcode = 0xB8;
+        } else {
+            opcode = 0xC6;
+            has_disp = 1;
+            mod_rm |= 0x80; /* 32 bit displacement */
+            mod_rm |= 42; /* reg, BP + disp */
+            disp = (d.storage == JANET_SYSREG_STACK_PARAMETER) ? ((int32_t) d.index) : -((int32_t) d.index);
+        }
+        InstrChunk prefix = {1, rex};
+        if (!rex) prefix.bytes = 0;
+        InstrChunk modregrm = {1, mod_rm};
+        InstrChunk dispchunk = empty_chunk;
+        InstrChunk immchunk = {4, imm};
+        if (has_disp) {
+            dispchunk.bytes = 4;
+            dispchunk.data = (uint64_t) disp;
+        }
+        //debug_combine(ctx, prefix, opcode, modregrm, empty_chunk, dispchunk, immchunk);
+        //return 1;
+        janet_formatb(ctx->buffer, "; nyi - immediates\n");
+        return 0;
+    }
+}
+
+/* Assembly emission */
 
 static const char *sysemit_sizestr(x64RegKind kind) {
     switch (kind) {
@@ -492,8 +685,10 @@ static void sysemit_store(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) 
     }
 }
 
+/* dest = src */
 static void sysemit_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
     if (dest == src) return;
+    e_mov(ctx, dest, src);
     sysemit_binop(ctx, "mov", dest, src);
 }
 
