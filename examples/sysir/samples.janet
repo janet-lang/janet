@@ -57,11 +57,11 @@
 (defsys test_arrays:myvec [a:myvec b:myvec]
   (return (+ a b)))
 
-(defsys make_array:myvec []
+'(defsys make_array:myvec []
   (def vec:myvec [0 0 0 0])
   (return vec))
 
-(defsys make_mat:mymat []
+'(defsys make_mat:mymat []
   (def mat:mymat [[1 0 0 0] [0 1 0 0] [0 0 1 0] [0 0 0 1]])
   (return mat))
 
