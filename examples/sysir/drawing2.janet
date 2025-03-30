@@ -14,12 +14,6 @@
 (defpointer p16 u16)
 (defpointer cursor p32)
 
-# Linux syscalls
-# (defn-syscall brk:p32 12 [amount:uint])
-# (defn-syscall exit:void 60 [code:int])
-# (defn-syscall write:void 1 [fd:int data:p32 size:uint])
-# (defn-syscall write_string 1 [fd:int data:pointer size:uint])
-
 # External
 (defn-external write:void [fd:int mem:pointer size:uint])
 (defn-external exit:void [x:int])

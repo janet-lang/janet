@@ -1650,7 +1650,7 @@ void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer) {
 #define EMITBINOP_NOSUGAR(OP) emit_binop(ir, buffer, tempbuf, instruction, OP, 0)
 
     /* Prelude */
-    janet_formatb(buffer, "#include <stddef.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n#include <sys/syscall.h>\n#define _t0 void\n\n");
+    janet_formatb(buffer, "#include <stddef.h>\n#include <unistd.h>\n#include <stdlib.h>\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdio.h>\n#include <sys/syscall.h>\n#define _t0 void\n\n");
 
     /* Emit type defs */
     for (uint32_t j = 0; j < (uint32_t) linkage->ir_ordered->count; j++) {

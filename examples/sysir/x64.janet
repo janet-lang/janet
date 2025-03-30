@@ -5,7 +5,7 @@
 
 (defsys doloop [x:int y:int]
   (var i:int x)
-  #(printf "i = %d\n" i)
+  (printf "initial i = %d\n" i)
   (while (< i y)
     (set i (+ 1 i))
     (printf "i = %d\n" i))
