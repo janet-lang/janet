@@ -4314,6 +4314,9 @@
       (when check
         (do-hook module bundle-name :check man)))
     (print "installed " bundle-name)
+    (when (get man :has-bin-script)
+      (def binpath (string (dyn *syspath*) s "bin"))
+      (eprintf "executable scripts have been installed to %s" binpath))
     bundle-name)
 
   (defn- bundle/pack
@@ -4447,6 +4450,7 @@
     (default dest (last (string/split s src)))
     (default chmod-mode 8r755)
     (os/mkdir (string (dyn *syspath*) s "bin"))
+    (put manifest :has-bin-script true)
     (bundle/add-file manifest src (string "bin" s dest) chmod-mode))
 
   (defn bundle/update-all
