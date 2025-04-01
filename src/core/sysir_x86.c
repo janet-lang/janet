@@ -83,7 +83,7 @@ typedef enum {
     JANET_SYSREG_REGISTER,
     JANET_SYSREG_STACK, /* Indexed from base pointer */
     JANET_SYSREG_STACK_PARAMETER, /* Index from base pointer in other direction */
-    /* TODO - immediates */
+    JANET_SYSREG_CONSTANT
 } x64Storage;
 
 typedef struct {
@@ -165,6 +165,18 @@ static x64RegKind get_slot_regkind(JanetSysx64Context *ctx, uint32_t o) {
     } else {
         return JANET_SYSREG_64;
     }
+}
+
+/* Convert a slot index to a register. Handles constants as well. */
+x64Reg to_reg(JanetSysx64Context *ctx, uint32_t slot) {
+    if (slot > JANET_SYS_MAX_OPERAND) {
+        x64Reg reg;
+        reg.kind = get_slot_regkind(ctx, slot);
+        reg.index = slot - JANET_SYS_CONSTANT_PREFIX;
+        reg.storage = JANET_SYSREG_CONSTANT;
+        return reg;
+    }
+    return ctx->regs[slot];
 }
 
 void assign_registers(JanetSysx64Context *ctx) {
@@ -327,20 +339,30 @@ static void i_combine(JanetSysx64Context *C,
     }
 }
 
-static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, int deref, const char *msg) {
+typedef enum {
+    MOV_FLAT = 0,
+    MOV_STORE = 1,
+    MOV_LOAD = 2
+} MoveMode;
+
+static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, MoveMode mm, const char *msg) {
     uint8_t rex = 0;
     uint8_t mod_rm = 0;
     uint16_t opcode = 0;
     int flip = 0;
     InstrChunk dispchunk = empty_chunk;
     if (s.storage != JANET_SYSREG_REGISTER && d.storage != JANET_SYSREG_REGISTER) {
-        /* mem -> RAX -> mem */
+        /* src -> RAX -> dest    : flat */
+        /* src -> RAX -> dest[0] : store */
+        /* src[0] -> RAX -> dest : load */
         x64Reg rax_tmp = { s.kind, JANET_SYSREG_REGISTER, RAX };
-        e_mov_to_reg(ctx, rax_tmp, s, 0, "mem -> RAX (mov to reg)");
-        e_mov_to_reg(ctx, d, rax_tmp, 0, msg);
+        MoveMode m1 = mm == MOV_LOAD ? MOV_LOAD : MOV_FLAT;
+        MoveMode m2 = mm == MOV_STORE ? MOV_STORE : MOV_FLAT;
+        e_mov_to_reg(ctx, rax_tmp, s, m1, "mem -> RAX (mov to reg)");
+        e_mov_to_reg(ctx, d, rax_tmp, m2, msg);
         return;
     }
-    if (deref == 2 || s.storage != JANET_SYSREG_REGISTER) {
+    if (mm == MOV_LOAD || s.storage != JANET_SYSREG_REGISTER) {
         x64Reg t = d; d = s; s = t; /* swap */
         flip = 1;
     }
@@ -351,12 +373,12 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, int deref,
     if (s.kind >= JANET_SYSREG_64) rex |= REX_W;
     if (d.storage == JANET_SYSREG_REGISTER) {
         if (d.index >= 8) rex |= REX_B;
-        if (!deref) { /* if deref, mod = 00 */
-            mod_rm |= 0xC0u; /* reg, reg mode */
+        if (mm == MOV_FLAT) {
+            mod_rm |= 0xC0u; /* mod = b11, reg, reg mode */
         }
         mod_rm |= (uint8_t) (d.index & 7);
     } else {
-        assert(!deref);
+        assert(mm == MOV_FLAT);
         /* d is memory */
         int32_t disp = (d.storage == JANET_SYSREG_STACK_PARAMETER) ? ((int32_t) d.index) : -((int32_t) d.index);
         if (disp >= -128 && disp <= 127) {
@@ -377,9 +399,9 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, int deref,
     i_combine(ctx, prefix, opcode, modregrm, empty_chunk, dispchunk, empty_chunk, msg);
 }
 
-/* Return 1 if actually emitted, 0 if falling back to textual assembly */
 static void e_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src, const char *msg) {
     assert(dest <= JANET_SYS_MAX_OPERAND);
+    if (dest == src) return;
     x64Reg d = ctx->regs[dest];
     x64RegKind sk = get_slot_regkind(ctx, src);
     uint8_t rex = 0;
@@ -387,7 +409,7 @@ static void e_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src, const ch
     uint16_t opcode;
     if (src <= JANET_SYS_MAX_OPERAND) {
         x64Reg s = ctx->regs[src];
-        e_mov_to_reg(ctx, d, s, 0, msg);
+        e_mov_to_reg(ctx, d, s, MOV_FLAT, msg);
         return;
     }
     /* src is a constant */
@@ -475,11 +497,8 @@ static void e_popreg(JanetSysx64Context *ctx, uint32_t reg) {
     }
 }
 
-/*
-leave
-ret
-*/
 static void e_fn_suffix(JanetSysx64Context *ctx) {
+    /* leave, ret */
     janet_formatb(ctx->buffer, "db 0xc9, 0xc3 ; function suffix\n");
 }
 
@@ -510,10 +529,6 @@ static const char *sysemit_sizestr(x64RegKind kind) {
 
 static const char *sysemit_sizestr_reg(x64Reg reg) {
     return sysemit_sizestr(reg.kind);
-}
-
-static const char *sysemit_sizestr_slot(JanetSysx64Context *ctx, uint32_t slot) {
-    return sysemit_sizestr(get_slot_regkind(ctx, slot));
 }
 
 static void sysemit_reg(JanetSysx64Context *ctx, x64Reg reg, const char *after) {
@@ -565,7 +580,7 @@ static void sysemit_binop(JanetSysx64Context *ctx, const char *op, uint32_t dest
         /* Use a temporary register for src */
         x64Reg tempreg = mk_tmpreg(ctx, dest);
         x64Reg srcreg = ctx->regs[src];
-        e_mov_to_reg(ctx, tempreg, srcreg, 0, "mem -> RAX temp");
+        e_mov_to_reg(ctx, tempreg, srcreg, MOV_FLAT, "mem -> RAX temp");
         janet_formatb(ctx->buffer, "%s ", op);
         sysemit_operand(ctx, dest, ", ");
         sysemit_reg(ctx, tempreg, "\n");
@@ -583,160 +598,82 @@ static void sysemit_load(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
     x64Reg d = ctx->regs[dest];
     x64Reg s = ctx->regs[src];
     if (!src_is_stack && !dest_is_stack) {
-        /* Simplest case */
-        e_mov_to_reg(ctx, d, s, 2, "dest = src[0] (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_operand(ctx, dest, ", [");
-        //sysemit_operand(ctx, src, "]\n");
+        e_mov_to_reg(ctx, d, s, MOV_LOAD, "dest = src[0] (load)");
     } else if (src_is_stack && dest_is_stack) {
-        /* Most complicated case. */
         /* RAX = src */
         /* RAX = RAX[0] */
         /* dest = RAX */
-        /* Copy src to temp reg first */
         x64Reg tempreg = mk_tmpreg(ctx, src);
-        e_mov_to_reg(ctx, tempreg, s, 0, "RAX = src (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", ");
-        //sysemit_operand(ctx, src, "\n");
-        /* Now to load to second tempreg */
         x64Reg tempreg2 = mk_tmpreg(ctx, dest);
-        e_mov_to_reg(ctx, tempreg2, tempreg, 2, "RAX = RAX[0] (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg2, ", [");
-        //sysemit_reg(ctx, tempreg, "]\n");
-        /* Finally, move tempreg2 to dest */
-        /* Now move tempreg to dest */
-        e_mov_to_reg(ctx, d, tempreg2, 0, "dest = RAX (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_operand(ctx, dest, ", ");
-        //sysemit_reg(ctx, tempreg2, "\n");
+        e_mov_to_reg(ctx, tempreg, s, MOV_FLAT, "RAX = src (load)");
+        e_mov_to_reg(ctx, tempreg2, tempreg, MOV_LOAD, "RAX = RAX[0] (load)");
+        e_mov_to_reg(ctx, d, tempreg2, MOV_FLAT, "dest = RAX (load)");
     } else if (src_is_stack) {
         /* RAX = src */
         /* dest = RAX[0] */
-        /* Copy src to temp reg first */
         x64Reg tempreg = mk_tmpreg(ctx, src);
-        e_mov_to_reg(ctx, tempreg, s, 0, "RAX = src (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", ");
-        //sysemit_operand(ctx, src, "\n");
-        /* Now do load to dest */
-        e_mov_to_reg(ctx, d, tempreg, 2, "dest = RAX[0] (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_operand(ctx, dest, ", [");
-        //sysemit_reg(ctx, tempreg, "]\n");
+        e_mov_to_reg(ctx, tempreg, s, MOV_FLAT, "RAX = src (load)");
+        e_mov_to_reg(ctx, d, tempreg, MOV_LOAD, "dest = RAX[0] (load)");
     } else { /* dest_is_stack */
         /* RAX = src[0] */
         /* dest = RAX */
-        /* Copy temp reg to dest after */
-        /* Load to tempreg first */
+        assert(dest_is_stack);
         x64Reg tempreg = mk_tmpreg(ctx, src);
-        e_mov_to_reg(ctx, tempreg, s, 2, "RAX = src[0] (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", [");
-        //sysemit_operand(ctx, src, "]\n");
-        /* Now move tempreg to dest */
-        e_mov_to_reg(ctx, d, tempreg, 0, "dest = RAX (load)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_operand(ctx, dest, ", ");
-        //sysemit_reg(ctx, tempreg, "\n");
+        e_mov_to_reg(ctx, tempreg, s, MOV_LOAD, "RAX = src[0] (load)");
+        e_mov_to_reg(ctx, d, tempreg, MOV_FLAT, "dest = RAX (load)");
     }
 }
 
 /* dest[0] = src */
 static void sysemit_store(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
-    /* This seems verbose... */
     int src_is_stack = operand_isstack(ctx, src);
     int dest_is_stack = operand_isstack(ctx, dest);
     x64Reg d = ctx->regs[dest];
     x64Reg s = ctx->regs[src];
-    const char *store_size = sysemit_sizestr_slot(ctx, src);
     if (!src_is_stack && !dest_is_stack) {
-        /* Simplest case */
-        e_mov_to_reg(ctx, d, s, 1, "dest[0] = src (store)");
-        //janet_formatb(ctx->buffer, "mov %s [", store_size);
-        //sysemit_operand(ctx, dest, "], ");
-        //sysemit_operand(ctx, src, "\n");
+        e_mov_to_reg(ctx, d, s, MOV_STORE, "dest[0] = src (store)");
     } else if (src_is_stack && dest_is_stack) {
-        /* Most complicated case. */
         /* RAX = dest */
         /* RBX = src */
         /* RAX[0] = RBX */
-        /* Copy dest to temp reg first */
         x64Reg tempreg = mk_tmpreg(ctx, dest);
         x64Reg tempreg2 = mk_tmpreg(ctx, dest);
         tempreg2.index = RBX;
-        e_mov_to_reg(ctx, tempreg, d, 0, "RAX = dest (store)");
-        e_mov_to_reg(ctx, tempreg2, s, 0, "RBX = src (store)");
-        e_mov_to_reg(ctx, tempreg, tempreg2, 1, "RAX[0] = RBX (store)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", ");
-        //sysemit_operand(ctx, dest, "\n");
-        /* Now to load to second tempreg */
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg2, ", ");
-        //sysemit_operand(ctx, src, "\n");
-        /* Finally, move tempreg2 to dest */
-        //janet_formatb(ctx->buffer, "mov %s [", store_size);
-        //sysemit_reg(ctx, tempreg, "], ");
-        //sysemit_reg(ctx, tempreg2, "\n");
+        e_mov_to_reg(ctx, tempreg, d, MOV_FLAT, "RAX = dest (store)");
+        e_mov_to_reg(ctx, tempreg2, s, MOV_FLAT, "RBX = src (store)");
+        e_mov_to_reg(ctx, tempreg, tempreg2, MOV_STORE, "RAX[0] = RBX (store)");
     } else if (src_is_stack) {
-        /* Copy src to temp reg first */
         /* RAX = src */
         /* dest[0] = RAX */
         x64Reg tempreg = mk_tmpreg(ctx, src);
-        e_mov_to_reg(ctx, tempreg, s, 0, "RAX = src (store)");
-        e_mov_to_reg(ctx, d, tempreg, 1, "dest[0] = RAX (store)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", ");
-        //sysemit_operand(ctx, src, "\n");
-        /* Now do load to dest */
-        //janet_formatb(ctx->buffer, "mov %s [", store_size);
-        //sysemit_operand(ctx, dest, "], ");
-        //sysemit_reg(ctx, tempreg, "\n");
+        e_mov_to_reg(ctx, tempreg, s, MOV_FLAT, "RAX = src (store)");
+        e_mov_to_reg(ctx, d, tempreg, MOV_STORE, "dest[0] = RAX (store)");
     } else { /* dest_is_stack */
-        /* Copy temp reg to dest after */
         /* RAX = dest */
         /* RAX[0] = src */
-        /* Load to tempreg first */
+        assert(dest_is_stack);
         x64Reg tempreg = mk_tmpreg(ctx, dest);
-        e_mov_to_reg(ctx, tempreg, d, 0, "RAX = dest (store)");
-        e_mov_to_reg(ctx, tempreg, s, 1, "RAX[0] = src (store)");
-        //janet_formatb(ctx->buffer, "mov ");
-        //sysemit_reg(ctx, tempreg, ", ");
-        //sysemit_operand(ctx, dest, "\n");
-        //janet_formatb(ctx->buffer, "mov %s [", store_size);
-        //sysemit_reg(ctx, tempreg, "], ");
-        //sysemit_operand(ctx, src, "\n");
+        e_mov_to_reg(ctx, tempreg, d, MOV_FLAT, "RAX = dest (store)");
+        e_mov_to_reg(ctx, tempreg, s, MOV_STORE, "RAX[0] = src (store)");
     }
-}
-
-/* dest = src */
-static void sysemit_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src) {
-    if (dest == src) return;
-    e_mov(ctx, dest, src, "sysemit_mov");
 }
 
 static void sysemit_movreg(JanetSysx64Context *ctx, uint32_t regdest, uint32_t src) {
     if (operand_isreg(ctx, src, regdest)) return;
-    x64Reg tempreg;
-    tempreg.kind = get_slot_regkind(ctx, src);
-    tempreg.storage = JANET_SYSREG_REGISTER;
+    x64Reg tempreg = mk_tmpreg(ctx, src);
     tempreg.index = regdest;
-    janet_formatb(ctx->buffer, "mov ");
-    sysemit_reg(ctx, tempreg, ", ");
-    sysemit_operand(ctx, src, "\n");
+    if (src >= JANET_SYS_MAX_OPERAND) {
+        /* Load constant */
+    } else {
+        e_mov_to_reg(ctx, tempreg, ctx->regs[src], MOV_FLAT, "move to specific register");
+    }
 }
 
 static void sysemit_movfromreg(JanetSysx64Context *ctx, uint32_t dest, uint32_t srcreg) {
     if (operand_isreg(ctx, dest, srcreg)) return;
-    x64Reg tempreg;
+    x64Reg tempreg = mk_tmpreg(ctx, dest);
     tempreg.index = srcreg;
-    tempreg.kind = get_slot_regkind(ctx, dest);
-    tempreg.storage = JANET_SYSREG_REGISTER;
-    janet_formatb(ctx->buffer, "mov ");
-    sysemit_operand(ctx, dest, ", ");
-    sysemit_reg(ctx, tempreg, "\n");
+    e_mov_to_reg(ctx, ctx->regs[dest], tempreg, MOV_FLAT, "move from specific register");
 }
 
 /* Move a value to a register, and save the contents of the old register on fhe stack */
@@ -746,7 +683,7 @@ static void sysemit_mov_save(JanetSysx64Context *ctx, uint32_t dest_reg, uint32_
 }
 
 static void sysemit_threeop(JanetSysx64Context *ctx, const char *op, uint32_t dest, uint32_t lhs, uint32_t rhs) {
-    sysemit_mov(ctx, dest, lhs);
+    e_mov(ctx, dest, lhs, op);
     sysemit_binop(ctx, op, dest, rhs);
 }
 
@@ -839,7 +776,7 @@ static void sysemit_cast(JanetSysx64Context *ctx, JanetSysInstruction instructio
     x64RegKind srckind = get_slot_regkind(ctx, src);
     x64RegKind destkind = get_slot_regkind(ctx, dest);
     if (srckind == destkind) {
-        sysemit_mov(ctx, dest, src);
+        e_mov(ctx, dest, src, "cast");
     } else {
         uint32_t regindex = RAX;
         /* Check if we can optimize out temporary register */
@@ -925,8 +862,6 @@ static void sysemit_win64_call(JanetSysx64Context *ctx, JanetSysInstruction inst
     if (save_r11) e_pushreg(ctx, 11);
     for (uint32_t argo = 4; argo < argcount; argo++) {
         e_pushreg(ctx, args[argo]);
-        //janet_formatb(buffer, "push ");
-        //sysemit_operand(ctx, args[argo], "\n");
     }
     if (instruction.opcode == JANET_SYSOP_SYSCALL) {
         sysemit_movreg(ctx, RAX, instruction.call.callee);
@@ -1078,7 +1013,7 @@ void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetSysTarget target
                     sysemit_three_inst(&ctx, "shr", instruction);
                     break;
                 case JANET_SYSOP_MOVE:
-                    sysemit_mov(&ctx, instruction.two.dest, instruction.two.src);
+                    e_mov(&ctx, instruction.two.dest, instruction.two.src, "sysop move");
                     break;
                 case JANET_SYSOP_RETURN:
                     sysemit_ret(&ctx, instruction.ret.value, instruction.ret.has_value);

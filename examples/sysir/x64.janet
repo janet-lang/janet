@@ -18,7 +18,6 @@
 
 (defn main [& args]
   (def [_ what] args)
-  (dump)
   (eprint "MODE: " what)
   (case what
     "c" (dumpc)
