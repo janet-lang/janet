@@ -165,6 +165,21 @@ make install-jpm-git
 
 Find out more about the available make targets by running `make help`.
 
+### Alpine Linux
+
+To build a statically-linked build of Janet, Alpine Linux + MUSL is a good combination. Janet can also
+be built inside a docker container or similar in this manner.
+
+```sh
+docker run -it --rm alpine /bin/ash
+$ apk add make gcc musl-dev git
+$ git clone https://github.com/janet-lang/janet.git
+$ cd janet
+$ make -j10
+$ make test
+$ make install
+```
+
 ### 32-bit Haiku
 
 32-bit Haiku build instructions are the same as the UNIX-like build instructions,
