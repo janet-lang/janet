@@ -501,8 +501,10 @@
 # soreuseport on unix domain sockets
 (compwhen (or (= :macos (os/which)) (= :linux (os/which)))
   (assert-no-error "unix-domain socket reuseaddr"
-                   (let [s (net/listen :unix "./unix-domain-socket" :stream)]
-                     (:close s))))
+                   (let [uds-path "./unix-domain-socket"]
+                     (defer (os/rm uds-path)
+                       (let [s (net/listen :unix uds-path :stream)]
+                         (:close s))))))
 
 # net/accept-loop level triggering
 (gccollect)
