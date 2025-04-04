@@ -1084,8 +1084,14 @@
            (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
 
 (defn map
-  `Map a function over every value in a data structure and
-  return an array of the results.`
+  ```
+  Map a function `f` over every value in a data structure `ind`
+  and return an array of results, but only if no `inds` are
+  provided. Multiple data structures can be handled if each
+  `inds` is a data structure and `f` is a function of arity
+  one more than the number of `inds`.  The resulting array has
+  a length that is the shortest of `ind` and each of `inds`.
+  ```
   [f ind & inds]
   (def res @[])
   (map-template :map res f ind inds)
