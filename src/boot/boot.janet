@@ -4466,7 +4466,7 @@
 
   (defn bundle/add
     "Add files and directories during a bundle install relative to `(dyn *syspath*)`.
-     Added paths will be recorded in the bundle manifest such that they are properly tracked
+     Added files and directories will be recorded in the bundle manifest such that they are properly tracked
      and removed during an upgrade or uninstall."
     [manifest src &opt dest chmod-mode]
     (default dest src)

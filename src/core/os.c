@@ -813,6 +813,18 @@ JANET_CORE_FN(os_proc_close,
 #endif
 }
 
+JANET_CORE_FN(os_proc_getpid,
+        "(os/getpid)",
+        "Get the process ID of the current process.") {
+    janet_fixarity(argc, 0);
+    (void) argv;
+#ifdef JANET_WINDOWS
+    return janet_wrap_number((double) _getpid());
+#else
+    return janet_wrap_number((double) getpid());
+#endif
+}
+
 static void swap_handles(JanetHandle *handles) {
     JanetHandle temp = handles[0];
     handles[0] = handles[1];
@@ -2797,6 +2809,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
         JANET_CORE_REG("os/proc-kill", os_proc_kill),
         JANET_CORE_REG("os/proc-close", os_proc_close),
+        JANET_CORE_REG("os/getpid", os_proc_getpid),
 #endif
 
         /* high resolution timers */
