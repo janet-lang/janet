@@ -1098,8 +1098,14 @@
   res)
 
 (defn mapcat
-  ``Map a function over every element in an array or tuple and
-  use `array/concat` to concatenate the results.``
+  ```
+  Map a function `f` over every value in a data structure `ind`
+  and use `array/concat` to concatenate the results, but only if
+  no `inds` are provided. Multiple data structures can be handled
+  if each `inds` is a data structure and `f` is a function of
+  arity one more than the number of `inds`. The resulting array
+  has a length that is the shortest of `ind` and each of `inds`.
+  ```
   [f ind & inds]
   (def res @[])
   (map-template :mapcat res f ind inds)
@@ -1116,18 +1122,30 @@
   res)
 
 (defn count
-  ``Count the number of items in `ind` for which `(pred item)`
-  is true.``
+  ```
+  Count the number of values in a data structure `ind` for which
+  applying `pred` yields a truthy value, but only if no `inds` are
+  provided. Multiple data structures can be handled if each `inds`
+  is a data structure and `pred` is a function of arity one more
+  than the number of `inds`. Note that `pred` is only applied to
+  values at indeces up to the largest index of the shortest of
+  `ind` and each of `inds`.
+  ```
   [pred ind & inds]
   (var res 0)
   (map-template :count res pred ind inds)
   res)
 
 (defn keep
-  ``Given a predicate `pred`, return a new array containing the truthy results
-  of applying `pred` to each element in the indexed collection `ind`. This is
-  different from `filter` which returns an array of the original elements where
-  the predicate is truthy.``
+  ```
+  Given a predicate `pred`, return a new array containing the
+  truthy results of applying `pred` to each value in the data
+  structure `ind`, but only if no `inds` are provided. Multiple
+  data structures can be handled if each `inds` is a data
+  structure and `pred` is a function of arity one more than the
+  number of `inds`. The resulting array has a length that is the
+  shortest of `ind` and each of `inds`.
+  ```
   [pred ind & inds]
   (def res @[])
   (map-template :keep res pred ind inds)
@@ -2209,17 +2227,32 @@
   ret)
 
 (defn all
-  ``Returns true if `(pred item)` is truthy for every item in `ind`.
-  Otherwise, returns the first falsey result encountered.
-  Returns true if `ind` is empty.``
+  ```
+  Returns true if applying `pred` to every value in a data
+  structure `ind` results in only truthy values, but only if no
+  `inds` are provided. Multiple data structures can be handled
+  if each `inds` is a data structure and `pred` is a function
+  of arity one more than the number of `inds`. Returns the first
+  falsey result encountered. Note that `pred` is only called as
+  many times as the length of the shortest of `ind` and each of
+  `inds`. If `ind` or any of `inds` are empty, returns true.
+  ```
   [pred ind & inds]
   (var res true)
   (map-template :all res pred ind inds)
   res)
 
 (defn some
-  ``Returns nil if `(pred item)` is false or nil for every item in `ind`.
-  Otherwise, returns the first truthy result encountered.``
+  ```
+  Returns nil if applying `pred` to every value in a data
+  structure `ind` results in only falsey values, but only if no
+  `inds` are provided. Multiple data structures can be handled
+  if each `inds` is a data structure and `pred` is a function
+  of arity one more than the number of `inds`. Returns the first
+  truthy result encountered. Note that `pred` is only called as
+  many times as the length of the shortest of `ind` and each of
+  `inds`. If `ind` or any of `inds` are empty, returns nil.
+  ```
   [pred ind & inds]
   (var res nil)
   (map-template :some res pred ind inds)
