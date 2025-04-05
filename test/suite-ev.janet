@@ -556,4 +556,20 @@
   (ev/deadline 0.01 nil f true)
   (assert-error "deadline expired" (resume f)))
 
+# Use :err :stdout
+(def- subproc-code '(do (eprint "hi") (eflush) (print "there") (flush)))
+(defn ev/slurp
+  [f &opt buf]
+  (default buf @"")
+  (if (ev/read f 0x10000 buf)
+    (ev/slurp f buf)
+    buf))
+(def p (os/spawn [;run janet "-e" (string/format "%j" subproc-code)] :px {:out :pipe :err :out}))
+(def [exit-code data]
+  (ev/gather
+    (os/proc-wait p)
+    (ev/slurp (p :out))))
+(assert (zero? exit-code) "subprocess ran")
+(assert (deep= data @"hi\nthere\n") "output is correct")
+
 (end-suite)

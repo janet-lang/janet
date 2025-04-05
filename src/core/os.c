@@ -816,6 +816,7 @@ JANET_CORE_FN(os_proc_close,
 JANET_CORE_FN(os_proc_getpid,
         "(os/getpid)",
         "Get the process ID of the current process.") {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_fixarity(argc, 0);
     (void) argv;
 #ifdef JANET_WINDOWS
@@ -1149,6 +1150,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     JanetAbstract orig_in = NULL, orig_out = NULL, orig_err = NULL;
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
+    int stderr_is_stdout = 0;
     int pipe_errflag = 0; /* Track errors setting up pipes */
     int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
 
@@ -1173,6 +1175,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         if (is_spawn && janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDERR;
+        } else if (is_spawn && janet_keyeq(maybe_stderr, "out")) {
+            stderr_is_stdout = 1;
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
         }
@@ -1230,6 +1234,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         startupInfo.hStdError = pipe_err;
     } else if (new_err != NULL) {
         startupInfo.hStdError = new_err;
+    } else if (stderr_is_stdout) {
+        startupInfo.hStdError = startupInfo.hStdOut;
     } else {
         startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
     }
@@ -1321,6 +1327,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_err != JANET_HANDLE_NONE && new_err != 2) {
         posix_spawn_file_actions_adddup2(&actions, new_err, 2);
         posix_spawn_file_actions_addclose(&actions, new_err);
+    } else if (stderr_is_stdout) {
+        posix_spawn_file_actions_adddup2(&actions, 1, 2);
     }
 
     pid_t pid;
@@ -1426,7 +1434,8 @@ JANET_CORE_FN(os_spawn,
               "`:pipe` may fail if there are too many active file descriptors. The caller is "
               "responsible for closing pipes created by `:pipe` (either individually or using "
               "`os/proc-close`). Similar to `os/execute`, the caller is responsible for ensuring "
-              "pipes do not cause the program to block and deadlock.") {
+              "pipes do not cause the program to block and deadlock. As a special case, the stream passed to `:err` "
+              "can be the keyword `:out` to redirect stderr to stdout in the subprocess.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
 }
 
