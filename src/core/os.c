@@ -814,8 +814,8 @@ JANET_CORE_FN(os_proc_close,
 }
 
 JANET_CORE_FN(os_proc_getpid,
-        "(os/getpid)",
-        "Get the process ID of the current process.") {
+              "(os/getpid)",
+              "Get the process ID of the current process.") {
     janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_fixarity(argc, 0);
     (void) argv;
