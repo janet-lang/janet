@@ -430,13 +430,7 @@
 # Now do our telnet chat
 (def bob (assert (net/connect test-host test-port :stream)))
 (expect-read bob "Whats your name?\n")
-(if (= :mingw (os/which))
-  (net/write bob "bob")
-  (do
-    (def fbob (ev/to-file bob))
-    (file/write fbob "bob")
-    (file/flush fbob)
-    (:close fbob)))
+(net/write bob "bob")
 (expect-read bob "Welcome bob\n")
 (def alice (assert (net/connect test-host test-port)))
 (expect-read alice "Whats your name?\n")
@@ -569,7 +563,8 @@
   (ev/gather
     (os/proc-wait p)
     (ev/slurp (p :out))))
+(def data (string/replace-all "\r" "" data))
 (assert (zero? exit-code) "subprocess ran")
-(assert (deep= data @"hi\nthere\n") "output is correct")
+(assert (= data "hi\nthere\n") "output is correct")
 
 (end-suite)
