@@ -55,6 +55,7 @@
 #include <sys/utime.h>
 #include <io.h>
 #include <process.h>
+#define JANET_SPAWN_CHDIR
 #else
 #include <spawn.h>
 #include <utime.h>
@@ -72,6 +73,14 @@ extern char **environ;
 #include <pthread.h>
 #endif
 #endif
+
+/* Detect availability of posix_spawn_file_actions_addchdir_np. Since
+ * this doesn't seem to follow any standard, just a common extension, we
+ * must enumerate supported systems for availability. */
+#ifdef __GLIBC__
+#define JANET_SPAWN_CHDIR
+#endif
+
 
 /* Not POSIX, but all Unixes but Solaris have this function. */
 #if defined(JANET_POSIX) && !defined(__sun)
@@ -1150,7 +1159,6 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     JanetAbstract orig_in = NULL, orig_out = NULL, orig_err = NULL;
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
-    const char *chdir_path = NULL;
     int stderr_is_stdout = 0;
     int pipe_errflag = 0; /* Track errors setting up pipes */
     int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
@@ -1184,13 +1192,17 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     }
 
     /* Optional working directory. Available for both os/execute and os/spawn. */
+    const char *chdir_path = NULL;
     if (argc > 2) {
         JanetDictView tab = janet_getdictionary(argv, 2);
         Janet workdir = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("cd"));
         if (janet_checktype(workdir, JANET_STRING)) {
             chdir_path = (const char *) janet_unwrap_string(workdir);
+#ifndef JANET_SPAWN_CHDIR
+            janet_panicf(":cd argument not supported on this system - %s", chdir_path);
+#endif
         } else if (!janet_checktype(workdir, JANET_NIL)) {
-            janet_panicf("expected string for `:cd` argumnet, got %v", workdir);
+            janet_panicf("expected string for :cd argumnet, got %v", workdir);
         }
     }
 
@@ -1322,9 +1334,15 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* Posix spawn setup */
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
+#ifdef JANET_SPAWN_CHDIR
     if (chdir_path != NULL) {
+#ifdef JANET_SPAWN_CHDIR_NO_NP
+        posix_spawn_file_actions_addchdir(&actions, chdir_path);
+#else
         posix_spawn_file_actions_addchdir_np(&actions, chdir_path);
+#endif
     }
+#endif
     if (pipe_in != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
         posix_spawn_file_actions_addclose(&actions, pipe_in);
