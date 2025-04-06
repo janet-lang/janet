@@ -1208,6 +1208,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     SECURITY_ATTRIBUTES saAttr;
     PROCESS_INFORMATION processInfo;
     STARTUPINFO startupInfo;
+    LPCSTR lpCurrentDirectory = NULL;
     memset(&saAttr, 0, sizeof(saAttr));
     memset(&processInfo, 0, sizeof(processInfo));
     memset(&startupInfo, 0, sizeof(startupInfo));
@@ -1225,7 +1226,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
 
     if (chdir_path != NULL) {
-        startupInfo.lpCurrentDirectory = chdir_path;
+        lpCurrentDirectory = chdir_path;
     }
 
     /* Do IO redirection */
@@ -1264,7 +1265,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                        TRUE, /* handle inheritance */
                        0, /* flags */
                        use_environ ? NULL : envp, /* pass in environment */
-                       NULL, /* use parents starting directory */
+                       lpCurrentDirectory,
                        &startupInfo,
                        &processInfo)) {
         cp_failed = 1;
