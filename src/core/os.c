@@ -1235,7 +1235,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_err != NULL) {
         startupInfo.hStdError = new_err;
     } else if (stderr_is_stdout) {
-        startupInfo.hStdError = startupInfo.hStdOut;
+        startupInfo.hStdError = startupInfo.hStdOutput;
     } else {
         startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
     }
