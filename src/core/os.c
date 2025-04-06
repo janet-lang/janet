@@ -1150,6 +1150,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     JanetAbstract orig_in = NULL, orig_out = NULL, orig_err = NULL;
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
+    const char *chdir_path = NULL;
     int stderr_is_stdout = 0;
     int pipe_errflag = 0; /* Track errors setting up pipes */
     int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
@@ -1182,6 +1183,17 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         }
     }
 
+    /* Optional working directory. Available for both os/execute and os/spawn. */
+    if (argc > 2) {
+        JanetDictView tab = janet_getdictionary(argv, 2);
+        Janet workdir = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("cd"));
+        if (janet_checktype(workdir, JANET_STRING)) {
+            chdir_path = (const char *) janet_unwrap_string(workdir);
+        } else if (!janet_checktype(workdir, JANET_NIL)) {
+            janet_panicf("expected string for `:cd` argumnet, got %v", workdir);
+        }
+    }
+
     /* Clean up if any of the pipes have any issues */
     if (pipe_errflag) {
         if (pipe_in != JANET_HANDLE_NONE) close_handle(pipe_in);
@@ -1211,6 +1223,10 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         janet_panic("command line string too long (max 8191 characters)");
     }
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
+
+    if (chdir_path != NULL) {
+        startupInfo.lpCurrentDirectory = chdir_path;
+    }
 
     /* Do IO redirection */
 
@@ -1305,6 +1321,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* Posix spawn setup */
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
+    if (chdir_path != NULL) {
+        posix_spawn_file_actions_addchdir_np(&actions, chdir_path);
+    }
     if (pipe_in != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
         posix_spawn_file_actions_addclose(&actions, pipe_in);
