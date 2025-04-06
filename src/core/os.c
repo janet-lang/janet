@@ -76,11 +76,17 @@ extern char **environ;
 
 /* Detect availability of posix_spawn_file_actions_addchdir_np. Since
  * this doesn't seem to follow any standard, just a common extension, we
- * must enumerate supported systems for availability. */
+ * must enumerate supported systems for availability. Define JANET_SPAWN_NO_CHDIR
+ * to disable this. */
+#ifndef JANET_SPAWN_NO_CHDIR
 #ifdef __GLIBC__
 #define JANET_SPAWN_CHDIR
+#elif defined(JANET_APPLE) /* Some older versions may not work here. */
+#define JANET_SPAWN_CHDIR
+#elif defined(__FreeBSD__) /* Not all BSDs work, for example openBSD doesn't seem to support this */
+#define JANET_SPAWN_CHDIR
 #endif
-
+#endif
 
 /* Not POSIX, but all Unixes but Solaris have this function. */
 #if defined(JANET_POSIX) && !defined(__sun)
