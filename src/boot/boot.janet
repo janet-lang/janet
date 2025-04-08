@@ -1103,8 +1103,9 @@
   and use `array/concat` to concatenate the results, but only if
   no `inds` are provided. Multiple data structures can be handled
   if each `inds` is a data structure and `f` is a function of
-  arity one more than the number of `inds`. The resulting array
-  has a length that is the shortest of `ind` and each of `inds`.
+  arity one more than the number of `inds`. Note that `f` is only
+  applied to values at indeces up to the largest index of the
+  shortest of `ind` and each of `inds`.
   ```
   [f ind & inds]
   (def res @[])
@@ -1143,8 +1144,8 @@
   structure `ind`, but only if no `inds` are provided. Multiple
   data structures can be handled if each `inds` is a data
   structure and `pred` is a function of arity one more than the
-  number of `inds`. The resulting array has a length that is the
-  shortest of `ind` and each of `inds`.
+  number of `inds`. The resulting array has a length that is no
+  longer than the shortest of `ind` and each of `inds`.
   ```
   [pred ind & inds]
   (def res @[])
