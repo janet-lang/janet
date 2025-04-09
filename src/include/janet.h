@@ -67,6 +67,11 @@ extern "C" {
 #define JANET_LINUX 1
 #endif
 
+/* Check for Android */
+#ifdef __ANDROID__
+#define JANET_ANDROID 1
+#endif
+
 /* Check for Cygwin */
 #if defined(__CYGWIN__)
 #define JANET_CYGWIN 1
