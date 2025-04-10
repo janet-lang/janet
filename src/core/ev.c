@@ -654,7 +654,7 @@ static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
 }
 #elif JANET_ANDROID
 static void janet_timeout_stop(int sig_num) {
-    if(sig_num == SIGUSR1) {
+    if (sig_num == SIGUSR1) {
         pthread_exit(0);
     }
 }
