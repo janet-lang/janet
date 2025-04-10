@@ -652,6 +652,12 @@ static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
     UNREFERENCED_PARAMETER(ptr);
     ExitThread(0);
 }
+#elif JANET_ANDROID
+static void janet_timeout_stop(int sig_num) {
+    if(sig_num == SIGUSR1) {
+        pthread_exit(0);
+    }
+}
 #endif
 
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
@@ -673,6 +679,14 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
 }
 #else
 static void *janet_timeout_body(void *ptr) {
+#ifdef JANET_ANDROID
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    action.sa_handler = &janet_timeout_stop;
+    sigaction(SIGUSR1, &action, NULL);
+#endif
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     struct timespec ts;
@@ -1490,7 +1504,11 @@ JanetFiber *janet_loop1(void) {
                         WaitForSingleObject(to.worker, INFINITE);
                         CloseHandle(to.worker);
 #else
+#ifdef JANET_ANDROID
+                        pthread_kill(to.worker, SIGUSR1);
+#else
                         pthread_cancel(to.worker);
+#endif
                         void *res;
                         pthread_join(to.worker, &res);
 #endif
@@ -3188,6 +3206,9 @@ JANET_CORE_FN(cfun_ev_deadline,
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
     if (use_interrupt) {
+#ifdef JANET_ANDROID
+        janet_sandbox_assert(JANET_SANDBOX_SIGNAL);
+#endif
         JanetThreadedTimeout *tto = janet_malloc(sizeof(JanetThreadedTimeout));
         if (NULL == tto) {
             JANET_OUT_OF_MEMORY;

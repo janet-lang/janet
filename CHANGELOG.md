@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 - Make `ffi/write` append to a buffer instead of insert at 0 by default.
 - Add `os/getpid` to get the current process id.
 - Add `:out` option to `os/spawn` to be able to redirect stderr to stdout with pipes.
+  Add `interrupt?` argument to `ev/deadline` to use VM interruptions.
 
 ## 1.38.0 - 2025-03-18
 - Add `bundle/replace`
