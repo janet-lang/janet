@@ -1087,47 +1087,44 @@ static int check_const_valid(JanetSysIR *sysir, Janet constant, uint32_t t) {
     switch (janet_type(constant)) {
         default:
             return 0;
-        case JANET_TUPLE:
-            {
-                const Janet *elements = janet_unwrap_tuple(constant);
-                int32_t len = janet_tuple_length(elements);
-                if (p != JANET_PRIM_ARRAY) return 0;
-                if ((uint64_t) len != tinfo->array.fixed_count) return 0;
-                for (int32_t i = 0; i < len; i++) {
-                    if (!check_const_valid(sysir, elements[i], tinfo->array.type)) return 0;
-                }
-                return 1;
+        case JANET_TUPLE: {
+            const Janet *elements = janet_unwrap_tuple(constant);
+            int32_t len = janet_tuple_length(elements);
+            if (p != JANET_PRIM_ARRAY) return 0;
+            if ((uint64_t) len != tinfo->array.fixed_count) return 0;
+            for (int32_t i = 0; i < len; i++) {
+                if (!check_const_valid(sysir, elements[i], tinfo->array.type)) return 0;
             }
+            return 1;
+        }
         case JANET_BOOLEAN:
             return p == JANET_PRIM_BOOLEAN;
         case JANET_STRING:
         case JANET_SYMBOL:
         case JANET_POINTER:
             return p == JANET_PRIM_POINTER;
-        case JANET_NUMBER:
-            {
-                double x = janet_unwrap_number(constant);
-                if (p == JANET_PRIM_F64) return 1;
-                if (p == JANET_PRIM_F32) return 1;
-                if (x != floor(x)) return 0; /* Filter out non-integers */
-                if (p == JANET_PRIM_U8 && (x >= 0 && x <= UINT8_MAX)) return 1;
-                if (p == JANET_PRIM_S8 && (x >= INT8_MIN && x <= INT8_MAX)) return 1;
-                if (p == JANET_PRIM_U16 && (x >= 0 && x <= UINT16_MAX)) return 1;
-                if (p == JANET_PRIM_S16 && (x >= INT16_MIN && x <= INT16_MAX)) return 1;
-                if (p == JANET_PRIM_U32 && (x >= 0 && x <= UINT32_MAX)) return 1;
-                if (p == JANET_PRIM_S32 && (x >= INT32_MIN && x <= INT32_MAX)) return 1;
-                if (p == JANET_PRIM_U64 && (x >= 0 && x <= UINT64_MAX)) return 1;
-                if (p == JANET_PRIM_S64 && (x >= INT64_MIN && x <= INT64_MAX)) return 1;
-                return 0;
-            }
-        case JANET_ABSTRACT:
-            {
-                void *point = janet_unwrap_abstract(constant);
-                const JanetAbstractType *at = janet_abstract_type(point);
-                if (at == &janet_s64_type && p == JANET_PRIM_S64) return 1;
-                if (at == &janet_u64_type && p == JANET_PRIM_U64) return 1;
-                return 0;
-            }
+        case JANET_NUMBER: {
+            double x = janet_unwrap_number(constant);
+            if (p == JANET_PRIM_F64) return 1;
+            if (p == JANET_PRIM_F32) return 1;
+            if (x != floor(x)) return 0; /* Filter out non-integers */
+            if (p == JANET_PRIM_U8 && (x >= 0 && x <= UINT8_MAX)) return 1;
+            if (p == JANET_PRIM_S8 && (x >= INT8_MIN && x <= INT8_MAX)) return 1;
+            if (p == JANET_PRIM_U16 && (x >= 0 && x <= UINT16_MAX)) return 1;
+            if (p == JANET_PRIM_S16 && (x >= INT16_MIN && x <= INT16_MAX)) return 1;
+            if (p == JANET_PRIM_U32 && (x >= 0 && x <= UINT32_MAX)) return 1;
+            if (p == JANET_PRIM_S32 && (x >= INT32_MIN && x <= INT32_MAX)) return 1;
+            if (p == JANET_PRIM_U64 && (x >= 0 && x <= UINT64_MAX)) return 1;
+            if (p == JANET_PRIM_S64 && (x >= INT64_MIN && x <= INT64_MAX)) return 1;
+            return 0;
+        }
+        case JANET_ABSTRACT: {
+            void *point = janet_unwrap_abstract(constant);
+            const JanetAbstractType *at = janet_abstract_type(point);
+            if (at == &janet_s64_type && p == JANET_PRIM_S64) return 1;
+            if (at == &janet_u64_type && p == JANET_PRIM_U64) return 1;
+            return 0;
+        }
     }
 }
 
@@ -1421,8 +1418,8 @@ static uint32_t janet_sysir_findprim(JanetSysIRLinkage *linkage, JanetPrim prim,
     td.prim = prim;
     janet_v_push(linkage->type_defs, td);
     janet_table_put(linkage->type_name_lookup,
-            janet_csymbolv(type_name),
-            janet_wrap_number(linkage->type_def_count));
+                    janet_csymbolv(type_name),
+                    janet_wrap_number(linkage->type_def_count));
     janet_v_push(linkage->type_names, janet_csymbol(type_name));
     return linkage->type_def_count++;
 }
@@ -1443,8 +1440,8 @@ static uint32_t janet_sysir_findpointer(JanetSysIRLinkage *linkage, uint32_t to,
     td.pointer.type = to;
     janet_v_push(linkage->type_defs, td);
     janet_table_put(linkage->type_name_lookup,
-            janet_csymbolv(type_name),
-            janet_wrap_number(linkage->type_def_count));
+                    janet_csymbolv(type_name),
+                    janet_wrap_number(linkage->type_def_count));
     janet_v_push(linkage->type_names, janet_csymbol(type_name));
     return linkage->type_def_count++;
 }

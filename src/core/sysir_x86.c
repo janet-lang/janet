@@ -189,7 +189,7 @@ void assign_registers(JanetSysx64Context *ctx) {
     /* TODO - move into sysir.c and allow reuse for multiple targets */
 
     JanetSysCallingConvention cc = ctx->calling_convention;
-    
+
     /* Make trivial assigments */
     uint32_t next_loc = 16;
     ctx->regs = janet_smalloc(ctx->ir->register_count * sizeof(x64Reg));
@@ -234,7 +234,7 @@ void assign_registers(JanetSysx64Context *ctx) {
                 janet_panic("cannot assign registers for calling convention");
             }
         } else if (assigned < 0xFFFF) {
-        //} else if (assigned < 1) {
+            //} else if (assigned < 1) {
             /* Assign to register */
             uint32_t to = 0;
             while ((1 << to) & assigned) to++;
@@ -311,13 +311,13 @@ static void i_chunk(JanetSysx64Context *C, InstrChunk c) {
 
 /* Emit one x86_64 instruction given all of the individual components */
 static void i_combine(JanetSysx64Context *C,
-        InstrChunk prefix,
-        uint16_t opcode,
-        InstrChunk mod_reg_rm,
-        InstrChunk scaled_index,
-        InstrChunk displacement,
-        InstrChunk immediate,
-        const char *msg) {
+                      InstrChunk prefix,
+                      uint16_t opcode,
+                      InstrChunk mod_reg_rm,
+                      InstrChunk scaled_index,
+                      InstrChunk displacement,
+                      InstrChunk immediate,
+                      const char *msg) {
     assert(mod_reg_rm.bytes < 3);
     assert(scaled_index.bytes < 2);
     assert(opcode < 512);
@@ -363,12 +363,14 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, MoveMode m
         return;
     }
     if (mm == MOV_LOAD || s.storage != JANET_SYSREG_REGISTER) {
-        x64Reg t = d; d = s; s = t; /* swap */
+        x64Reg t = d;
+        d = s;
+        s = t; /* swap */
         flip = 1;
     }
     assert(s.storage == JANET_SYSREG_REGISTER);
     opcode = 0x88;
-    mod_rm |= (uint8_t) (s.index & 7) << 3;
+    mod_rm |= (uint8_t)(s.index & 7) << 3;
     if (s.index >= 8) rex |= REX_R;
     if (s.kind >= JANET_SYSREG_64) rex |= REX_W;
     if (d.storage == JANET_SYSREG_REGISTER) {
@@ -376,7 +378,7 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, MoveMode m
         if (mm == MOV_FLAT) {
             mod_rm |= 0xC0u; /* mod = b11, reg, reg mode */
         }
-        mod_rm |= (uint8_t) (d.index & 7);
+        mod_rm |= (uint8_t)(d.index & 7);
     } else {
         assert(mm == MOV_FLAT);
         /* d is memory */
