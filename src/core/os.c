@@ -1254,7 +1254,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_in != JANET_HANDLE_NONE) {
         startupInfo.hStdInput = new_in;
     } else {
-        startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
+        startupInfo.hStdInput = (HANDLE) _get_osfhandle(_fileno(stdin));
     }
 
     if (pipe_out != JANET_HANDLE_NONE) {
@@ -1262,7 +1262,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_out != JANET_HANDLE_NONE) {
         startupInfo.hStdOutput = new_out;
     } else {
-        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(1);
+        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(_fileno(stdout));
     }
 
     if (pipe_err != JANET_HANDLE_NONE) {
@@ -1272,7 +1272,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (stderr_is_stdout) {
         startupInfo.hStdError = startupInfo.hStdOutput;
     } else {
-        startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
+        startupInfo.hStdError = (HANDLE) _get_osfhandle(_fileno(stderr));
     }
 
     int cp_failed = 0;

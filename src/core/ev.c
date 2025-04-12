@@ -3490,7 +3490,7 @@ JANET_CORE_FN(janet_cfun_ev_all_tasks,
 JANET_CORE_FN(janet_cfun_to_stream,
               "(ev/to-stream file)",
               "Convert a core/file to a core/stream. On POSIX operating systems, this will mark "
-              "the underlying open file description as non-blocking.") {
+              "the underlying open file descriptor as non-blocking.") {
     janet_fixarity(argc, 1);
     int32_t flags = 0;
     int32_t stream_flags = 0;
@@ -3500,10 +3500,13 @@ JANET_CORE_FN(janet_cfun_to_stream,
     if (flags & JANET_FILE_NOT_CLOSEABLE) stream_flags |= JANET_STREAM_NOT_CLOSEABLE;
     if (flags & JANET_FILE_CLOSED) janet_panic("file is closed");
 #ifdef JANET_WINDOWS
-    int fno = _fileno(file);
-    int dupped_fno = _dup(fno);
-    if (dupped_fno == -1) janet_panic(janet_strerror(errno));
-    JanetStream *stream = janet_stream(_get_osfhandle(dupped_fno), stream_flags, NULL);
+    HANDLE handle = (HANDLE) _get_osfhandle(_fileno(file));
+    HANDLE prochandle = GetCurrentProcess();
+    HANDLE dupped_handle = INVALID_HANDLE_VALUE;
+    if (!DuplicateHandle(prochandle, handle, prochandle, &dupped_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        janet_panic("cannot duplicate handle to file");
+    }
+    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
 #else
     int handle = fileno(file);
     int dupped_handle = 0;
