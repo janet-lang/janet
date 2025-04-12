@@ -353,21 +353,22 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
 
 static void janet_stream_close_impl(JanetStream *stream) {
     stream->flags |= JANET_STREAM_CLOSED;
+    int canclose = !(stream->flags & JANET_STREAM_NOT_CLOSEABLE);
 #ifdef JANET_WINDOWS
     if (stream->handle != INVALID_HANDLE_VALUE) {
 #ifdef JANET_NET
         if (stream->flags & JANET_STREAM_SOCKET) {
-            closesocket((SOCKET) stream->handle);
+            if (canclose) closesocket((SOCKET) stream->handle);
         } else
 #endif
         {
-            CloseHandle(stream->handle);
+            if (canclose) CloseHandle(stream->handle);
         }
         stream->handle = INVALID_HANDLE_VALUE;
     }
 #else
     if (stream->handle != -1) {
-        close(stream->handle);
+        if (canclose) close(stream->handle);
         stream->handle = -1;
 #ifdef JANET_EV_POLL
         uint32_t i = stream->index;
@@ -652,6 +653,12 @@ static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
     UNREFERENCED_PARAMETER(ptr);
     ExitThread(0);
 }
+#elif JANET_ANDROID
+static void janet_timeout_stop(int sig_num) {
+    if (sig_num == SIGUSR1) {
+        pthread_exit(0);
+    }
+}
 #endif
 
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
@@ -673,6 +680,14 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
 }
 #else
 static void *janet_timeout_body(void *ptr) {
+#ifdef JANET_ANDROID
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    action.sa_handler = &janet_timeout_stop;
+    sigaction(SIGUSR1, &action, NULL);
+#endif
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     struct timespec ts;
@@ -1490,7 +1505,11 @@ JanetFiber *janet_loop1(void) {
                         WaitForSingleObject(to.worker, INFINITE);
                         CloseHandle(to.worker);
 #else
+#ifdef JANET_ANDROID
+                        pthread_kill(to.worker, SIGUSR1);
+#else
                         pthread_cancel(to.worker);
+#endif
                         void *res;
                         pthread_join(to.worker, &res);
 #endif
@@ -3188,6 +3207,9 @@ JANET_CORE_FN(cfun_ev_deadline,
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
     if (use_interrupt) {
+#ifdef JANET_ANDROID
+        janet_sandbox_assert(JANET_SANDBOX_SIGNAL);
+#endif
         JanetThreadedTimeout *tto = janet_malloc(sizeof(JanetThreadedTimeout));
         if (NULL == tto) {
             JANET_OUT_OF_MEMORY;
@@ -3465,6 +3487,39 @@ JANET_CORE_FN(janet_cfun_ev_all_tasks,
     return janet_wrap_array(array);
 }
 
+JANET_CORE_FN(janet_cfun_to_stream,
+              "(ev/to-stream file)",
+              "Convert a core/file to a core/stream. On POSIX operating systems, this will mark "
+              "the underlying open file descriptor as non-blocking.") {
+    janet_fixarity(argc, 1);
+    int32_t flags = 0;
+    int32_t stream_flags = 0;
+    FILE *file = janet_getfile(argv, 0, &flags);
+    if (flags & JANET_FILE_READ) stream_flags |= JANET_STREAM_READABLE;
+    if (flags & JANET_FILE_WRITE) stream_flags |= JANET_STREAM_WRITABLE;
+    if (flags & JANET_FILE_NOT_CLOSEABLE) stream_flags |= JANET_STREAM_NOT_CLOSEABLE;
+    if (flags & JANET_FILE_CLOSED) janet_panic("file is closed");
+#ifdef JANET_WINDOWS
+    HANDLE handle = (HANDLE) _get_osfhandle(_fileno(file));
+    HANDLE prochandle = GetCurrentProcess();
+    HANDLE dupped_handle = INVALID_HANDLE_VALUE;
+    if (!DuplicateHandle(prochandle, handle, prochandle, &dupped_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        janet_panic("cannot duplicate handle to file");
+    }
+    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
+#else
+    int handle = fileno(file);
+    int dupped_handle = 0;
+    int status = 0;
+    RETRY_EINTR(dupped_handle, dup(handle));
+    if (status == -1) janet_panic(janet_strerror(errno));
+    RETRY_EINTR(status, fcntl(dupped_handle, F_SETFL, O_NONBLOCK));
+    if (status == -1) janet_panic(janet_strerror(errno));
+    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
+#endif
+    return janet_wrap_abstract(stream);
+}
+
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3496,6 +3551,7 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
         JANET_CORE_REG("ev/to-file", janet_cfun_to_file),
+        JANET_CORE_REG("ev/to-stream", janet_cfun_to_stream),
         JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };

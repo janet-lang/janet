@@ -67,6 +67,11 @@ extern "C" {
 #define JANET_LINUX 1
 #endif
 
+/* Check for Android */
+#ifdef __ANDROID__
+#define JANET_ANDROID 1
+#endif
+
 /* Check for Cygwin */
 #if defined(__CYGWIN__)
 #define JANET_CYGWIN 1
@@ -591,7 +596,7 @@ typedef void *JanetAbstract;
 #define JANET_STREAM_WRITABLE 0x400
 #define JANET_STREAM_ACCEPTABLE 0x800
 #define JANET_STREAM_UDPSERVER 0x1000
-#define JANET_STREAM_BUFFERED 0x2000
+#define JANET_STREAM_NOT_CLOSEABLE 0x2000
 #define JANET_STREAM_TOCLOSE 0x10000
 
 typedef enum {

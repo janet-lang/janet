@@ -430,13 +430,7 @@
 # Now do our telnet chat
 (def bob (assert (net/connect test-host test-port :stream)))
 (expect-read bob "Whats your name?\n")
-(if (= :mingw (os/which))
-  (net/write bob "bob")
-  (do
-    (def fbob (ev/to-file bob))
-    (file/write fbob "bob")
-    (file/flush fbob)
-    (:close fbob)))
+(net/write bob "bob")
 (expect-read bob "Welcome bob\n")
 (def alice (assert (net/connect test-host test-port)))
 (expect-read alice "Whats your name?\n")
@@ -501,8 +495,10 @@
 # soreuseport on unix domain sockets
 (compwhen (or (= :macos (os/which)) (= :linux (os/which)))
   (assert-no-error "unix-domain socket reuseaddr"
-                   (let [s (net/listen :unix "./unix-domain-socket" :stream)]
-                     (:close s))))
+                   (let [uds-path "./unix-domain-socket"]
+                     (defer (os/rm uds-path)
+                       (let [s (net/listen :unix uds-path :stream)]
+                         (:close s))))))
 
 # net/accept-loop level triggering
 (gccollect)
@@ -553,5 +549,22 @@
 (let [f (coro (forever :foo))]
   (ev/deadline 0.01 nil f true)
   (assert-error "deadline expired" (resume f)))
+
+# Use :err :stdout
+(def- subproc-code '(do (eprint "hi") (eflush) (print "there") (flush)))
+(defn ev/slurp
+  [f &opt buf]
+  (default buf @"")
+  (if (ev/read f 0x10000 buf)
+    (ev/slurp f buf)
+    buf))
+(def p (os/spawn [;run janet "-e" (string/format "%j" subproc-code)] :px {:out :pipe :err :out}))
+(def [exit-code data]
+  (ev/gather
+    (os/proc-wait p)
+    (ev/slurp (p :out))))
+(def data (string/replace-all "\r" "" data))
+(assert (zero? exit-code) "subprocess ran")
+(assert (= data "hi\nthere\n") "output is correct")
 
 (end-suite)

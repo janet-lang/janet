@@ -55,6 +55,7 @@
 #include <sys/utime.h>
 #include <io.h>
 #include <process.h>
+#define JANET_SPAWN_CHDIR
 #else
 #include <spawn.h>
 #include <utime.h>
@@ -70,6 +71,20 @@ extern char **environ;
 #endif
 #ifdef JANET_THREADS
 #include <pthread.h>
+#endif
+#endif
+
+/* Detect availability of posix_spawn_file_actions_addchdir_np. Since
+ * this doesn't seem to follow any standard, just a common extension, we
+ * must enumerate supported systems for availability. Define JANET_SPAWN_NO_CHDIR
+ * to disable this. */
+#ifndef JANET_SPAWN_NO_CHDIR
+#ifdef __GLIBC__
+#define JANET_SPAWN_CHDIR
+#elif defined(JANET_APPLE) /* Some older versions may not work here. */
+#define JANET_SPAWN_CHDIR
+#elif defined(__FreeBSD__) /* Not all BSDs work, for example openBSD doesn't seem to support this */
+#define JANET_SPAWN_CHDIR
 #endif
 #endif
 
@@ -813,6 +828,19 @@ JANET_CORE_FN(os_proc_close,
 #endif
 }
 
+JANET_CORE_FN(os_proc_getpid,
+              "(os/getpid)",
+              "Get the process ID of the current process.") {
+    janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
+    janet_fixarity(argc, 0);
+    (void) argv;
+#ifdef JANET_WINDOWS
+    return janet_wrap_number((double) _getpid());
+#else
+    return janet_wrap_number((double) getpid());
+#endif
+}
+
 static void swap_handles(JanetHandle *handles) {
     JanetHandle temp = handles[0];
     handles[0] = handles[1];
@@ -1137,6 +1165,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     JanetAbstract orig_in = NULL, orig_out = NULL, orig_err = NULL;
     JanetHandle new_in = JANET_HANDLE_NONE, new_out = JANET_HANDLE_NONE, new_err = JANET_HANDLE_NONE;
     JanetHandle pipe_in = JANET_HANDLE_NONE, pipe_out = JANET_HANDLE_NONE, pipe_err = JANET_HANDLE_NONE;
+    int stderr_is_stdout = 0;
     int pipe_errflag = 0; /* Track errors setting up pipes */
     int pipe_owner_flags = (is_spawn && (flags & 0x8)) ? JANET_PROC_ALLOW_ZOMBIE : 0;
 
@@ -1161,8 +1190,25 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         if (is_spawn && janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDERR;
+        } else if (is_spawn && janet_keyeq(maybe_stderr, "out")) {
+            stderr_is_stdout = 1;
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
+        }
+    }
+
+    /* Optional working directory. Available for both os/execute and os/spawn. */
+    const char *chdir_path = NULL;
+    if (argc > 2) {
+        JanetDictView tab = janet_getdictionary(argv, 2);
+        Janet workdir = janet_dictionary_get(tab.kvs, tab.cap, janet_ckeywordv("cd"));
+        if (janet_checktype(workdir, JANET_STRING)) {
+            chdir_path = (const char *) janet_unwrap_string(workdir);
+#ifndef JANET_SPAWN_CHDIR
+            janet_panicf(":cd argument not supported on this system - %s", chdir_path);
+#endif
+        } else if (!janet_checktype(workdir, JANET_NIL)) {
+            janet_panicf("expected string for :cd argumnet, got %v", workdir);
         }
     }
 
@@ -1180,6 +1226,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     SECURITY_ATTRIBUTES saAttr;
     PROCESS_INFORMATION processInfo;
     STARTUPINFO startupInfo;
+    LPCSTR lpCurrentDirectory = NULL;
     memset(&saAttr, 0, sizeof(saAttr));
     memset(&processInfo, 0, sizeof(processInfo));
     memset(&startupInfo, 0, sizeof(startupInfo));
@@ -1196,6 +1243,10 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     }
     const char *path = (const char *) janet_unwrap_string(exargs.items[0]);
 
+    if (chdir_path != NULL) {
+        lpCurrentDirectory = chdir_path;
+    }
+
     /* Do IO redirection */
 
     if (pipe_in != JANET_HANDLE_NONE) {
@@ -1203,7 +1254,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_in != JANET_HANDLE_NONE) {
         startupInfo.hStdInput = new_in;
     } else {
-        startupInfo.hStdInput = (HANDLE) _get_osfhandle(0);
+        startupInfo.hStdInput = (HANDLE) _get_osfhandle(_fileno(stdin));
     }
 
     if (pipe_out != JANET_HANDLE_NONE) {
@@ -1211,15 +1262,17 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_out != JANET_HANDLE_NONE) {
         startupInfo.hStdOutput = new_out;
     } else {
-        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(1);
+        startupInfo.hStdOutput = (HANDLE) _get_osfhandle(_fileno(stdout));
     }
 
     if (pipe_err != JANET_HANDLE_NONE) {
         startupInfo.hStdError = pipe_err;
     } else if (new_err != NULL) {
         startupInfo.hStdError = new_err;
+    } else if (stderr_is_stdout) {
+        startupInfo.hStdError = startupInfo.hStdOutput;
     } else {
-        startupInfo.hStdError = (HANDLE) _get_osfhandle(2);
+        startupInfo.hStdError = (HANDLE) _get_osfhandle(_fileno(stderr));
     }
 
     int cp_failed = 0;
@@ -1230,7 +1283,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                        TRUE, /* handle inheritance */
                        0, /* flags */
                        use_environ ? NULL : envp, /* pass in environment */
-                       NULL, /* use parents starting directory */
+                       lpCurrentDirectory,
                        &startupInfo,
                        &processInfo)) {
         cp_failed = 1;
@@ -1287,6 +1340,15 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* Posix spawn setup */
     posix_spawn_file_actions_t actions;
     posix_spawn_file_actions_init(&actions);
+#ifdef JANET_SPAWN_CHDIR
+    if (chdir_path != NULL) {
+#ifdef JANET_SPAWN_CHDIR_NO_NP
+        posix_spawn_file_actions_addchdir(&actions, chdir_path);
+#else
+        posix_spawn_file_actions_addchdir_np(&actions, chdir_path);
+#endif
+    }
+#endif
     if (pipe_in != JANET_HANDLE_NONE) {
         posix_spawn_file_actions_adddup2(&actions, pipe_in, 0);
         posix_spawn_file_actions_addclose(&actions, pipe_in);
@@ -1309,6 +1371,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     } else if (new_err != JANET_HANDLE_NONE && new_err != 2) {
         posix_spawn_file_actions_adddup2(&actions, new_err, 2);
         posix_spawn_file_actions_addclose(&actions, new_err);
+    } else if (stderr_is_stdout) {
+        posix_spawn_file_actions_adddup2(&actions, 1, 2);
     }
 
     pid_t pid;
@@ -1414,7 +1478,8 @@ JANET_CORE_FN(os_spawn,
               "`:pipe` may fail if there are too many active file descriptors. The caller is "
               "responsible for closing pipes created by `:pipe` (either individually or using "
               "`os/proc-close`). Similar to `os/execute`, the caller is responsible for ensuring "
-              "pipes do not cause the program to block and deadlock.") {
+              "pipes do not cause the program to block and deadlock. As a special case, the stream passed to `:err` "
+              "can be the keyword `:out` to redirect stderr to stdout in the subprocess.") {
     return os_execute_impl(argc, argv, JANET_EXECUTE_SPAWN);
 }
 
@@ -2797,6 +2862,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
         JANET_CORE_REG("os/proc-kill", os_proc_kill),
         JANET_CORE_REG("os/proc-close", os_proc_close),
+        JANET_CORE_REG("os/getpid", os_proc_getpid),
 #endif
 
         /* high resolution timers */
