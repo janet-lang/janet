@@ -167,6 +167,25 @@ static x64RegKind get_slot_regkind(JanetSysx64Context *ctx, uint32_t o) {
     }
 }
 
+static const char *sysemit_sizestr(x64RegKind kind) {
+    switch (kind) {
+        case JANET_SYSREG_8:
+            return "byte";
+        case JANET_SYSREG_16:
+            return "word";
+        case JANET_SYSREG_32:
+            return "dword";
+        case JANET_SYSREG_64:
+            return "qword";
+        default:
+            return "qword";
+    }
+}
+
+static const char *sysemit_sizestr_reg(x64Reg reg) {
+    return sysemit_sizestr(reg.kind);
+}
+
 /* Convert a slot index to a register. Handles constants as well. */
 x64Reg to_reg(JanetSysx64Context *ctx, uint32_t slot) {
     if (slot > JANET_SYS_MAX_OPERAND) {
@@ -351,6 +370,7 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, MoveMode m
     uint16_t opcode = 0;
     int flip = 0;
     InstrChunk dispchunk = empty_chunk;
+    const char *sizestr = sysemit_sizestr_reg(d);
     if (s.storage != JANET_SYSREG_REGISTER && d.storage != JANET_SYSREG_REGISTER) {
         /* src -> RAX -> dest    : flat */
         /* src -> RAX -> dest[0] : store */
@@ -399,6 +419,7 @@ static void e_mov_to_reg(JanetSysx64Context *ctx, x64Reg d, x64Reg s, MoveMode m
     if (!rex) prefix.bytes = 0;
     InstrChunk modregrm = {1, mod_rm};
     i_combine(ctx, prefix, opcode, modregrm, empty_chunk, dispchunk, empty_chunk, msg);
+    janet_formatb(ctx->buffer, ";mov %s <- %s, mode=%d, %s\n", register_names[d.index], register_names[s.index], mm, sizestr);
 }
 
 static void e_mov(JanetSysx64Context *ctx, uint32_t dest, uint32_t src, const char *msg) {
@@ -512,25 +533,6 @@ static x64Reg mk_tmpreg(JanetSysx64Context *ctx, uint32_t src) {
     tempreg.kind = get_slot_regkind(ctx, src);
     tempreg.index = RAX;
     return tempreg;
-}
-
-static const char *sysemit_sizestr(x64RegKind kind) {
-    switch (kind) {
-        case JANET_SYSREG_8:
-            return "byte";
-        case JANET_SYSREG_16:
-            return "word";
-        case JANET_SYSREG_32:
-            return "dword";
-        case JANET_SYSREG_64:
-            return "qword";
-        default:
-            return "qword";
-    }
-}
-
-static const char *sysemit_sizestr_reg(x64Reg reg) {
-    return sysemit_sizestr(reg.kind);
 }
 
 static void sysemit_reg(JanetSysx64Context *ctx, x64Reg reg, const char *after) {
@@ -678,7 +680,7 @@ static void sysemit_movfromreg(JanetSysx64Context *ctx, uint32_t dest, uint32_t 
     e_mov_to_reg(ctx, ctx->regs[dest], tempreg, MOV_FLAT, "move from specific register");
 }
 
-/* Move a value to a register, and save the contents of the old register on fhe stack */
+/* Move a value to a register, and save the contents of the old register on the stack */
 static void sysemit_mov_save(JanetSysx64Context *ctx, uint32_t dest_reg, uint32_t src) {
     e_pushreg(ctx, dest_reg);
     sysemit_movreg(ctx, dest_reg, src);
@@ -795,6 +797,7 @@ static void sysemit_cast(JanetSysx64Context *ctx, JanetSysInstruction instructio
 
 static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instruction, uint32_t *args, uint32_t argcount) {
     /* Push first 6 arguments to particular registers */
+    janet_formatb(ctx->buffer, ";sysv call %u\n", argcount);
     JanetBuffer *buffer = ctx->buffer;
     int save_rdi = argcount >= 1 || (ctx->occupied_registers & (1 << RDI));
     int save_rsi = argcount >= 2 || (ctx->occupied_registers & (1 << RSI));
@@ -828,7 +831,7 @@ static void sysemit_sysv_call(JanetSysx64Context *ctx, JanetSysInstruction instr
         janet_formatb(buffer, "syscall\n");
     } else {
         /* Save RAX to number of floating point args for varags - for now, always 0 :) */
-        janet_formatb(buffer, "mov rax, 0\n");
+        janet_formatb(buffer, "db 0x48, 0x31, 0xc0 ; xor rax, rax\n");
         janet_formatb(buffer, "call ");
         sysemit_operand(ctx, instruction.call.callee, "\n");
     }

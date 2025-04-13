@@ -296,6 +296,7 @@ test_files = [
   'test/suite-strtod.janet',
   'test/suite-struct.janet',
   'test/suite-symcache.janet',
+  'test/suite-sysir.janet',
   'test/suite-table.janet',
   'test/suite-tuple.janet',
   'test/suite-unknown.janet',
