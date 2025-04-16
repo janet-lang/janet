@@ -3408,17 +3408,15 @@
         (when (and p-start (> p-end p-start))
           (push (tokenize-line (getslice p-start p-end)))
           (set p-start nil)))
-      (while (c)
-        (def maybr? (< new-indent indent))
+      (while (and (c) (or (nl?)
+                          (>= new-indent indent)))
         (cond
           (nl?) (do (finish-p) (c++) (set new-indent (skipwhite)))
-          (ul?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
-          (ol?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
-          (fcb?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-fcb new-indent)))
-          (>= new-indent (+ 4 indent)) (do (if maybr? (break)) (finish-p) (set new-indent (parse-icb new-indent)))
-          (if maybr?
-            (break)
-            (p-line))))
+          (ul?) (do (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
+          (ol?) (do (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
+          (fcb?) (do (finish-p) (set new-indent (parse-fcb new-indent)))
+          (>= new-indent (+ 4 indent)) (do (finish-p) (set new-indent (parse-icb new-indent)))
+          (p-line)))
       (finish-p)
       new-indent))
 
@@ -3448,6 +3446,8 @@
        :bold ["**" "**"]}))
 
   (def stack (doc-parse str :indent indent))
+
+  # Handle first line specially for defn, defmacro, etc.
   (when (= (chr "(") (get str 0))
     (def fl (first stack))
     (def lt (last fl))
