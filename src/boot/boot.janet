@@ -3416,7 +3416,7 @@
           (ol?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
           (fcb?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-fcb new-indent)))
           (>= new-indent (+ 4 indent)) (do (if maybr? (break)) (finish-p) (set new-indent (parse-icb new-indent)))
-          (if (and maybr? (nil? p-start))
+          (if maybr?
             (break)
             (p-line))))
       (finish-p)
