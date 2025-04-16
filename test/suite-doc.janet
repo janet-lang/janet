@@ -53,8 +53,14 @@
                '@[@[:ul @{:loose? true} @[(("foo" 3))] @[(("bar" 3)) @[:cb "baz"]]]])
         "doc-parse loose ul and combined block")
 (assert (deep= (doc-parse "foo _bar_ **baz qux**")
-               '@[(("foo" 3) (:underline 0) (:underline nil 3) ("bar" 3) (:bold 0) ("baz" 3) (:bold nil 3) ("qux" 3))])
+               '@[(("foo" 3) (:underline 0 "_") (:underline 3) ("bar" 3) (:bold 0 "**") ("baz" 3) (:bold 3) ("qux" 3))])
         "doc-parse facets")
+(assert (deep= (doc-parse "foo **_bar_ baz qux**")
+               '@[(("foo" 3) (:bold 0 "**") (:underline 0 "_") (:underline 3) ("bar" 3) ("baz" 3) (:bold 3) ("qux" 3))])
+        "doc-parse nested facets")
+(assert (deep= (doc-parse "(doc* &opt sym)")
+               '@[(("(doc*" 5) ("&opt" 4) ("sym)" 4))])
+        "doc-parse non-markup symbols")
 
 # Docstring formatting
 (assert (deep= (doc-format "foo" nil 0)

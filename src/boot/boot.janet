@@ -3234,13 +3234,8 @@
   "Whether or not to colorize documentation printed with `doc-format`.")
 
 (defn doc-parse
-  "Parse a docstring with a particular indentation."
-  [str &named indent]
-  (default indent 0)
-  (def modes @{})
-  (defn toggle-mode [mode]
-    (def active? (get modes mode))
-    (put modes mode (not active?)))
+  "Parse a docstring and return the parse tree."
+  [str]
 
   # Parse state
   (var cursor 0) # indexes into string for parsing
@@ -3357,39 +3352,61 @@
 
   (defn tokenize-line [line]
     (def tokens @[])
-    (def ds @[])
+    (def delims @[])
     (def token @"")
     (var token-length 0)
-    (defn delim [mode]
-      (toggle-mode mode)
+    (def modes @{})
+    (defn delim [mode d]
       (def active? (get modes mode))
-      (array/push ds (if active? [mode token-length] [mode nil token-length])))
+      (if active?
+        (put modes mode nil)
+        (put modes mode (+ (length tokens) (length delims))))
+      (array/push delims (if active? [mode token-length] [mode token-length d])))
     (defn endtoken []
       (when (first token)
-        (array/push tokens ;ds)
-        (array/clear ds)
+        (array/push tokens ;delims)
         (array/push tokens [(string token) token-length]))
+      (array/clear delims)
       (buffer/clear token)
       (set token-length 0))
+    (defn oldmodes []
+      # go backwards through open modes
+      (each i (sort (values modes) >)
+        (def [mode pos c] (get tokens i))
+        (put modes mode nil)
+        (for j (inc i) (length tokens)
+          (def token (get tokens j))
+          (if (string? (first token))
+            (do
+              (def word (first token))
+              (def rep [(string (string/slice word 0 pos) c (string/slice word pos))
+                        (+ (length word) (length c))])
+              (put tokens j rep)
+              (array/remove tokens i)
+              (break)))
+            (do
+              (def [mode pos begin?] token)
+              (put tokens j [mode (+ pos (length c)) begin?])))))
     (forv i 0 (length line)
       (def b (get line i))
       (cond
         (or (= b (chr "\n")) (= b (chr " "))) (endtoken)
-        (= b (chr "`")) (delim :code)
+        (= b (chr "`")) (delim :code "`")
         (not (modes :code))
         (cond
           (= b (chr `\`)) (do
                             (++ token-length)
                             (buffer/push token (get line (++ i))))
-          (= b (chr "_")) (delim :underline)
+          (= b (chr "_")) (delim :underline "_")
           (= b (chr "*"))
           (if (= (chr "*") (get line (+ i 1)))
             (do (++ i)
-              (delim :bold))
-            (delim :italics))
+              (delim :bold "**"))
+            (delim :italics "*"))
           (do (++ token-length) (buffer/push token b)))
         (do (++ token-length) (buffer/push token b))))
     (endtoken)
+    (oldmodes)
     (tuple/slice tokens))
 
   (set
@@ -3445,13 +3462,7 @@
        :italics ["*" "*"]
        :bold ["**" "**"]}))
 
-  (def stack (doc-parse str :indent indent))
-
-  # Handle first line specially for defn, defmacro, etc.
-  (when (= (chr "(") (get str 0))
-    (def fl (first stack))
-    (def lt (last fl))
-    (put stack 0 [[:code 0] ;(tuple/slice fl 0 -2) [:code nil (length (lt 0))] lt]))
+  (def stack (doc-parse str))
 
   # Emission state
   (def buf @"")
@@ -3505,11 +3516,11 @@
               (var word (subel 0))
               (var len (subel 1))
               (var offset 0)
-              (each [mode begin end] facets
-                (def d (get-in delimiters [mode (if begin 0 1)]))
+              (each [mode pos open?] facets
+                (def d (get-in delimiters [mode (if open? 0 1)]))
                 (def dlen (length d))
-                (def pos (+ offset (or begin end)))
-                (set word (string (string/slice word 0 pos) d (string/slice word pos)))
+                (def offpos (+ offset pos))
+                (set word (string (string/slice word 0 offpos) d (string/slice word offpos)))
                 (unless color? (+= len dlen))
                 (+= offset dlen))
               (array/clear facets)
