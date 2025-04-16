@@ -3233,35 +3233,14 @@
 (defdyn *doc-color*
   "Whether or not to colorize documentation printed with `doc-format`.")
 
-(defn doc-format
-  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
-  or a subset of markdown. This allows a long single line of prose or formatted text to be
-  a well-formed docstring. Returns a buffer containing the formatted text.`
-  [str &opt width indent colorize]
-
-  (default indent 4)
-  (def max-width (- (or width (dyn *doc-width* 80)) 8))
-  (def has-color (if (not= nil colorize)
-                   colorize
-                   (dyn *doc-color*)))
-
-  # Terminal codes for emission/tokenization
-  (def delimiters
-    (if has-color
-      {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[97m" "\e[39m"]
-       :italics ["\e[4m" "\e[24m"]
-       :bold ["\e[1m" "\e[22m"]}
-      {:underline ["_" "_"]
-       :code ["`" "`"]
-       :italics ["*" "*"]
-       :bold ["**" "**"]}))
+(defn doc-parse
+  "Parse a docstring with a particular indentation."
+  [str &named indent]
+  (default indent 0)
   (def modes @{})
   (defn toggle-mode [mode]
-    (def active (get modes mode))
-    (def delims (get delimiters mode))
-    (put modes mode (not active))
-    (delims (if active 1 0)))
+    (def active? (get modes mode))
+    (put modes mode (not active?)))
 
   # Parse state
   (var cursor 0) # indexes into string for parsing
@@ -3280,7 +3259,7 @@
   (defn skipline []
     (def x cursor)
     (while (let [y (c)] (and y (not= y (chr "\n")))) (++ cursor))
-    (c++)
+    (++ cursor)
     (- cursor x))
 
   # Detection helpers - return number of characters matched
@@ -3311,11 +3290,25 @@
   (defn push [x] (array/push stack x))
 
   (defn parse-list [bullet-check initial indent]
-    (def temp-stack @[initial])
+    (defn end-blank? []
+      (var ret false)
+      (var first? true)
+      (def old cursor)
+      (while (not= 0 (-- cursor))
+        (cond
+          (= (c) (chr "\n")) (if first? (set first? false) (do (set ret true) (break)))
+          (= (c) (chr " ")) nil
+          (break)))
+      (set cursor old)
+      ret)
+    (def meta @{})
+    (def list-stack @[initial meta])
     (def old-stack stack)
-    (set stack temp-stack)
+    (set stack list-stack)
     (var current-indent indent)
     (while (and (c) (>= current-indent indent))
+      (if (and (> (length list-stack) 2) (end-blank?))
+        (put meta :loose? true))
       (def item-indent
         (when-let [x (bullet-check)]
           (c+=n x)
@@ -3326,10 +3319,10 @@
       (def item-stack @[])
       (set stack item-stack)
       (set current-indent (parse-blocks item-indent))
-      (set stack temp-stack)
+      (set stack list-stack)
       (push item-stack))
     (set stack old-stack)
-    (push temp-stack)
+    (push list-stack)
     current-indent)
 
   (defn add-codeblock [indent start end]
@@ -3364,14 +3357,18 @@
 
   (defn tokenize-line [line]
     (def tokens @[])
+    (def ds @[])
     (def token @"")
     (var token-length 0)
     (defn delim [mode]
-      (def d (toggle-mode mode))
-      (if-not has-color (+= token-length (length d)))
-      (buffer/push token d))
+      (toggle-mode mode)
+      (def active? (get modes mode))
+      (array/push ds (if active? [mode token-length] [mode nil token-length])))
     (defn endtoken []
-      (if (first token) (array/push tokens [(string token) token-length]))
+      (when (first token)
+        (array/push tokens ;ds)
+        (array/clear ds)
+        (array/push tokens [(string token) token-length]))
       (buffer/clear token)
       (set token-length 0))
     (forv i 0 (length line)
@@ -3411,26 +3408,50 @@
         (when (and p-start (> p-end p-start))
           (push (tokenize-line (getslice p-start p-end)))
           (set p-start nil)))
-      (while (and (c) (>= new-indent indent))
+      (while (c)
+        (def maybr? (< new-indent indent))
         (cond
           (nl?) (do (finish-p) (c++) (set new-indent (skipwhite)))
-          (ul?) (do (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
-          (ol?) (do (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
-          (fcb?) (do (finish-p) (set new-indent (parse-fcb new-indent)))
-          (>= new-indent (+ 4 indent)) (do (finish-p) (set new-indent (parse-icb new-indent)))
-          (p-line)))
+          (ul?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-list ul? :ul new-indent)))
+          (ol?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-list ol? :ol new-indent)))
+          (fcb?) (do (if maybr? (break)) (finish-p) (set new-indent (parse-fcb new-indent)))
+          (>= new-indent (+ 4 indent)) (do (if maybr? (break)) (finish-p) (set new-indent (parse-icb new-indent)))
+          (if (and maybr? (nil? p-start))
+            (break)
+            (p-line))))
       (finish-p)
       new-indent))
 
-  # Handle first line specially for defn, defmacro, etc.
-  (when (= (chr "(") (in str 0))
-    (skipline)
-    (def first-line (string/slice str 0 (- cursor 1)))
-    (def fl-open (if has-color "\e[97m" ""))
-    (def fl-close (if has-color "\e[39m" ""))
-    (push [[(string fl-open first-line fl-close) (length first-line)]]))
-
   (parse-blocks 0)
+  stack)
+
+(defn doc-format
+  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
+  or a subset of Markdown. This allows a long single line of prose or formatted text to be
+  a well-formed docstring. Returns a buffer containing the formatted text.`
+  [str &opt width indent colorize]
+
+  (default indent 4)
+  (def max-width (- (or width (dyn *doc-width* 80)) 8))
+  (def color? (if (nil? colorize) (dyn *doc-color*) colorize))
+
+  # Terminal codes for emission
+  (def delimiters
+    (if color?
+      {:underline ["\e[4m" "\e[24m"]
+       :code ["\e[97m" "\e[39m"]
+       :italics ["\e[4m" "\e[24m"]
+       :bold ["\e[1m" "\e[22m"]}
+      {:underline ["_" "_"]
+       :code ["" ""]
+       :italics ["*" "*"]
+       :bold ["**" "**"]}))
+
+  (def stack (doc-parse str :indent indent))
+  (when (= (chr "(") (get str 0))
+    (def fl (first stack))
+    (def lt (last fl))
+    (put stack 0 [[:code 0] ;(tuple/slice fl 0 -2) [:code nil (length (lt 0))] lt]))
 
   # Emission state
   (def buf @"")
@@ -3475,23 +3496,45 @@
     [el indent]
     (emit-indent indent)
     (if (tuple? el)
-      (let [rep (string "\n" (string/repeat " " indent))]
-        (each [word len] el
-          (emit-word
-            (string/replace-all "\n" rep word)
-            indent
-            len))
+      (let [rep (string "\n" (string/repeat " " indent))
+            facets @[]]
+        (each subel el
+          (if (keyword? (first subel))
+            (array/push facets subel)
+            (do
+              (var word (subel 0))
+              (var len (subel 1))
+              (var offset 0)
+              (each [mode begin end] facets
+                (def d (get-in delimiters [mode (if begin 0 1)]))
+                (def dlen (length d))
+                (def pos (+ offset (or begin end)))
+                (set word (string (string/slice word 0 pos) d (string/slice word pos)))
+                (unless color? (+= len dlen))
+                (+= offset dlen))
+              (array/clear facets)
+              (emit-word
+                (string/replace-all "\n" rep word)
+                indent
+                len))))
         (emit-nl))
       (case (first el)
-        :ul (for i 1 (length el)
-              (if (> i 1) (emit-indent indent))
-              (emit-word "* " nil)
-              (each subel (get el i) (emit-node subel (+ 2 indent))))
-        :ol (for i 1 (length el)
-              (if (> i 1) (emit-indent indent))
-              (def lab (string/format "%d. " i))
-              (emit-word lab nil)
-              (each subel (get el i) (emit-node subel (+ (length lab) indent))))
+        :ul (do
+              (def meta (get el 1))
+              (for i 2 (length el)
+                (when (and (> i 2) (get meta :loose?))
+                  (emit-nl))
+                (emit-indent indent)
+                (emit-word "* " nil)
+                (each subel (get el i) (emit-node subel (+ 2 indent)))))
+        :ol (do
+              (def meta (get el 1))
+              (for i 2 (length el)
+                (when (and (> i 2) (get meta :loose?))
+                  (emit-nl))
+                (def lab (string/format "%d. " i))
+                (emit-word lab nil)
+                (each subel (get el i) (emit-node subel (+ (length lab) indent)))))
         :cb (emit-code (get el 1) indent))))
 
   (each el stack
