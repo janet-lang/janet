@@ -3487,39 +3487,6 @@ JANET_CORE_FN(janet_cfun_ev_all_tasks,
     return janet_wrap_array(array);
 }
 
-JANET_CORE_FN(janet_cfun_to_stream,
-              "(ev/to-stream file)",
-              "Convert a core/file to a core/stream. On POSIX operating systems, this will mark "
-              "the underlying open file descriptor as non-blocking.") {
-    janet_fixarity(argc, 1);
-    int32_t flags = 0;
-    int32_t stream_flags = 0;
-    FILE *file = janet_getfile(argv, 0, &flags);
-    if (flags & JANET_FILE_READ) stream_flags |= JANET_STREAM_READABLE;
-    if (flags & JANET_FILE_WRITE) stream_flags |= JANET_STREAM_WRITABLE;
-    if (flags & JANET_FILE_NOT_CLOSEABLE) stream_flags |= JANET_STREAM_NOT_CLOSEABLE;
-    if (flags & JANET_FILE_CLOSED) janet_panic("file is closed");
-#ifdef JANET_WINDOWS
-    HANDLE handle = (HANDLE) _get_osfhandle(_fileno(file));
-    HANDLE prochandle = GetCurrentProcess();
-    HANDLE dupped_handle = INVALID_HANDLE_VALUE;
-    if (!DuplicateHandle(prochandle, handle, prochandle, &dupped_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-        janet_panic("cannot duplicate handle to file");
-    }
-    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
-#else
-    int handle = fileno(file);
-    int dupped_handle = 0;
-    int status = 0;
-    RETRY_EINTR(dupped_handle, dup(handle));
-    if (status == -1) janet_panic(janet_strerror(errno));
-    RETRY_EINTR(status, fcntl(dupped_handle, F_SETFL, O_NONBLOCK));
-    if (status == -1) janet_panic(janet_strerror(errno));
-    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
-#endif
-    return janet_wrap_abstract(stream);
-}
-
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3551,7 +3518,6 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
         JANET_CORE_REG("ev/to-file", janet_cfun_to_file),
-        JANET_CORE_REG("ev/to-stream", janet_cfun_to_stream),
         JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };
