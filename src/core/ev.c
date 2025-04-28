@@ -3015,7 +3015,8 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
             uint32_t count1;
             memcpy(&count1, nextbytes, sizeof(count1));
             size_t count = (size_t) count1;
-            if (count > (endbytes - nextbytes) * sizeof(JanetCFunRegistry)) {
+            /* Use division to avoid overflowing size_t */
+            if (count > (endbytes - nextbytes - sizeof(count1)) / sizeof(JanetCFunRegistry)) {
                 janet_panic("thread message invalid");
             }
             janet_vm.registry_count = count;
