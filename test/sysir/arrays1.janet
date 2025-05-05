@@ -25,4 +25,4 @@
 (sysir/asm ctx types-asm)
 (sysir/asm ctx add-asm)
 (sysir/asm ctx sub-asm)
-(print (sysir/to-c ctx))
+(printf "%.99j" (sysir/to-ir ctx))

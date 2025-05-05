@@ -1,0 +1,1 @@
+@[@[(type-prim Double f64) (type-array BigVec Double 100)] @[(parameter-count 0)] @[(link-name "add_vector") (parameter-count 2) (type-bind 0 BigVec) (type-bind 1 BigVec) (type-bind 2 BigVec) (add 2 0 1) (return 2)] @[(link-name "sub_vector") (parameter-count 2) (type-bind 0 BigVec) (type-bind 1 BigVec) (type-bind 2 BigVec) (subtract 2 0 1) (return 2)]]

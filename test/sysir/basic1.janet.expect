@@ -1,0 +1,71 @@
+#include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <sys/syscall.h>
+#define _t0 void
+
+#line 5
+typedef int32_t _t1;
+#line 6
+typedef double _t2;
+#line 7
+typedef struct {
+    _t0 _f0;
+    _t1 _f1;
+} _t3;
+#line 8
+typedef _t1 *_t4;
+#line 9
+typedef struct { _t1 els[1024]; } _t5;
+
+
+_t2 test_function()
+{
+    _t1 _r0;
+    _t1 _r1;
+    _t1 _r2;
+    _t2 _r3;
+    _t2 _r4;
+    _t2 _r5;
+    _t3 _r6;
+
+#line 5
+#line 6
+#line 7
+#line 7
+#line 8
+#line 9
+#line 12
+#line 13
+#line 14
+#line 15
+#line 16
+#line 17
+#line 18
+#line 21
+  _r0 = 10;
+#line 22
+  _r0 = 21;
+
+_label_0:
+#line 24
+  _r2 = _r1 + _r0;
+#line 25
+  _r3 = 1.77;
+#line 26
+  _r3 = sin(_r3);
+#line 26
+#line 27
+  _r4 = (_t2) _r2;
+#line 28
+  _r4 = test_function();
+#line 29
+  _r5 = _r4 + _r3;
+#line 30
+  goto _label_0;
+#line 31
+  return _r5;
+}

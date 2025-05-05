@@ -24,4 +24,27 @@
 (use ../examples/sysir/frontend)
 (assert true) # smoke test
 
+(def janet (dyn *executable*))
+(def run (filter next (string/split " " (os/getenv "SUBRUN" ""))))
+
+(defn do-expect-directory
+  "Iterate a directory, evaluating all scripts in the directory. Assert that the captured output of the script
+  is as expected according to a matching .expect file."
+  [dir]
+  (each path (sorted (os/dir dir))
+    (when (string/has-suffix? ".janet" path)
+      (def fullpath (string dir "/" path))
+      (def proc (os/spawn [;run janet fullpath] :p {:out :pipe :err :out}))
+      (def buff @"")
+      (var ret-code nil)
+      (ev/gather
+        (while (ev/read (proc :out) 4096 buff))
+        (set ret-code (os/proc-wait proc)))
+      (def expect-file (string dir "/" path ".expect"))
+      (def expected-out (slurp expect-file))
+      (assert (= (string/trim expected-out) (string/trim buff))
+              (string "\nfile: " fullpath "\nexpected:\n======\n" expected-out "\n======\ngot:\n======\n" buff "\n======\n")))))
+
+(do-expect-directory "test/sysir")
+
 (end-suite)

@@ -1,0 +1,66 @@
+@[@[(type-prim Double f64) (type-array BigVec Double 100) (type-pointer BigVecP BigVec)] @[(link-name "add_vectorp") (parameter-count 2) (type-bind 0 BigVecP) (type-bind 1 BigVecP) (type-bind 2 BigVecP) (add 2 0 1) (return 2)]]
+@[@[(type-prim Double f64) (type-array BigVec Double 100) (type-pointer BigVecP BigVec)] @[(link-name "add_vectorp") (parameter-count 2) (type-bind 0 BigVecP) (type-bind 1 BigVecP) (type-bind 2 BigVecP) (type-bind 3 U32Index) (type-bind 5 PointerTo) (type-bind 6 PointerTo) (type-bind 7 PointerTo) (type-bind 4 Boolean) (load 3 [U32Index 0]) (label 7) (gte 4 3 [U32Index 0]) (branch 4 21) (apgetp 5 0 3) (apgetp 6 1 3) (apgetp 7 2 3) (add 7 5 6) (add 3 3 [U32Index 1]) (jump 7) (label 21) (return 2)]]
+#include <stddef.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <sys/syscall.h>
+#define _t0 void
+
+#line 6
+typedef double _t1;
+#line 7
+typedef struct { _t1 els[100]; } _t2;
+#line 8
+typedef _t2 *_t3;
+
+
+_t3 add_vectorp(_t3 _r0, _t3 _r1)
+{
+    _t3 _r2;
+    _t4 _r3;
+    _t5 _r4;
+    _t6 _r5;
+    _t6 _r6;
+    _t6 _r7;
+
+#line 6
+#line 7
+#line 8
+#line 11
+#line 12
+#line 13
+#line 14
+#line 14
+#line 14
+#line 14
+#line 14
+#line 14
+  _r3 = *(0);
+#line 14
+
+_label_0:
+#line 14
+  _r4 = _r3 > 0;
+#line 14
+  if (_r4) goto _label_1;
+#line 14
+  _r5 = &(_r0->els[_r3]);
+#line 14
+  _r6 = &(_r1->els[_r3]);
+#line 14
+  _r7 = &(_r2->els[_r3]);
+#line 14
+  _r7 = _r5 + _r6;
+#line 14
+  _r3 = _r3 + 1;
+#line 14
+  goto _label_0;
+#line 14
+
+_label_1:
+#line 15
+  return _r2;
+}

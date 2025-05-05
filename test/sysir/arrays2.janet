@@ -16,8 +16,7 @@
 
 (def ctx (sysir/context))
 (sysir/asm ctx ir-asm)
-(print (sysir/to-c ctx))
-(printf "%.99M" (sysir/to-ir ctx))
-(print (sysir/scalarize ctx))
-(printf "%.99M" (sysir/to-ir ctx))
+(printf "%j" (sysir/to-ir ctx))
+(sysir/scalarize ctx)
+(printf "%j" (sysir/to-ir ctx))
 (print (sysir/to-c ctx))

@@ -5,7 +5,7 @@
     (type-prim Int s32)
     (type-prim Double f64)
     (type-struct MyPair 0 1)
-    (type-pointer PInt 0)
+    (type-pointer PInt Int)
     (type-array DoubleArray 1 1024)
 
     # Declarations
@@ -18,14 +18,14 @@
     (bind 6 MyPair)
 
     # Code
-    (constant 0 10)
-    (constant 0 21)
+    (move 0 (Int 10))
+    (move 0 (Int 21))
     :location
     (add 2 1 0)
-    (constant 3 1.77)
-    (call 3 sin 3)
+    (move 3 (Double 1.77))
+    (call :default 3 (PInt sin) 3)
     (cast bob 2)
-    (call :default bob test_function)
+    (call :default bob (PInt test_function))
     (add 5 bob 3)
     (jump :location)
     (return 5)))
