@@ -332,7 +332,6 @@ uint32_t *janet_sys_callargs(JanetSysInstruction *instr, uint32_t *count);
 /* Lowering */
 void janet_sys_ir_lower_to_ir(JanetSysIRLinkage *linkage, JanetArray *into);
 void janet_sys_ir_lower_to_c(JanetSysIRLinkage *linkage, JanetBuffer *buffer);
-
 void janet_sys_ir_lower_to_x64(JanetSysIRLinkage *linkage, JanetSysTarget target, JanetBuffer *buffer);
 
 #endif
