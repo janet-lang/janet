@@ -170,14 +170,12 @@ extern "C" {
 /* Also enable the thread library only if not single-threaded */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL
-#undef JANET_THREADS
-#elif defined(__GNUC__)
+#elif !(defined(JANET_THREAD_LOCAL)) && defined(__GNUC__)
 #define JANET_THREAD_LOCAL __thread
-#elif defined(_MSC_BUILD)
+#elif !(defined(JANET_THREAD_LOCAL)) && defined(_MSC_BUILD)
 #define JANET_THREAD_LOCAL __declspec(thread)
-#else
+#elif !(defined(JANET_THREAD_LOCAL))
 #define JANET_THREAD_LOCAL
-#undef JANET_THREADS
 #endif
 
 /* Enable or disable dynamic module loading. Enabled by default. */

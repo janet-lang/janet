@@ -30,6 +30,7 @@ option('max_macro_expand', type : 'integer', min : 1, max : 8000, value : 200)
 option('stack_max', type : 'integer', min : 8096, max : 0x7fffffff, value : 0x7fffffff)
 
 option('arch_name', type : 'string', value: '')
+option('thread_local_prefix', type : 'string', value: '')
 option('os_name', type : 'string', value: '')
 option('shared', type : 'boolean', value: true)
 option('cryptorand', type : 'boolean', value: true)
