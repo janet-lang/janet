@@ -1,4 +1,4 @@
-image: openbsd/7.4
+image: openbsd/7.7
 sources:
 - https://git.sr.ht/~bakpakin/janet
 packages:
