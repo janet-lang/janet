@@ -667,6 +667,7 @@ typedef int32_t JanetAtomicInt;
 JANET_API JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x);
 JANET_API JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x);
 JANET_API JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x);
+JANET_API JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x);
 
 /* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the

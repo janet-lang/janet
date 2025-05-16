@@ -1457,7 +1457,7 @@ JanetFiber *janet_loop1(void) {
     /* Run scheduled fibers unless interrupts need to be handled. */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
         /* Don't run until all interrupts have been marked as handled by calling janet_interpreter_interrupt_handled */
-        if (janet_vm.auto_suspend) break;
+        if (janet_atomic_load_relaxed(&janet_vm.auto_suspend)) break;
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
         if (task.fiber->gc.flags & JANET_FIBER_EV_FLAG_SUSPENDED) janet_ev_dec_refcount();
@@ -3231,6 +3231,7 @@ JANET_CORE_FN(cfun_ev_deadline,
             janet_free(tto);
             janet_panicf("%s", janet_strerror(err));
         }
+        janet_assert(!pthread_detach(worker), "pthread_detach");
 #endif
         to.has_worker = 1;
         to.worker = worker;
