@@ -591,7 +591,7 @@ JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 
 JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
-    return _InterlockedOrNoFence(x, 0);
+    return _InterlockedOr(x, 0);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_relaxed);
 #else
