@@ -564,15 +564,17 @@
        (,ev/deadline ,sec nil ,f true)
        (,resume ,f))))
 
-(repeat 10
-        (assert (= :done (with-deadline2 10
-                           (ev/sleep 0.01)
-                           :done)) "deadline with interrupt exits normally"))
+(for i 0 10
+  # (print "iteration " i)
+  (assert (= :done (with-deadline2 10
+                     (ev/sleep 0.01)
+                     :done)) "deadline with interrupt exits normally"))
 
-(repeat 10
-        (let [f (coro (forever :foo))]
-          (ev/deadline 0.01 nil f true)
-          (assert-error "deadline expired" (resume f))))
+(for i 0 10
+  # (print "iteration " i)
+  (let [f (coro (forever :foo))]
+    (ev/deadline 0.01 nil f true)
+    (assert-error "deadline expired" (resume f))))
 
 # Use :err :stdout
 (def- subproc-code '(do (eprint "hi") (eflush) (print "there") (flush)))
