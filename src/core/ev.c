@@ -604,8 +604,31 @@ void janet_ev_init_common(void) {
 #endif
 }
 
+static void handle_timeout_worker(JanetTimeout to) {
+    if (!to.has_worker) return;
+#ifdef JANET_WINDOWS
+    QueueUserAPC(janet_timeout_stop, to.worker, 0);
+    WaitForSingleObject(to.worker, INFINITE);
+    CloseHandle(to.worker);
+#else
+#ifdef JANET_ANDROID
+    pthread_kill(to.worker, SIGUSR1);
+#else
+    int ret = pthread_cancel(to.worker);
+    janet_assert(!ret, "pthread_cancel");
+#endif
+    void *res = NULL;
+    janet_assert(!pthread_join(to.worker, &res), "pthread_join");
+#endif
+}
+
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
+    JanetTimeout to;
+    while (peek_timeout(&to)) {
+        handle_timeout_worker(to);
+        pop_timeout(0);
+    }
     janet_q_deinit(&janet_vm.spawn);
     janet_free(janet_vm.tq);
     janet_table_deinit(&janet_vm.threaded_abstracts);
@@ -1434,6 +1457,7 @@ JanetFiber *janet_loop1(void) {
     JanetTimestamp now = ts_now();
     while (peek_timeout(&to) && to.when <= now) {
         pop_timeout(0);
+        handle_timeout_worker(to);
         if (to.curr_fiber != NULL) {
             if (janet_fiber_can_resume(to.curr_fiber)) {
                 janet_cancel(to.fiber, janet_cstringv("deadline expired"));
@@ -1495,27 +1519,14 @@ JanetFiber *janet_loop1(void) {
         while ((has_timeout = peek_timeout(&to))) {
             if (to.curr_fiber != NULL) {
                 if (!janet_fiber_can_resume(to.curr_fiber)) {
-                    if (to.has_worker) {
-#ifdef JANET_WINDOWS
-                        QueueUserAPC(janet_timeout_stop, to.worker, 0);
-                        WaitForSingleObject(to.worker, INFINITE);
-                        CloseHandle(to.worker);
-#else
-#ifdef JANET_ANDROID
-                        pthread_kill(to.worker, SIGUSR1);
-#else
-                        pthread_cancel(to.worker);
-#endif
-                        void *res;
-                        pthread_join(to.worker, &res);
-#endif
-                    }
-                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
                     pop_timeout(0);
+                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
+                    handle_timeout_worker(to);
                     continue;
                 }
             } else if (to.fiber->sched_id != to.sched_id) {
                 pop_timeout(0);
+                handle_timeout_worker(to);
                 continue;
             }
             break;
@@ -3170,6 +3181,7 @@ JANET_NO_RETURN void janet_sleep_await(double sec) {
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
     to.curr_fiber = NULL;
+    to.has_worker = 0;
     add_timeout(to);
     janet_await();
 }
@@ -3227,7 +3239,6 @@ JANET_CORE_FN(cfun_ev_deadline,
             janet_free(tto);
             janet_panicf("%s", janet_strerror(err));
         }
-        janet_assert(!pthread_detach(worker), "pthread_detach");
 #endif
         to.has_worker = 1;
         to.worker = worker;

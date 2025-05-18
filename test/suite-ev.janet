@@ -546,9 +546,33 @@
   (ev/sleep 0.15)
   (assert (not terminated-normally) "early termination failure 3"))
 
-(let [f (coro (forever :foo))]
-  (ev/deadline 0.01 nil f true)
-  (assert-error "deadline expired" (resume f)))
+# Deadline with interrupt
+(defmacro with-deadline2
+  ``
+  Create a fiber to execute `body`, schedule the event loop to cancel
+  the task (root fiber) associated with `body`'s fiber, and start
+  `body`'s fiber by resuming it.
+
+  The event loop will try to cancel the root fiber if `body`'s fiber
+  has not completed after at least `sec` seconds.
+
+  `sec` is a number that can have a fractional part.
+  ``
+  [sec & body]
+  (with-syms [f]
+    ~(let [,f (coro ,;body)]
+       (,ev/deadline ,sec nil ,f true)
+       (,resume ,f))))
+
+(repeat 10
+        (assert (= :done (with-deadline2 10
+                           (ev/sleep 0.01)
+                           :done)) "deadline with interrupt exits normally"))
+
+(repeat 10
+        (let [f (coro (forever :foo))]
+          (ev/deadline 0.01 nil f true)
+          (assert-error "deadline expired" (resume f))))
 
 # Use :err :stdout
 (def- subproc-code '(do (eprint "hi") (eflush) (print "there") (flush)))
