@@ -604,6 +604,19 @@ void janet_ev_init_common(void) {
 #endif
 }
 
+#ifdef JANET_WINDOWS
+static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
+    UNREFERENCED_PARAMETER(ptr);
+    ExitThread(0);
+}
+#elif JANET_ANDROID
+static void janet_timeout_stop(int sig_num) {
+    if (sig_num == SIGUSR1) {
+        pthread_exit(0);
+    }
+}
+#endif
+
 static void handle_timeout_worker(JanetTimeout to) {
     if (!to.has_worker) return;
 #ifdef JANET_WINDOWS
@@ -670,19 +683,6 @@ void janet_addtimeout_nil(double sec) {
     to.has_worker = 0;
     add_timeout(to);
 }
-
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#elif JANET_ANDROID
-static void janet_timeout_stop(int sig_num) {
-    if (sig_num == SIGUSR1) {
-        pthread_exit(0);
-    }
-}
-#endif
 
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
     (void) msg;
