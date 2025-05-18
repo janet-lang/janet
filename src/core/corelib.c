@@ -653,22 +653,15 @@ JANET_CORE_FN(janet_core_check_int,
               "(int? x)",
               "Check if x can be exactly represented as a 32 bit signed two's complement integer.") {
     janet_fixarity(argc, 1);
-    if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
-    double num = janet_unwrap_number(argv[0]);
-    return janet_wrap_boolean(num == (double)((int32_t)num));
-ret_false:
-    return janet_wrap_false();
+    return janet_wrap_boolean(janet_checkint(argv[0]));
 }
 
 JANET_CORE_FN(janet_core_check_nat,
               "(nat? x)",
               "Check if x can be exactly represented as a non-negative 32 bit signed two's complement integer.") {
     janet_fixarity(argc, 1);
-    if (!janet_checktype(argv[0], JANET_NUMBER)) goto ret_false;
-    double num = janet_unwrap_number(argv[0]);
-    return janet_wrap_boolean(num >= 0 && (num == (double)((int32_t)num)));
-ret_false:
-    return janet_wrap_false();
+    if (!janet_checkint(argv[0])) return janet_wrap_false();
+    return janet_wrap_boolean(janet_unwrap_integer(argv[0]) >= 0);
 }
 
 JANET_CORE_FN(janet_core_is_bytes,

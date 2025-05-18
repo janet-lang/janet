@@ -671,11 +671,9 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     SleepEx((DWORD)(tto.sec * 1000), TRUE);
-    if (janet_fiber_can_resume(tto.fiber)) {
-        janet_interpreter_interrupt(tto.vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    }
+    janet_interpreter_interrupt(tto.vm);
+    JanetEVGenericMessage msg = {0};
+    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
     return 0;
 }
 #else
@@ -696,11 +694,9 @@ static void *janet_timeout_body(void *ptr) {
                  ? (long)((tto.sec - ((uint32_t)tto.sec)) * 1000000000)
                  : 0;
     nanosleep(&ts, &ts);
-    if (janet_fiber_can_resume(tto.fiber)) {
-        janet_interpreter_interrupt(tto.vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    }
+    janet_interpreter_interrupt(tto.vm);
+    JanetEVGenericMessage msg = {0};
+    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
     return NULL;
 }
 #endif
