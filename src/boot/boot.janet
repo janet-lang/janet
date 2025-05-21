@@ -158,7 +158,7 @@
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
   a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
-  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
+  replace `dyn` and `setdyn`. The alias *must* start and end with the `*` character, usually
   called "earmuffs".``
   [alias & more]
   (assert (symbol? alias) "alias must be a symbol")
@@ -3384,7 +3384,6 @@
           (= b (chr `\`)) (do
                             (++ token-length)
                             (buffer/push token (get line (++ i))))
-          (= b (chr "_")) (delim :underline)
           (= b (chr "*"))
           (if (= (chr "*") (get line (+ i 1)))
             (do (++ i)
