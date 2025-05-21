@@ -3248,12 +3248,10 @@
   # Terminal codes for emission/tokenization
   (def delimiters
     (if has-color
-      {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[97m" "\e[39m"]
+      {:code ["\e[97m" "\e[39m"]
        :italics ["\e[4m" "\e[24m"]
        :bold ["\e[1m" "\e[22m"]}
-      {:underline ["_" "_"]
-       :code ["`" "`"]
+      {:code ["`" "`"]
        :italics ["*" "*"]
        :bold ["**" "**"]}))
   (def modes @{})
