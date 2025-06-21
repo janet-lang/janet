@@ -657,7 +657,7 @@ JANET_CORE_FN(cfun_net_listen,
               "The type parameter specifies the type of network connection, either "
               "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
               ":stream. The host and port arguments are the same as in net/address. The last boolean parameter `no-reuse` will "
-              "disable the use of SO_REUSEADDR and SO_REUSEPORT when creating a server on some operating systems.") {
+              "disable the use of `SO_REUSEADDR` and `SO_REUSEPORT` when creating a server on some operating systems.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_LISTEN);
     janet_arity(argc, 2, 4);
 

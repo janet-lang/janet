@@ -158,7 +158,7 @@
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
   a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
-  replace `dyn` and `setdyn`. The alias _must_ start and end with the `*` character, usually
+  replace `dyn` and `setdyn`. The alias *must* start and end with the `*` character, usually
   called "earmuffs".``
   [alias & more]
   (assert (symbol? alias) "alias must be a symbol")
@@ -1933,7 +1933,7 @@
     that will match any value without creating a binding.
 
   While a symbol pattern will ordinarily match any value, the pattern `(@ <sym>)`,
-  where <sym> is any symbol, will attempt to match `x` against a value
+  where `<sym>` is any symbol, will attempt to match `x` against a value
   already bound to `<sym>`, rather than matching and rebinding it.
 
   Any other value pattern will only match if it is equal to `x`.
@@ -2574,7 +2574,7 @@
     * `:env` -- the environment to compile against - default is the current env
 
     * `:source` -- source path for better errors (use keywords for non-paths) - default
-      is :<anonymous>
+      is `:<anonymous>`
 
     * `:on-compile-error` -- callback when compilation fails - default is bad-compile
 
@@ -3248,12 +3248,10 @@
   # Terminal codes for emission/tokenization
   (def delimiters
     (if has-color
-      {:underline ["\e[4m" "\e[24m"]
-       :code ["\e[97m" "\e[39m"]
+      {:code ["\e[97m" "\e[39m"]
        :italics ["\e[4m" "\e[24m"]
        :bold ["\e[1m" "\e[22m"]}
-      {:underline ["_" "_"]
-       :code ["`" "`"]
+      {:code ["`" "`"]
        :italics ["*" "*"]
        :bold ["**" "**"]}))
   (def modes @{})
@@ -3384,7 +3382,6 @@
           (= b (chr `\`)) (do
                             (++ token-length)
                             (buffer/push token (get line (++ i))))
-          (= b (chr "_")) (delim :underline)
           (= b (chr "*"))
           (if (= (chr "*") (get line (+ i 1)))
             (do (++ i)
@@ -4483,8 +4480,10 @@
       (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
-    `Shorthand for adding scripts during an install. Scripts will be installed to
-    (string (dyn *syspath*) "/bin") by default and will be set to be executable.`
+    ``
+    Shorthand for adding scripts during an install. Scripts will be installed to
+    `(string (dyn *syspath*) "/bin")` by default and will be set to be executable.
+    ``
     [manifest src &opt dest chmod-mode]
     (def s (sep))
     (default dest (last (string/split s src)))

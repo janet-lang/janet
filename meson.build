@@ -105,6 +105,9 @@ endif
 if get_option('arch_name') != ''
   conf.set('JANET_ARCH_NAME', get_option('arch_name'))
 endif
+if get_option('thread_local_prefix') != ''
+  conf.set('JANET_THREAD_LOCAL', get_option('thread_local_prefix'))
+endif
 jconf = configure_file(output : 'janetconf.h',
   configuration : conf)
 

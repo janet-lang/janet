@@ -604,8 +604,43 @@ void janet_ev_init_common(void) {
 #endif
 }
 
+#ifdef JANET_WINDOWS
+static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
+    UNREFERENCED_PARAMETER(ptr);
+    ExitThread(0);
+}
+#elif JANET_ANDROID
+static void janet_timeout_stop(int sig_num) {
+    if (sig_num == SIGUSR1) {
+        pthread_exit(0);
+    }
+}
+#endif
+
+static void handle_timeout_worker(JanetTimeout to, int cancel) {
+    if (!to.has_worker) return;
+#ifdef JANET_WINDOWS
+    QueueUserAPC(janet_timeout_stop, to.worker, 0);
+    WaitForSingleObject(to.worker, INFINITE);
+    CloseHandle(to.worker);
+#else
+#ifdef JANET_ANDROID
+    if (cancel) janet_assert(!pthread_kill(to.worker, SIGUSR1), "pthread_kill");
+#else
+    if (cancel) janet_assert(!pthread_cancel(to.worker), "pthread_cancel");
+#endif
+    void *res = NULL;
+    janet_assert(!pthread_join(to.worker, &res), "pthread_join");
+#endif
+}
+
 /* Common deinit code */
 void janet_ev_deinit_common(void) {
+    JanetTimeout to;
+    while (peek_timeout(&to)) {
+        handle_timeout_worker(to, 1);
+        pop_timeout(0);
+    }
     janet_q_deinit(&janet_vm.spawn);
     janet_free(janet_vm.tq);
     janet_table_deinit(&janet_vm.threaded_abstracts);
@@ -648,19 +683,6 @@ void janet_addtimeout_nil(double sec) {
     add_timeout(to);
 }
 
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#elif JANET_ANDROID
-static void janet_timeout_stop(int sig_num) {
-    if (sig_num == SIGUSR1) {
-        pthread_exit(0);
-    }
-}
-#endif
-
 static void janet_timeout_cb(JanetEVGenericMessage msg) {
     (void) msg;
     janet_interpreter_interrupt_handled(&janet_vm);
@@ -671,11 +693,9 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
     SleepEx((DWORD)(tto.sec * 1000), TRUE);
-    if (janet_fiber_can_resume(tto.fiber)) {
-        janet_interpreter_interrupt(tto.vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    }
+    JanetEVGenericMessage msg = {0};
+    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+    janet_interpreter_interrupt(tto.vm);
     return 0;
 }
 #else
@@ -696,11 +716,9 @@ static void *janet_timeout_body(void *ptr) {
                  ? (long)((tto.sec - ((uint32_t)tto.sec)) * 1000000000)
                  : 0;
     nanosleep(&ts, &ts);
-    if (janet_fiber_can_resume(tto.fiber)) {
-        janet_interpreter_interrupt(tto.vm);
-        JanetEVGenericMessage msg = {0};
-        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    }
+    JanetEVGenericMessage msg = {0};
+    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+    janet_interpreter_interrupt(tto.vm);
     return NULL;
 }
 #endif
@@ -1452,12 +1470,13 @@ JanetFiber *janet_loop1(void) {
                 }
             }
         }
+        handle_timeout_worker(to, 0);
     }
 
     /* Run scheduled fibers unless interrupts need to be handled. */
     while (janet_vm.spawn.head != janet_vm.spawn.tail) {
         /* Don't run until all interrupts have been marked as handled by calling janet_interpreter_interrupt_handled */
-        if (janet_vm.auto_suspend) break;
+        if (janet_atomic_load_relaxed(&janet_vm.auto_suspend)) break;
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
         if (task.fiber->gc.flags & JANET_FIBER_EV_FLAG_SUSPENDED) janet_ev_dec_refcount();
@@ -1499,27 +1518,14 @@ JanetFiber *janet_loop1(void) {
         while ((has_timeout = peek_timeout(&to))) {
             if (to.curr_fiber != NULL) {
                 if (!janet_fiber_can_resume(to.curr_fiber)) {
-                    if (to.has_worker) {
-#ifdef JANET_WINDOWS
-                        QueueUserAPC(janet_timeout_stop, to.worker, 0);
-                        WaitForSingleObject(to.worker, INFINITE);
-                        CloseHandle(to.worker);
-#else
-#ifdef JANET_ANDROID
-                        pthread_kill(to.worker, SIGUSR1);
-#else
-                        pthread_cancel(to.worker);
-#endif
-                        void *res;
-                        pthread_join(to.worker, &res);
-#endif
-                    }
-                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
                     pop_timeout(0);
+                    janet_table_remove(&janet_vm.active_tasks, janet_wrap_fiber(to.curr_fiber));
+                    handle_timeout_worker(to, 1);
                     continue;
                 }
             } else if (to.fiber->sched_id != to.sched_id) {
                 pop_timeout(0);
+                handle_timeout_worker(to, 1);
                 continue;
             }
             break;
@@ -3015,7 +3021,8 @@ static JanetEVGenericMessage janet_go_thread_subr(JanetEVGenericMessage args) {
             uint32_t count1;
             memcpy(&count1, nextbytes, sizeof(count1));
             size_t count = (size_t) count1;
-            if (count > (endbytes - nextbytes) * sizeof(JanetCFunRegistry)) {
+            /* Use division to avoid overflowing size_t */
+            if (count > (endbytes - nextbytes - sizeof(count1)) / sizeof(JanetCFunRegistry)) {
                 janet_panic("thread message invalid");
             }
             janet_vm.registry_count = count;
@@ -3173,6 +3180,7 @@ JANET_NO_RETURN void janet_sleep_await(double sec) {
     to.is_error = 0;
     to.sched_id = to.fiber->sched_id;
     to.curr_fiber = NULL;
+    to.has_worker = 0;
     add_timeout(to);
     janet_await();
 }
@@ -3487,39 +3495,6 @@ JANET_CORE_FN(janet_cfun_ev_all_tasks,
     return janet_wrap_array(array);
 }
 
-JANET_CORE_FN(janet_cfun_to_stream,
-              "(ev/to-stream file)",
-              "Convert a core/file to a core/stream. On POSIX operating systems, this will mark "
-              "the underlying open file descriptor as non-blocking.") {
-    janet_fixarity(argc, 1);
-    int32_t flags = 0;
-    int32_t stream_flags = 0;
-    FILE *file = janet_getfile(argv, 0, &flags);
-    if (flags & JANET_FILE_READ) stream_flags |= JANET_STREAM_READABLE;
-    if (flags & JANET_FILE_WRITE) stream_flags |= JANET_STREAM_WRITABLE;
-    if (flags & JANET_FILE_NOT_CLOSEABLE) stream_flags |= JANET_STREAM_NOT_CLOSEABLE;
-    if (flags & JANET_FILE_CLOSED) janet_panic("file is closed");
-#ifdef JANET_WINDOWS
-    HANDLE handle = (HANDLE) _get_osfhandle(_fileno(file));
-    HANDLE prochandle = GetCurrentProcess();
-    HANDLE dupped_handle = INVALID_HANDLE_VALUE;
-    if (!DuplicateHandle(prochandle, handle, prochandle, &dupped_handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
-        janet_panic("cannot duplicate handle to file");
-    }
-    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
-#else
-    int handle = fileno(file);
-    int dupped_handle = 0;
-    int status = 0;
-    RETRY_EINTR(dupped_handle, dup(handle));
-    if (status == -1) janet_panic(janet_strerror(errno));
-    RETRY_EINTR(status, fcntl(dupped_handle, F_SETFL, O_NONBLOCK));
-    if (status == -1) janet_panic(janet_strerror(errno));
-    JanetStream *stream = janet_stream(dupped_handle, stream_flags, NULL);
-#endif
-    return janet_wrap_abstract(stream);
-}
-
 void janet_lib_ev(JanetTable *env) {
     JanetRegExt ev_cfuns_ext[] = {
         JANET_CORE_REG("ev/give", cfun_channel_push),
@@ -3551,7 +3526,6 @@ void janet_lib_ev(JanetTable *env) {
         JANET_CORE_REG("ev/release-rlock", janet_cfun_rwlock_read_release),
         JANET_CORE_REG("ev/release-wlock", janet_cfun_rwlock_write_release),
         JANET_CORE_REG("ev/to-file", janet_cfun_to_file),
-        JANET_CORE_REG("ev/to-stream", janet_cfun_to_stream),
         JANET_CORE_REG("ev/all-tasks", janet_cfun_ev_all_tasks),
         JANET_REG_END
     };

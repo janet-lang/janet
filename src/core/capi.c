@@ -589,6 +589,16 @@ JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 #endif
 }
 
+JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x) {
+#ifdef _MSC_VER
+    return _InterlockedOr(x, 0);
+#elif defined(JANET_USE_STDATOMIC)
+    return atomic_load_explicit(x, memory_order_relaxed);
+#else
+    return __atomic_load_n(x, __ATOMIC_RELAXED);
+#endif
+}
+
 /* Some definitions for function-like macros */
 
 JANET_API JanetStructHead *(janet_struct_head)(JanetStruct st) {

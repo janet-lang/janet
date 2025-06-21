@@ -106,6 +106,8 @@
       (calc-2 "(+ 9 10 11 12)"))
     @[10 26 42]) "parallel subprocesses 2")
 
+# (print "file piping")
+
 # File piping
 # a1cc5ca04
 (assert-no-error "file writing 1"
@@ -224,6 +226,8 @@
     (assert (= port (scan-number test-port)) "localname port server")
     (++ iterations)
     (ev/write stream " ")))
+
+# (print "local name / peer name testing")
 
 # Test localname and peername
 # 077bf5eba
@@ -407,6 +411,8 @@
         (while (def msg (ev/read connection 100))
           (broadcast name (string msg)))))))
 
+# (print "chat app testing")
+
 # Now launch the chat server
 (def chat-server (net/listen test-host test-port))
 (ev/spawn
@@ -500,6 +506,8 @@
                        (let [s (net/listen :unix uds-path :stream)]
                          (:close s))))))
 
+# (print "accept loop testing")
+
 # net/accept-loop level triggering
 (gccollect)
 (def maxconn 50)
@@ -521,6 +529,8 @@
 (ev/sleep 0.1)
 (assert (= maxconn connect-count))
 (:close s)
+
+# (print "running deadline tests...")
 
 # Cancel os/proc-wait with ev/deadline
 (let [p (os/spawn [;run janet "-e" "(os/sleep 4)"] :p)]
@@ -546,9 +556,35 @@
   (ev/sleep 0.15)
   (assert (not terminated-normally) "early termination failure 3"))
 
-(let [f (coro (forever :foo))]
-  (ev/deadline 0.01 nil f true)
-  (assert-error "deadline expired" (resume f)))
+# Deadline with interrupt
+(defmacro with-deadline2
+  ``
+  Create a fiber to execute `body`, schedule the event loop to cancel
+  the task (root fiber) associated with `body`'s fiber, and start
+  `body`'s fiber by resuming it.
+
+  The event loop will try to cancel the root fiber if `body`'s fiber
+  has not completed after at least `sec` seconds.
+
+  `sec` is a number that can have a fractional part.
+  ``
+  [sec & body]
+  (with-syms [f]
+    ~(let [,f (coro ,;body)]
+       (,ev/deadline ,sec nil ,f true)
+       (,resume ,f))))
+
+(for i 0 10
+  # (print "deadline 1 iteration " i)
+  (assert (= :done (with-deadline2 10
+                     (ev/sleep 0.01)
+                     :done)) "deadline with interrupt exits normally"))
+
+(for i 0 10
+  # (print "deadline 2 iteration " i)
+  (let [f (coro (forever :foo))]
+    (ev/deadline 0.01 nil f true)
+    (assert-error "deadline expired" (resume f))))
 
 # Use :err :stdout
 (def- subproc-code '(do (eprint "hi") (eflush) (print "there") (flush)))

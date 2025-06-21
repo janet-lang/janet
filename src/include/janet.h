@@ -170,14 +170,12 @@ extern "C" {
 /* Also enable the thread library only if not single-threaded */
 #ifdef JANET_SINGLE_THREADED
 #define JANET_THREAD_LOCAL
-#undef JANET_THREADS
-#elif defined(__GNUC__)
+#elif !(defined(JANET_THREAD_LOCAL)) && defined(__GNUC__)
 #define JANET_THREAD_LOCAL __thread
-#elif defined(_MSC_BUILD)
+#elif !(defined(JANET_THREAD_LOCAL)) && defined(_MSC_BUILD)
 #define JANET_THREAD_LOCAL __declspec(thread)
-#else
+#elif !(defined(JANET_THREAD_LOCAL))
 #define JANET_THREAD_LOCAL
-#undef JANET_THREADS
 #endif
 
 /* Enable or disable dynamic module loading. Enabled by default. */
@@ -669,6 +667,7 @@ typedef int32_t JanetAtomicInt;
 JANET_API JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x);
 JANET_API JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x);
 JANET_API JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x);
+JANET_API JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x);
 
 /* We provide three possible implementations of Janets. The preferred
  * nanboxing approach, for 32 or 64 bits, and the standard C version. Code in the rest of the
