@@ -290,22 +290,6 @@
   (array/concat accum body)
   (tuple/slice accum 0))
 
-(defmacro try
-  ``Try something and catch errors. `body` is any expression,
-  and `catch` should be a form, the first element of which is a tuple. This tuple
-  should contain a binding for errors and an optional binding for
-  the fiber wrapping the body. Returns the result of `body` if no error,
-  or the result of `catch` if an error.``
-  [body catch]
-  (let [[[err fib]] catch
-        f (gensym)
-        r (gensym)]
-    ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
-           ,r (,resume ,f)]
-       (if (,= (,fiber/status ,f) :error)
-         (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
-         ,r))))
-
 (defmacro protect
   `Evaluate expressions, while capturing any errors. Evaluates to a tuple
   of two elements. The first element is true if successful, false if an
@@ -351,6 +335,23 @@
                  (tuple 'do (tuple 'def $fi fi)
                         (tuple 'if $fi $fi ret))))))
   ret)
+
+(defmacro try
+  ``Try something and catch errors. `body` is any expression,
+  and `catch` should be a form, the first element of which is a tuple. This tuple
+  should contain a binding for errors and an optional binding for
+  the fiber wrapping the body. Returns the result of `body` if no error,
+  or the result of `catch` if an error.``
+  [body catch]
+  (assert (and (not (empty? catch)) (indexed? (catch 0))) "the first element of `catch` must be a tuple or array")
+  (let [[err fib] (catch 0)
+        r (or err (gensym))
+        f (or fib (gensym))]
+    ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
+           ,r (,resume ,f)]
+       (if (,= (,fiber/status ,f) :error)
+         (do ,;(tuple/slice catch 1))
+         ,r))))
 
 (defmacro with-syms
   "Evaluates `body` with each symbol in `syms` bound to a generated, unique symbol."
