@@ -47,24 +47,26 @@
 
 # Try (and fail) to install sample-bundle (missing deps)
 (assert-error "missing dependencies sample-dep1, sample-dep2"
-              (bundle/install "./examples/sample-bundle"))
+              (bundle/install "./examples/sample-bundle" :dependencies ["sample-dep1" "sample-dep2"]))
 (assert (empty? (bundle/list)))
 
 # Install deps (dep1 as :auto-remove)
 (assert-no-error "sample-dep2"
                  (bundle/install "./examples/sample-dep2"))
 (assert (= 1 (length (bundle/list))))
-(assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1"))
+(assert-no-error "sample-dep1" (bundle/install "./examples/sample-dep1" :dependencies ["sample-dep2"]))
 (assert (= 2 (length (bundle/list))))
 
 (assert-no-error "sample-dep2 reinstall" (bundle/reinstall "sample-dep2"))
-(assert-no-error "sample-dep1 reinstall" (bundle/reinstall "sample-dep1" :auto-remove true))
+(assert-no-error "sample-dep1 reinstall"
+                 (bundle/reinstall "sample-dep1" :auto-remove true :dependencies ["sample-dep2"]))
 
 (assert (= 2 (length (bundle/list))) "bundles are listed correctly 1")
 (assert (= 2 (length (bundle/topolist))) "bundles are listed correctly 2")
 
 # Now install sample-bundle
-(assert-no-error "sample-bundle install" (bundle/install "./examples/sample-bundle"))
+(assert-no-error "sample-bundle install"
+                 (bundle/install "./examples/sample-bundle" :dependencies ["sample-dep1" "sample-dep2"]))
 
 (assert-error "" (bundle/install "./examples/sample-dep11111"))
 
