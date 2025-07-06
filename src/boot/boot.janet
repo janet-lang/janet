@@ -4294,20 +4294,14 @@
     "Install a bundle from the local filesystem. The name of the bundle will be inferred from the bundle, or passed as a parameter :name in `config`."
     [path &keys config]
     (def path (bundle-rpath path))
-    (def clean (get config :clean))
-    (def check (get config :check))
     (def s (sep))
-    # Check meta file for dependencies and default name
-    (def infofile-pre-1 (string path s "bundle" s "info.jdn"))
-    (def infofile-pre (if (fexists infofile-pre-1) infofile-pre-1 (string path s "info.jdn"))) # allow for alias
-    (var default-bundle-name nil)
-    (when (os/stat infofile-pre :mode)
-      (def info (-> infofile-pre slurp parse))
-      (def deps (get info :dependencies @[]))
-      (set default-bundle-name (get info :name))
-      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
-      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
-    (def bundle-name (get config :name default-bundle-name))
+    # Detect bundle name
+    (def infofile-src1 (string path s "bundle" s "info.jdn"))
+    (def infofile-src2 (string path s "info.jdn"))
+    (def infofile-src (cond (fexists infofile-src1) infofile-src1
+                            (fexists infofile-src2) infofile-src2))
+    (def info (-?> infofile-src slurp parse))
+    (def bundle-name (get config :name (get info :name)))
     (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
     (assertf (not (string/check-set "\\/" bundle-name))
              "bundle name %v cannot contain path separators" bundle-name)
@@ -4317,28 +4311,32 @@
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
-    # Aliases for common bundle/ files
-    (def bundle.janet (string path s "bundle.janet"))
-    (when (fexists bundle.janet) (copyfile bundle.janet (bundle-file bundle-name "init.janet")))
-    (when (fexists infofile-pre) (copyfile infofile-pre (bundle-file bundle-name "info.jdn")))
+    # Copy infofile
+    (def infofile-dest (bundle-file bundle-name "info.jdn"))
+    (when infofile-src (copyfile infofile-src infofile-dest))
+    # Copy aliased initfile
+    (def initfile-alias (string path s "bundle.janet"))
+    (def initfile-dest (bundle-file bundle-name "init.janet"))
+    (when (fexists initfile-alias) (copyfile initfile-alias initfile-dest))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
     (def man @{:name bundle-name :local-source path :files @[]})
     (merge-into man config)
-    (def infofile (bundle-file bundle-name "info.jdn"))
-    (put man :auto-remove (get config :auto-remove))
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (when (os/stat infofile :mode)
-        (def info (-> infofile slurp parse))
-        (def deps (get info :dependencies @[]))
+      (when (os/stat infofile-dest :mode)
+        (def info (-> infofile-dest slurp parse))
+        (def deps (seq [d :in (get info :dependencies @[])]
+                   (string (if (dictionary? d) (get d :name) d))))
         (def missing (filter (complement bundle/installed?) deps))
         (when (next missing)
           (error (string "missing dependencies " (string/join missing ", "))))
         (put man :dependencies deps)
         (put man :info info))
+      (def clean (get config :clean))
+      (def check (get config :check))
       (def module (get-bundle-module bundle-name))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
