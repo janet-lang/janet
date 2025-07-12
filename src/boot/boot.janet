@@ -3185,8 +3185,13 @@
   value to bypass the module cache. Use `:only [foo bar baz]` to only import
   select bindings into the current environment.``
   [path & args]
+  (assertf (even? (length args)) "args should have even length: %n" args)
   (def ps (partition 2 args))
-  (def argm (mapcat (fn [[k v]] [k (case k :as (string v) :only ~(quote ,v) v)]) ps))
+  (def argm
+    (mapcat (fn [[k v]]
+              (assertf (keyword? k) "expected keyword, got %s: %n" (type k) k)
+              [k (case k :as (string v) :only ~(quote ,v) v)])
+            ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
