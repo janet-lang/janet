@@ -3535,8 +3535,6 @@ void janet_lib_ev(JanetTable *env) {
     janet_register_abstract_type(&janet_channel_type);
     janet_register_abstract_type(&janet_mutex_type);
     janet_register_abstract_type(&janet_rwlock_type);
-
-    janet_lib_filewatch(env);
 }
 
 #endif
