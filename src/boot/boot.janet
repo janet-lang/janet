@@ -3181,12 +3181,17 @@
   use the name of the module as a prefix. One can also use "`:export true`"
   to re-export the imported symbols. If "`:exit true`" is given as an argument,
   any errors encountered at the top level in the module will cause `(os/exit 1)`
-  to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
-  module cache. Use `:only [foo bar baz]` to only import select bindings into the
-  current environment.``
+  to be called. Dynamic bindings will NOT be imported. Use :fresh with a truthy
+  value to bypass the module cache. Use `:only [foo bar baz]` to only import
+  select bindings into the current environment.``
   [path & args]
+  (assertf (even? (length args)) "args should have even length: %n" args)
   (def ps (partition 2 args))
-  (def argm (mapcat (fn [[k v]] [k (case k :as (string v) :only ~(quote ,v) v)]) ps))
+  (def argm
+    (mapcat (fn [[k v]]
+              (assertf (keyword? k) "expected keyword, got %s: %n" (type k) k)
+              [k (case k :as (string v) :only ~(quote ,v) v)])
+            ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use

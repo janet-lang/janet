@@ -865,6 +865,13 @@
 (assert (deep= ~(,import* "a" :as "b" :fresh maybe)
                (macex '(import a :as b :fresh maybe))) "import macro 2")
 
+# 2af3f21d
+(assert-error "import macro 2" (macex '(import a :fresh)))
+(assert-error "import macro 3" (macex '(import a :as b :fresh)))
+(assert-error "import macro 4" (macex '(import b "notakeyword" value)))
+(assert (deep= ~(,import* "a" :fresh nil)
+               (macex '(import a :fresh nil))) "import macro 5")
+
 # #477 walk preserving bracket type
 # 0a1d902f4
 (assert (= :brackets (tuple/type (postwalk identity '[])))
