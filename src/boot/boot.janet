@@ -3919,8 +3919,14 @@
 
 (compwhen (dyn 'net/listen)
   (defn net/server
-    "Start a server asynchronously with `net/listen` and `net/accept-loop`. Returns the new server stream."
+    ``
+    Starts a server with `net/listen`. Runs `net/accept-loop` asynchronously if
+    `handler` is set and `type` is `:stream` (the default). It is invalid to set
+    `handler` if `type` is `:datagram`. Returns the new server stream.
+    ``
     [host port &opt handler type no-reuse]
+    (assert (not (and (= type :datagram) handler))
+            "handler not supported for :datagram servers")
     (def s (net/listen host port type no-reuse))
     (if handler
       (ev/go (fn [] (net/accept-loop s handler))))
