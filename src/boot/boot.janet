@@ -1440,6 +1440,28 @@
     ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
+(defn pairs
+  "Get the key-value pairs of an associative data structure."
+  [x]
+  (if (lengthable? x)
+    (do
+      (def arr (array/new-filled (length x)))
+      (var i 0)
+      (eachp p x
+        (put arr i p)
+        (++ i))
+      arr)
+    (seq [p :pairs x] p)))
+
+(defn from-pairs
+  ``Takes a sequence of pairs and creates a table from each pair. It is the inverse of
+  `pairs` on a table. Returns a new table.``
+  [ps]
+  (def ret @{})
+  (each [k v] ps
+    (put ret k v))
+  ret)
+
 (defn- walk-ind [f form]
   (def ret @[])
   (each x form (array/push ret (f x)))
@@ -1458,8 +1480,8 @@
   returns form.``
   [f form]
   (case (type form)
-    :table (walk-dict f form)
-    :struct (table/to-struct (walk-dict f form))
+    :table (from-pairs (filter identity (map f (pairs form))))
+    :struct (table/to-struct (from-pairs (filter identity (map f (pairs form)))))
     :array (walk-ind f form)
     :tuple (keep-syntax! form (walk-ind f form))
     form))
@@ -1717,19 +1739,6 @@
       arr)
     (seq [v :in x] v)))
 
-(defn pairs
-  "Get the key-value pairs of an associative data structure."
-  [x]
-  (if (lengthable? x)
-    (do
-      (def arr (array/new-filled (length x)))
-      (var i 0)
-      (eachp p x
-        (put arr i p)
-        (++ i))
-      arr)
-    (seq [p :pairs x] p)))
-
 (defn frequencies
   "Get the number of occurrences of each value in an indexed data structure."
   [ind]
@@ -1805,15 +1814,6 @@
   [dict]
   (def ret @[])
   (loop [k :keys dict] (array/push ret k (in dict k)))
-  ret)
-
-(defn from-pairs
-  ``Takes a sequence of pairs and creates a table from each pair. It is the inverse of
-  `pairs` on a table. Returns a new table.``
-  [ps]
-  (def ret @{})
-  (each [k v] ps
-    (put ret k v))
   ret)
 
 (defn interpose

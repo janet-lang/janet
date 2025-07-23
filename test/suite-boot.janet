@@ -879,6 +879,84 @@
 (assert (= :brackets (tuple/type (walk identity '[])))
         "walk square brackets 2")
 
+# #1616 `walk`, `pre-walk`, and `post-walk` functions in `boot.janet` are incorrect
+# d412944
+(assert (= (walk |(if (= :a (get $ 0)) [:a "swap"] $) {:a 1 :b 2})
+           {:a "swap" :b 2}) "walk addresses pairs - struct")
+(assert (deep= (walk |(if (= :a (get $ 0)) [:a "swap"] $) @{:a 1 :b 2})
+           @{:a "swap" :b 2}) "walk addresses pairs - table")
+
+(assert (= (prewalk |(if (= :d (get $ 0)) [:d "swap"] $) {:a 1 :b {:c 3 :d 4} :e {:f 5 :g 6 :d 7}})
+           {:a 1 :b {:c 3 :d "swap"} :e {:f 5 :g 6 :d "swap"}}) "prewalk addresses pairs - more complex - struct")
+(assert (deep= (prewalk |(if (= :d (get $ 0)) [:d "swap"] $) @{:a 1 :b {:c 3 :d 4} :e {:f 5 :g 6 :d 7}})
+           @{:a 1 :b {:c 3 :d "swap"} :e {:f 5 :g 6 :d "swap"}}) "prewalk addresses pairs - more complex - table")
+(assert (= (postwalk |(if (= :d (get $ 0)) [:d "swap"] $) {:a 1 :b {:c 3 :d 4} :e {:f 5 :g 6 :d 7}})
+           {:a 1 :b {:c 3 :d "swap"} :e {:f 5 :g 6 :d "swap"}}) "postwalk addresses pairs - more complex - struct")
+(assert (deep= (postwalk |(if (= :d (get $ 0)) [:d "swap"] $) @{:a 1 :b {:c 3 :d 4} :e {:f 5 :g 6 :d 7}})
+           @{:a 1 :b {:c 3 :d "swap"} :e {:f 5 :g 6 :d "swap"}}) "postwalk addresses pairs - more complex - table")
+
+(assert (= (prewalk (fn [x] (if (number? x) (inc x) x)) {:a 1 :b {:c 2 :d 3}})
+           {:a 2 :b {:c 3 :d 4}}) "prewalk on values - struct")
+(assert (= (postwalk (fn [x] (if (number? x) (inc x) x)) {:a 1 :b {:c 2 :d 3}})
+           {:a 2 :b {:c 3 :d 4}}) "postwalk on values - struct")
+(assert (deep= (prewalk (fn [x] (if (number? x) (inc x) x)) @{:a 1 :b @{:c 2 :d 3}})
+           @{:a 2 :b @{:c 3 :d 4}}) "prewalk on values - table")
+(assert (deep= (postwalk (fn [x] (if (number? x) (inc x) x)) @{:a 1 :b @{:c 2 :d 3}})
+           @{:a 2 :b @{:c 3 :d 4}}) "postwalk on values - table")
+
+(assert (= (postwalk
+             |(if (and (indexed? $) (= 2 (length $)) (= (first $) :accessed)) [:accessed "2025-07-05"] $)
+             {:type :directory
+              :files [{:type :directory :files [{:type :file :name "foo" :accessed "2024-03-03"}
+                                                {:type :file :name "bar" :accessed "2024-04-04"}]}
+                      {:type :file :name "baz" :accessed "2024-06-06"}]})
+           {:type :directory
+            :files [{:type :directory :files [{:type :file :name "foo" :accessed "2025-07-05"}
+                                              {:type :file :name "bar" :accessed "2025-07-05"}]}
+                    {:type :file :name "baz" :accessed "2025-07-05"}]}) "postwalk on directory structure - struct")
+(assert (= (prewalk
+             |(if (and (indexed? $) (= 2 (length $)) (= (first $) :accessed)) [:accessed "2025-07-05"] $)
+             {:type :directory
+              :files [{:type :directory :files [{:type :file :name "foo" :accessed "2024-03-03"}
+                                                {:type :file :name "bar" :accessed "2024-04-04"}]}
+                      {:type :file :name "baz" :accessed "2024-06-06"}]})
+           {:type :directory
+            :files [{:type :directory :files [{:type :file :name "foo" :accessed "2025-07-05"}
+                                              {:type :file :name "bar" :accessed "2025-07-05"}]}
+                    {:type :file :name "baz" :accessed "2025-07-05"}]}) "postwalk on directory structure - struct")
+(assert (= (postwalk
+             |(if (and (indexed? $) (= 2 (length $)) (= (first $) :accessed)) [:accessed "2025-07-05"] $)
+             {:type :directory
+              :files [{:type :directory :files [{:type :file :name "foo" :accessed "2024-03-03"}
+                                                {:type :file :name "bar" :accessed "2024-04-04"}]}
+                      {:type :file :name "baz" :accessed "2024-06-06"}]})
+           {:type :directory
+            :files [{:type :directory :files [{:type :file :name "foo" :accessed "2025-07-05"}
+                                              {:type :file :name "bar" :accessed "2025-07-05"}]}
+                    {:type :file :name "baz" :accessed "2025-07-05"}]}) "postwalk on directory structure - table")
+(assert (= (prewalk
+             |(if (and (indexed? $) (= 2 (length $)) (= (first $) :accessed)) [:accessed "2025-07-05"] $)
+             {:type :directory
+              :files [{:type :directory :files [{:type :file :name "foo" :accessed "2024-03-03"}
+                                                {:type :file :name "bar" :accessed "2024-04-04"}]}
+                      {:type :file :name "baz" :accessed "2024-06-06"}]})
+           {:type :directory
+            :files [{:type :directory :files [{:type :file :name "foo" :accessed "2025-07-05"}
+                                              {:type :file :name "bar" :accessed "2025-07-05"}]}
+                    {:type :file :name "baz" :accessed "2025-07-05"}]}) "postwalk on directory structure - table")
+
+(assert (= (as-> "abc" st (string st "123") (string "123" st))
+           "123abc123") "testing `as->`")
+
+(assert (= (as?-> "abc" st (string st "123") (string "123" st))
+           "123abc123") "testing `as?->`")
+
+(assert (= (as-> "abc" x (string "123" x) (string x "123") (do "return nil" nil) "ok")
+           "ok") "testing `as->` with intermediate `nil`")
+
+(assert (= (as?-> "abc" x (string "123" x) (string x "123") (do "return nil" nil) "ok")
+           nil) "testing `as?->` with intermediate `nil`")
+
 # Issue #751
 # 547fda6a4
 (def t {:side false})
