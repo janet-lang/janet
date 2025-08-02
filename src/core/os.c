@@ -2863,7 +2863,9 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/proc-kill", os_proc_kill),
         JANET_CORE_REG("os/proc-close", os_proc_close),
         JANET_CORE_REG("os/getpid", os_proc_getpid),
+#ifdef JANET_EV
         JANET_CORE_REG("os/sigaction", os_sigaction),
+#endif
 #endif
 
         /* high resolution timers */
