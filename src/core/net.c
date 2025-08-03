@@ -384,7 +384,11 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         janet_panicf("could not get address info: %s", gai_strerror(status));
     }
     *is_unix = 0;
+#ifdef JANET_WINDOWS
+    *sizeout = 0;
+#else
     *sizeout = sizeof(struct sockaddr_un);
+#endif
     return ai;
 }
 

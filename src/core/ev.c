@@ -620,6 +620,7 @@ static void janet_timeout_stop(int sig_num) {
 static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (!to.has_worker) return;
 #ifdef JANET_WINDOWS
+    (void) cancel;
     QueueUserAPC(janet_timeout_stop, to.worker, 0);
     WaitForSingleObject(to.worker, INFINITE);
     CloseHandle(to.worker);
