@@ -547,7 +547,9 @@ JANET_CORE_FN(cfun_net_connect,
     }
 
     /* Wrap socket in abstract type JanetStream */
-    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
+    uint32_t udp_flag = 0;
+    if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
+    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
 
     /* Set up the socket for non-blocking IO before connecting */
     janet_net_socknoblock(sock);
