@@ -587,6 +587,56 @@ JANET_CORE_FN(cfun_net_connect,
     net_sched_connect(stream);
 }
 
+JANET_CORE_FN(cfun_net_socket,
+              "(net/socket &opt type)",
+              "Creates a new unbound socket. Type is an optional keyword, "
+              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream.") {
+    janet_arity(argc, 0, 1);
+
+    int socktype = janet_get_sockettype(argv, argc, 0);
+
+    /* Create socket */
+    JSock sfd = JSOCKDEFAULT;
+    struct addrinfo *ai = NULL;
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = socktype;
+    hints.ai_flags = 0;
+    int status = getaddrinfo(NULL, "0", &hints, &ai);
+    if (status) {
+        janet_panicf("could not get address info: %s", gai_strerror(status));
+    }
+
+    struct addrinfo *rp = NULL;
+    for (rp = ai; rp != NULL; rp = rp->ai_next) {
+#ifdef JANET_WINDOWS
+        sfd = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+#else
+        sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+#endif
+        if (JSOCKVALID(sfd)) {
+            break;
+        }
+    }
+    freeaddrinfo(ai);
+
+    if (!JSOCKVALID(sfd)) {
+        Janet v = janet_ev_lasterr();
+        janet_panicf("could not create socket: %V", v);
+    }
+
+    /* Wrap socket in abstract type JanetStream */
+    uint32_t udp_flag = 0;
+    if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
+    JanetStream *stream = make_stream(sfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
+
+    /* Set up the socket for non-blocking IO */
+    janet_net_socknoblock(sfd);
+
+    return janet_wrap_abstract(stream);
+}
+
 static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
     /* Set various socket options */
     int enable = 1;
@@ -1085,6 +1135,7 @@ void janet_lib_net(JanetTable *env) {
     JanetRegExt net_cfuns[] = {
         JANET_CORE_REG("net/address", cfun_net_sockaddr),
         JANET_CORE_REG("net/listen", cfun_net_listen),
+        JANET_CORE_REG("net/socket", cfun_net_socket),
         JANET_CORE_REG("net/accept", cfun_stream_accept),
         JANET_CORE_REG("net/accept-loop", cfun_stream_accept_loop),
         JANET_CORE_REG("net/read", cfun_stream_read),
