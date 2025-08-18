@@ -950,8 +950,8 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
     }
     if (source == JANET_TIME_CPUTIME) {
         clock_t tmp = clock();
-        spec->tv_sec = tmp / CLOCKS_PER_SECOND;
-        spec->tv_nsec = ((tmp - (spec->tv_sec * CLOCKS_PER_SECOND)) * 1000000000) / CLOCKS_PER_SECOND;
+        spec->tv_sec = tmp / CLOCKS_PER_SEC;
+        spec->tv_nsec = ((tmp - (spec->tv_sec * CLOCKS_PER_SEC)) * 1000000000) / CLOCKS_PER_SEC;
     }
     return 0;
 }
