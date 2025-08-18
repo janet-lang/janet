@@ -77,6 +77,11 @@ extern "C" {
 #define JANET_CYGWIN 1
 #endif
 
+/* Check for Illumos */
+#if defined(__illumos__)
+#define JANET_ILLUMOS 1
+#endif
+
 /* Check Unix */
 #if defined(_AIX) \
     || defined(__APPLE__) /* Darwin */ \
@@ -162,7 +167,7 @@ extern "C" {
 #endif
 
 /* Check sun */
-#ifdef __sun
+#if defined(__sun) && !defined(JANET_ILLUMOS)
 #define JANET_NO_UTC_MKTIME
 #endif
 
