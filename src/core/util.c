@@ -943,15 +943,15 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
         clock_serv_t cclock;
         int nsecs;
         mach_msg_type_number_t count;
-        host_get_clock_service(mach_host_self(), clock, &cclock);
+        host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
         clock_get_attributes(cclock, CLOCK_GET_TIME_RES, (clock_attr_t)&nsecs, &count);
         mach_port_deallocate(mach_task_self(), cclock);
         clock_getres(CLOCK_MONOTONIC, spec);
     }
     if (source == JANET_TIME_CPUTIME) {
         clock_t tmp = clock();
-        spec->tv_sec = tmp;
-        spec->tv_nsec = (tmp - spec->tv_sec) * 1.0e9;
+        spec->tv_sec = tmp / CLOCKS_PER_SECOND;
+        spec->tv_nsec = ((tmp - (spec->tv_sec * CLOCKS_PER_SECOND)) * 1000000000) / CLOCKS_PER_SECOND;
     }
     return 0;
 }
