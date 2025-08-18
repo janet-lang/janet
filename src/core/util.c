@@ -931,27 +931,24 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
 #include <mach/clock.h>
 #include <mach/mach.h>
 int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
-    if (source == JANET_TIME_REALTIME) {
-        clock_serv_t cclock;
-        mach_timespec_t mts;
-        host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-        clock_get_time(cclock, &mts);
-        mach_port_deallocate(mach_task_self(), cclock);
-        spec->tv_sec = mts.tv_sec;
-        spec->tv_nsec = mts.tv_nsec;
-    } else if (source == JANET_TIME_MONOTONIC) {
-        clock_serv_t cclock;
-        int nsecs;
-        mach_msg_type_number_t count;
-        host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
-        clock_get_attributes(cclock, CLOCK_GET_TIME_RES, (clock_attr_t)&nsecs, &count);
-        mach_port_deallocate(mach_task_self(), cclock);
-        clock_getres(CLOCK_MONOTONIC, spec);
-    }
     if (source == JANET_TIME_CPUTIME) {
         clock_t tmp = clock();
         spec->tv_sec = tmp / CLOCKS_PER_SEC;
         spec->tv_nsec = ((tmp - (spec->tv_sec * CLOCKS_PER_SEC)) * 1000000000) / CLOCKS_PER_SEC;
+    } else {
+        clock_serv_t cclock;
+        mach_timespec_t mts;
+        clock_id_t cid = CALENDAR_CLOCK;
+        if (source == JANET_TIME_REALTIME) {
+            cid = CALENDAR_CLOCK;
+        } else if (source == JANET_TIME_MONOTONIC) {
+            cid = SYSTEM_CLOCK;
+        }
+        host_get_clock_service(mach_host_self(), cid, &cclock);
+        clock_get_time(cclock, &mts);
+        mach_port_deallocate(mach_task_self(), cclock);
+        spec->tv_sec = mts.tv_sec;
+        spec->tv_nsec = mts.tv_nsec;
     }
     return 0;
 }
