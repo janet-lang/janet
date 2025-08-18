@@ -54,7 +54,7 @@ HOSTAR?=$(AR)
 # Symbols are (optionally) removed later, keep -g as default!
 CFLAGS?=-O2 -g
 LDFLAGS?=-rdynamic
-LIBJANET_LDFLAGS?=$(LD_FLAGS)
+LIBJANET_LDFLAGS?=$(LDFLAGS)
 RUN:=$(RUN)
 
 
