@@ -1691,7 +1691,7 @@ void janet_stream_level_triggered(JanetStream *stream) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
@@ -1849,7 +1849,7 @@ JanetTimestamp to_interval(const JanetTimestamp ts) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
@@ -2003,7 +2003,7 @@ void janet_ev_deinit(void) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_REALTIME, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
