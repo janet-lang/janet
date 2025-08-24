@@ -1,7 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.39.0 - 2025-08-24
+- Various bug fixes
+- Add `net/socket`
+- Add support for illumos OS
 - Raise helpful errors for incorrect arguments to `import`.
 - Allow configuring `JANET_THREAD_LOCAL` during builds to allow multi-threading on unknown compilers.
 - Make `ffi/write` append to a buffer instead of insert at 0 by default.
