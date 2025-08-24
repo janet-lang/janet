@@ -173,6 +173,8 @@ JANET_CORE_FN(os_which,
     return janet_ckeywordv("dragonfly");
 #elif defined(JANET_BSD)
     return janet_ckeywordv("bsd");
+#elif defined(JANET_ILLUMOS)
+    return janet_ckeywordv("illumos");
 #else
     return janet_ckeywordv("posix");
 #endif
@@ -309,6 +311,13 @@ JANET_CORE_FN(os_cpu_count,
     int result = 0;
     size_t len = sizeof(int);
     if (-1 == sysctl(name, 2, &result, &len, NULL, 0)) {
+        return dflt;
+    }
+    return janet_wrap_integer(result);
+#elif defined(JANET_ILLUMOS)
+    (void) dflt;
+    long result = sysconf(_SC_NPROCESSORS_CONF);
+    if (result < 0) {
         return dflt;
     }
     return janet_wrap_integer(result);

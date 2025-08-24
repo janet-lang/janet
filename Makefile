@@ -47,6 +47,7 @@ SPORK_TAG?=master
 HAS_SHARED?=1
 DEBUGGER=gdb
 SONAME_SETTER=-Wl,-soname,
+STRIPFLAGS=-x -S
 
 # For cross compilation
 HOSTCC?=$(CC)
@@ -80,6 +81,12 @@ ifeq ($(UNAME), Darwin)
 	LDCONFIG:=true
 else ifeq ($(UNAME), Linux)
 	CLIBS:=$(CLIBS) -lrt -ldl
+else ifeq ($(UNAME), SunOS)
+	BUILD_CFLAGS+=-D__EXTENSIONS__ -DJANET_NO_NANBOX
+	BOOT_CFLAGS+=-D__EXTENSIONS__ -DJANET_NO_NANBOX
+	CLIBS:=-lsocket -lm
+	STRIPFLAGS=-x
+	LDCONFIG:=false
 endif
 
 # For other unix likes, add flags here!
@@ -289,7 +296,7 @@ build/janet-%.tar.gz: $(JANET_TARGET) \
 	README.md build/c/janet.c build/c/shell.c
 	mkdir -p build/$(JANET_DIST_DIR)/bin
 	cp $(JANET_TARGET) build/$(JANET_DIST_DIR)/bin/
-	strip -x -S 'build/$(JANET_DIST_DIR)/bin/janet'
+	strip $(STRIPFLAGS) 'build/$(JANET_DIST_DIR)/bin/janet'
 	mkdir -p build/$(JANET_DIST_DIR)/include
 	cp build/janet.h build/$(JANET_DIST_DIR)/include/
 	mkdir -p build/$(JANET_DIST_DIR)/lib/
@@ -336,7 +343,7 @@ build/janet.pc: $(JANET_TARGET)
 install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
-	strip -x -S '$(DESTDIR)$(BINDIR)/janet'
+	strip $(STRIPFLAGS) '$(DESTDIR)$(BINDIR)/janet'
 	mkdir -p '$(DESTDIR)$(INCLUDEDIR)/janet'
 	cp -r build/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet'
 	ln -sf ./janet/janet.h '$(DESTDIR)$(INCLUDEDIR)/janet.h'
