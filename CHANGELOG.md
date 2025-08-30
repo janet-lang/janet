@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.39.1 - 2025-08-30
+- Add support for chdir in os/spawn on older macOS versions
+- Expose channels properly in C API
+
 ## 1.39.0 - 2025-08-24
 - Various bug fixes
 - Add `net/socket`
