@@ -66,6 +66,7 @@
 #ifdef JANET_APPLE
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
+#include <AvailabilityMacros.h>
 #else
 extern char **environ;
 #endif
@@ -81,8 +82,14 @@ extern char **environ;
 #ifndef JANET_SPAWN_NO_CHDIR
 #ifdef __GLIBC__
 #define JANET_SPAWN_CHDIR
-#elif defined(JANET_APPLE) /* Some older versions may not work here. */
+#elif defined(JANET_APPLE)
+/* The posix_spawn_file_actions_addchdir_np function
+ * has only been implemented since macOS 10.15 */
+#if defined(MAC_OS_X_VERSION_10_15) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_15)
 #define JANET_SPAWN_CHDIR
+#else
+#define JANET_SPAWN_NO_CHDIR
+#endif
 #elif defined(__FreeBSD__) /* Not all BSDs work, for example openBSD doesn't seem to support this */
 #define JANET_SPAWN_CHDIR
 #endif
