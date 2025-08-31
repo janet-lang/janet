@@ -4638,7 +4638,7 @@
                --reinstall (-B) name   : Reinstall a bundle by bundle name
                --uninstall (-u) name   : Uninstall a bundle by bundle name
                --update-all (-U)       : Reinstall all installed bundles
-               --prune (-P)            : Uninstalled all bundles that are orphaned
+               --prune (-P)            : Uninstall all bundles that are orphaned
                --list (-L)             : List all installed bundles
                --                      : Stop handling options
              ```)

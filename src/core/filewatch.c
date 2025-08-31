@@ -633,7 +633,7 @@ JANET_CORE_FN(cfun_filewatch_add,
               "* `:modified`\n\n"
               "* `:renamed-old`\n\n"
               "* `:renamed-new`\n\n"
-              "On Linux, events will a `:type` corresponding to the possible flags, excluding `:all`.\n"
+              "On Linux, events will have a `:type` corresponding to the possible flags, excluding `:all`.\n"
               "") {
     janet_arity(argc, 2, -1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
