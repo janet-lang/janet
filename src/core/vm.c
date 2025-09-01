@@ -1677,12 +1677,6 @@ void janet_sandbox_assert(uint32_t forbidden_flags) {
 
 /* Clear all memory associated with the VM */
 void janet_deinit(void) {
-#ifdef JANET_NET
-    janet_net_deinit();
-#endif
-#ifdef JANET_EV
-    janet_ev_deinit();
-#endif
     janet_clear_memory();
     janet_symcache_deinit();
     janet_free(janet_vm.roots);
@@ -1698,4 +1692,10 @@ void janet_deinit(void) {
     janet_vm.root_fiber = NULL;
     janet_free(janet_vm.registry);
     janet_vm.registry = NULL;
+#ifdef JANET_NET
+    janet_net_deinit();
+#endif
+#ifdef JANET_EV
+    janet_ev_deinit();
+#endif
 }
