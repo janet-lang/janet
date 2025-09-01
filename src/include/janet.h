@@ -1616,6 +1616,9 @@ JANET_API JanetTable *janet_core_env(JanetTable *replacements);
 JANET_API JanetTable *janet_core_lookup_table(JanetTable *replacements);
 
 /* Execute strings */
+#define JANET_DO_ERROR_RUNTIME 0x01
+#define JANET_DO_ERROR_COMPILE 0x02
+#define JANET_DO_ERROR_PARSE 0x04
 JANET_API int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out);
 JANET_API int janet_dostring(JanetTable *env, const char *str, const char *sourcePath, Janet *out);
 

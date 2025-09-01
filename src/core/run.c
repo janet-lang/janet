@@ -26,7 +26,8 @@
 #include "state.h"
 #endif
 
-/* Run a string */
+/* Run a string of code. The return value is a set of error flags, JANET_DO_ERROR_RUNTIME, JANET_DO_ERROR_COMPILE, and JANET_DOR_ERROR_PARSE if
+ * any errors were encountered in those phases. More information is printed to stderr. */
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
     JanetParser *parser;
     int errflags = 0, done = 0;
@@ -55,7 +56,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 JanetSignal status = janet_continue(fiber, janet_wrap_nil(), &ret);
                 if (status != JANET_SIGNAL_OK && status != JANET_SIGNAL_EVENT) {
                     janet_stacktrace_ext(fiber, ret, "");
-                    errflags |= 0x01;
+                    errflags |= JANET_DO_ERROR_RUNTIME;
                     done = 1;
                 }
             } else {
@@ -75,7 +76,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     janet_eprintf("%s:%d:%d: compile error: %s\n", sourcePath,
                                   line, col, (const char *)cres.error);
                 }
-                errflags |= 0x02;
+                errflags |= JANET_DO_ERROR_COMPILE;
                 done = 1;
             }
         }
@@ -89,7 +90,7 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 break;
             case JANET_PARSE_ERROR: {
                 const char *e = janet_parser_error(parser);
-                errflags |= 0x04;
+                errflags |= JANET_DO_ERROR_PARSE;
                 ret = janet_cstringv(e);
                 int32_t line = (int32_t) parser->line;
                 int32_t col = (int32_t) parser->column;

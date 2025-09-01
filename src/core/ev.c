@@ -2175,7 +2175,7 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
     event.cb = cb;
     int fd = vm->selfpipe[1];
     /* handle a bit of back pressure before giving up. */
-    int tries = 4;
+    int tries = 20;
     while (tries > 0) {
         int status;
         do {
