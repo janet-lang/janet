@@ -1692,10 +1692,10 @@ void janet_deinit(void) {
     janet_vm.root_fiber = NULL;
     janet_free(janet_vm.registry);
     janet_vm.registry = NULL;
-#ifdef JANET_NET
-    janet_net_deinit();
-#endif
 #ifdef JANET_EV
     janet_ev_deinit();
+#endif
+#ifdef JANET_NET
+    janet_net_deinit();
 #endif
 }
