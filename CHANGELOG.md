@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `gcperthread` callback for abstract types. This lets threaded abstracts have a finalizer that is called per thread, as well as a global finalizer.
+- Add `JANET_DO_ERROR_*` flags to describe the return value of `janet_dobytes` and `janet_dostring`.
+
 ## 1.39.1 - 2025-08-30
 - Add support for chdir in os/spawn on older macOS versions
 - Expose channels properly in C API
