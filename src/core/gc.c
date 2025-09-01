@@ -346,6 +346,9 @@ static void janet_deinit_block(JanetGCObject *mem) {
             break;
         case JANET_MEMORY_ABSTRACT: {
             JanetAbstractHead *head = (JanetAbstractHead *)mem;
+            if (head->type->gcperthread) {
+                janet_assert(!head->type->gcperthread(head->data, head->size), "per-thread finalizer failed");
+            }
             if (head->type->gc) {
                 janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
             }
@@ -498,9 +501,8 @@ void janet_sweep() {
             if (!janet_truthy(items[i].value)) {
                 void *abst = janet_unwrap_abstract(items[i].key);
                 JanetAbstractHead *head = janet_abstract_head(abst);
-                /* Optional per-thread finalizer */
                 if (head->type->gcperthread) {
-                    janet_assert(!head->type->gcperthread(head->data, head->size), "finalizer failed");
+                    janet_assert(!head->type->gcperthread(head->data, head->size), "per-thread finalizer failed");
                 }
                 if (0 == janet_abstract_decref(abst)) {
                     /* Run finalizer */
@@ -676,8 +678,11 @@ void janet_clear_memory(void) {
     for (int32_t i = 0; i < janet_vm.threaded_abstracts.capacity; i++) {
         if (janet_checktype(items[i].key, JANET_ABSTRACT)) {
             void *abst = janet_unwrap_abstract(items[i].key);
+            JanetAbstractHead *head = janet_abstract_head(abst);
+            if (head->type->gcperthread) {
+                janet_assert(!head->type->gcperthread(head->data, head->size), "per-thread finalizer failed");
+            }
             if (0 == janet_abstract_decref(abst)) {
-                JanetAbstractHead *head = janet_abstract_head(abst);
                 if (head->type->gc) {
                     janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                 }

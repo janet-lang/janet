@@ -49,7 +49,7 @@
   (while true
     (def item (ev/take thread-channel))
     (when (= item :deadline)
-      (ev/deadline 0.1 nil (fiber/current) true))))
+      (ev/deadline 0.1))))
 (ev/thread worker nil :n super)
 (ev/give thread-channel :deadline)
 (ev/sleep 0.2)
