@@ -497,9 +497,13 @@ void janet_sweep() {
             /* If not visited... */
             if (!janet_truthy(items[i].value)) {
                 void *abst = janet_unwrap_abstract(items[i].key);
+                JanetAbstractHead *head = janet_abstract_head(abst);
+                /* Optional per-thread finalizer */
+                if (head->type->gcperthread) {
+                    janet_assert(!head->type->gcperthread(head->data, head->size), "finalizer failed");
+                }
                 if (0 == janet_abstract_decref(abst)) {
                     /* Run finalizer */
-                    JanetAbstractHead *head = janet_abstract_head(abst);
                     if (head->type->gc) {
                         janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
                     }

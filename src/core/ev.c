@@ -839,6 +839,34 @@ static int janet_chanat_gc(void *p, size_t s) {
     return 0;
 }
 
+static void janet_chanat_remove_vmref(JanetQueue *fq) {
+    JanetChannelPending *pending = fq->data;
+    if (fq->head <= fq->tail) {
+        for (int32_t i = fq->head; i < fq->tail; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+    } else {
+        for (int32_t i = fq->head; i < fq->capacity; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+        for (int32_t i = 0; i < fq->tail; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+    }
+}
+
+static int janet_chanat_gcperthread(void *p, size_t s) {
+    (void) s;
+    JanetChannel *chan = p;
+    janet_chan_lock(chan);
+    /* Make sure that the internals of the threaded channel no longer reference _this_ thread. Replace
+     * those references with NULL. */
+    janet_chanat_remove_vmref(&chan->read_pending);
+    janet_chanat_remove_vmref(&chan->write_pending);
+    janet_chan_unlock(chan);
+    return 0;
+}
+
 static void janet_chanat_mark_fq(JanetQueue *fq) {
     JanetChannelPending *pending = fq->data;
     if (fq->head <= fq->tail) {
@@ -921,8 +949,9 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
         int is_read = (mode == JANET_CP_MODE_CHOICE_READ) || (mode == JANET_CP_MODE_READ);
         if (is_read) {
             JanetChannelPending reader;
-            if (!janet_q_pop(&channel->read_pending, &reader, sizeof(reader))) {
+            while (!janet_q_pop(&channel->read_pending, &reader, sizeof(reader))) {
                 JanetVM *vm = reader.thread;
+                if (!vm) continue;
                 JanetEVGenericMessage msg;
                 msg.tag = reader.mode;
                 msg.fiber = reader.fiber;
@@ -930,11 +959,13 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
                 msg.argp = channel;
                 msg.argj = x;
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                break;
             }
         } else {
             JanetChannelPending writer;
-            if (!janet_q_pop(&channel->write_pending, &writer, sizeof(writer))) {
+            while (!janet_q_pop(&channel->write_pending, &writer, sizeof(writer))) {
                 JanetVM *vm = writer.thread;
+                if (!vm) continue;
                 JanetEVGenericMessage msg;
                 msg.tag = writer.mode;
                 msg.fiber = writer.fiber;
@@ -942,6 +973,7 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
                 msg.argp = channel;
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                break;
             }
         }
     }
@@ -1005,7 +1037,9 @@ static int janet_channel_push_with_lock(JanetChannel *channel, Janet x, int mode
             msg.argi = (int32_t) reader.sched_id;
             msg.argp = channel;
             msg.argj = x;
-            janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            if (vm) {
+                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            }
         } else {
             if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                 janet_schedule(reader.fiber, make_read_result(channel, x));
@@ -1060,7 +1094,9 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
             msg.argi = (int32_t) writer.sched_id;
             msg.argp = channel;
             msg.argj = janet_wrap_nil();
-            janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            if (vm) {
+                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            }
         } else {
             if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                 janet_schedule(writer.fiber, make_write_result(channel));
@@ -1324,7 +1360,9 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.tag = JANET_CP_MODE_CLOSE;
                 msg.argi = (int32_t) writer.sched_id;
                 msg.argj = janet_wrap_nil();
-                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                if (vm) {
+                    janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                }
             } else {
                 if (janet_fiber_can_resume(writer.fiber)) {
                     if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
@@ -1345,7 +1383,9 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.tag = JANET_CP_MODE_CLOSE;
                 msg.argi = (int32_t) reader.sched_id;
                 msg.argj = janet_wrap_nil();
-                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                if (vm) {
+                    janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                }
             } else {
                 if (janet_fiber_can_resume(reader.fiber)) {
                     if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
@@ -1438,7 +1478,10 @@ const JanetAbstractType janet_channel_type = {
     NULL, /* compare */
     NULL, /* hash */
     janet_chanat_next,
-    JANET_ATEND_NEXT
+    NULL, /* call */
+    NULL, /* length */
+    NULL, /* bytes */
+    janet_chanat_gcperthread
 };
 
 /* Main event loop */

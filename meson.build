@@ -281,6 +281,7 @@ test_files = [
   'test/suite-corelib.janet',
   'test/suite-debug.janet',
   'test/suite-ev.janet',
+  'test/suite-ev2.janet',
   'test/suite-ffi.janet',
   'test/suite-filewatch.janet',
   'test/suite-inttypes.janet',
