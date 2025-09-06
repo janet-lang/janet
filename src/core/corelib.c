@@ -66,7 +66,7 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     JanetBuildConfig modconf = getter();
     JanetBuildConfig host = janet_config_current();
     if (host.major != modconf.major ||
-            host.minor < modconf.minor ||
+            host.minor != modconf.minor ||
             host.bits != modconf.bits) {
         char errbuf[128];
         snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
