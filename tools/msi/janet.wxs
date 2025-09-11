@@ -37,6 +37,12 @@
 			 Version="$(var.Version)"
 			 Manufacturer="$(var.Manufacturer)"
 			 UpgradeCode="$(var.UpgradeCode)">
+       <!--
+         perUser means destination will be under user's %AppData% directory,
+         not Program Files or similar.
+
+         see: https://learn.microsoft.com/en-us/windows/win32/msi/installation-context
+       -->
         <Package Compressed="yes"
 				 InstallScope="perUser"
 				 Manufacturer="$(var.Manufacturer)"
