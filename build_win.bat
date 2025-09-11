@@ -49,6 +49,7 @@ for %%f in (src\boot\*.c) do (
 )
 %JANET_LINK% /out:build\janet_boot.exe build\boot\*.obj
 @if errorlevel 1 goto :BUILDFAIL
+@rem note that there is no default sysroot being baked in
 build\janet_boot . > build\c\janet.c
 @if errorlevel 1 goto :BUILDFAIL
 
