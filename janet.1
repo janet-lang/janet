@@ -214,7 +214,7 @@ Don't execute a script, only compile it to check for errors. Useful for linting 
 .BR \-m\ syspath
 Set the dynamic binding :syspath to the string syspath so that Janet will load system modules
 from a directory different than the default. The default is set when Janet is built, and defaults to
-/usr/local/lib/janet on Linux/Posix, and C:/Janet/Library on Windows. This option supersedes JANET_PATH.
+/usr/local/lib/janet on Linux/Posix. On Windows, there is no default value. This option supersedes JANET_PATH.
 
 .TP
 .BR \-c\ source\ output
@@ -255,8 +255,7 @@ and then arguments to the script.
 .RS
 The location to look for Janet libraries. This is the only environment variable Janet needs to
 find native and source code modules. If no JANET_PATH is set, Janet will look in
-the default location set at compile time. This should be a list of as well as a colon
-separate list of such directories.
+the default location set at compile time. This should be a colon-separated list of directory names on Linux/Posix, and a semicolon-separated list on Windows. Note that a typical setup (i.e. not NixOS / Guix) will only use a single directory.
 .RE
 
 .B JANET_PROFILE
