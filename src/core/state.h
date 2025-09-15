@@ -23,7 +23,9 @@
 #ifndef JANET_STATE_H_defined
 #define JANET_STATE_H_defined
 
+#ifndef JANET_AMALG
 #include <janet.h>
+#endif
 #include <stdint.h>
 
 #ifdef JANET_EV
