@@ -4341,9 +4341,6 @@
         (def info (-> infofile-dest slurp parse))
         (def deps (seq [d :in (get info :dependencies @[])]
                    (string (if (dictionary? d) (get d :name) d))))
-        (def missing (filter (complement bundle/installed?) deps))
-        (when (next missing)
-          (error (string "missing dependencies " (string/join missing ", "))))
         (put man :dependencies deps)
         (put man :info info))
       (def clean (get config :clean))
@@ -4352,6 +4349,9 @@
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
       (do-hook module bundle-name :dependencies man)
+      (def missing (filter (complement bundle/installed?) (get man :dependencies [])))
+      (when (next missing)
+        (error (string "missing dependencies " (string/join missing ", "))))
       (when clean
         (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
