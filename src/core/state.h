@@ -23,8 +23,11 @@
 #ifndef JANET_STATE_H_defined
 #define JANET_STATE_H_defined
 
+#ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include <stdint.h>
+#endif
 
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
