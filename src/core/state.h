@@ -26,6 +26,7 @@
 #ifndef JANET_AMALG
 #include <janet.h>
 #endif
+
 #include <stdint.h>
 
 #ifdef JANET_EV
