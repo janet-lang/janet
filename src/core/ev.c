@@ -3286,7 +3286,7 @@ JANET_CORE_FN(cfun_ev_deadline,
             janet_panic("failed to create cancel event");
         }
         tto->cancel_event = cancel_event;
-        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, 0, NULL);
+        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, CREATE_SUSPENDED, NULL);
         if (NULL == worker) {
             janet_free(tto);
             janet_panic("failed to create thread");
@@ -3303,6 +3303,7 @@ JANET_CORE_FN(cfun_ev_deadline,
         to.worker = worker;
 #ifdef JANET_WINDOWS
         to.worker_event = cancel_event;
+        ResumeThread(worker);
 #endif
     } else {
         to.has_worker = 0;
