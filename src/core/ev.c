@@ -83,7 +83,7 @@ struct JanetChannel {
     int closed;
     int is_threaded;
 #ifdef JANET_WINDOWS
-    CRITICAL_SECTION lock;
+    SRWLOCK lock;
 #else
     pthread_mutex_t lock;
 #endif

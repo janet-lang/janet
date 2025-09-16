@@ -88,7 +88,7 @@ void *janet_abstract_threaded(const JanetAbstractType *atype, size_t size) {
 #ifdef JANET_WINDOWS
 
 size_t janet_os_mutex_size(void) {
-    return sizeof(CRITICAL_SECTION);
+    return sizeof(SRWLOCK);
 }
 
 size_t janet_os_rwlock_size(void) {
@@ -96,20 +96,20 @@ size_t janet_os_rwlock_size(void) {
 }
 
 void janet_os_mutex_init(JanetOSMutex *mutex) {
-    InitializeCriticalSection((CRITICAL_SECTION *) mutex);
+    InitializeSRWLock((PSRWLOCK) mutex);
 }
 
 void janet_os_mutex_deinit(JanetOSMutex *mutex) {
-    DeleteCriticalSection((CRITICAL_SECTION *) mutex);
+    /* no op? */
+    (void) mutex;
 }
 
 void janet_os_mutex_lock(JanetOSMutex *mutex) {
-    EnterCriticalSection((CRITICAL_SECTION *) mutex);
+    AcquireSRWLockExclusive((PSRWLOCK) mutex);
 }
 
 void janet_os_mutex_unlock(JanetOSMutex *mutex) {
-    /* error handling? May want to keep counter */
-    LeaveCriticalSection((CRITICAL_SECTION *) mutex);
+    ReleaseSRWLockExclusive((PSRWLOCK) mutex);
 }
 
 void janet_os_rwlock_init(JanetOSRWLock *rwlock) {
