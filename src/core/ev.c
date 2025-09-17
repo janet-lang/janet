@@ -700,7 +700,14 @@ static void janet_timeout_cb(JanetEVGenericMessage msg) {
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
-    DWORD res = WaitForSingleObject(tto.cancel_event, (DWORD)(tto.sec * 1000));
+    JanetTimestamp wait_begin = ts_now();
+    DWORD duration = (DWORD)round(tto.sec * 1000);
+    DWORD res = WAIT_TIMEOUT;
+    JanetTimestamp wait_end = ts_now();
+    for (size_t i = 1; res == WAIT_TIMEOUT && (wait_end - wait_begin) < duration; i++) {
+        res = WaitForSingleObject(tto.cancel_event, (duration + i));
+        wait_end = ts_now();
+    }
     /* only send interrupt message if result is WAIT_TIMEOUT */
     if (res == WAIT_TIMEOUT) {
         janet_interpreter_interrupt(tto.vm);
