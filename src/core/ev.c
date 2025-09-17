@@ -607,12 +607,7 @@ void janet_ev_init_common(void) {
 #endif
 }
 
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#elif JANET_ANDROID
+#if JANET_ANDROID
 static void janet_timeout_stop(int sig_num) {
     if (sig_num == SIGUSR1) {
         pthread_exit(0);
