@@ -117,6 +117,9 @@ typedef struct {
     double sec;
     JanetVM *vm;
     JanetFiber *fiber;
+#ifdef JANET_WINDOWS
+    HANDLE cancel_event;
+#endif
 } JanetThreadedTimeout;
 
 #define JANET_MAX_Q_CAPACITY 0x7FFFFFF
@@ -604,12 +607,7 @@ void janet_ev_init_common(void) {
 #endif
 }
 
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#elif JANET_ANDROID
+#if JANET_ANDROID
 static void janet_timeout_stop(int sig_num) {
     if (sig_num == SIGUSR1) {
         pthread_exit(0);
@@ -620,10 +618,14 @@ static void janet_timeout_stop(int sig_num) {
 static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (!to.has_worker) return;
 #ifdef JANET_WINDOWS
-    (void) cancel;
-    QueueUserAPC(janet_timeout_stop, to.worker, 0);
+    if (cancel && to.worker_event) {
+        SetEvent(to.worker_event);
+    }
     WaitForSingleObject(to.worker, INFINITE);
     CloseHandle(to.worker);
+    if (to.worker_event) {
+        CloseHandle(to.worker_event);
+    }
 #else
 #ifdef JANET_ANDROID
     if (cancel) janet_assert(!pthread_kill(to.worker, SIGUSR1), "pthread_kill");
@@ -693,10 +695,20 @@ static void janet_timeout_cb(JanetEVGenericMessage msg) {
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
-    SleepEx((DWORD)(tto.sec * 1000), TRUE);
-    janet_interpreter_interrupt(tto.vm);
-    JanetEVGenericMessage msg = {0};
-    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+    JanetTimestamp wait_begin = ts_now();
+    DWORD duration = (DWORD)round(tto.sec * 1000);
+    DWORD res = WAIT_TIMEOUT;
+    JanetTimestamp wait_end = ts_now();
+    for (size_t i = 1; res == WAIT_TIMEOUT && (wait_end - wait_begin) < duration; i++) {
+        res = WaitForSingleObject(tto.cancel_event, (duration + i));
+        wait_end = ts_now();
+    }
+    /* only send interrupt message if result is WAIT_TIMEOUT */
+    if (res == WAIT_TIMEOUT) {
+        janet_interpreter_interrupt(tto.vm);
+        JanetEVGenericMessage msg = {0};
+        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+    }
     return 0;
 }
 #else
@@ -3270,7 +3282,13 @@ JANET_CORE_FN(cfun_ev_deadline,
         tto->vm = &janet_vm;
         tto->fiber = tocheck;
 #ifdef JANET_WINDOWS
-        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, 0, NULL);
+        HANDLE cancel_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (NULL == cancel_event) {
+            janet_free(tto);
+            janet_panic("failed to create cancel event");
+        }
+        tto->cancel_event = cancel_event;
+        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, CREATE_SUSPENDED, NULL);
         if (NULL == worker) {
             janet_free(tto);
             janet_panic("failed to create thread");
@@ -3285,6 +3303,10 @@ JANET_CORE_FN(cfun_ev_deadline,
 #endif
         to.has_worker = 1;
         to.worker = worker;
+#ifdef JANET_WINDOWS
+        to.worker_event = cancel_event;
+        ResumeThread(worker);
+#endif
     } else {
         to.has_worker = 0;
     }

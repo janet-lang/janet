@@ -68,6 +68,7 @@ typedef struct {
     int has_worker;
 #ifdef JANET_WINDOWS
     HANDLE worker;
+    HANDLE worker_event;
 #else
     pthread_t worker;
 #endif
