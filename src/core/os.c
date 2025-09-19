@@ -1541,6 +1541,27 @@ JANET_CORE_FN(os_posix_fork,
 #endif
 }
 
+JANET_CORE_FN(os_posix_chroot,
+              "(os/posix-chroot dirname)",
+              "Call `chroot` to change the root directory to `dirname`. "
+              "Not supported on all systems (POSIX only).") {
+    janet_sandbox_assert(JANET_SANDBOX_CHROOT);
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    janet_panic("not supported on Windows");
+#else
+    const char *root = janet_getcstring(argv, 0);
+    int result;
+    do {
+        result = chroot(root);
+    } while (result == -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panic(janet_strerror(errno));
+    }
+    return janet_wrap_nil();
+#endif
+}
+
 #ifdef JANET_EV
 /* Runs in a separate thread */
 static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
@@ -2849,6 +2870,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/touch", os_touch),
         JANET_CORE_REG("os/realpath", os_realpath),
         JANET_CORE_REG("os/cd", os_cd),
+        JANET_CORE_REG("os/posix-chroot", os_posix_chroot),
 #ifndef JANET_NO_UMASK
         JANET_CORE_REG("os/umask", os_umask),
 #endif
