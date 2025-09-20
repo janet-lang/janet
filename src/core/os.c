@@ -67,6 +67,7 @@
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
 #include <AvailabilityMacros.h>
+int chroot(const char *dirname);
 #else
 extern char **environ;
 #endif
