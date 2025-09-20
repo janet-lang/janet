@@ -7,7 +7,7 @@
 ###
 ###
 
-(def defn :macro
+(def defn :macro :flycheck
   ```
   (defn name & more)
 
@@ -43,7 +43,7 @@
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
-(defn defmacro :macro
+(defn defmacro :macro :flycheck
   "Define a macro."
   [name & more]
   (setdyn name @{}) # override old macro definitions in the case of a recursive macro
@@ -57,12 +57,12 @@
   [f & args]
   (f ;args))
 
-(defmacro defmacro-
+(defmacro defmacro- :flycheck
   "Define a private macro that will not be exported."
   [name & more]
   (apply defn name :macro :private more))
 
-(defmacro defn-
+(defmacro defn- :flycheck
   "Define a private function that will not be exported."
   [name & more]
   (apply defn name :private more))
@@ -144,7 +144,7 @@
 (defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
 (defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
-(defmacro assert
+(defmacro assert :flycheck # should top level assert flycheck?
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
   [x &opt err]
   (def v (gensym))
@@ -154,7 +154,7 @@
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
-(defmacro defdyn
+(defmacro defdyn :flycheck
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
   a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
@@ -170,6 +170,9 @@
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *flychecking*
+  "Check if the current form is being evaluated inside `flycheck`. Will be `true` while flychecking.")
 
 (defdyn *lint-error*
   "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
@@ -2354,7 +2357,7 @@
 
 (set macexvar macex)
 
-(defmacro varfn
+(defmacro varfn :flycheck
   ``Create a function that can be rebound. `varfn` has the same signature
   as `defn`, but defines functions in the environment as vars. If a var `name`
   already exists in the environment, it is rebound to the new function. Returns
@@ -3945,7 +3948,7 @@
   [& forms]
   (def state (gensym))
   (def loaded (gensym))
-  ~((fn []
+  ~((fn :delay []
       (var ,state nil)
       (var ,loaded nil)
       (fn []
@@ -3977,7 +3980,7 @@
               :lazy lazy
               :map-symbols map-symbols}))
 
-  (defmacro ffi/defbind-alias
+  (defmacro ffi/defbind-alias :flycheck
     "Generate bindings for native functions in a convenient manner.
      Similar to defbind but allows for the janet function name to be
      different than the FFI function."
@@ -3988,6 +3991,8 @@
     (def formal-args (map 0 arg-pairs))
     (def type-args (map 1 arg-pairs))
     (def computed-type-args (eval ~[,;type-args]))
+    (if (dyn *flychecking*)
+      (break ~(defn ,alias ,;meta [,;formal-args] nil)))
     (def {:native lib
           :lazy lazy
           :native-lazy llib
@@ -4003,7 +4008,7 @@
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
-  (defmacro ffi/defbind
+  (defmacro ffi/defbind :flycheck
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
     ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
@@ -4013,6 +4018,47 @@
 ### Flychecking
 ###
 ###
+
+(def- flycheck-specials @{})
+
+(defn- flycheck-evaluator
+  ``
+  An evaluator function that is passed to `run-context` that lints (flychecks) code for `flycheck`.
+  This means code will parsed and compiled, macros expanded, but the code will not be evaluated.
+  ``
+  [thunk source env where]
+  (when (and (tuple? source) (= (tuple/type source) :parens))
+    (def head (source 0))
+    (def entry (get env head {}))
+    (def fc (get flycheck-specials head (get entry :flycheck)))
+    (cond
+      # Sometimes safe form
+      (function? fc)
+      (fc thunk source env where)
+      # Always safe form
+      fc
+      (thunk))))
+
+(defn flycheck
+  ```
+  Check a file for errors without running the file. Found errors will be printed to stderr
+  in the usual format. Top level functions and macros that have the metadata `:flycheck` will
+  also be evaluated during flychecking. For full control, The `flycheck` metadata can also be a function
+  the takes 4 arguments - `thunk`, `source`, `env`, and `where`, the same as the `:evaluator` argumnet to `run-context`.
+  Other arguments to `flycheck` are the same as `dofile`. Returns nil.
+  ```
+  [path &keys kwargs]
+  (def mc @{})
+  (def new-env (make-env (get kwargs :env)))
+  (put new-env *flychecking* true)
+  (put new-env *module-cache* @{})
+  (put new-env *module-loading* @{})
+  (put new-env *module-make-env* (fn :make-flycheck-env [&] (make-env new-env)))
+  (try
+    (dofile path :evaluator flycheck-evaluator ;(kvs kwargs) :env new-env)
+    ([e f]
+      (debug/stacktrace f e "")))
+  nil)
 
 (defn- no-side-effects
   `Check if form may have side effects. If returns true, then the src
@@ -4029,59 +4075,29 @@
          (all no-side-effects (values src)))
     true))
 
-(defn- is-safe-def [x] (no-side-effects (last x)))
+(defn- is-safe-def [thunk source env where]
+  (if (no-side-effects (last source))
+    (thunk)))
 
-(def- safe-forms {'defn true 'varfn true 'defn- true 'defmacro true 'defmacro- true
-                  'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
-                  'defglobal is-safe-def 'varglobal is-safe-def 'defdyn true})
-
-(def- importers {'import true 'import* true 'dofile true 'require true})
-(defn- use-2 [evaluator args]
-  (each a args (import* (string a) :prefix "" :evaluator evaluator)))
-
-(defn- flycheck-evaluator
-  ``An evaluator function that is passed to `run-context` that lints (flychecks) code.
-  This means code will parsed and compiled, macros executed, but the code will not be run.
-  Used by `flycheck`.``
+(defn- flycheck-importer
   [thunk source env where]
-  (when (tuple? source)
-    (def head (source 0))
-    (def safe-check
-      (or
-        (safe-forms head)
-        (if (symbol? head)
-          (if (string/has-prefix? "define-" head) is-safe-def))))
-    (cond
-      # Sometimes safe form
-      (function? safe-check)
-      (if (safe-check source) (thunk))
-      # Always safe form
-      safe-check
-      (thunk)
-      # Use
-      (= 'use head)
-      (use-2 flycheck-evaluator (tuple/slice source 1))
-      # Import-like form
-      (importers head)
-      (let [[l c] (tuple/sourcemap source)
-            newtup (tuple/setmap (tuple ;source :evaluator flycheck-evaluator) l c)]
-        ((compile newtup env where))))))
+  (let [[l c] (tuple/sourcemap source)
+        newtup (tuple/setmap (tuple ;source :evaluator flycheck-evaluator) l c)]
+    ((compile newtup env where))))
 
-(defn flycheck
-  ``Check a file for errors without running the file. Found errors will be printed to stderr
-  in the usual format. Macros will still be executed, however, so
-  arbitrary execution is possible. Other arguments are the same as `dofile`. `path` can also be
-  a file value such as stdin. Returns nil.``
-  [path &keys kwargs]
-  (def old-modcache (table/clone module/cache))
-  (table/clear module/cache)
-  (try
-    (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
-    ([e f]
-      (debug/stacktrace f e "")))
-  (table/clear module/cache)
-  (merge-into module/cache old-modcache)
-  nil)
+(defn- flycheck-use
+  [thunk source env where]
+  (each a (drop 1 source) (import* (string a) :prefix "" :evaluator flycheck-evaluator)))
+
+# Add metadata to defs and import macros for flychecking
+(each sym ['def 'var]
+  (put flycheck-specials sym is-safe-def))
+(each sym ['def- 'var- 'defglobal 'varglobal]
+  (put (dyn sym) :flycheck is-safe-def))
+(each sym ['import 'import* 'dofile 'require]
+  (put (dyn sym) :flycheck flycheck-importer))
+(each sym ['use]
+  (put (dyn sym) :flycheck flycheck-use))
 
 ###
 ###
@@ -4310,7 +4326,7 @@
     (def infofile-src1 (string path s "bundle" s "info.jdn"))
     (def infofile-src2 (string path s "info.jdn"))
     (def infofile-src (cond (fexists infofile-src1) infofile-src1
-                            (fexists infofile-src2) infofile-src2))
+                        (fexists infofile-src2) infofile-src2))
     (def info (-?> infofile-src slurp parse))
     (def bundle-name (get config :name (get info :name)))
     (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
@@ -4340,7 +4356,7 @@
       (when (os/stat infofile-dest :mode)
         (def info (-> infofile-dest slurp parse))
         (def deps (seq [d :in (get info :dependencies @[])]
-                   (string (if (dictionary? d) (get d :name) d))))
+                    (string (if (dictionary? d) (get d :name) d))))
         (def missing (filter (complement bundle/installed?) deps))
         (when (next missing)
           (error (string "missing dependencies " (string/join missing ", "))))
