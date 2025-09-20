@@ -4044,7 +4044,7 @@
   Check a file for errors without running the file. Found errors will be printed to stderr
   in the usual format. Top level functions and macros that have the metadata `:flycheck` will
   also be evaluated during flychecking. For full control, The `flycheck` metadata can also be a function
-  the takes 4 arguments - `thunk`, `source`, `env`, and `where`, the same as the `:evaluator` argumnet to `run-context`.
+  the takes 4 arguments - `thunk`, `source`, `env`, and `where`, the same as the `:evaluator` argument to `run-context`.
   Other arguments to `flycheck` are the same as `dofile`. Returns nil.
   ```
   [path &keys kwargs]
