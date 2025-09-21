@@ -4023,8 +4023,10 @@
 
 (defn- flycheck-evaluator
   ``
-  An evaluator function that is passed to `run-context` that lints (flychecks) code for `flycheck`.
-  This means code will parsed and compiled, macros expanded, but the code will not be evaluated.
+  An evaluator function that is passed to `run-context` that lints
+  (flychecks) code for `flycheck`.  This means code will be parsed,
+  compiled, and have macros expanded, but the code will not be
+  evaluated.
   ``
   [thunk source env where]
   (when (and (tuple? source) (= (tuple/type source) :parens))
@@ -4041,10 +4043,12 @@
 
 (defn flycheck
   ```
-  Check a file for errors without running the file. Found errors will be printed to stderr
-  in the usual format. Top level functions and macros that have the metadata `:flycheck` will
-  also be evaluated during flychecking. For full control, The `flycheck` metadata can also be a function
-  the takes 4 arguments - `thunk`, `source`, `env`, and `where`, the same as the `:evaluator` argument to `run-context`.
+  Check a file for errors without running the file. Found errors
+  will be printed to stderr in the usual format. Top level functions
+  and macros that have the metadata `:flycheck` will also be evaluated
+  during flychecking. For full control, the `:flycheck` metadata can
+  also be a function that takes 4 arguments - `thunk`, `source`, `env`,
+  and `where`, the same as the `:evaluator` argument to `run-context`.
   Other arguments to `flycheck` are the same as `dofile`. Returns nil.
   ```
   [path &keys kwargs]
