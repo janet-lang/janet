@@ -117,6 +117,9 @@ typedef struct {
     double sec;
     JanetVM *vm;
     JanetFiber *fiber;
+#ifdef JANET_WINDOWS
+    HANDLE cancel_event;
+#endif
 } JanetThreadedTimeout;
 
 #define JANET_MAX_Q_CAPACITY 0x7FFFFFF
@@ -604,12 +607,7 @@ void janet_ev_init_common(void) {
 #endif
 }
 
-#ifdef JANET_WINDOWS
-static VOID CALLBACK janet_timeout_stop(ULONG_PTR ptr) {
-    UNREFERENCED_PARAMETER(ptr);
-    ExitThread(0);
-}
-#elif JANET_ANDROID
+#if JANET_ANDROID
 static void janet_timeout_stop(int sig_num) {
     if (sig_num == SIGUSR1) {
         pthread_exit(0);
@@ -620,9 +618,14 @@ static void janet_timeout_stop(int sig_num) {
 static void handle_timeout_worker(JanetTimeout to, int cancel) {
     if (!to.has_worker) return;
 #ifdef JANET_WINDOWS
-    QueueUserAPC(janet_timeout_stop, to.worker, 0);
+    if (cancel && to.worker_event) {
+        SetEvent(to.worker_event);
+    }
     WaitForSingleObject(to.worker, INFINITE);
     CloseHandle(to.worker);
+    if (to.worker_event) {
+        CloseHandle(to.worker_event);
+    }
 #else
 #ifdef JANET_ANDROID
     if (cancel) janet_assert(!pthread_kill(to.worker, SIGUSR1), "pthread_kill");
@@ -692,10 +695,20 @@ static void janet_timeout_cb(JanetEVGenericMessage msg) {
 static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     JanetThreadedTimeout tto = *(JanetThreadedTimeout *)ptr;
     janet_free(ptr);
-    SleepEx((DWORD)(tto.sec * 1000), TRUE);
-    JanetEVGenericMessage msg = {0};
-    janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    janet_interpreter_interrupt(tto.vm);
+    JanetTimestamp wait_begin = ts_now();
+    DWORD duration = (DWORD)round(tto.sec * 1000);
+    DWORD res = WAIT_TIMEOUT;
+    JanetTimestamp wait_end = ts_now();
+    for (size_t i = 1; res == WAIT_TIMEOUT && (wait_end - wait_begin) < duration; i++) {
+        res = WaitForSingleObject(tto.cancel_event, (duration + i));
+        wait_end = ts_now();
+    }
+    /* only send interrupt message if result is WAIT_TIMEOUT */
+    if (res == WAIT_TIMEOUT) {
+        janet_interpreter_interrupt(tto.vm);
+        JanetEVGenericMessage msg = {0};
+        janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
+    }
     return 0;
 }
 #else
@@ -716,9 +729,9 @@ static void *janet_timeout_body(void *ptr) {
                  ? (long)((tto.sec - ((uint32_t)tto.sec)) * 1000000000)
                  : 0;
     nanosleep(&ts, &ts);
+    janet_interpreter_interrupt(tto.vm);
     JanetEVGenericMessage msg = {0};
     janet_ev_post_event(tto.vm, janet_timeout_cb, msg);
-    janet_interpreter_interrupt(tto.vm);
     return NULL;
 }
 #endif
@@ -838,6 +851,34 @@ static int janet_chanat_gc(void *p, size_t s) {
     return 0;
 }
 
+static void janet_chanat_remove_vmref(JanetQueue *fq) {
+    JanetChannelPending *pending = fq->data;
+    if (fq->head <= fq->tail) {
+        for (int32_t i = fq->head; i < fq->tail; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+    } else {
+        for (int32_t i = fq->head; i < fq->capacity; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+        for (int32_t i = 0; i < fq->tail; i++) {
+            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+        }
+    }
+}
+
+static int janet_chanat_gcperthread(void *p, size_t s) {
+    (void) s;
+    JanetChannel *chan = p;
+    janet_chan_lock(chan);
+    /* Make sure that the internals of the threaded channel no longer reference _this_ thread. Replace
+     * those references with NULL. */
+    janet_chanat_remove_vmref(&chan->read_pending);
+    janet_chanat_remove_vmref(&chan->write_pending);
+    janet_chan_unlock(chan);
+    return 0;
+}
+
 static void janet_chanat_mark_fq(JanetQueue *fq) {
     JanetChannelPending *pending = fq->data;
     if (fq->head <= fq->tail) {
@@ -920,8 +961,9 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
         int is_read = (mode == JANET_CP_MODE_CHOICE_READ) || (mode == JANET_CP_MODE_READ);
         if (is_read) {
             JanetChannelPending reader;
-            if (!janet_q_pop(&channel->read_pending, &reader, sizeof(reader))) {
+            while (!janet_q_pop(&channel->read_pending, &reader, sizeof(reader))) {
                 JanetVM *vm = reader.thread;
+                if (!vm) continue;
                 JanetEVGenericMessage msg;
                 msg.tag = reader.mode;
                 msg.fiber = reader.fiber;
@@ -929,11 +971,13 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
                 msg.argp = channel;
                 msg.argj = x;
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                break;
             }
         } else {
             JanetChannelPending writer;
-            if (!janet_q_pop(&channel->write_pending, &writer, sizeof(writer))) {
+            while (!janet_q_pop(&channel->write_pending, &writer, sizeof(writer))) {
                 JanetVM *vm = writer.thread;
+                if (!vm) continue;
                 JanetEVGenericMessage msg;
                 msg.tag = writer.mode;
                 msg.fiber = writer.fiber;
@@ -941,6 +985,7 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
                 msg.argp = channel;
                 msg.argj = janet_wrap_nil();
                 janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                break;
             }
         }
     }
@@ -1004,7 +1049,9 @@ static int janet_channel_push_with_lock(JanetChannel *channel, Janet x, int mode
             msg.argi = (int32_t) reader.sched_id;
             msg.argp = channel;
             msg.argj = x;
-            janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            if (vm) {
+                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            }
         } else {
             if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                 janet_schedule(reader.fiber, make_read_result(channel, x));
@@ -1059,7 +1106,9 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
             msg.argi = (int32_t) writer.sched_id;
             msg.argp = channel;
             msg.argj = janet_wrap_nil();
-            janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            if (vm) {
+                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+            }
         } else {
             if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                 janet_schedule(writer.fiber, make_write_result(channel));
@@ -1323,7 +1372,9 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.tag = JANET_CP_MODE_CLOSE;
                 msg.argi = (int32_t) writer.sched_id;
                 msg.argj = janet_wrap_nil();
-                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                if (vm) {
+                    janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                }
             } else {
                 if (janet_fiber_can_resume(writer.fiber)) {
                     if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
@@ -1344,7 +1395,9 @@ JANET_CORE_FN(cfun_channel_close,
                 msg.tag = JANET_CP_MODE_CLOSE;
                 msg.argi = (int32_t) reader.sched_id;
                 msg.argj = janet_wrap_nil();
-                janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                if (vm) {
+                    janet_ev_post_event(vm, janet_thread_chan_cb, msg);
+                }
             } else {
                 if (janet_fiber_can_resume(reader.fiber)) {
                     if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
@@ -1437,7 +1490,10 @@ const JanetAbstractType janet_channel_type = {
     NULL, /* compare */
     NULL, /* hash */
     janet_chanat_next,
-    JANET_ATEND_NEXT
+    NULL, /* call */
+    NULL, /* length */
+    NULL, /* bytes */
+    janet_chanat_gcperthread
 };
 
 /* Main event loop */
@@ -1690,7 +1746,7 @@ void janet_stream_level_triggered(JanetStream *stream) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
@@ -1848,7 +1904,7 @@ JanetTimestamp to_interval(const JanetTimestamp ts) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_MONOTONIC, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
@@ -2002,7 +2058,7 @@ void janet_ev_deinit(void) {
 
 static JanetTimestamp ts_now(void) {
     struct timespec now;
-    janet_assert(-1 != clock_gettime(CLOCK_REALTIME, &now), "failed to get time");
+    janet_assert(-1 != janet_gettime(&now, JANET_TIME_MONOTONIC), "failed to get time");
     uint64_t res = 1000 * now.tv_sec;
     res += now.tv_nsec / 1000000;
     return res;
@@ -2174,7 +2230,7 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
     event.cb = cb;
     int fd = vm->selfpipe[1];
     /* handle a bit of back pressure before giving up. */
-    int tries = 4;
+    int tries = 20;
     while (tries > 0) {
         int status;
         do {
@@ -3226,7 +3282,13 @@ JANET_CORE_FN(cfun_ev_deadline,
         tto->vm = &janet_vm;
         tto->fiber = tocheck;
 #ifdef JANET_WINDOWS
-        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, 0, NULL);
+        HANDLE cancel_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+        if (NULL == cancel_event) {
+            janet_free(tto);
+            janet_panic("failed to create cancel event");
+        }
+        tto->cancel_event = cancel_event;
+        HANDLE worker = CreateThread(NULL, 0, janet_timeout_body, tto, CREATE_SUSPENDED, NULL);
         if (NULL == worker) {
             janet_free(tto);
             janet_panic("failed to create thread");
@@ -3241,6 +3303,10 @@ JANET_CORE_FN(cfun_ev_deadline,
 #endif
         to.has_worker = 1;
         to.worker = worker;
+#ifdef JANET_WINDOWS
+        to.worker_event = cancel_event;
+        ResumeThread(worker);
+#endif
     } else {
         to.has_worker = 0;
     }
@@ -3535,8 +3601,6 @@ void janet_lib_ev(JanetTable *env) {
     janet_register_abstract_type(&janet_channel_type);
     janet_register_abstract_type(&janet_mutex_type);
     janet_register_abstract_type(&janet_rwlock_type);
-
-    janet_lib_filewatch(env);
 }
 
 #endif

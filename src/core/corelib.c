@@ -66,7 +66,7 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
     JanetBuildConfig modconf = getter();
     JanetBuildConfig host = janet_config_current();
     if (host.major != modconf.major ||
-            host.minor < modconf.minor ||
+            host.minor != modconf.minor ||
             host.bits != modconf.bits) {
         char errbuf[128];
         snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
@@ -746,6 +746,7 @@ typedef struct SandboxOption {
 
 static const SandboxOption sandbox_options[] = {
     {"all", JANET_SANDBOX_ALL},
+    {"chroot", JANET_SANDBOX_CHROOT},
     {"env", JANET_SANDBOX_ENV},
     {"ffi", JANET_SANDBOX_FFI},
     {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
@@ -771,6 +772,7 @@ JANET_CORE_FN(janet_core_sandbox,
               "Disable feature sets to prevent the interpreter from using certain system resources. "
               "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
+              "* :chroot - disallow calling `os/posix-chroot`\n"
               "* :env - disallow reading and write env variables\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
               "* :ffi-define - disallow loading new FFI modules and binding new functions\n"

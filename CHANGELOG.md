@@ -2,6 +2,22 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `os/posix-chroot`
+- Fix `ev/deadline` with interrupt race condition bug on Windows.
+- Improve `flycheck` by allowing functions and macros to define their own flycheck behavior via the metadata `:flycheck`.
+- Add `*flychecking*` dynamic binding to check if inside flycheck evalutation
+- Add `gcperthread` callback for abstract types. This lets threaded abstracts have a finalizer that is called per thread, as well as a global finalizer.
+- Add `JANET_DO_ERROR_*` flags to describe the return value of `janet_dobytes` and `janet_dostring`.
+
+## 1.39.1 - 2025-08-30
+- Add support for chdir in os/spawn on older macOS versions
+- Expose channels properly in C API
+
+## 1.39.0 - 2025-08-24
+- Various bug fixes
+- Add `net/socket`
+- Add support for illumos OS
+- Raise helpful errors for incorrect arguments to `import`.
 - Allow configuring `JANET_THREAD_LOCAL` during builds to allow multi-threading on unknown compilers.
 - Make `ffi/write` append to a buffer instead of insert at 0 by default.
 - Add `os/getpid` to get the current process id.

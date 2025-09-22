@@ -341,7 +341,7 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
 /* Needs argc >= offset + 2 */
 /* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1,
  * otherwise 0. Also, ignores is_bind when is a unix socket. */
-static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix) {
+static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix, socklen_t *sizeout) {
     /* Unix socket support - not yet supported on windows. */
 #ifndef JANET_WINDOWS
     if (janet_keyeq(argv[offset], "unix")) {
@@ -352,15 +352,14 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         }
         saddr->sun_family = AF_UNIX;
         size_t path_size = sizeof(saddr->sun_path);
+        snprintf(saddr->sun_path, path_size, "%s", path);
+        *sizeout = sizeof(struct sockaddr_un);
 #ifdef JANET_LINUX
         if (path[0] == '@') {
             saddr->sun_path[0] = '\0';
-            snprintf(saddr->sun_path + 1, path_size - 1, "%s", path + 1);
-        } else
-#endif
-        {
-            snprintf(saddr->sun_path, path_size, "%s", path);
+            *sizeout = offsetof(struct sockaddr_un, sun_path) + janet_string_length(path);
         }
+#endif
         *is_unix = 1;
         return (struct addrinfo *) saddr;
     }
@@ -385,6 +384,11 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         janet_panicf("could not get address info: %s", gai_strerror(status));
     }
     *is_unix = 0;
+#ifdef JANET_WINDOWS
+    *sizeout = 0;
+#else
+    *sizeout = sizeof(struct sockaddr_un);
+#endif
     return ai;
 }
 
@@ -405,12 +409,13 @@ JANET_CORE_FN(cfun_net_sockaddr,
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
     int make_arr = (argc >= 3 && janet_truthy(argv[3]));
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+    socklen_t addrsize = 0;
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, &addrsize);
 #ifndef JANET_WINDOWS
     /* no unix domain socket support on windows yet */
     if (is_unix) {
-        void *abst = janet_abstract(&janet_address_type, sizeof(struct sockaddr_un));
-        memcpy(abst, ai, sizeof(struct sockaddr_un));
+        void *abst = janet_abstract(&janet_address_type, addrsize);
+        memcpy(abst, ai, addrsize);
         Janet ret = janet_wrap_abstract(abst);
         return make_arr ? janet_wrap_array(janet_array_n(&ret, 1)) : ret;
     }
@@ -461,7 +466,8 @@ JANET_CORE_FN(cfun_net_connect,
     }
 
     /* Where we're connecting to */
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix);
+    socklen_t addrlen = 0;
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 0, &is_unix, &addrlen);
 
     /* Check if we're binding address */
     struct addrinfo *binding = NULL;
@@ -486,7 +492,6 @@ JANET_CORE_FN(cfun_net_connect,
     /* Create socket */
     JSock sock = JSOCKDEFAULT;
     void *addr = NULL;
-    socklen_t addrlen = 0;
 #ifndef JANET_WINDOWS
     if (is_unix) {
         sock = socket(AF_UNIX, socktype | JSOCKFLAGS, 0);
@@ -496,7 +501,6 @@ JANET_CORE_FN(cfun_net_connect,
             janet_panicf("could not create socket: %V", v);
         }
         addr = (void *) ai;
-        addrlen = sizeof(struct sockaddr_un);
     } else
 #endif
     {
@@ -543,7 +547,9 @@ JANET_CORE_FN(cfun_net_connect,
     }
 
     /* Wrap socket in abstract type JanetStream */
-    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
+    uint32_t udp_flag = 0;
+    if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
+    JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
 
     /* Set up the socket for non-blocking IO before connecting */
     janet_net_socknoblock(sock);
@@ -579,6 +585,56 @@ JANET_CORE_FN(cfun_net_connect,
     }
 
     net_sched_connect(stream);
+}
+
+JANET_CORE_FN(cfun_net_socket,
+              "(net/socket &opt type)",
+              "Creates a new unbound socket. Type is an optional keyword, "
+              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream.") {
+    janet_arity(argc, 0, 1);
+
+    int socktype = janet_get_sockettype(argv, argc, 0);
+
+    /* Create socket */
+    JSock sfd = JSOCKDEFAULT;
+    struct addrinfo *ai = NULL;
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = socktype;
+    hints.ai_flags = 0;
+    int status = getaddrinfo(NULL, "0", &hints, &ai);
+    if (status) {
+        janet_panicf("could not get address info: %s", gai_strerror(status));
+    }
+
+    struct addrinfo *rp = NULL;
+    for (rp = ai; rp != NULL; rp = rp->ai_next) {
+#ifdef JANET_WINDOWS
+        sfd = WSASocketW(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+#else
+        sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
+#endif
+        if (JSOCKVALID(sfd)) {
+            break;
+        }
+    }
+    freeaddrinfo(ai);
+
+    if (!JSOCKVALID(sfd)) {
+        Janet v = janet_ev_lasterr();
+        janet_panicf("could not create socket: %V", v);
+    }
+
+    /* Wrap socket in abstract type JanetStream */
+    uint32_t udp_flag = 0;
+    if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
+    JanetStream *stream = make_stream(sfd, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
+
+    /* Set up the socket for non-blocking IO */
+    janet_net_socknoblock(sfd);
+
+    return janet_wrap_abstract(stream);
 }
 
 static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
@@ -664,7 +720,8 @@ JANET_CORE_FN(cfun_net_listen,
     /* Get host, port, and handler*/
     int socktype = janet_get_sockettype(argv, argc, 2);
     int is_unix = 0;
-    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix);
+    socklen_t addrlen = 0;
+    struct addrinfo *ai = janet_get_addrinfo(argv, 0, socktype, 1, &is_unix, &addrlen);
     int reuse = !(argc >= 4 && janet_truthy(argv[3]));
 
     JSock sfd = JSOCKDEFAULT;
@@ -676,7 +733,7 @@ JANET_CORE_FN(cfun_net_listen,
             janet_panicf("could not create socket: %V", janet_ev_lasterr());
         }
         const char *err = serverify_socket(sfd, reuse, 0);
-        if (NULL != err || bind(sfd, (struct sockaddr *)ai, sizeof(struct sockaddr_un))) {
+        if (NULL != err || bind(sfd, (struct sockaddr *)ai, addrlen)) {
             JSOCKCLOSE(sfd);
             janet_free(ai);
             if (err) {
@@ -1080,6 +1137,7 @@ void janet_lib_net(JanetTable *env) {
     JanetRegExt net_cfuns[] = {
         JANET_CORE_REG("net/address", cfun_net_sockaddr),
         JANET_CORE_REG("net/listen", cfun_net_listen),
+        JANET_CORE_REG("net/socket", cfun_net_socket),
         JANET_CORE_REG("net/accept", cfun_stream_accept),
         JANET_CORE_REG("net/accept-loop", cfun_stream_accept_loop),
         JANET_CORE_REG("net/read", cfun_stream_read),

@@ -66,6 +66,8 @@
 #ifdef JANET_APPLE
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
+#include <AvailabilityMacros.h>
+int chroot(const char *dirname);
 #else
 extern char **environ;
 #endif
@@ -81,8 +83,14 @@ extern char **environ;
 #ifndef JANET_SPAWN_NO_CHDIR
 #ifdef __GLIBC__
 #define JANET_SPAWN_CHDIR
-#elif defined(JANET_APPLE) /* Some older versions may not work here. */
+#elif defined(JANET_APPLE)
+/* The posix_spawn_file_actions_addchdir_np function
+ * has only been implemented since macOS 10.15 */
+#if defined(MAC_OS_X_VERSION_10_15) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_15)
 #define JANET_SPAWN_CHDIR
+#else
+#define JANET_SPAWN_NO_CHDIR
+#endif
 #elif defined(__FreeBSD__) /* Not all BSDs work, for example openBSD doesn't seem to support this */
 #define JANET_SPAWN_CHDIR
 #endif
@@ -173,6 +181,8 @@ JANET_CORE_FN(os_which,
     return janet_ckeywordv("dragonfly");
 #elif defined(JANET_BSD)
     return janet_ckeywordv("bsd");
+#elif defined(JANET_ILLUMOS)
+    return janet_ckeywordv("illumos");
 #else
     return janet_ckeywordv("posix");
 #endif
@@ -309,6 +319,13 @@ JANET_CORE_FN(os_cpu_count,
     int result = 0;
     size_t len = sizeof(int);
     if (-1 == sysctl(name, 2, &result, &len, NULL, 0)) {
+        return dflt;
+    }
+    return janet_wrap_integer(result);
+#elif defined(JANET_ILLUMOS)
+    (void) dflt;
+    long result = sysconf(_SC_NPROCESSORS_CONF);
+    if (result < 0) {
         return dflt;
     }
     return janet_wrap_integer(result);
@@ -1520,6 +1537,27 @@ JANET_CORE_FN(os_posix_fork,
         proc->pid = result;
         proc->flags = JANET_PROC_ALLOW_ZOMBIE;
         return janet_wrap_abstract(proc);
+    }
+    return janet_wrap_nil();
+#endif
+}
+
+JANET_CORE_FN(os_posix_chroot,
+              "(os/posix-chroot dirname)",
+              "Call `chroot` to change the root directory to `dirname`. "
+              "Not supported on all systems (POSIX only).") {
+    janet_sandbox_assert(JANET_SANDBOX_CHROOT);
+    janet_fixarity(argc, 1);
+#ifdef JANET_WINDOWS
+    janet_panic("not supported on Windows");
+#else
+    const char *root = janet_getcstring(argv, 0);
+    int result;
+    do {
+        result = chroot(root);
+    } while (result == -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panic(janet_strerror(errno));
     }
     return janet_wrap_nil();
 #endif
@@ -2833,6 +2871,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/touch", os_touch),
         JANET_CORE_REG("os/realpath", os_realpath),
         JANET_CORE_REG("os/cd", os_cd),
+        JANET_CORE_REG("os/posix-chroot", os_posix_chroot),
 #ifndef JANET_NO_UMASK
         JANET_CORE_REG("os/umask", os_umask),
 #endif
@@ -2863,6 +2902,9 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/proc-kill", os_proc_kill),
         JANET_CORE_REG("os/proc-close", os_proc_close),
         JANET_CORE_REG("os/getpid", os_proc_getpid),
+#ifdef JANET_EV
+        JANET_CORE_REG("os/sigaction", os_sigaction),
+#endif
 #endif
 
         /* high resolution timers */
@@ -2871,7 +2913,6 @@ void janet_lib_os(JanetTable *env) {
 #ifdef JANET_EV
         JANET_CORE_REG("os/open", os_open), /* fs read and write */
         JANET_CORE_REG("os/pipe", os_pipe),
-        JANET_CORE_REG("os/sigaction", os_sigaction),
 #endif
 #endif
         JANET_REG_END

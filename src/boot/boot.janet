@@ -7,7 +7,7 @@
 ###
 ###
 
-(def defn :macro
+(def defn :macro :flycheck
   ```
   (defn name & more)
 
@@ -43,7 +43,7 @@
     # Build return value
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
-(defn defmacro :macro
+(defn defmacro :macro :flycheck
   "Define a macro."
   [name & more]
   (setdyn name @{}) # override old macro definitions in the case of a recursive macro
@@ -57,12 +57,12 @@
   [f & args]
   (f ;args))
 
-(defmacro defmacro-
+(defmacro defmacro- :flycheck
   "Define a private macro that will not be exported."
   [name & more]
   (apply defn name :macro :private more))
 
-(defmacro defn-
+(defmacro defn- :flycheck
   "Define a private function that will not be exported."
   [name & more]
   (apply defn name :private more))
@@ -144,7 +144,7 @@
 (defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
 (defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
-(defmacro assert
+(defmacro assert :flycheck # should top level assert flycheck?
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
   [x &opt err]
   (def v (gensym))
@@ -154,7 +154,7 @@
        ,v
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
-(defmacro defdyn
+(defmacro defdyn :flycheck
   ``Define an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
   a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
@@ -170,6 +170,9 @@
 
 (defdyn *macro-form*
   "Inside a macro, is bound to the source form that invoked the macro")
+
+(defdyn *flychecking*
+  "Check if the current form is being evaluated inside `flycheck`. Will be `true` while flychecking.")
 
 (defdyn *lint-error*
   "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
@@ -290,22 +293,6 @@
   (array/concat accum body)
   (tuple/slice accum 0))
 
-(defmacro try
-  ``Try something and catch errors. `body` is any expression,
-  and `catch` should be a form, the first element of which is a tuple. This tuple
-  should contain a binding for errors and an optional binding for
-  the fiber wrapping the body. Returns the result of `body` if no error,
-  or the result of `catch` if an error.``
-  [body catch]
-  (let [[[err fib]] catch
-        f (gensym)
-        r (gensym)]
-    ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
-           ,r (,resume ,f)]
-       (if (,= (,fiber/status ,f) :error)
-         (do (def ,err ,r) ,(if fib ~(def ,fib ,f)) ,;(tuple/slice catch 1))
-         ,r))))
-
 (defmacro protect
   `Evaluate expressions, while capturing any errors. Evaluates to a tuple
   of two elements. The first element is true if successful, false if an
@@ -351,6 +338,23 @@
                  (tuple 'do (tuple 'def $fi fi)
                         (tuple 'if $fi $fi ret))))))
   ret)
+
+(defmacro try
+  ``Try something and catch errors. `body` is any expression,
+  and `catch` should be a form, the first element of which is a tuple. This tuple
+  should contain a binding for errors and an optional binding for
+  the fiber wrapping the body. Returns the result of `body` if no error,
+  or the result of `catch` if an error.``
+  [body catch]
+  (assert (and (not (empty? catch)) (indexed? (catch 0))) "the first element of `catch` must be a tuple or array")
+  (let [[err fib] (catch 0)
+        r (or err (gensym))
+        f (or fib (gensym))]
+    ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
+           ,r (,resume ,f)]
+       (if (,= (,fiber/status ,f) :error)
+         (do ,;(tuple/slice catch 1))
+         ,r))))
 
 (defmacro with-syms
   "Evaluates `body` with each symbol in `syms` bound to a generated, unique symbol."
@@ -2353,7 +2357,7 @@
 
 (set macexvar macex)
 
-(defmacro varfn
+(defmacro varfn :flycheck
   ``Create a function that can be rebound. `varfn` has the same signature
   as `defn`, but defines functions in the environment as vars. If a var `name`
   already exists in the environment, it is rebound to the new function. Returns
@@ -3180,12 +3184,17 @@
   use the name of the module as a prefix. One can also use "`:export true`"
   to re-export the imported symbols. If "`:exit true`" is given as an argument,
   any errors encountered at the top level in the module will cause `(os/exit 1)`
-  to be called. Dynamic bindings will NOT be imported. Use :fresh to bypass the
-  module cache. Use `:only [foo bar baz]` to only import select bindings into the
-  current environment.``
+  to be called. Dynamic bindings will NOT be imported. Use :fresh with a truthy
+  value to bypass the module cache. Use `:only [foo bar baz]` to only import
+  select bindings into the current environment.``
   [path & args]
+  (assertf (even? (length args)) "args should have even length: %n" args)
   (def ps (partition 2 args))
-  (def argm (mapcat (fn [[k v]] [k (case k :as (string v) :only ~(quote ,v) v)]) ps))
+  (def argm
+    (mapcat (fn [[k v]]
+              (assertf (keyword? k) "expected keyword, got %s: %n" (type k) k)
+              [k (case k :as (string v) :only ~(quote ,v) v)])
+            ps))
   (tuple import* (string path) ;argm))
 
 (defmacro use
@@ -3913,8 +3922,14 @@
 
 (compwhen (dyn 'net/listen)
   (defn net/server
-    "Start a server asynchronously with `net/listen` and `net/accept-loop`. Returns the new server stream."
+    ``
+    Starts a server with `net/listen`. Runs `net/accept-loop` asynchronously if
+    `handler` is set and `type` is `:stream` (the default). It is invalid to set
+    `handler` if `type` is `:datagram`. Returns the new server stream.
+    ``
     [host port &opt handler type no-reuse]
+    (assert (not (and (= type :datagram) handler))
+            "handler not supported for :datagram servers")
     (def s (net/listen host port type no-reuse))
     (if handler
       (ev/go (fn [] (net/accept-loop s handler))))
@@ -3933,7 +3948,7 @@
   [& forms]
   (def state (gensym))
   (def loaded (gensym))
-  ~((fn []
+  ~((fn :delay []
       (var ,state nil)
       (var ,loaded nil)
       (fn []
@@ -3965,7 +3980,7 @@
               :lazy lazy
               :map-symbols map-symbols}))
 
-  (defmacro ffi/defbind-alias
+  (defmacro ffi/defbind-alias :flycheck
     "Generate bindings for native functions in a convenient manner.
      Similar to defbind but allows for the janet function name to be
      different than the FFI function."
@@ -3976,6 +3991,8 @@
     (def formal-args (map 0 arg-pairs))
     (def type-args (map 1 arg-pairs))
     (def computed-type-args (eval ~[,;type-args]))
+    (if (dyn *flychecking*)
+      (break ~(defn ,alias ,;meta [,;formal-args] nil)))
     (def {:native lib
           :lazy lazy
           :native-lazy llib
@@ -3991,7 +4008,7 @@
       ~(defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
-  (defmacro ffi/defbind
+  (defmacro ffi/defbind :flycheck
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
     ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
@@ -4001,6 +4018,51 @@
 ### Flychecking
 ###
 ###
+
+(def- flycheck-specials @{})
+
+(defn- flycheck-evaluator
+  ``
+  An evaluator function that is passed to `run-context` that lints
+  (flychecks) code for `flycheck`.  This means code will be parsed,
+  compiled, and have macros expanded, but the code will not be
+  evaluated.
+  ``
+  [thunk source env where]
+  (when (and (tuple? source) (= (tuple/type source) :parens))
+    (def head (source 0))
+    (def entry (get env head {}))
+    (def fc (get flycheck-specials head (get entry :flycheck)))
+    (cond
+      # Sometimes safe form
+      (function? fc)
+      (fc thunk source env where)
+      # Always safe form
+      fc
+      (thunk))))
+
+(defn flycheck
+  ```
+  Check a file for errors without running the file. Found errors
+  will be printed to stderr in the usual format. Top level functions
+  and macros that have the metadata `:flycheck` will also be evaluated
+  during flychecking. For full control, the `:flycheck` metadata can
+  also be a function that takes 4 arguments - `thunk`, `source`, `env`,
+  and `where`, the same as the `:evaluator` argument to `run-context`.
+  Other arguments to `flycheck` are the same as `dofile`. Returns nil.
+  ```
+  [path &keys kwargs]
+  (def mc @{})
+  (def new-env (make-env (get kwargs :env)))
+  (put new-env *flychecking* true)
+  (put new-env *module-cache* @{})
+  (put new-env *module-loading* @{})
+  (put new-env *module-make-env* (fn :make-flycheck-env [&] (make-env new-env)))
+  (try
+    (dofile path :evaluator flycheck-evaluator ;(kvs kwargs) :env new-env)
+    ([e f]
+      (debug/stacktrace f e "")))
+  nil)
 
 (defn- no-side-effects
   `Check if form may have side effects. If returns true, then the src
@@ -4017,59 +4079,29 @@
          (all no-side-effects (values src)))
     true))
 
-(defn- is-safe-def [x] (no-side-effects (last x)))
+(defn- is-safe-def [thunk source env where]
+  (if (no-side-effects (last source))
+    (thunk)))
 
-(def- safe-forms {'defn true 'varfn true 'defn- true 'defmacro true 'defmacro- true
-                  'def is-safe-def 'var is-safe-def 'def- is-safe-def 'var- is-safe-def
-                  'defglobal is-safe-def 'varglobal is-safe-def 'defdyn true})
-
-(def- importers {'import true 'import* true 'dofile true 'require true})
-(defn- use-2 [evaluator args]
-  (each a args (import* (string a) :prefix "" :evaluator evaluator)))
-
-(defn- flycheck-evaluator
-  ``An evaluator function that is passed to `run-context` that lints (flychecks) code.
-  This means code will parsed and compiled, macros executed, but the code will not be run.
-  Used by `flycheck`.``
+(defn- flycheck-importer
   [thunk source env where]
-  (when (tuple? source)
-    (def head (source 0))
-    (def safe-check
-      (or
-        (safe-forms head)
-        (if (symbol? head)
-          (if (string/has-prefix? "define-" head) is-safe-def))))
-    (cond
-      # Sometimes safe form
-      (function? safe-check)
-      (if (safe-check source) (thunk))
-      # Always safe form
-      safe-check
-      (thunk)
-      # Use
-      (= 'use head)
-      (use-2 flycheck-evaluator (tuple/slice source 1))
-      # Import-like form
-      (importers head)
-      (let [[l c] (tuple/sourcemap source)
-            newtup (tuple/setmap (tuple ;source :evaluator flycheck-evaluator) l c)]
-        ((compile newtup env where))))))
+  (let [[l c] (tuple/sourcemap source)
+        newtup (tuple/setmap (tuple ;source :evaluator flycheck-evaluator) l c)]
+    ((compile newtup env where))))
 
-(defn flycheck
-  ``Check a file for errors without running the file. Found errors will be printed to stderr
-  in the usual format. Macros will still be executed, however, so
-  arbitrary execution is possible. Other arguments are the same as `dofile`. `path` can also be
-  a file value such as stdin. Returns nil.``
-  [path &keys kwargs]
-  (def old-modcache (table/clone module/cache))
-  (table/clear module/cache)
-  (try
-    (dofile path :evaluator flycheck-evaluator ;(kvs kwargs))
-    ([e f]
-      (debug/stacktrace f e "")))
-  (table/clear module/cache)
-  (merge-into module/cache old-modcache)
-  nil)
+(defn- flycheck-use
+  [thunk source env where]
+  (each a (drop 1 source) (import* (string a) :prefix "" :evaluator flycheck-evaluator)))
+
+# Add metadata to defs and import macros for flychecking
+(each sym ['def 'var]
+  (put flycheck-specials sym is-safe-def))
+(each sym ['def- 'var- 'defglobal 'varglobal]
+  (put (dyn sym) :flycheck is-safe-def))
+(each sym ['import 'import* 'dofile 'require]
+  (put (dyn sym) :flycheck flycheck-importer))
+(each sym ['use]
+  (put (dyn sym) :flycheck flycheck-use))
 
 ###
 ###
@@ -4293,20 +4325,14 @@
     "Install a bundle from the local filesystem. The name of the bundle will be inferred from the bundle, or passed as a parameter :name in `config`."
     [path &keys config]
     (def path (bundle-rpath path))
-    (def clean (get config :clean))
-    (def check (get config :check))
     (def s (sep))
-    # Check meta file for dependencies and default name
-    (def infofile-pre-1 (string path s "bundle" s "info.jdn"))
-    (def infofile-pre (if (fexists infofile-pre-1) infofile-pre-1 (string path s "info.jdn"))) # allow for alias
-    (var default-bundle-name nil)
-    (when (os/stat infofile-pre :mode)
-      (def info (-> infofile-pre slurp parse))
-      (def deps (get info :dependencies @[]))
-      (set default-bundle-name (get info :name))
-      (def missing (seq [d :in deps :when (not (bundle/installed? d))] (string d)))
-      (when (next missing) (errorf "missing dependencies %s" (string/join missing ", "))))
-    (def bundle-name (get config :name default-bundle-name))
+    # Detect bundle name
+    (def infofile-src1 (string path s "bundle" s "info.jdn"))
+    (def infofile-src2 (string path s "info.jdn"))
+    (def infofile-src (cond (fexists infofile-src1) infofile-src1
+                        (fexists infofile-src2) infofile-src2))
+    (def info (-?> infofile-src slurp parse))
+    (def bundle-name (get config :name (get info :name)))
     (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
     (assertf (not (string/check-set "\\/" bundle-name))
              "bundle name %v cannot contain path separators" bundle-name)
@@ -4316,28 +4342,32 @@
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
-    # Aliases for common bundle/ files
-    (def bundle.janet (string path s "bundle.janet"))
-    (when (fexists bundle.janet) (copyfile bundle.janet (bundle-file bundle-name "init.janet")))
-    (when (fexists infofile-pre) (copyfile infofile-pre (bundle-file bundle-name "info.jdn")))
+    # Copy infofile
+    (def infofile-dest (bundle-file bundle-name "info.jdn"))
+    (when infofile-src (copyfile infofile-src infofile-dest))
+    # Copy aliased initfile
+    (def initfile-alias (string path s "bundle.janet"))
+    (def initfile-dest (bundle-file bundle-name "init.janet"))
+    (when (fexists initfile-alias) (copyfile initfile-alias initfile-dest))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
     (def man @{:name bundle-name :local-source path :files @[]})
     (merge-into man config)
-    (def infofile (bundle-file bundle-name "info.jdn"))
-    (put man :auto-remove (get config :auto-remove))
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (when (os/stat infofile :mode)
-        (def info (-> infofile slurp parse))
-        (def deps (get info :dependencies @[]))
+      (when (os/stat infofile-dest :mode)
+        (def info (-> infofile-dest slurp parse))
+        (def deps (seq [d :in (get info :dependencies @[])]
+                    (string (if (dictionary? d) (get d :name) d))))
         (def missing (filter (complement bundle/installed?) deps))
         (when (next missing)
           (error (string "missing dependencies " (string/join missing ", "))))
         (put man :dependencies deps)
         (put man :info info))
+      (def clean (get config :clean))
+      (def check (get config :check))
       (def module (get-bundle-module bundle-name))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
@@ -4628,7 +4658,7 @@
                --reinstall (-B) name   : Reinstall a bundle by bundle name
                --uninstall (-u) name   : Uninstall a bundle by bundle name
                --update-all (-U)       : Reinstall all installed bundles
-               --prune (-P)            : Uninstalled all bundles that are orphaned
+               --prune (-P)            : Uninstall all bundles that are orphaned
                --list (-L)             : List all installed bundles
                --                      : Stop handling options
              ```)

@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.38.0')
+  version : '1.40.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -285,6 +285,7 @@ test_files = [
   'test/suite-corelib.janet',
   'test/suite-debug.janet',
   'test/suite-ev.janet',
+  'test/suite-ev2.janet',
   'test/suite-ffi.janet',
   'test/suite-filewatch.janet',
   'test/suite-inttypes.janet',

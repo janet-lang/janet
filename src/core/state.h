@@ -23,8 +23,11 @@
 #ifndef JANET_STATE_H_defined
 #define JANET_STATE_H_defined
 
+#ifndef JANET_AMALG
+#include "features.h"
 #include <janet.h>
 #include <stdint.h>
+#endif
 
 #ifdef JANET_EV
 #ifdef JANET_WINDOWS
@@ -65,6 +68,7 @@ typedef struct {
     int has_worker;
 #ifdef JANET_WINDOWS
     HANDLE worker;
+    HANDLE worker_event;
 #else
     pthread_t worker;
 #endif

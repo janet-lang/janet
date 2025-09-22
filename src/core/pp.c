@@ -1060,19 +1060,11 @@ void janet_buffer_format(
                     break;
                 }
                 case 's': {
-                    JanetByteView bytes = janet_getbytes(argv, arg);
-                    const uint8_t *s = bytes.bytes;
-                    int32_t l = bytes.len;
+                    const char *s = janet_getcbytes(argv, arg);
                     if (form[2] == '\0')
-                        janet_buffer_push_bytes(b, s, l);
+                        janet_buffer_push_cstring(b, s);
                     else {
-                        if (l != (int32_t) strnlen((const char *) s, l))
-                            janet_panic("string contains zeros");
-                        if (!strchr(form, '.') && l >= 100) {
-                            janet_panic("no precision and string is too long to be formatted");
-                        } else {
-                            nb = snprintf(item, MAX_ITEM, form, s);
-                        }
+                        nb = snprintf(item, MAX_ITEM, form, s);
                     }
                     break;
                 }

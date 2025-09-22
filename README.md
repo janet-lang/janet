@@ -213,6 +213,10 @@ gmake install-jpm-git
 NetBSD build instructions are the same as the FreeBSD build instructions.
 Alternatively, install the package directly with `pkgin install janet`.
 
+### illumos
+
+Building on illumos is exactly the same as building on FreeBSD.
+
 ### Windows
 
 1. Install [Visual Studio](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=15#) or [Visual Studio Build Tools](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15#).

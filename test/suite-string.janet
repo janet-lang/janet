@@ -136,5 +136,8 @@
         "keyword slice")
 (assert (= 'symbol (symbol/slice "some_symbol_slice" 5 11)) "symbol slice")
 
+# Check string formatting, #1600
+(assert (= "" (string/format "%.99s" @"")) "string/format %s buffer")
+
 (end-suite)
 
