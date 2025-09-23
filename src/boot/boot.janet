@@ -4326,7 +4326,7 @@
   (defn bundle/install
     ``Install a bundle from the local filesystem. The name of the bundle is
     the value mapped to :name in either `config` or the info file. There are
-    5 hooks called during installation (dependencies, clean, build, install and
+    5 hooks called during installation (postdeps, clean, build, install and
     check). A user can register a hook by defining a function with the same name
     in the bundle script.``
     [path &keys config]
@@ -4375,7 +4375,8 @@
       (def module (get-bundle-module bundle-name))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
-      (do-hook module bundle-name :dependencies man)
+      (do-hook module bundle-name :dependencies man) # deprecated, use :postdeps
+      (do-hook module bundle-name :postdeps man)
       (do-hook module bundle-name :clean man)
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
