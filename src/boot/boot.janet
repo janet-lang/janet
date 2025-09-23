@@ -1803,8 +1803,8 @@
   (flatten-into @[] xs))
 
 (defn kvs
-  ``Takes a table or struct and returns and array of key value pairs
-  like `@[k v k v ...]`. Returns a new array.``
+  ``Takes a table or struct and returns a new array of key value pairs
+  like `@[k v k v ...]`.``
   [dict]
   (def ret @[])
   (loop [k :keys dict] (array/push ret k (in dict k)))
