@@ -4384,9 +4384,9 @@
       (sync-manifest man)
       (do-hook module bundle-name :check man))
     (print "installed " bundle-name)
-    (when (get man :has-bin-script)
+    (when (get man :has-bin)
       (def binpath (string (dyn *syspath*) s "bin"))
-      (eprintf "executable scripts have been installed to %s" binpath))
+      (eprintf "executable files have been installed to %s" binpath))
     bundle-name)
 
   (defn- bundle/pack
@@ -4514,14 +4514,15 @@
       (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
-    ``Add a script to the bin subdirectory of the current syspath. Scripts will
-    be set to be executable.``
+    ``Add a file to the bin subdirectory of the current syspath. Files will be
+    set to be executable.``
     [manifest src &opt filename chmod-mode]
     (def s (sep))
     (default filename (last (string/split s src)))
     (default chmod-mode 8r755)
     (os/mkdir (string (dyn *syspath*) s "bin"))
-    (put manifest :has-bin-script true)
+    (put manifest :has-bin-script true) # deprecated, use :has-bin
+    (put manifest :has-bin true)
     (bundle/add-file manifest src (string "bin" s filename) chmod-mode))
 
   (defn bundle/update-all
