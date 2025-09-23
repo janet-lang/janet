@@ -4387,6 +4387,9 @@
     (when (get man :has-bin)
       (def binpath (string (dyn *syspath*) s "bin"))
       (eprintf "executable files have been installed to %s" binpath))
+    (when (get man :has-man)
+      (def manpath (string (dyn *syspath*) s "man"))
+      (eprintf "man pages have been installed to %s" manpath))
     bundle-name)
 
   (defn- bundle/pack
@@ -4514,8 +4517,8 @@
       (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
-    ``Add a file to the bin subdirectory of the current syspath. Files will be
-    set to be executable.``
+    ``Add a file to the bin subdirectory of the current syspath. By default,
+    files will be set to be executable.``
     [manifest src &opt filename chmod-mode]
     (def s (sep))
     (default filename (last (string/split s src)))
@@ -4524,6 +4527,18 @@
     (put manifest :has-bin-script true) # deprecated, use :has-bin
     (put manifest :has-bin true)
     (bundle/add-file manifest src (string "bin" s filename) chmod-mode))
+
+  (defn bundle/add-manpage
+    ``Add a file to the man subdirectory of the current syspath. Files are
+    copied inside a directory `mansec`. By default, `mansec` is "man1".``
+    [manifest src &opt mansec]
+    (def s (sep))
+    (default mansec "man1")
+    (def filename (last (string/split s src)))
+    (os/mkdir (string (dyn *syspath*) s "man"))
+    (os/mkdir (string (dyn *syspath*) s "man" s mansec))
+    (put manifest :has-man true)
+    (bundle/add-file manifest src (string "man" s mansec s filename)))
 
   (defn bundle/update-all
     "Reinstall all bundles."
