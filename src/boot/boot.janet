@@ -4194,7 +4194,7 @@
     (spit manifest-name b))
 
   (defn bundle/manifest
-    "Get the manifest for a give installed bundle"
+    "Get the manifest for a given installed bundle."
     [bundle-name]
     (def name (get-manifest-filename bundle-name))
     (assertf (fexists name) "no bundle %v found" bundle-name)
@@ -4256,7 +4256,9 @@
     nil)
 
   (defn bundle/uninstall
-    "Remove a bundle from the current syspath"
+    ``Remove a bundle from the current syspath. There is 1 hook called during
+    uninstallation (uninstall). A user can register a hook by defining a
+    function with the same name in the bundle script.``
     [bundle-name]
     (def breakage @{})
     (each b (bundle/list)
@@ -4292,8 +4294,8 @@
     order)
 
   (defn bundle/prune
-    "Remove all orphaned bundles from the syspath. An orphaned bundle is a bundle that is
-     marked for :auto-remove and is not depended on by any other bundle."
+    ``Remove all orphaned bundles from the current syspath. An orphaned bundle is a
+    bundle that is marked for :auto-remove and is not depended on by any other bundle.``
     []
     (def topo (bundle/topolist))
     (def rtopo (reverse topo))
@@ -4322,7 +4324,11 @@
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/install
-    "Install a bundle from the local filesystem. The name of the bundle will be inferred from the bundle, or passed as a parameter :name in `config`."
+    ``Install a bundle from the local filesystem. The name of the bundle is
+    the value mapped to :name in either `config` or the info file. There are
+    5 hooks called during installation (dependencies, clean, build, install and
+    check). A user can register a hook by defining a function with the same name
+    in the bundle script.``
     [path &keys config]
     (def path (bundle-rpath path))
     (def s (sep))
@@ -4366,20 +4372,16 @@
           (error (string "missing dependencies " (string/join missing ", "))))
         (put man :dependencies deps)
         (put man :info info))
-      (def clean (get config :clean))
-      (def check (get config :check))
       (def module (get-bundle-module bundle-name))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
       (do-hook module bundle-name :dependencies man)
-      (when clean
-        (do-hook module bundle-name :clean man))
+      (do-hook module bundle-name :clean man)
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
       (sync-manifest man)
-      (when check
-        (do-hook module bundle-name :check man)))
+      (do-hook module bundle-name :check man))
     (print "installed " bundle-name)
     (when (get man :has-bin-script)
       (def binpath (string (dyn *syspath*) s "bin"))
@@ -4387,9 +4389,10 @@
     bundle-name)
 
   (defn- bundle/pack
-    "Take an installed bundle and create a bundle source directory that can be used to
-     reinstall the bundle on a compatible system. This is used to create backups for installed
-     bundles without rebuilding, or make a prebuilt bundle for other systems."
+    ``Take an installed bundle and create a bundle source directory that can be
+    used to reinstall the bundle on a compatible system. This is used to create
+    backups for installed bundles without rebuilding, or make a prebuilt bundle
+    for other systems.``
     [bundle-name dest-dir &opt is-backup]
     (var i 0)
     (def man (bundle/manifest bundle-name))
@@ -4419,9 +4422,9 @@
     dest-dir)
 
   (defn bundle/replace
-    "Reinstall an existing bundle from a new directory. Similar to bundle/reinstall,
-     but installs the replacement bundle from any directory. This is necesarry to replace a package without
-     breaking any dependencies."
+    ``Reinstall an existing bundle from a new directory. Similar to
+    bundle/reinstall, but installs the replacement bundle from any directory.
+    This is necessary to replace a package without breaking any dependencies.``
     [bundle-name path &keys new-config]
     (def manifest (bundle/manifest bundle-name))
     (def config (get manifest :config @{}))
@@ -4448,7 +4451,7 @@
     bundle-name)
 
   (defn bundle/add-directory
-    "Add a directory during the install process relative to `(dyn *syspath*)`"
+    "Add a directory during an install relative to `(dyn *syspath*)`."
     [manifest dest &opt chmod-mode]
     (def files (get-files manifest))
     (def s (sep))
@@ -4476,7 +4479,7 @@
     ret)
 
   (defn bundle/add-file
-    "Add files during an install relative to `(dyn *syspath*)`"
+    "Add a file during an install relative to `(dyn *syspath*)`."
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def files (get-files manifest))
@@ -4493,9 +4496,9 @@
     absdest)
 
   (defn bundle/add
-    "Add files and directories during a bundle install relative to `(dyn *syspath*)`.
-     Added files and directories will be recorded in the bundle manifest such that they are properly tracked
-     and removed during an upgrade or uninstall."
+    ``Add a file or directory during an install relative to `(dyn *syspath*)`.
+    Added files and directories will be recorded in the bundle manifest such
+    that they are properly tracked and removed during an upgrade or uninstall.``
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def s (sep))
@@ -4510,20 +4513,18 @@
       (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
-    ``
-    Shorthand for adding scripts during an install. Scripts will be installed to
-    `(string (dyn *syspath*) "/bin")` by default and will be set to be executable.
-    ``
-    [manifest src &opt dest chmod-mode]
+    ``Add a script to the bin subdirectory of the current syspath. Scripts will
+    be set to be executable.``
+    [manifest src &opt filename chmod-mode]
     (def s (sep))
-    (default dest (last (string/split s src)))
+    (default filename (last (string/split s src)))
     (default chmod-mode 8r755)
     (os/mkdir (string (dyn *syspath*) s "bin"))
     (put manifest :has-bin-script true)
-    (bundle/add-file manifest src (string "bin" s dest) chmod-mode))
+    (bundle/add-file manifest src (string "bin" s filename) chmod-mode))
 
   (defn bundle/update-all
-    "Reinstall all bundles"
+    "Reinstall all bundles."
     [&keys configs]
     (each bundle (bundle/topolist)
       (bundle/reinstall bundle ;(kvs configs)))))
