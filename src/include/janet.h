@@ -147,6 +147,7 @@ extern "C" {
     || defined(__s390x__) /* S390 64-bit */ \
     || defined(__s390__)  /* S390 32-bit */ \
     || defined(__ARMEB__) /* ARM big endian */ \
+    || defined(__AARCH64EB__) /* ARM64 big endian */ \
     || ((defined(__CC_ARM) || defined(__ARMCC__)) /* ARM RealView compiler */ \
         && defined(__BIG_ENDIAN))
 #define JANET_BIG_ENDIAN 1
