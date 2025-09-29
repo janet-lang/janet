@@ -4373,16 +4373,20 @@
         (put man :dependencies deps)
         (put man :info info))
       (def module (get-bundle-module bundle-name))
+      (def clean (get config :clean))
+      (def check (get config :check))
       (def all-hooks (seq [[k v] :pairs module :when (symbol? k) :unless (get v :private)] (keyword k)))
       (put man :hooks all-hooks)
       (do-hook module bundle-name :dependencies man) # deprecated, use :postdeps
       (do-hook module bundle-name :postdeps man)
-      (do-hook module bundle-name :clean man)
+      (when clean
+        (do-hook module bundle-name :clean man))
       (do-hook module bundle-name :build man)
       (do-hook module bundle-name :install man)
       (if (empty? (get man :files)) (print "no files installed, is this a valid bundle?"))
       (sync-manifest man)
-      (do-hook module bundle-name :check man))
+      (when check
+        (do-hook module bundle-name :check man)))
     (print "installed " bundle-name)
     (when (get man :has-bin-script)
       (def binpath (string (dyn *syspath*) s "bin"))
