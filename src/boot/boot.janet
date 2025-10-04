@@ -4556,7 +4556,10 @@
 ###
 
 # conditional compilation for reduced os
-(def- getenv-alias (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
+(def- getenv-raw (if-let [entry (in root-env 'os/getenv)] (entry :value) (fn [&])))
+(defn- getenv-alias [env-var &opt dflt]
+  (def x (getenv-raw env-var dflt))
+  (if (= x "") nil x)) # empty string is coerced to nil
 
 (defn- run-main
   [env subargs arg]
@@ -4634,12 +4637,11 @@
   (var expect-image false)
 
   (when-let [jp (getenv-alias "JANET_PATH")]
-    (unless (empty? jp)
-      (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
-      (def paths (reverse! (string/split path-sep jp)))
-      (for i 1 (length paths)
-        (module/add-syspath (get paths i)))
-      (setdyn *syspath* (first paths))))
+    (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
+    (def paths (reverse! (string/split path-sep jp)))
+    (for i 1 (length paths)
+      (module/add-syspath (get paths i)))
+    (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
   (set colorize (and
                   (not (getenv-alias "NO_COLOR"))
