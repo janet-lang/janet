@@ -4634,11 +4634,12 @@
   (var expect-image false)
 
   (when-let [jp (getenv-alias "JANET_PATH")]
-    (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
-    (def paths (reverse! (string/split path-sep jp)))
-    (for i 1 (length paths)
-      (module/add-syspath (get paths i)))
-    (setdyn *syspath* (first paths)))
+    (unless (empty? jp)
+      (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
+      (def paths (reverse! (string/split path-sep jp)))
+      (for i 1 (length paths)
+        (module/add-syspath (get paths i)))
+      (setdyn *syspath* (first paths))))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
   (set colorize (and
                   (not (getenv-alias "NO_COLOR"))
