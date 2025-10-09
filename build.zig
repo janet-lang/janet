@@ -56,14 +56,25 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
+    const janet_build = "\"local\"";
+    const clibs = [_][]const u8{ "-lm", "-lpthread" };
+    _ = clibs;
+
+    const cflags = [_][]const u8{ "-O2", "-g" };
+
+    const common_cflags = [_][]const u8{ "-std=c99", "-Wall", "-Wextra", "-fvisibility=hidden", "-fPIC" };
+    const boot_cflags = [_][]const u8{ "-DJANET_BOOTSTRAP", b.fmt("-DJANET_BUILD={s}", .{janet_build}), "-O0", "-g" } ++ common_cflags;
+    const build_cflags = cflags ++ common_cflags;
+    _ = build_cflags;
+
     const janet_boot_mod = b.addModule("janet_boot", .{
         .optimize = optimize,
         .target = target,
     });
-    const version = "\"local\"";
     janet_boot_mod.addCSourceFiles(.{
         .files = &(core_sources ++ boot_sources),
-        .flags = &.{ "-DJANET_BOOTSTRAP", b.fmt("-DJANET_BUILD={s}", .{version})},
+        .flags = &boot_cflags,
     });
     janet_boot_mod.addIncludePath(b.path("src/include"));
     janet_boot_mod.addIncludePath(b.path("src/conf"));
@@ -119,5 +130,4 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
-
 }
