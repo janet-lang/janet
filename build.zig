@@ -57,11 +57,12 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const prefix = "/usr/local";
+
+    const janetconf_header = "src/conf/janetconf.h";
     const libdir = prefix ++ "/lib";
     // JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
     const janet_build = "\"local\"";
-    const clibs = [_][]const u8{ "-lm", "-lpthread" };
-    _ = clibs;
+    // const clibs = [_][]const u8{ "-lm", "-lpthread" };
     const janet_path = libdir ++ "/janet";
 
     const cflags = [_][]const u8{ "-O2", "-g" };
@@ -124,6 +125,13 @@ pub fn build(b: *std.Build) void {
         .root_module = janet_mod,
     });
     b.installArtifact(janet_exe);
+
+    const janet_h = b.addRunArtifact(janet_exe);
+    janet_h.addFileArg(b.path("tools/patch-header.janet"));
+    janet_h.addFileArg(b.path("src/include/janet.h"));
+    janet_h.addFileArg(b.path(janetconf_header));
+    const janet_h_output = janet_h.addOutputFileArg("janet.h");
+    b.getInstallStep().dependOn(&b.addInstallFile(janet_h_output, "janet.h").step);
 
     const mod = b.addModule("janet", .{
         .root_source_file = b.path("src/root.zig"),
