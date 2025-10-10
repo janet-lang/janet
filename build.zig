@@ -56,10 +56,13 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const prefix = "/usr/local";
+    const libdir = prefix ++ "/lib";
     // JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
     const janet_build = "\"local\"";
     const clibs = [_][]const u8{ "-lm", "-lpthread" };
     _ = clibs;
+    const janet_path = libdir ++ "/janet";
 
     const cflags = [_][]const u8{ "-O2", "-g" };
 
@@ -84,6 +87,23 @@ pub fn build(b: *std.Build) void {
         .root_module = janet_boot_mod,
     });
     b.installArtifact(janet_boot_exe);
+
+    const janet_boot_run = b.addRunArtifact(janet_boot_exe);
+
+    // janet_boot_run.addArg(".");
+    janet_boot_run.addDirectoryArg(b.path(""));
+    janet_boot_run.addArg("JANET_PATH");
+    janet_boot_run.addArg("'" ++ janet_path ++ "=");
+
+    // TODO
+    // Disable amalgamated build
+    // ifeq ($(JANET_NO_AMALG), 1)
+    //  JANET_TARGET_OBJECTS+=$(patsubst src/%.c,build/%.bin.o,$(JANET_CORE_SOURCES))
+    //  JANET_BOOT_FLAGS+=image-only
+    // endif
+
+    const janet_boot_output = janet_boot_run.captureStdOut();
+    b.getInstallStep().dependOn(&b.addInstallFile(janet_boot_output, "c/janet.c").step);
 
     const mod = b.addModule("janet", .{
         .root_source_file = b.path("src/root.zig"),
