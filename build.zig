@@ -133,6 +133,13 @@ pub fn build(b: *std.Build) void {
     const janet_h_output = janet_h.addOutputFileArg("janet.h");
     b.getInstallStep().dependOn(&b.addInstallFile(janet_h_output, "janet.h").step);
 
+    const janet_library = b.addLibrary(.{
+        .name = "janet",
+        .linkage = .static,
+        .root_module = janet_boot_mod,
+    });
+    b.installArtifact(janet_library);
+
     const mod = b.addModule("janet", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
