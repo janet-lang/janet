@@ -69,7 +69,6 @@ pub fn build(b: *std.Build) void {
     const common_cflags = [_][]const u8{ "-std=c99", "-Wall", "-Wextra", "-fvisibility=hidden", "-fPIC" };
     const boot_cflags = [_][]const u8{ "-DJANET_BOOTSTRAP", b.fmt("-DJANET_BUILD={s}", .{janet_build}), "-O0", "-g" } ++ common_cflags;
     const build_cflags = cflags ++ common_cflags;
-    _ = build_cflags;
 
     const janet_boot_mod = b.addModule("janet_boot", .{
         .optimize = optimize,
@@ -104,6 +103,27 @@ pub fn build(b: *std.Build) void {
 
     const janet_boot_output = janet_boot_run.captureStdOut();
     b.getInstallStep().dependOn(&b.addInstallFile(janet_boot_output, "c/janet.c").step);
+
+    const janet_mod = b.addModule("janet", .{
+        .optimize = optimize,
+        .target = target,
+    });
+    janet_mod.addCSourceFile(.{
+        .file = janet_boot_output,
+        .flags = &build_cflags,
+        .language = .c,
+    });
+    janet_mod.addCSourceFile(.{
+        .file = b.path("src/mainclient/shell.c"),
+        .flags = &build_cflags,
+    });
+    janet_mod.addIncludePath(b.path("src/include"));
+    janet_mod.addIncludePath(b.path("src/conf"));
+    const janet_exe = b.addExecutable(.{
+        .name = "janet",
+        .root_module = janet_mod,
+    });
+    b.installArtifact(janet_exe);
 
     const mod = b.addModule("janet", .{
         .root_source_file = b.path("src/root.zig"),
