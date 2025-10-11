@@ -61,7 +61,7 @@ ensure a consistent code style for C.
 
 ## Janet style
 
-All janet code in the project should be formatted similar to the code in core.janet.
+All janet code in the project should be formatted similar to the code in src/boot/boot.janet.
 The auto formatting from janet.vim will work well.
 
 ## Typo Fixing and One-Line changes
