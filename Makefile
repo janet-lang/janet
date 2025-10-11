@@ -261,6 +261,7 @@ $(JANET_STATIC_LIBRARY): $(JANET_TARGET_OBJECTS)
 # Testing assumes HOSTCC=CC
 
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
+EXAMPLE_SCRIPTS=$(wildcard examples/*.janet)
 
 repl: $(JANET_TARGET)
 	$(RUN) ./$(JANET_TARGET)
@@ -273,15 +274,15 @@ VALGRIND_COMMAND=valgrind --leak-check=full --quiet
 valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
-test: $(JANET_TARGET) $(TEST_PROGRAMS)
+test: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 	for f in test/suite*.janet; do $(RUN) ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do $(RUN) ./$(JANET_TARGET) -k "$$f"; done
 
-valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
+valtest: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
 
-callgrind: $(JANET_TARGET)
+callgrind: $(JANET_TARGET) $(TEST_SCRIPTS)
 	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
 
 ########################
