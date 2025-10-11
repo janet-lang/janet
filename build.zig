@@ -56,14 +56,29 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const prefix = "/usr/local";
+    const prefix = b.option([]const u8, "prefix", "Installation prefix") orelse "/usr/local";
 
-    const janetconf_header = "src/conf/janetconf.h";
-    const libdir = prefix ++ "/lib";
-    // JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
-    const janet_build = "\"local\"";
+    const janetconf_header = b.option([]const u8, "janetconf_header", "Path to configuration heaeder") orelse "src/conf/janetconf.h";
+    const includedir = b.option([]const u8, "includedir", "Header installation path") orelse b.fmt("{s}/include", .{prefix});
+    _ = includedir;
+    const bindir = b.option([]const u8, "bindir", "Binary installation path") orelse b.fmt("{s}/bin", .{prefix});
+    _ = bindir;
+    const libdir = b.option([]const u8, "libdir", "Library installation path") orelse b.fmt("{s}/lib", .{prefix});
+    // TODO: JANET_BUILD?="\"$(shell git log --pretty=format:'%h' -n 1 2> /dev/null || echo local)\""
+    const janet_build = b.option([]const u8, "janet_build", "Build version identifier") orelse "\"local\"";
     // const clibs = [_][]const u8{ "-lm", "-lpthread" };
-    const janet_path = libdir ++ "/janet";
+    const janet_path = b.option([]const u8, "janet_path", "Janet library installation path") orelse b.fmt("{s}/janet", .{libdir});
+    const janet_manpath = b.option([]const u8, "janet_manpath", "Man page installation path") orelse b.fmt("{s}/share/man/man1/", .{prefix});
+    _ = janet_manpath;
+    const janet_pkg_config_path = b.option([]const u8, "janet_pkg_config_path", "pkg-config files installation path") orelse b.fmt("{s}/pkgconfig", .{libdir});
+    _ = janet_pkg_config_path;
+    const janet_dist_dir = b.option([]const u8, "janet_dist_dir", "Output directory for distribution files") orelse "janet-dist";
+    _ = janet_dist_dir;
+    const jpm_tag = b.option([]const u8, "jpm_tag", "Git tag for jpm build") orelse "master";
+    _ = jpm_tag;
+    const spork_tag = b.option([]const u8, "spork_tag", "Git tag for spork build") orelse "master";
+    _ = spork_tag;
+    const has_shared = b.option(bool, "has_shared", "Build shared library") orelse true;
 
     const cflags = [_][]const u8{ "-O2", "-g" };
 
@@ -93,14 +108,13 @@ pub fn build(b: *std.Build) void {
     // janet_boot_run.addArg(".");
     janet_boot_run.addDirectoryArg(b.path(""));
     janet_boot_run.addArg("JANET_PATH");
-    janet_boot_run.addArg("'" ++ janet_path ++ "=");
+    janet_boot_run.addArg(b.fmt("'{s}'", .{janet_path}));
 
-    // TODO
+    const janet_no_amalg = b.option(bool, "janet_no_amalg", "Disable amalgamated build") orelse false;
     // Disable amalgamated build
-    // ifeq ($(JANET_NO_AMALG), 1)
-    //  JANET_TARGET_OBJECTS+=$(patsubst src/%.c,build/%.bin.o,$(JANET_CORE_SOURCES))
-    //  JANET_BOOT_FLAGS+=image-only
-    // endif
+    if (janet_no_amalg) {
+        janet_boot_run.addArg("image-only");
+    }
 
     const janet_boot_output = janet_boot_run.captureStdOut();
     b.getInstallStep().dependOn(&b.addInstallFile(janet_boot_output, "c/janet.c").step);
@@ -118,6 +132,12 @@ pub fn build(b: *std.Build) void {
         .file = b.path("src/mainclient/shell.c"),
         .flags = &build_cflags,
     });
+    if (janet_no_amalg) {
+        janet_mod.addCSourceFiles(.{
+            .files = &(core_sources),
+            .flags = &build_cflags,
+        });
+    }
     janet_mod.addIncludePath(b.path("src/include"));
     janet_mod.addIncludePath(b.path("src/conf"));
     const janet_exe = b.addExecutable(.{
@@ -133,12 +153,21 @@ pub fn build(b: *std.Build) void {
     const janet_h_output = janet_h.addOutputFileArg("janet.h");
     b.getInstallStep().dependOn(&b.addInstallFile(janet_h_output, "janet.h").step);
 
-    const janet_library = b.addLibrary(.{
+    if (has_shared) {
+        const janet_library = b.addLibrary(.{
+            .name = "janet",
+            .linkage = .dynamic,
+            .root_module = janet_mod,
+        });
+        b.installArtifact(janet_library);
+    }
+
+    const janet_static_library = b.addLibrary(.{
         .name = "janet",
         .linkage = .static,
-        .root_module = janet_boot_mod,
+        .root_module = janet_mod,
     });
-    b.installArtifact(janet_library);
+    b.installArtifact(janet_static_library);
 
     const mod = b.addModule("janet", .{
         .root_source_file = b.path("src/root.zig"),
