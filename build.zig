@@ -256,6 +256,7 @@ pub fn build(b: *std.Build) void {
     const run_tests_step = b.step("run-tests", "Run Janet test suite scripts");
     for (test_scripts) |test_script| {
         const run_test_cmd = b.addRunArtifact(janet_exe);
+        run_test_cmd.step.dependOn(b.getInstallStep());
         run_test_cmd.addFileArg(b.path(test_script));
         run_test_cmd.expectExitCode(0);
         run_test_cmd.stdio = .inherit;
@@ -265,6 +266,7 @@ pub fn build(b: *std.Build) void {
     const check_examples_step = b.step("examples", "Check if example scripts compile");
     for (example_scripts) |example_script| {
         const check_example_cmd = b.addRunArtifact(janet_exe);
+        check_example_cmd.step.dependOn(b.getInstallStep());
         check_example_cmd.addArg("-k");
         check_example_cmd.addFileArg(b.path(example_script));
         check_example_cmd.stdio = .inherit;
