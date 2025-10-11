@@ -52,6 +52,41 @@ const boot_sources = [_][]const u8{
     "src/boot/table_test.c",
 };
 
+const test_scripts = [_][]const u8{
+    "test/suite-array.janet",
+    "test/suite-asm.janet",
+    "test/suite-boot.janet",
+    "test/suite-buffer.janet",
+    "test/suite-bundle.janet",
+    "test/suite-capi.janet",
+    "test/suite-cfuns.janet",
+    "test/suite-compile.janet",
+    "test/suite-corelib.janet",
+    "test/suite-debug.janet",
+    "test/suite-ev.janet",
+    "test/suite-ev2.janet",
+    "test/suite-ffi.janet",
+    "test/suite-filewatch.janet",
+    "test/suite-inttypes.janet",
+    "test/suite-io.janet",
+    "test/suite-marsh.janet",
+    "test/suite-math.janet",
+    "test/suite-os.janet",
+    "test/suite-parse.janet",
+    "test/suite-peg.janet",
+    "test/suite-pp.janet",
+    "test/suite-specials.janet",
+    "test/suite-string.janet",
+    "test/suite-strtod.janet",
+    "test/suite-struct.janet",
+    "test/suite-symcache.janet",
+    "test/suite-table.janet",
+    "test/suite-tuple.janet",
+    "test/suite-unknown.janet",
+    "test/suite-value.janet",
+    "test/suite-vm.janet",
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -169,28 +204,9 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(janet_static_library);
 
-    const mod = b.addModule("janet", .{
-        .root_source_file = b.path("src/root.zig"),
-        .target = target,
-    });
+    const run_step = b.step("run", "Run the Janet REPL");
 
-    const exe = b.addExecutable(.{
-        .name = "janet",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
-            .target = target,
-            .optimize = optimize,
-            .imports = &.{
-                .{ .name = "janet", .module = mod },
-            },
-        }),
-    });
-
-    b.installArtifact(exe);
-
-    const run_step = b.step("run", "Run the app");
-
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(janet_exe);
     run_step.dependOn(&run_cmd.step);
 
     run_cmd.step.dependOn(b.getInstallStep());
@@ -199,19 +215,10 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
 
-    const mod_tests = b.addTest(.{
-        .root_module = mod,
-    });
-
-    const run_mod_tests = b.addRunArtifact(mod_tests);
-
-    const exe_tests = b.addTest(.{
-        .root_module = exe.root_module,
-    });
-
-    const run_exe_tests = b.addRunArtifact(exe_tests);
-
     const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&run_mod_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
+    for (test_scripts) |test_script| {
+        const run_test_cmd = b.addRunArtifact(janet_exe);
+        run_test_cmd.addFileArg(b.path(test_script));
+        test_step.dependOn(&run_test_cmd.step);
+    }
 }
