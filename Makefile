@@ -269,7 +269,8 @@ repl: $(JANET_TARGET)
 debug: $(JANET_TARGET)
 	$(DEBUGGER) ./$(JANET_TARGET)
 
-VALGRIND_COMMAND=valgrind --leak-check=full --quiet
+VALGRIND_COMMAND=$(RUN) valgrind --leak-check=full --quiet
+CALLGRIND_COMMAND=$(RUN) valgrind --tool=callgrind
 
 valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
@@ -280,10 +281,14 @@ test: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 
 valtest: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
-	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
+	for f in examples/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) -k "$$f"; done
 
-callgrind: $(JANET_TARGET) $(TEST_SCRIPTS)
-	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
+callgrind: $(JANET_TARGET)
+	$(CALLGRIND_COMMAND) ./$(JANET_TARGET)
+
+calltest: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
+	for f in test/suite*.janet; do $(CALLGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
+	for f in examples/*.janet; do $(CALLGRIND_COMMAND) ./$(JANET_TARGET) -k "$$f"; done
 
 ########################
 ##### Distribution #####
@@ -425,7 +430,8 @@ help:
 	@echo '   make test       Test a built Janet'
 	@echo '   make valgrind   Assess Janet with Valgrind'
 	@echo '   make callgrind  Assess Janet with Valgrind, using Callgrind'
-	@echo '   make valtest    Run the test suite with Valgrind to check for memory leaks'
+	@echo '   make valtest    Run the test suite and examples with Valgrind to check for memory leaks'
+	@echo '   make calltest   Run the test suite and examples with Callgrind'
 	@echo '   make dist       Create a distribution tarball'
 	@echo '   make docs       Generate documentation'
 	@echo '   make debug      Run janet with GDB or LLDB'
@@ -440,4 +446,4 @@ help:
 	@echo
 
 .PHONY: clean install install-jpm-git install-spork-git repl debug valgrind test \
-	valtest dist uninstall docs grammar format help compile-commands
+	valtest callgrind callgrind-test dist uninstall docs grammar format help compile-commands
