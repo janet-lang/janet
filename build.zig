@@ -87,6 +87,44 @@ const test_scripts = [_][]const u8{
     "test/suite-vm.janet",
 };
 
+const example_scripts = [_][]const u8{
+    "examples/3sum.janet",
+    "examples/abstract-unix-socket.janet",
+    "examples/assembly.janet",
+    "examples/async-execute.janet",
+    "examples/channel.janet",
+    "examples/chatserver.janet",
+    "examples/colors.janet",
+    "examples/debug.janet",
+    "examples/debugger.janet",
+    "examples/echoclient.janet",
+    "examples/echoserve.janet",
+    "examples/error.janet",
+    "examples/evlocks.janet",
+    "examples/evsleep.janet",
+    "examples/fizzbuzz.janet",
+    "examples/hello.janet",
+    "examples/iterate-fiber.janet",
+    "examples/lazyseqs.janet",
+    "examples/life.janet",
+    "examples/lineloop.janet",
+    "examples/marshal-stress.janet",
+    "examples/maxtriangle.janet",
+    "examples/posix-exec.janet",
+    "examples/primes.janet",
+    "examples/rtest.janet",
+    "examples/select.janet",
+    "examples/select2.janet",
+    "examples/sigaction.janet",
+    "examples/tcpclient.janet",
+    "examples/tcpserver.janet",
+    "examples/threaded-channels.janet",
+    "examples/udpclient.janet",
+    "examples/udpserver.janet",
+    "examples/urlloader.janet",
+    "examples/weak-tables.janet",
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -215,12 +253,25 @@ pub fn build(b: *std.Build) void {
         run_cmd.addArgs(args);
     }
 
-    const test_step = b.step("test", "Run tests");
+    const run_tests_step = b.step("run-tests", "Run Janet test suite scripts");
     for (test_scripts) |test_script| {
         const run_test_cmd = b.addRunArtifact(janet_exe);
         run_test_cmd.addFileArg(b.path(test_script));
         run_test_cmd.expectExitCode(0);
         run_test_cmd.stdio = .inherit;
-        test_step.dependOn(&run_test_cmd.step);
+        run_tests_step.dependOn(&run_test_cmd.step);
     }
+
+    const check_examples_step = b.step("examples", "Check if example scripts compile");
+    for (example_scripts) |example_script| {
+        const check_example_cmd = b.addRunArtifact(janet_exe);
+        check_example_cmd.addArg("-k");
+        check_example_cmd.addFileArg(b.path(example_script));
+        check_example_cmd.stdio = .inherit;
+        check_examples_step.dependOn(&check_example_cmd.step);
+    }
+
+    const test_step = b.step("test", "Runs the Janet tests and checks the examples");
+    test_step.dependOn(run_tests_step);
+    test_step.dependOn(check_examples_step);
 }
