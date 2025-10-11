@@ -414,9 +414,6 @@ clean:
 	-rm -rf build vgcore.* callgrind.*
 	-rm -rf test/install/build test/install/modpath
 
-test-install:
-	echo "JPM has been removed from default install."
-
 help:
 	@echo
 	@echo 'Janet: A Dynamic Language & Bytecode VM'
@@ -438,6 +435,9 @@ help:
 	@echo "   make format     Format Janet's own source files"
 	@echo '   make grammar    Generate a TextMate language grammar'
 	@echo
+	@echo '   make install-jpm-git   Install jpm into the current filesystem'
+	@echo '   make install-spork-git Install spork into the current filesystem'
+	@echo
 
-.PHONY: clean install repl debug valgrind test \
+.PHONY: clean install install-jpm-git install-spork-git repl debug valgrind test \
 	valtest dist uninstall docs grammar format help compile-commands
