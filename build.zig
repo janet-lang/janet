@@ -219,6 +219,8 @@ pub fn build(b: *std.Build) void {
     for (test_scripts) |test_script| {
         const run_test_cmd = b.addRunArtifact(janet_exe);
         run_test_cmd.addFileArg(b.path(test_script));
+        run_test_cmd.expectExitCode(0);
+        run_test_cmd.stdio = .inherit;
         test_step.dependOn(&run_test_cmd.step);
     }
 }
