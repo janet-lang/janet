@@ -4934,7 +4934,9 @@
      "src/core/wrap.c"])
 
   # Print janet.c to stdout
-  (print "/* Amalgamated build - DO NOT EDIT */")
+  (if (has-value? boot/args "image-only")
+    (print "/* Image-only build - DO NOT EDIT */")
+    (print "/* Amalgamated build - DO NOT EDIT */"))
   (print "/* Generated from janet version " janet/version "-" janet/build " */")
   (print "#define JANET_BUILD \"" janet/build "\"")
   (print ```#define JANET_AMALG```)
