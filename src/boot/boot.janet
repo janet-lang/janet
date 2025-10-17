@@ -4388,7 +4388,9 @@
       (when check
         (do-hook module bundle-name :check man)))
     (print "installed " bundle-name)
-    (when (get man :has-bin-script)
+    (when (or (get man :has-exe)
+              # remove eventually
+              (get man :has-bin-script))
       (def binpath (string (dyn *syspath*) s "bin"))
       (eprintf "executable files have been installed to %s" binpath))
     (when (get man :has-man)
@@ -4528,7 +4530,8 @@
     (default filename (last (string/split s src)))
     (default chmod-mode 8r755)
     (os/mkdir (string (dyn *syspath*) s "bin"))
-    (put manifest :has-bin-script true)
+    (put manifest :has-exe true)
+    (put manifest :has-bin-script true) # remove eventually
     (bundle/add-file manifest src (string "bin" s filename) chmod-mode))
 
   (defn bundle/add-manpage
