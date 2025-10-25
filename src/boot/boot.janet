@@ -4338,8 +4338,8 @@
     # Detect bundle name
     (def infofile-src1 (string path s "bundle" s "info.jdn"))
     (def infofile-src2 (string path s "info.jdn"))
-    (def infofile-src (cond (fexists infofile-src1) infofile-src1
-                        (fexists infofile-src2) infofile-src2))
+    (def infofile-src (if (fexists infofile-src1) infofile-src1 infofile-src2))
+    (assert (fexists infofile-src) "bundle must contain info.jdn or bundle/info.jdn")
     (def info (-?> infofile-src slurp parse))
     (def bundle-name (get config :name (get info :name)))
     (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
@@ -4348,16 +4348,20 @@
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assertf (not (fexists (get-manifest-filename bundle-name)))
              "bundle %v is already installed" bundle-name)
+    # Check initfile
+    (def initfile-src1 (string path s "bundle" s "init.janet"))
+    (def initfile-src2 (string path s "bundle.janet"))
+    (def initfile-src (if (fexists initfile-src1) initfile-src1 initfile-src2))
+    (assert (fexists initfile-src) "bundle must contain bundle.janet or bundle/init.janet")
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
-    # Copy infofile
-    (def infofile-dest (bundle-file bundle-name "info.jdn"))
-    (when infofile-src (copyfile infofile-src infofile-dest))
+    # Copy aliased infofile
+    (when (fexists infofile-src2)
+      (copyfile infofile-src2 (bundle-file bundle-name "info.jdn")))
     # Copy aliased initfile
-    (def initfile-alias (string path s "bundle.janet"))
-    (def initfile-dest (bundle-file bundle-name "init.janet"))
-    (when (fexists initfile-alias) (copyfile initfile-alias initfile-dest))
+    (when (fexists initfile-src2)
+      (copyfile initfile-src2 (bundle-file bundle-name "init.janet")))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
@@ -4366,15 +4370,13 @@
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (when (os/stat infofile-dest :mode)
-        (def info (-> infofile-dest slurp parse))
-        (def deps (seq [d :in (get info :dependencies @[])]
-                    (string (if (dictionary? d) (get d :name) d))))
-        (def missing (filter (complement bundle/installed?) deps))
-        (when (next missing)
-          (error (string "missing dependencies " (string/join missing ", "))))
-        (put man :dependencies deps)
-        (put man :info info))
+      (def deps (seq [d :in (get info :dependencies @[])]
+                  (string (if (dictionary? d) (get d :name) d))))
+      (def missing (filter (complement bundle/installed?) deps))
+      (when (next missing)
+        (error (string "missing dependencies " (string/join missing ", "))))
+      (put man :dependencies deps)
+      (put man :info info)
       (def module (get-bundle-module bundle-name))
       (def clean (get config :clean))
       (def check (get config :check))
