@@ -348,12 +348,15 @@
   [body catch]
   (assert (and (not (empty? catch)) (indexed? (catch 0))) "the first element of `catch` must be a tuple or array")
   (let [[err fib] (catch 0)
-        r (or err (gensym))
-        f (or fib (gensym))]
+        r (gensym)
+        f (gensym)]
     ~(let [,f (,fiber/new (fn :try [] ,body) :ie)
            ,r (,resume ,f)]
        (if (,= (,fiber/status ,f) :error)
-         (do ,;(tuple/slice catch 1))
+         (do
+           ,(if err ~(def ,err ,r))
+           ,(if fib ~(def ,fib ,f))
+           ,;(tuple/slice catch 1))
          ,r))))
 
 (defmacro with-syms
