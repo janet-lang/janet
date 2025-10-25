@@ -1023,4 +1023,11 @@
 (assert (deep-not= @{:key1 "value1" [@"key2"] @"value2"}
                    @{:key1 "value1" [@"key2"] @"value2"}) "deep= mutable keys")
 
+# different try overloads
+(assert (= (try (error :error) ([] :caught)) :caught))
+(assert (= (try (error :error) ([e] e)) :error))
+(assert (= (try (error :error) ([e fib] [e (fiber? fib)])) [:error true]))
+# regression test for #1659
+(assert (= (try (error :error) ([_ _] :caught)) :caught))
+
 (end-suite)
