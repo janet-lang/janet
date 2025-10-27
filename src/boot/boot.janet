@@ -4222,7 +4222,9 @@
       (put new-env *syspath* fixed-syspath)
       (with-env new-env
         (put new-env :bundle-dir (bundle-dir bundle-name)) # get the syspath right
-        (require (string "@syspath/bundle/" bundle-name)))))
+        (try
+          (require (string "@syspath/bundle/" bundle-name))
+          ([_] (error "bundle must contain bundle.janet or bundle/init.janet"))))))
 
   (defn- do-hook
     [module bundle-name hook & args]
@@ -4338,30 +4340,33 @@
     # Detect bundle name
     (def infofile-src1 (string path s "bundle" s "info.jdn"))
     (def infofile-src2 (string path s "info.jdn"))
-    (def infofile-src (if (fexists infofile-src1) infofile-src1 infofile-src2))
-    (assert (fexists infofile-src) "bundle must contain info.jdn or bundle/info.jdn")
+    (def infofile-src (cond
+                        (fexists infofile-src1) infofile-src1
+                        (fexists infofile-src2) infofile-src2))
     (def info (-?> infofile-src slurp parse))
     (def bundle-name (get config :name (get info :name)))
-    (assertf bundle-name "unable to infer bundle name for %v, use :name argument" path)
+    (assertf bundle-name
+             "unable to infer bundle name for %v, use :name argument or add :name to info file" path)
     (assertf (not (string/check-set "\\/" bundle-name))
              "bundle name %v cannot contain path separators" bundle-name)
     (assert (next bundle-name) "cannot use empty bundle-name")
     (assertf (not (fexists (get-manifest-filename bundle-name)))
              "bundle %v is already installed" bundle-name)
-    # Check initfile
-    (def initfile-src1 (string path s "bundle" s "init.janet"))
-    (def initfile-src2 (string path s "bundle.janet"))
-    (def initfile-src (if (fexists initfile-src1) initfile-src1 initfile-src2))
-    (assert (fexists initfile-src) "bundle must contain bundle.janet or bundle/init.janet")
+    # Check bscript
+    (def bscript-src1 (string path s "bundle" s "init.janet"))
+    (def bscript-src2 (string path s "bundle.janet"))
+    (def bscript-src (cond
+                        (fexists bscript-src1) bscript-src1
+                        (fexists bscript-src2) bscript-src2))
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
     # Copy aliased infofile
     (when (fexists infofile-src2)
       (copyfile infofile-src2 (bundle-file bundle-name "info.jdn")))
-    # Copy aliased initfile
-    (when (fexists initfile-src2)
-      (copyfile initfile-src2 (bundle-file bundle-name "init.janet")))
+    # Copy aliased bscript
+    (when (fexists bscript-src2)
+      (copyfile bscript-src2 (bundle-file bundle-name "init.janet")))
     # Copy some files into the new location unconditionally
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
@@ -4370,13 +4375,14 @@
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
-      (def deps (seq [d :in (get info :dependencies @[])]
-                  (string (if (dictionary? d) (get d :name) d))))
-      (def missing (filter (complement bundle/installed?) deps))
-      (when (next missing)
-        (error (string "missing dependencies " (string/join missing ", "))))
-      (put man :dependencies deps)
-      (put man :info info)
+      (when info
+        (def deps (seq [d :in (get info :dependencies @[])]
+                    (string (if (dictionary? d) (get d :name) d))))
+        (def missing (filter (complement bundle/installed?) deps))
+        (when (next missing)
+          (error (string "missing dependencies " (string/join missing ", "))))
+        (put man :dependencies deps)
+        (put man :info info))
       (def module (get-bundle-module bundle-name))
       (def clean (get config :clean))
       (def check (get config :check))

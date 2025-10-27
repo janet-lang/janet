@@ -117,15 +117,15 @@
 (assert (= 0 (length (bundle/list))) "bundles are listed correctly 7")
 (assert (= 0 (length (bundle/topolist))) "bundles are listed correctly 8")
 
-# Try installing a bundle that is missing initfile
-(assert-error-value "bad test"
+# Try installing a bundle that is missing bundle script
+(assert-error-value "bundle missing bundle script"
                     "bundle must contain bundle.janet or bundle/init.janet"
                     (bundle/install "./examples/sample-bad-bundle1"))
 (assert (= 0 (length (bundle/list))) "check failure 0")
 (assert (= 0 (length (bundle/topolist))) "check failure 1")
 
 # Try installing a bundle that fails check
-(assert-error-value "bad test"
+(assert-error-value "bundle check hook fails"
                     "Check failed!"
                     (bundle/install "./examples/sample-bad-bundle2" :check true))
 (assert (= 0 (length (bundle/list))) "check failure 0")
