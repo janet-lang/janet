@@ -122,7 +122,8 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
         janet_loop();
         if (fiber) {
             janet_gcunroot(janet_wrap_fiber(fiber));
-            ret = fiber->last_value;
+            if (!errflags)
+                ret = fiber->last_value;
         }
     }
 #endif
