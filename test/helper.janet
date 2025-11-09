@@ -50,6 +50,11 @@
   (def errsym (keyword (gensym)))
   ~(assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
 
+(defmacro assert-error-value
+  [msg errval & forms]
+  (def e (gensym))
+  ~(assert (= ,errval (try (do ,;forms) ([,e] ,e))) ,msg))
+
 (defn check-compile-error
   [form]
   (def result (compile form))
