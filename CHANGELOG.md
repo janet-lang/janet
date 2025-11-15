@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.40.0 - 2025-11-15
 - Add `os/posix-chroot`
 - Fix `ev/deadline` with interrupt race condition bug on Windows.
 - Improve `flycheck` by allowing functions and macros to define their own flycheck behavior via the metadata `:flycheck`.
