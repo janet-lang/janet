@@ -699,7 +699,7 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
     DWORD duration = (DWORD)round(tto.sec * 1000);
     DWORD res = WAIT_TIMEOUT;
     JanetTimestamp wait_end = ts_now();
-    for (size_t i = 1; res == WAIT_TIMEOUT && (wait_end - wait_begin) < duration; i++) {
+    for (DWORD i = 1; res == WAIT_TIMEOUT && (wait_end - wait_begin) < duration; i++) {
         res = WaitForSingleObject(tto.cancel_event, (duration + i));
         wait_end = ts_now();
     }
