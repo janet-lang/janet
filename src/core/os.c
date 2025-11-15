@@ -1549,6 +1549,7 @@ JANET_CORE_FN(os_posix_chroot,
     janet_sandbox_assert(JANET_SANDBOX_CHROOT);
     janet_fixarity(argc, 1);
 #ifdef JANET_WINDOWS
+    (void) argv;
     janet_panic("not supported on Windows");
 #else
     const char *root = janet_getcstring(argv, 0);
