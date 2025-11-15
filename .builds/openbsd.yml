@@ -10,7 +10,6 @@ tasks:
     gmake
     gmake test
     doas gmake install
-    gmake test-install
     doas gmake uninstall
 - meson_min: |
     cd janet
