@@ -2872,7 +2872,6 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/touch", os_touch),
         JANET_CORE_REG("os/realpath", os_realpath),
         JANET_CORE_REG("os/cd", os_cd),
-        JANET_CORE_REG("os/posix-chroot", os_posix_chroot),
 #ifndef JANET_NO_UMASK
         JANET_CORE_REG("os/umask", os_umask),
 #endif
@@ -2897,6 +2896,7 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/shell", os_shell),
         JANET_CORE_REG("os/posix-fork", os_posix_fork),
         JANET_CORE_REG("os/posix-exec", os_posix_exec),
+        JANET_CORE_REG("os/posix-chroot", os_posix_chroot),
         /* no need to sandbox process management if you can't create processes
          * (allows for limited functionality if use exposes C-functions to create specific processes) */
         JANET_CORE_REG("os/proc-wait", os_proc_wait),
