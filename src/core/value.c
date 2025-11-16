@@ -322,7 +322,8 @@ int32_t janet_hash(Janet x) {
             break;
         case JANET_TUPLE:
             hash = janet_tuple_hash(janet_unwrap_tuple(x));
-            hash += (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
+            uint32_t inc = (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
+            hash = (int32_t)((uint32_t)hash + inc); /* avoid overflow undefined behavior */
             break;
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
