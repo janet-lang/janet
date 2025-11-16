@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.40.1 - 2025-11-16
+- Fix `JANET_REDUCED_OS` build regression caused by `os/posix-chroot`.
+- Code formatting
+
 ## 1.40.0 - 2025-11-15
 - Add `os/posix-chroot`
 - Fix `ev/deadline` with interrupt race condition bug on Windows.
