@@ -347,6 +347,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
+	$(eval JANET_VERSION := $(shell $(JANET_TARGET) -e '(print janet/version)'))
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	strip $(STRIPFLAGS) '$(DESTDIR)$(BINDIR)/janet'
@@ -356,13 +357,13 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
 	if test $(UNAME) = Darwin ; then \
-		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib' ; \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.$(JANET_VERSION).dylib' ; \
 		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.dylib' ; \
-		ln -sf libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+		ln -sf libjanet.$(JANET_VERSION).dylib $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
 	else \
-		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')' ; \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(JANET_VERSION)' ; \
 		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so' ; \
-		ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+		ln -sf libjanet.so.$(JANET_VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
 	fi
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
 	mkdir -p '$(DESTDIR)$(JANET_MANPATH)'
