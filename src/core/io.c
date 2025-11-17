@@ -249,9 +249,9 @@ JANET_CORE_FN(cfun_io_fread,
 
 /* Write bytes to a file */
 JANET_CORE_FN(cfun_io_fwrite,
-              "(file/write f bytes)",
-              "Writes to a file. 'bytes' must be string, buffer, or symbol. Returns the "
-              "file.") {
+              "(file/write f & bytes)",
+              "Writes to a file `f`. Each value of `bytes` must be a "
+              "string, buffer, symbol, or keyword. Returns the file.") {
     janet_arity(argc, 1, -1);
     JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
     if (iof->flags & JANET_FILE_CLOSED)
