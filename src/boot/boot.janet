@@ -4224,7 +4224,13 @@
         (put new-env :bundle-dir (bundle-dir bundle-name)) # get the syspath right
         (try
           (require (string "@syspath/bundle/" bundle-name))
-          ([_] (error "bundle must contain bundle.janet or bundle/init.janet"))))))
+          ([e f]
+           (def pfx "could not find module @syspath/bundle/")
+           (def msg (if (and (string? e)
+                             (string/has-prefix? pfx e))
+                      "bundle must contain bundle.janet or bundle/init.janet"
+                      e))
+           (propagate msg f))))))
 
   (defn- do-hook
     [module bundle-name hook & args]
