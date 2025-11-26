@@ -185,5 +185,11 @@
 (assert-no-error "iterate over coro 2" (keys (generate [x :range [0 10]] x)))
 (assert-no-error "iterate over coro 3" (pairs (generate [x :range [0 10]] x)))
 
+# thaw
+(def ds1 [1 2 3 {:a 2} {:b 3} 4 5 6])
+(def ds2 [1 2 3 {:a 2 {:c :d} {:e :f}} {:b 3} 4 5 6])
+(assert (deep= (thaw ds1) (thaw-keep-keys ds1)) "thaw vs. thaw-keep-keys 1")
+(assert (deep-not= (thaw ds2) (thaw-keep-keys ds2)) "thaw vs. thaw-keep-keys 2")
+
 (end-suite)
 
