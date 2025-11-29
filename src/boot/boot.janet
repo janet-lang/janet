@@ -4055,7 +4055,6 @@
   Other arguments to `flycheck` are the same as `dofile`. Returns nil.
   ```
   [path &keys kwargs]
-  (def mc @{})
   (def new-env (make-env (get kwargs :env)))
   (put new-env *flychecking* true)
   (put new-env *module-cache* @{})
