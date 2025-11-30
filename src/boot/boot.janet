@@ -2068,6 +2068,11 @@
 
             (put b2g (pattern (inc i)) @[[slice s i]])
             (break))
+          (when (= sub-pattern '$)
+            (when (not= (length pattern) (inc i))
+              (error "expected $ to be last symbol in pattern"))
+            (break))
+
           (visit-pattern-1 b2g s i sub-pattern)))
 
       # match global unification
@@ -2087,11 +2092,10 @@
     (def isarr (or (= t :array) (and (= t :tuple) (= (tuple/type pattern) :brackets))))
     (when isarr
       (array/push anda (get-length-sym s))
-      (def pattern-len
-        (if-let [rest-idx (find-index (fn [x] (= x '&)) pattern)]
-          rest-idx
-          (length pattern)))
-      (array/push anda [<= pattern-len (get-length-sym s)]))
+      (def amp-index (find-index (fn [x] (= x '&)) pattern))
+      (def dollar-index (find-index (fn [x] (= x '$)) pattern))
+      (def pattern-len (or dollar-index amp-index (length pattern)))
+      (array/push anda [(if dollar-index = <=) pattern-len (get-length-sym s)]))
     (cond
 
       # match data structure template
@@ -2103,7 +2107,7 @@
       isarr
       (eachp [i sub-pattern] pattern
         # stop recursing to sub-patterns if the rest sigil is found
-        (when (= sub-pattern '&)
+        (when (or (= sub-pattern '$) (= sub-pattern '&))
           (break))
         (visit-pattern-2 anda gun preds s i sub-pattern))
 
