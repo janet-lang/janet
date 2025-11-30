@@ -191,5 +191,9 @@
 (assert (deep= (thaw ds1) (thaw-keep-keys ds1)) "thaw vs. thaw-keep-keys 1")
 (assert (deep-not= (thaw ds2) (thaw-keep-keys ds2)) "thaw vs. thaw-keep-keys 2")
 
+# match
+(assert (= :yes (match [1 2 3] [x y z w] :no1 [x y $] :no2 [x y z] :yes)) "match dollar suffix 1")
+(assert (= :yes (match [1 2 3] [x y z w] :no1 [x y z $] :yes [x y z] :no2)) "match dollar suffix 2")
+
 (end-suite)
 
