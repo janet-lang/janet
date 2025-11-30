@@ -1238,7 +1238,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     /* Variadic ops */
     templatize_varop(env, JANET_FUN_ADD, "+", 0, 0, JOP_ADD,
                      JDOC("(+ & xs)\n\n"
-                          "Returns the sum of all xs. xs must be integers or real numbers only. If xs is empty, return 0."));
+                          "Returns the sum of all xs. If xs is empty, return 0."));
     templatize_varop(env, JANET_FUN_SUBTRACT, "-", 0, 0, JOP_SUBTRACT,
                      JDOC("(- & xs)\n\n"
                           "Returns the difference of xs. If xs is empty, returns 0. If xs has one element, returns the "
@@ -1272,7 +1272,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                           "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
                      JDOC("(bxor & xs)\n\n"
-                          "Returns the bit-wise xor of all values in xs. Each in xs must be an integer."));
+                          "Returns the bit-wise xor of all values in xs. Each x in xs must be an integer."));
     templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
                      JDOC("(blshift x & shifts)\n\n"
                           "Returns the value of x bit shifted left by the sum of all values in shifts. x "
