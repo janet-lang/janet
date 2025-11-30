@@ -2203,6 +2203,7 @@ typedef enum {
     RULE_SPLIT,        /* [rule, rule] */
     RULE_NTH,          /* [nth, rule, tag] */
     RULE_ONLY_TAGS,    /* [rule] */
+    RULE_MATCHSPLICE,  /* [rule, constant, tag] */
 } JanetPegOpcod;
 
 typedef struct {

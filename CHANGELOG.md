@@ -2,8 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `cms` combinator to PEGs.
 - Add `thaw-keep-keys` as a variant of thaw
-- The `repl` function now respects the `*repl-prompt*` dynamic binding.
+- The `repl` function now respects the `*repl-prompt*` dynamic binding by default.
 - Allow matching exact lengths of datastructures with the `match` macro using a dollar suffix.
 
 ## 1.40.1 - 2025-11-16

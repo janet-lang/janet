@@ -835,5 +835,14 @@
 (test "issue 1554 case 8" '(between 2 3 (? (> '1))) "abc" @["a" "a" "a"])
 (test "issue 1554 case 9" '(between 0 0 (> (? '1))) "abc" @[])
 
-(end-suite)
+# Capture Match Flatten
+(test "capture match splice 1"
+      ~(cms (* 1 '1 1) ,|[$ $ $])
+      "abc"
+      @["b" "b" "b"])
+(test "capture match no splice 1"
+      ~(cmt (* 1 '1 1) ,|[$ $ $])
+      "abc"
+      @[["b" "b" "b"]])
 
+(end-suite)

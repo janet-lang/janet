@@ -622,6 +622,7 @@ tail:
         }
 
         case RULE_REPLACE:
+        case RULE_MATCHSPLICE:
         case RULE_MATCHTIME: {
             uint32_t tag = rule[3];
             int oldmode = s->mode;
@@ -662,8 +663,17 @@ tail:
                     break;
             }
             cap_load_keept(s, cs);
-            if (rule[0] == RULE_MATCHTIME && !janet_truthy(cap)) return NULL;
-            pushcap(s, cap, tag);
+            if (rule[0] != RULE_REPLACE && !janet_truthy(cap)) return NULL; /* matchtime or matchtime flatten */
+            const Janet *elements = NULL;
+            int32_t len = 0;
+            if ((rule[0] == RULE_MATCHSPLICE) && janet_indexed_view(cap, &elements, &len)) {
+                /* unpack and flatten capture */
+                for (int32_t i = 0; i < len; i++) {
+                    pushcap(s, elements[i], tag);
+                }
+            } else {
+                pushcap(s, cap, tag);
+            }
             return result;
         }
 
@@ -1244,7 +1254,7 @@ static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_REPLACE, subrule, constant, tag);
 }
 
-static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+static void spec_matchtime_impl(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
     uint32_t subrule = peg_compile1(b, argv[0]);
@@ -1255,7 +1265,15 @@ static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
     }
     uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
     uint32_t cindex = emit_constant(b, fun);
-    emit_3(r, RULE_MATCHTIME, subrule, cindex, tag);
+    emit_3(r, op, subrule, cindex, tag);
+}
+
+static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+    spec_matchtime_impl(b, argc, argv, RULE_MATCHTIME);
+}
+
+static void spec_matchtime_splice(Builder *b, int32_t argc, const Janet *argv) {
+    spec_matchtime_impl(b, argc, argv, RULE_MATCHSPLICE);
 }
 
 static void spec_sub(Builder *b, int32_t argc, const Janet *argv) {
@@ -1341,6 +1359,7 @@ static const SpecialPair peg_specials[] = {
     {"between", spec_between},
     {"capture", spec_capture},
     {"choice", spec_choice},
+    {"cms", spec_matchtime_splice},
     {"cmt", spec_matchtime},
     {"column", spec_column},
     {"constant", spec_constant},
@@ -1597,7 +1616,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     /* After here, no panics except for the bad: label. */
 
     /* Keep track at each index if an instruction was
-     * reference (0x01) or is in a main bytecode position
+     * referenced (0x01) or is in a main bytecode position
      * (0x02). This lets us do a linear scan and not
      * need to a depth first traversal. It is stricter
      * than a dfs by not allowing certain kinds of unused
@@ -1703,6 +1722,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 break;
             case RULE_REPLACE:
             case RULE_MATCHTIME:
+            case RULE_MATCHSPLICE:
                 /* [rule, constant, tag] */
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= clen) goto bad;
