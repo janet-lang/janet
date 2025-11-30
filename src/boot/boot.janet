@@ -1457,6 +1457,12 @@
     (put ret (f k) (f (in form k))))
   ret)
 
+(defn- walk-dict-values [f form]
+  (def ret @{})
+  (loop [k :keys form]
+    (put ret k (f (in form k))))
+  ret)
+
 (defn walk
   ``Iterate over the values in ast and apply `f`
   to them. Collect the results in a data structure. If ast is not a
@@ -1474,12 +1480,52 @@
   ``Do a post-order traversal of a data structure and call `(f x)`
   on every visitation.``
   [f form]
-  (f (walk (fn [x] (postwalk f x)) form)))
+  (f (walk (fn :visit [x] (postwalk f x)) form)))
 
 (defn prewalk
   "Similar to `postwalk`, but do pre-order traversal."
   [f form]
-  (walk (fn [x] (prewalk f x)) (f form)))
+  (walk (fn :visit [x] (prewalk f x)) (f form)))
+
+(defn- walk-dict-pairs [f form]
+  (def ret @{})
+  (eachp p1 form
+    (def p2 (f p1))
+    (when p2
+      (def [k v] p2)
+      (put ret k v)))
+  ret)
+
+(defn walk2
+  ``Iterate over the values in ast and apply `f`
+  to them. Collect the results in a data structure. Differs from `walk` in 2 ways:
+
+  * Will iterate fibers and gather results into an array.
+  * Tables and structs are traversed by visiting each key-value as a tuple instead
+    of iterating them in an interleaved fashion.
+
+  If ast is not a
+  table, struct, array, tuple, or fiber,
+  returns form.``
+  [f form]
+  (case (type form)
+    :table (walk-dict-pairs f form)
+    :struct (table/to-struct (walk-dict-pairs f form))
+    :array (walk-ind f form)
+    :tuple (keep-syntax! form (walk-ind f form))
+    :fiber (walk-ind f form)
+    form))
+
+(defn postwalk2
+  ``Do a post-order traversal of a data structure and call `(f x)`
+  on every visitation.``
+  [f form]
+  (f (walk2 (fn :visit [x] (postwalk2 f x)) form)))
+
+(defn prewalk2
+  "Similar to `postwalk`, but do pre-order traversal."
+  [f form]
+  (walk2 (fn :visit [x] (prewalk2 f x)) (f form)))
 
 (defmacro as->
   ``Thread forms together, replacing `as` in `forms` with the value
@@ -2294,15 +2340,30 @@
     x))
 
 (defn thaw
-  `Thaw an object (make it mutable) and do a deep copy, making
-  child value also mutable. Closures, fibers, and abstract
-  types will not be recursively thawed, but all other types will`
+  ```
+  Thaw an object (make it mutable) and do a deep copy, making
+  child values also mutable. Closures, fibers, and abstract
+  types will not be recursively thawed, but all other types will.
+  ```
   [ds]
   (case (type ds)
     :array (walk-ind thaw ds)
     :tuple (walk-ind thaw ds)
     :table (walk-dict thaw (table/proto-flatten ds))
     :struct (walk-dict thaw (struct/proto-flatten ds))
+    :string (buffer ds)
+    ds))
+
+(defn thaw-keep-keys
+  ```
+  Similar to `thaw`, but do not modify table or struct keys.
+  ```
+  [ds]
+  (case (type ds)
+    :array (walk-ind thaw-keep-keys ds)
+    :tuple (walk-ind thaw-keep-keys ds)
+    :table (walk-dict-values thaw-keep-keys (table/proto-flatten ds))
+    :struct (walk-dict-values thaw-keep-keys (struct/proto-flatten ds))
     :string (buffer ds)
     ds))
 
@@ -3799,13 +3860,16 @@
   (default env (make-env))
   (default chunks
     (fn :chunks [buf p]
-      (getline
-        (string
-          "repl:"
-          ((:where p) 0)
-          ":"
-          (:state p :delimiters) "> ")
-        buf env)))
+      (def custom-prompt (get env *repl-prompt*))
+      (def repl-prompt
+        (if custom-prompt
+          (custom-prompt p)
+          (string
+            "repl:"
+            ((:where p) 0)
+            ":"
+            (:state p :delimiters) "> ")))
+      (getline repl-prompt buf env)))
   (run-context {:env env
                 :chunks chunks
                 :on-status (or onsignal (debugger-on-status env 1 true))
