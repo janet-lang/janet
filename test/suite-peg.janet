@@ -845,4 +845,14 @@
       "abc"
       @[["b" "b" "b"]])
 
+(test "splice 1"
+      ~(splice (cmt (* 1 1 '1) ,|[$ $]))
+      "xyz"
+      @["z" "z"])
+
+(test "splice 2"
+      ~(group ;(cmt (* 1 1 '1) ,|[$ $]))
+      "xyz"
+      @[@["z" "z"]])
+
 (end-suite)

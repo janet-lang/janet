@@ -621,6 +621,35 @@ tail:
             return s->text_end;
         }
 
+        case RULE_SPLICE: {
+            uint32_t tag = rule[2];
+            int oldmode = s->mode;
+            CapState cs = cap_save(s);
+            s->mode = PEG_MODE_NORMAL;
+            down1(s);
+            const uint8_t *result = peg_rule(s, s->bytecode + rule[1], text);
+            up1(s);
+            s->mode = oldmode;
+            if (!result) return NULL;
+
+            int32_t num_captures = s->captures->count - cs.cap;
+            if (num_captures == 1) {
+                const Janet *elements = NULL;
+                int32_t len = 0;
+                if (janet_indexed_view(s->captures->data[s->captures->count - 1],
+                                       &elements, &len)) {
+                    // "drop" the captured single item by restoring
+                    cap_load_keept(s, cs);
+                    /* unpack and flatten capture */
+                    for (int32_t i = 0; i < len; i++) {
+                        pushcap(s, elements[i], tag);
+                    }
+                }
+            }
+
+            return result;
+        }
+
         case RULE_REPLACE:
         case RULE_MATCHSPLICE:
         case RULE_MATCHTIME: {
@@ -1169,6 +1198,9 @@ static void spec_group(Builder *b, int32_t argc, const Janet *argv) {
 static void spec_unref(Builder *b, int32_t argc, const Janet *argv) {
     spec_cap1(b, argc, argv, RULE_UNREF);
 }
+static void spec_splice(Builder *b, int32_t argc, const Janet *argv) {
+    spec_cap1(b, argc, argv, RULE_SPLICE);
+}
 
 static void spec_nth(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 2, 3);
@@ -1386,6 +1418,7 @@ static const SpecialPair peg_specials[] = {
     {"sequence", spec_sequence},
     {"set", spec_set},
     {"some", spec_some},
+    {"splice", spec_splice},
     {"split", spec_split},
     {"sub", spec_sub},
     {"thru", spec_thru},
@@ -1715,6 +1748,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_GROUP:
             case RULE_CAPTURE:
             case RULE_UNREF:
+            case RULE_SPLICE:
                 /* [rule, tag] */
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
