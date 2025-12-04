@@ -1345,9 +1345,9 @@ typedef double (win64_variant_f_fffi)(double, double, double, uint64_t);
 typedef double (win64_variant_f_ffff)(double, double, double, double);
 
 /* MSVC stack frame runtime error checking (/RTCs) prepends alloca() allocations with an _RTC_ALLOCA_NODE
- * header; misalligning stack-based FFI arguments and causing the memmove() (by stack_shift) to corrupt 
+ * header; misalligning stack-based FFI arguments and causing the memmove() (by stack_shift) to corrupt
  * the _RTC_ALLOCA_NODE header.
- * 
+ *
  * We turn off the RTC-instrumented alloca() and adding of _RTC_CheckStackVars to function prologue just
  * for janet_ffi_win64() */
 #ifdef __MSVC_RUNTIME_CHECKS
