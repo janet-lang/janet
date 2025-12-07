@@ -379,10 +379,12 @@ static void refresh(void) {
     janet_buffer_push_cstring(&b, gbl_prompt);
     janet_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
     /* Erase to right */
-    janet_buffer_push_cstring(&b, "\x1b[0K");
+    janet_buffer_push_cstring(&b, "\x1b[0K\r");
     /* Move cursor to original position. */
-    snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + gbl_plen));
-    janet_buffer_push_cstring(&b, seq);
+    if (_pos + gbl_plen) {
+        snprintf(seq, 64, "\x1b[%dC", (int)(_pos + gbl_plen));
+        janet_buffer_push_cstring(&b, seq);
+    }
     if (write_console((char *) b.data, b.count) == -1) {
         exit(1);
     }
