@@ -309,7 +309,9 @@ static int curpos(void) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
+#ifndef JANET_PLAN9
     if (write_console("\x1b[6n", 4) != 4) return -1;
+#endif
     while (i < sizeof(buf) - 1) {
         if (read_console(buf + i, 1) != 1) break;
         if (buf[i] == 'R') break;
@@ -327,6 +329,10 @@ static int getcols(void) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     return (int)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
+#elif defined(JANET_PLAN9)
+	//FIXME(noam): this can probably read /dev/window to get window size, and
+	//divide by the active font width, since plan9 requires fixed-width glyphs.
+	return 80;
 #else
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
@@ -1132,6 +1138,10 @@ int main(int argc, char **argv) {
     int i, status;
     JanetArray *args;
     JanetTable *env;
+
+#ifdef JANET_PLAN9
+	setfcr(0);
+#endif
 
 #ifdef _WIN32
     setup_console_output();

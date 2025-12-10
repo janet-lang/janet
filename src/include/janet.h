@@ -305,10 +305,6 @@ extern "C" {
 #define JANET_STACK_MAX 0x7fffffff
 #endif
 
-#ifdef JANET_PLAN9
-#undef NAN
-#endif
-
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16.
  * To turn of nanboxing, for debugging purposes or for certain
  * architectures (Nanboxing only tested on x86 and x64), comment out

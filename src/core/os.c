@@ -29,6 +29,11 @@
 
 #include <stdlib.h>
 
+#ifdef JANET_PLAN9
+#include <unistd.h>
+#endif
+
+
 #ifndef JANET_REDUCED_OS
 
 #include <time.h>
@@ -288,7 +293,20 @@ JANET_CORE_FN(os_exit,
     return janet_wrap_nil();
 }
 
-#ifndef JANET_REDUCED_OS
+#ifdef JANET_PLAN9
+
+JANET_CORE_FN(os_isatty,
+              "(os/isatty &opt file)",
+              "Returns true if `file` is a terminal. If `file` is not specified, "
+              "it will default to standard output.") {
+    janet_arity(argc, 0, 1);
+    FILE *f = (argc == 1) ? janet_getfile(argv, 0, NULL) : stdout;
+    int fd = fileno(f);
+    if (fd == -1) janet_panic(janet_strerror(errno));
+    return janet_wrap_boolean(isatty(fd));
+}
+
+#elif !defined(JANET_REDUCED_OS)
 
 JANET_CORE_FN(os_cpu_count,
               "(os/cpu-count &opt dflt)",
@@ -2847,7 +2865,9 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/which", os_which),
         JANET_CORE_REG("os/arch", os_arch),
         JANET_CORE_REG("os/compiler", os_compiler),
-#ifndef JANET_REDUCED_OS
+#ifdef JANET_PLAN9
+        JANET_CORE_REG("os/isatty", os_isatty),
+#elif !defined(JANET_REDUCED_OS)
 
         /* misc (un-sandboxed) */
         JANET_CORE_REG("os/cpu-count", os_cpu_count),
