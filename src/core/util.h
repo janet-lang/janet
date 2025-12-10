@@ -167,7 +167,11 @@ typedef void *Clib;
 #endif
 char *get_processed_name(const char *name);
 
+#ifdef JANET_PLAN9
+#define RETRY_EINTR(RC, CALL) (RC) = CALL;
+#else
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
+#endif
 
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);

@@ -79,9 +79,11 @@ static void simpleline(JanetBuffer *buffer) {
     int c;
     for (;;) {
         c = fgetc(in);
+#ifndef JANET_PLAN9
         if (c < 0 && !feof(in) && errno == EINTR) {
             continue;
         }
+#endif
         if (feof(in) || c < 0) {
             break;
         }

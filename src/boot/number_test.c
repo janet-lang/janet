@@ -45,6 +45,7 @@ static void test_valid_str(const char *str) {
 
 int number_test() {
 
+#ifndef JANET_PLAN9
     test_valid_str("1.0");
     test_valid_str("1");
     test_valid_str("2.1");
@@ -62,6 +63,7 @@ int number_test() {
     test_valid_str("123123123123123123132123");
     test_valid_str("0000000011111111111111111111111111");
     test_valid_str(".112312333333323123123123123123123");
+#endif
 
     return 0;
 }

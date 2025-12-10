@@ -105,15 +105,6 @@ static int to_hex(uint8_t c) {
     }
 }
 
-typedef int (*Consumer)(JanetParser *p, JanetParseState *state, uint8_t c);
-struct JanetParseState {
-    int32_t counter;
-    int32_t argn;
-    int flags;
-    size_t line;
-    size_t column;
-    Consumer consumer;
-};
 
 /* Define a stack on the main parser struct */
 #define DEF_PARSER_STACK(NAME, T, STACK, STACKCOUNT, STACKCAP) \

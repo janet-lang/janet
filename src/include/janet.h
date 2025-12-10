@@ -113,6 +113,8 @@ extern "C" {
 #endif
 
 /* Check 64-bit vs 32-bit */
+#ifndef JANET_64
+#ifndef JANET_32
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \
     || (defined(_WIN64)) /* Windows 64 bit */ \
@@ -127,6 +129,8 @@ extern "C" {
 #define JANET_64 1
 #else
 #define JANET_32 1
+#endif
+#endif
 #endif
 
 /* Check big endian */
@@ -299,6 +303,10 @@ extern "C" {
  * This can also be set on a per fiber basis. */
 #ifndef JANET_STACK_MAX
 #define JANET_STACK_MAX 0x7fffffff
+#endif
+
+#ifdef JANET_PLAN9
+#undef NAN
 #endif
 
 /* Use nanboxed values - uses 8 bytes per value instead of 12 or 16.
@@ -666,6 +674,8 @@ JANET_API void janet_stream_level_triggered(JanetStream *stream);
 /* Janet uses atomic integers in several places for synchronization between threads and
  * signals. Define them here */
 #ifdef JANET_WINDOWS
+typedef long JanetAtomicInt;
+#elif defined(JANET_PLAN9)
 typedef long JanetAtomicInt;
 #else
 typedef int32_t JanetAtomicInt;
@@ -1137,6 +1147,17 @@ struct JanetFunction {
 
 typedef struct JanetParseState JanetParseState;
 typedef struct JanetParser JanetParser;
+
+typedef int (*Consumer)(JanetParser *p, JanetParseState *state, uint8_t c);
+
+struct JanetParseState {
+    int32_t counter;
+    int32_t argn;
+    int flags;
+    size_t line;
+    size_t column;
+    Consumer consumer;
+};
 
 enum JanetParserStatus {
     JANET_PARSE_ROOT,

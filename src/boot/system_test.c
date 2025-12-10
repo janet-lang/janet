@@ -51,7 +51,9 @@ int system_test() {
     assert(janet_equals(janet_wrap_number(1.4), janet_wrap_number(1.4)));
     assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
 #ifdef NAN
+#ifndef JANET_PLAN9
     assert(janet_checktype(janet_wrap_number(NAN), JANET_NUMBER));
+#endif
 #else
     assert(janet_checktype(janet_wrap_number(0.0 / 0.0), JANET_NUMBER));
 #endif

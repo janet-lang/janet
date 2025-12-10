@@ -277,7 +277,11 @@ JANET_CORE_FN(os_exit,
     }
     janet_deinit();
     if (argc >= 2 && janet_truthy(argv[1])) {
+#ifdef JANET_PLAN9
+		exit(status);
+#else
         _Exit(status);
+#endif
     } else {
         exit(status);
     }

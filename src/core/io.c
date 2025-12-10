@@ -32,7 +32,9 @@
 #ifndef JANET_WINDOWS
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifndef JANET_PLAN9
 #include <sys/wait.h>
+#endif
 #include <unistd.h>
 #endif
 
@@ -113,7 +115,7 @@ static void *makef(FILE *f, int32_t flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
     iof->file = f;
     iof->flags = flags;
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
     /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
      * not standard. */
     if (!(flags & JANET_FILE_NOT_CLOSEABLE))
