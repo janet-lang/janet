@@ -194,6 +194,15 @@ tail:
             return memcmp(text, rule + 2, len) ? NULL : text + len;
         }
 
+        case RULE_DEBUG: {
+            char buffer[32] = {0};
+            size_t len = (s->outer_text_end - text + 1);
+            memcpy(buffer, text, (len > 31 ? 31 : len));
+
+            janet_printf("at [%s]\n", buffer);
+            return text;
+        }
+
         case RULE_NCHAR: {
             uint32_t n = rule[1];
             return (text + n > s->text_end) ? NULL : text + n;
@@ -1245,6 +1254,13 @@ static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_CONSTANT, emit_constant(b, argv[0]), tag);
 }
 
+static void spec_debug(Builder *b, int32_t argc, const Janet *argv) {
+    janet_arity(argc, 0, 0);
+    Reserve r = reserve(b, 2);
+    (void) argv;
+    emit_1(r, RULE_DEBUG, 0);
+}
+
 static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
@@ -1349,6 +1365,7 @@ static const SpecialPair peg_specials[] = {
     {"<-", spec_capture},
     {">", spec_look},
     {"?", spec_opt},
+    {"??", spec_debug},
     {"accumulate", spec_accumulate},
     {"any", spec_any},
     {"argument", spec_argument},
@@ -1363,6 +1380,7 @@ static const SpecialPair peg_specials[] = {
     {"cmt", spec_matchtime},
     {"column", spec_column},
     {"constant", spec_constant},
+    {"debug", spec_debug},
     {"drop", spec_drop},
     {"error", spec_error},
     {"group", spec_group},
@@ -1638,6 +1656,10 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
         switch (instr) {
             case RULE_LITERAL:
                 i += 2 + ((rule[1] + 3) >> 2);
+                break;
+            case RULE_DEBUG:
+                /* [0 words] */
+                i += 1;
                 break;
             case RULE_NCHAR:
             case RULE_NOTNCHAR:

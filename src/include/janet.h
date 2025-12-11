@@ -2204,6 +2204,7 @@ typedef enum {
     RULE_NTH,          /* [nth, rule, tag] */
     RULE_ONLY_TAGS,    /* [rule] */
     RULE_MATCHSPLICE,  /* [rule, constant, tag] */
+    RULE_DEBUG,        /* [] */
 } JanetPegOpcode;
 
 typedef struct {

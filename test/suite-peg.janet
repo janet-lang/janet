@@ -845,4 +845,16 @@
       "abc"
       @[["b" "b" "b"]])
 
+# Debug and ?? tests.
+(defn test-stdout [name peg input expected-matches expected-stdout]
+  (def actual @"")
+  (with-dyns [:out actual]
+    (test name peg input expected-matches))
+  (assert (deep= (string actual) expected-stdout)))
+
+(test-stdout "outputting text to process" '(* (debug) "abc") "abc" @[] "at [abc]\n")
+(test-stdout "outputting text to process" '(* (??) "abc") "abc" @[] "at [abc]\n")
+(test-stdout "outputting text to process" '(* "abc" (??)) "abc" @[] "at []\n")
+(test-stdout "outputting text to process" '(* "a" (??) "bc") "abc" @[] "at [bc]\n")
+
 (end-suite)
