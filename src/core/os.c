@@ -343,6 +343,8 @@ JANET_CORE_FN(os_cpu_count,
         return dflt;
     }
     return janet_wrap_integer(result);
+#elif defined(JANET_PLAN9)
+	return janet_wrap_integer(atoi(getenv("NPROC")));
 #else
     return dflt;
 #endif
