@@ -29,11 +29,6 @@
 
 #include <stdlib.h>
 
-#ifdef JANET_PLAN9
-#include <unistd.h>
-#endif
-
-
 #ifndef JANET_REDUCED_OS
 
 #include <time.h>
