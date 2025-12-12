@@ -75,7 +75,7 @@
 #define environ (*_NSGetEnviron())
 #include <AvailabilityMacros.h>
 int chroot(const char *dirname);
-#else
+#elif !defined(JANET_PLAN9)
 extern char **environ;
 #endif
 #ifdef JANET_THREADS
@@ -305,21 +305,17 @@ JANET_CORE_FN(os_cpu_count,
               "Get an approximate number of CPUs available on for this process to use. If "
               "unable to get an approximation, will return a default value dflt.") {
     janet_arity(argc, 0, 1);
-    Janet dflt = argc > 0 ? argv[0] : janet_wrap_nil();
 #ifdef JANET_WINDOWS
-    (void) dflt;
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return janet_wrap_integer(info.dwNumberOfProcessors);
 #elif defined(JANET_LINUX)
-    (void) dflt;
     cpu_set_t cs;
     CPU_ZERO(&cs);
     sched_getaffinity(0, sizeof(cs), &cs);
     int count = CPU_COUNT(&cs);
     return janet_wrap_integer(count);
 #elif defined(JANET_BSD) && defined(HW_NCPUONLINE)
-    (void) dflt;
     const int name[2] = {CTL_HW, HW_NCPUONLINE};
     int result = 0;
     size_t len = sizeof(int);
@@ -328,7 +324,6 @@ JANET_CORE_FN(os_cpu_count,
     }
     return janet_wrap_integer(result);
 #elif defined(JANET_BSD) && defined(HW_NCPU)
-    (void) dflt;
     const int name[2] = {CTL_HW, HW_NCPU};
     int result = 0;
     size_t len = sizeof(int);
@@ -337,7 +332,6 @@ JANET_CORE_FN(os_cpu_count,
     }
     return janet_wrap_integer(result);
 #elif defined(JANET_ILLUMOS)
-    (void) dflt;
     long result = sysconf(_SC_NPROCESSORS_CONF);
     if (result < 0) {
         return dflt;
@@ -346,7 +340,7 @@ JANET_CORE_FN(os_cpu_count,
 #elif defined(JANET_PLAN9)
 	return janet_wrap_integer(atoi(getenv("NPROC")));
 #else
-    return dflt;
+    return argc > 0 ? argv[0] : janet_wrap_nil();
 #endif
 }
 
@@ -1355,6 +1349,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* exec mode */
     if (mode == JANET_EXECUTE_EXEC) {
         int status;
+#ifdef JANET_PLAN9
+		status = exec(cargv[0], cargv);
+#else
         if (!use_environ) {
             environ = envp;
         }
@@ -1365,9 +1362,11 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                 status = execv(cargv[0], cargv);
             }
         } while (status == -1 && errno == EINTR);
+#endif
         janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
     }
 
+#ifndef JANET_NO_SPAWN
     /* Use posix_spawn to spawn new process */
 
     /* Posix spawn setup */
@@ -1436,6 +1435,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     }
 
 #endif
+#endif
+#ifndef JANET_NO_SPAWN
     JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
     proc->return_code = -1;
 #ifdef JANET_WINDOWS
@@ -1473,6 +1474,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         return os_proc_wait_impl(proc);
 #endif
     }
+#endif
 }
 
 JANET_CORE_FN(os_execute,
@@ -1533,7 +1535,7 @@ JANET_CORE_FN(os_posix_exec,
 JANET_CORE_FN(os_posix_fork,
               "(os/posix-fork)",
               "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
-              "Not supported on all systems (POSIX only).") {
+              "Not supported on all systems (POSIX and Plan 9 only).") {
     janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_fixarity(argc, 0);
     (void) argv;
@@ -1541,9 +1543,13 @@ JANET_CORE_FN(os_posix_fork,
     janet_panic("not supported on Windows");
 #else
     pid_t result;
+#ifdef JANET_PLAN9
+	result = fork();
+#else
     do {
         result = fork();
     } while (result == -1 && errno == EINTR);
+#endif
     if (result == -1) {
         janet_panic(janet_strerror(errno));
     }
@@ -1564,9 +1570,9 @@ JANET_CORE_FN(os_posix_chroot,
               "Not supported on all systems (POSIX only).") {
     janet_sandbox_assert(JANET_SANDBOX_CHROOT);
     janet_fixarity(argc, 1);
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
     (void) argv;
-    janet_panic("not supported on Windows");
+    janet_panic("not supported on Windows or Plan 9");
 #else
     const char *root = janet_getcstring(argv, 0);
     int result;
