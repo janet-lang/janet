@@ -848,11 +848,15 @@ int janet_checksize(Janet x) {
         return 0;
     double dval = janet_unwrap_number(x);
     if (dval != (double)((size_t) dval)) return 0;
+#ifdef JANET_PLAN9
+	return dval <= SIZE_MAX;
+#else
     if (SIZE_MAX > JANET_INTMAX_INT64) {
         return dval <= JANET_INTMAX_INT64;
     } else {
         return dval <= SIZE_MAX;
     }
+#endif
 }
 
 JanetTable *janet_get_core_table(const char *name) {
@@ -959,8 +963,10 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source) {
         cid = CLOCK_REALTIME;
     } else if (source == JANET_TIME_MONOTONIC) {
         cid = CLOCK_MONOTONIC;
+#ifndef JANET_PLAN9
     } else if (source == JANET_TIME_CPUTIME) {
         cid = CLOCK_PROCESS_CPUTIME_ID;
+#endif
     }
     return clock_gettime(cid, spec);
 }
