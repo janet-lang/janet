@@ -113,8 +113,6 @@ extern "C" {
 #endif
 
 /* Check 64-bit vs 32-bit */
-#ifndef JANET_64
-#ifndef JANET_32
 #if ((defined(__x86_64__) || defined(_M_X64)) \
      && (defined(JANET_POSIX) || defined(JANET_WINDOWS))) \
     || (defined(_WIN64)) /* Windows 64 bit */ \
@@ -123,14 +121,13 @@ extern "C" {
     || (defined(__sparc__) && defined(__arch64__) || defined (__sparcv9)) /* BE */ \
     || defined(__s390x__) /* S390 64-bit (BE) */ \
     || (defined(__ppc64__) || defined(__PPC64__)) \
+    || defined(PLAN9_arm64) || defined(PLAN9_amd64) \
     || defined(__aarch64__) /* ARM 64-bit */ \
     || (defined(__riscv) && (__riscv_xlen == 64)) /* RISC-V 64-bit */ \
     || defined(__loongarch64) /* LoongArch64 64-bit */
 #define JANET_64 1
 #else
 #define JANET_32 1
-#endif
-#endif
 #endif
 
 /* Check big endian */
