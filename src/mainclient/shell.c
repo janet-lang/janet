@@ -329,10 +329,6 @@ static int getcols(void) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     return (int)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
-#elif defined(JANET_PLAN9)
-	//FIXME(noam): this can probably read /dev/window to get window size, and
-	//divide by the active font width, since plan9 requires fixed-width glyphs.
-	return 80;
 #else
     struct winsize ws;
     if (ioctl(1, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
