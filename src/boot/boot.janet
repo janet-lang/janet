@@ -4110,8 +4110,17 @@
     true))
 
 (defn- is-safe-def [thunk source env where]
-  (if (no-side-effects (last source))
-    (thunk)))
+  (if-let [ve (get env (source 1))
+           fc (get ve :flycheck)]
+    (cond
+      # Sometimes safe form
+      (function? fc)
+      (fc thunk source env where)
+      # Always safe form
+      fc
+      (thunk))
+    (if (no-side-effects (last source))
+      (thunk))))
 
 (defn- flycheck-importer
   [thunk source env where]
