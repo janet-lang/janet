@@ -167,7 +167,7 @@ JANET_CORE_FN(cfun_io_fopen,
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
     if (f != NULL) {
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
         struct stat st;
         fstat(fileno(f), &st);
         if (S_ISDIR(st.st_mode)) {
