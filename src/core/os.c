@@ -251,6 +251,7 @@ JANET_CORE_FN(os_compiler,
               "* :gcc\n\n"
               "* :clang\n\n"
               "* :msvc\n\n"
+              "* :kencc\n\n"
               "* :unknown\n\n") {
     janet_fixarity(argc, 0);
     (void) argv;
@@ -260,6 +261,8 @@ JANET_CORE_FN(os_compiler,
     return janet_ckeywordv("clang");
 #elif defined(__GNUC__)
     return janet_ckeywordv("gcc");
+#elif defined(JANET_PLAN9)
+	return janet_ckeywordv("kencc");
 #else
     return janet_ckeywordv("unknown");
 #endif
