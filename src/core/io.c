@@ -32,9 +32,7 @@
 #ifndef JANET_WINDOWS
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifndef JANET_PLAN9
 #include <sys/wait.h>
-#endif
 #include <unistd.h>
 #endif
 

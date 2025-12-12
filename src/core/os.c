@@ -64,12 +64,12 @@
 #else
 #ifndef JANET_PLAN9
 #include <spawn.h>
-#include <sys/wait.h>
 #endif
 #include <utime.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #ifdef JANET_APPLE
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
