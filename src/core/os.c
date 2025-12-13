@@ -57,7 +57,9 @@
 #include <process.h>
 #define JANET_SPAWN_CHDIR
 #else
+#ifndef JANET_PLAN9
 #include <spawn.h>
+#endif
 #include <utime.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -68,7 +70,7 @@
 #define environ (*_NSGetEnviron())
 #include <AvailabilityMacros.h>
 int chroot(const char *dirname);
-#else
+#elif !defined(JANET_PLAN9)
 extern char **environ;
 #endif
 #ifdef JANET_THREADS
@@ -244,6 +246,7 @@ JANET_CORE_FN(os_compiler,
               "* :gcc\n\n"
               "* :clang\n\n"
               "* :msvc\n\n"
+              "* :kencc\n\n"
               "* :unknown\n\n") {
     janet_fixarity(argc, 0);
     (void) argv;
@@ -253,6 +256,8 @@ JANET_CORE_FN(os_compiler,
     return janet_ckeywordv("clang");
 #elif defined(__GNUC__)
     return janet_ckeywordv("gcc");
+#elif defined(JANET_PLAN9)
+	return janet_ckeywordv("kencc");
 #else
     return janet_ckeywordv("unknown");
 #endif
@@ -291,21 +296,17 @@ JANET_CORE_FN(os_cpu_count,
               "Get an approximate number of CPUs available on for this process to use. If "
               "unable to get an approximation, will return a default value dflt.") {
     janet_arity(argc, 0, 1);
-    Janet dflt = argc > 0 ? argv[0] : janet_wrap_nil();
 #ifdef JANET_WINDOWS
-    (void) dflt;
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return janet_wrap_integer(info.dwNumberOfProcessors);
 #elif defined(JANET_LINUX)
-    (void) dflt;
     cpu_set_t cs;
     CPU_ZERO(&cs);
     sched_getaffinity(0, sizeof(cs), &cs);
     int count = CPU_COUNT(&cs);
     return janet_wrap_integer(count);
 #elif defined(JANET_BSD) && defined(HW_NCPUONLINE)
-    (void) dflt;
     const int name[2] = {CTL_HW, HW_NCPUONLINE};
     int result = 0;
     size_t len = sizeof(int);
@@ -314,7 +315,6 @@ JANET_CORE_FN(os_cpu_count,
     }
     return janet_wrap_integer(result);
 #elif defined(JANET_BSD) && defined(HW_NCPU)
-    (void) dflt;
     const int name[2] = {CTL_HW, HW_NCPU};
     int result = 0;
     size_t len = sizeof(int);
@@ -323,14 +323,15 @@ JANET_CORE_FN(os_cpu_count,
     }
     return janet_wrap_integer(result);
 #elif defined(JANET_ILLUMOS)
-    (void) dflt;
     long result = sysconf(_SC_NPROCESSORS_CONF);
     if (result < 0) {
         return dflt;
     }
     return janet_wrap_integer(result);
+#elif defined(JANET_PLAN9)
+	return janet_wrap_integer(atoi(getenv("NPROC")));
 #else
-    return dflt;
+    return argc > 0 ? argv[0] : janet_wrap_nil();
 #endif
 }
 
@@ -1339,6 +1340,9 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     /* exec mode */
     if (mode == JANET_EXECUTE_EXEC) {
         int status;
+#ifdef JANET_PLAN9
+		status = exec(cargv[0], cargv);
+#else
         if (!use_environ) {
             environ = envp;
         }
@@ -1349,9 +1353,11 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                 status = execv(cargv[0], cargv);
             }
         } while (status == -1 && errno == EINTR);
+#endif
         janet_panicf("%p: %s", cargv[0], janet_strerror(errno ? errno : ENOENT));
     }
 
+#ifndef JANET_NO_SPAWN
     /* Use posix_spawn to spawn new process */
 
     /* Posix spawn setup */
@@ -1420,6 +1426,8 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     }
 
 #endif
+#endif
+#ifndef JANET_NO_SPAWN
     JanetProc *proc = janet_abstract(&ProcAT, sizeof(JanetProc));
     proc->return_code = -1;
 #ifdef JANET_WINDOWS
@@ -1457,6 +1465,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         return os_proc_wait_impl(proc);
 #endif
     }
+#endif
 }
 
 JANET_CORE_FN(os_execute,
@@ -1517,7 +1526,7 @@ JANET_CORE_FN(os_posix_exec,
 JANET_CORE_FN(os_posix_fork,
               "(os/posix-fork)",
               "Make a `fork` system call and create a new process. Return nil if in the new process, otherwise a core/process object (as returned by os/spawn). "
-              "Not supported on all systems (POSIX only).") {
+              "Not supported on all systems (POSIX and Plan 9 only).") {
     janet_sandbox_assert(JANET_SANDBOX_SUBPROCESS);
     janet_fixarity(argc, 0);
     (void) argv;
@@ -1525,9 +1534,13 @@ JANET_CORE_FN(os_posix_fork,
     janet_panic("not supported on Windows");
 #else
     pid_t result;
+#ifdef JANET_PLAN9
+	result = fork();
+#else
     do {
         result = fork();
     } while (result == -1 && errno == EINTR);
+#endif
     if (result == -1) {
         janet_panic(janet_strerror(errno));
     }
@@ -1548,9 +1561,9 @@ JANET_CORE_FN(os_posix_chroot,
               "Not supported on all systems (POSIX only).") {
     janet_sandbox_assert(JANET_SANDBOX_CHROOT);
     janet_fixarity(argc, 1);
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
     (void) argv;
-    janet_panic("not supported on Windows");
+    janet_panic("not supported on Windows or Plan 9");
 #else
     const char *root = janet_getcstring(argv, 0);
     int result;
@@ -1599,6 +1612,7 @@ JANET_CORE_FN(os_shell,
 
 #endif /* JANET_NO_PROCESSES */
 
+#ifndef JANET_PLAN9
 JANET_CORE_FN(os_environ,
               "(os/environ)",
               "Get a copy of the OS environment table.") {
@@ -1630,6 +1644,7 @@ JANET_CORE_FN(os_environ,
     janet_unlock_environ();
     return janet_wrap_table(t);
 }
+#endif
 
 JANET_CORE_FN(os_getenv,
               "(os/getenv variable &opt dflt)",
@@ -1654,6 +1669,9 @@ JANET_CORE_FN(os_setenv,
 #ifdef JANET_WINDOWS
 #define SETENV(K,V) _putenv_s(K, V)
 #define UNSETENV(K) _putenv_s(K, "")
+#elif defined(JANET_PLAN9)
+#define SETENV(K,V) putenv(K, V)
+#define UNSETENV(K) unsetenv(K)
 #else
 #define SETENV(K,V) setenv(K, V, 1)
 #define UNSETENV(K) unsetenv(K)
@@ -1826,6 +1844,8 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
         _tzset();
         localtime_s(t_infos, &t);
         t_info = t_infos;
+#elif defined(JANET_PLAN9)
+		t_info = localtime(&t);
 #else
         tzset();
         t_info = localtime_r(&t, t_infos);
@@ -1835,6 +1855,8 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
 #ifdef JANET_WINDOWS
         gmtime_s(t_infos, &t);
         t_info = t_infos;
+#elif defined(JANET_PLAN9)
+		t_info = gmtime(&t);
 #else
         t_info = gmtime_r(&t, t_infos);
 #endif
@@ -2009,6 +2031,7 @@ JANET_CORE_FN(os_mktime,
 #define j_symlink symlink
 #endif
 
+#ifndef JANET_NO_LOCALES
 JANET_CORE_FN(os_setlocale,
               "(os/setlocale &opt locale category)",
               "Set the system locale, which affects how dates and numbers are formatted. "
@@ -2045,19 +2068,20 @@ JANET_CORE_FN(os_setlocale,
     if (old == NULL) return janet_wrap_nil();
     return janet_cstringv(old);
 }
+#endif
 
 JANET_CORE_FN(os_link,
               "(os/link oldpath newpath &opt symlink)",
               "Create a link at newpath that points to oldpath and returns nil. "
               "Iff symlink is truthy, creates a symlink. "
               "Iff symlink is falsey or not provided, "
-              "creates a hard link. Does not work on Windows.") {
+              "creates a hard link. Does not work on Windows or Plan 9.") {
     janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_arity(argc, 2, 3);
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
     (void) argc;
     (void) argv;
-    janet_panic("not supported on Windows");
+    janet_panic("not supported on Windows or Plan 9");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -2072,10 +2096,10 @@ JANET_CORE_FN(os_symlink,
               "Create a symlink from oldpath to newpath, returning nil. Same as `(os/link oldpath newpath true)`.") {
     janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 2);
-#ifdef JANET_WINDOWS
+#if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
     (void) argc;
     (void) argv;
-    janet_panic("not supported on Windows");
+    janet_panic("not supported on Windows or Plan 9");
 #else
     const char *oldpath = janet_getcstring(argv, 0);
     const char *newpath = janet_getcstring(argv, 1);
@@ -2113,6 +2137,8 @@ JANET_CORE_FN(os_rmdir,
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
     int res = _rmdir(path);
+#elif defined(JANET_PLAN9)
+	int res = remove(path);
 #else
     int res = rmdir(path);
 #endif
@@ -2239,11 +2265,13 @@ static const uint8_t *janet_decode_mode(mode_t m) {
     const char *str = "other";
     if (S_ISREG(m)) str = "file";
     else if (S_ISDIR(m)) str = "directory";
+#ifndef JANET_PLAN9
     else if (S_ISFIFO(m)) str = "fifo";
     else if (S_ISBLK(m)) str = "block";
     else if (S_ISSOCK(m)) str = "socket";
     else if (S_ISLNK(m)) str = "link";
     else if (S_ISCHR(m)) str = "character";
+#endif
     return janet_ckeyword(str);
 }
 
@@ -2408,6 +2436,9 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
 #ifdef JANET_WINDOWS
     (void) do_lstat;
     int res = _stat(path, &st);
+#elif defined(JANET_PLAN9)
+	(void)do_lstat;
+	int res = stat(path, &st);
 #else
     int res;
     if (do_lstat) {
@@ -2468,9 +2499,13 @@ JANET_CORE_FN(os_chmod,
               "Change file permissions, where `mode` is a permission string as returned by "
               "`os/perm-string`, or an integer as returned by `os/perm-int`. "
               "When `mode` is an integer, it is interpreted as a Unix permission value, best specified in octal, like "
-              "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil.") {
+              "8r666 or 8r400. Windows will not differentiate between user, group, and other permissions, and thus will combine all of these permissions. Returns nil."
+              "Unsupported on plan9.") {
     janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
     janet_fixarity(argc, 2);
+#ifdef JANET_PLAN9
+    janet_panic("not supported on Plan 9");
+#else
     const char *path = janet_getcstring(argv, 0);
 #ifdef JANET_WINDOWS
     int res = _chmod(path, os_getmode(argv, 1));
@@ -2479,6 +2514,7 @@ JANET_CORE_FN(os_chmod,
 #endif
     if (-1 == res) janet_panicf("%s: %s", janet_strerror(errno), path);
     return janet_wrap_nil();
+#endif
 }
 
 #ifndef JANET_NO_UMASK
@@ -2857,10 +2893,14 @@ void janet_lib_os(JanetTable *env) {
         JANET_CORE_REG("os/strftime", os_strftime),
         JANET_CORE_REG("os/sleep", os_sleep),
         JANET_CORE_REG("os/isatty", os_isatty),
+#ifndef JANET_NO_LOCALES
         JANET_CORE_REG("os/setlocale", os_setlocale),
+#endif
 
         /* env functions */
+#ifndef JANET_PLAN9
         JANET_CORE_REG("os/environ", os_environ),
+#endif
         JANET_CORE_REG("os/getenv", os_getenv),
         JANET_CORE_REG("os/setenv", os_setenv),
 

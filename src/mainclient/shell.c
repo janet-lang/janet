@@ -79,9 +79,11 @@ static void simpleline(JanetBuffer *buffer) {
     int c;
     for (;;) {
         c = fgetc(in);
+#ifndef JANET_PLAN9
         if (c < 0 && !feof(in) && errno == EINTR) {
             continue;
         }
+#endif
         if (feof(in) || c < 0) {
             break;
         }
@@ -307,7 +309,9 @@ static int curpos(void) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
+#ifndef JANET_PLAN9
     if (write_console("\x1b[6n", 4) != 4) return -1;
+#endif
     while (i < sizeof(buf) - 1) {
         if (read_console(buf + i, 1) != 1) break;
         if (buf[i] == 'R') break;
@@ -1130,6 +1134,10 @@ int main(int argc, char **argv) {
     int i, status;
     JanetArray *args;
     JanetTable *env;
+
+#ifdef JANET_PLAN9
+	setfcr(0);
+#endif
 
 #ifdef _WIN32
     setup_console_output();

@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 - Add `thaw-keep-keys` as a variant of thaw
 - The `repl` function now respects the `*repl-prompt*` dynamic binding by default.
 - Allow matching exact lengths of datastructures with the `match` macro using a dollar suffix.
+- Add initial support for Plan 9. Some modules (e.g. ev) are not yet enabled.
 
 ## 1.40.1 - 2025-11-16
 - Fix `JANET_REDUCED_OS` build regression caused by `os/posix-chroot`.

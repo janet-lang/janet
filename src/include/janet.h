@@ -121,6 +121,7 @@ extern "C" {
     || (defined(__sparc__) && defined(__arch64__) || defined (__sparcv9)) /* BE */ \
     || defined(__s390x__) /* S390 64-bit (BE) */ \
     || (defined(__ppc64__) || defined(__PPC64__)) \
+    || defined(PLAN9_arm64) || defined(PLAN9_amd64) \
     || defined(__aarch64__) /* ARM 64-bit */ \
     || (defined(__riscv) && (__riscv_xlen == 64)) /* RISC-V 64-bit */ \
     || defined(__loongarch64) /* LoongArch64 64-bit */
@@ -667,6 +668,8 @@ JANET_API void janet_stream_level_triggered(JanetStream *stream);
  * signals. Define them here */
 #ifdef JANET_WINDOWS
 typedef long JanetAtomicInt;
+#elif defined(JANET_PLAN9)
+typedef long JanetAtomicInt;
 #else
 typedef int32_t JanetAtomicInt;
 #endif
@@ -1137,6 +1140,17 @@ struct JanetFunction {
 
 typedef struct JanetParseState JanetParseState;
 typedef struct JanetParser JanetParser;
+
+typedef int (*Consumer)(JanetParser *p, JanetParseState *state, uint8_t c);
+
+struct JanetParseState {
+    int32_t counter;
+    int32_t argn;
+    int flags;
+    size_t line;
+    size_t column;
+    Consumer consumer;
+};
 
 enum JanetParserStatus {
     JANET_PARSE_ROOT,

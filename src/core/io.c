@@ -113,7 +113,7 @@ static void *makef(FILE *f, int32_t flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
     iof->file = f;
     iof->flags = flags;
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
     /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
      * not standard. */
     if (!(flags & JANET_FILE_NOT_CLOSEABLE))
@@ -165,7 +165,7 @@ JANET_CORE_FN(cfun_io_fopen,
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
     if (f != NULL) {
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
         struct stat st;
         fstat(fileno(f), &st);
         if (S_ISDIR(st.st_mode)) {
