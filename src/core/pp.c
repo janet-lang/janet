@@ -1024,17 +1024,18 @@ void janet_buffer_format(
             char width[3], precision[3];
             int nb = 0; /* number of bytes in added item */
 #ifdef JANET_PLAN9
-			if(*strfrmt == 'r'){
-				rerrstr(item, MAX_ITEM);
-				nb = strlen(item);
-			} else
+            if (*strfrmt == 'r') {
+                rerrstr(item, MAX_ITEM);
+                nb = strlen(item);
+            } else
 #endif
-            if (++arg >= argc)
-                janet_panic("not enough values for format");
+                if (++arg >= argc)
+                    janet_panic("not enough values for format");
             strfrmt = scanformat(strfrmt, form, width, precision);
             switch (*strfrmt++) {
 #ifdef JANET_PLAN9
-				case 'r': break;
+                case 'r':
+                    break;
 #endif
                 case 'c': {
                     nb = snprintf(item, MAX_ITEM, form, (int)

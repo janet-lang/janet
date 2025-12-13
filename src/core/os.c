@@ -257,7 +257,7 @@ JANET_CORE_FN(os_compiler,
 #elif defined(__GNUC__)
     return janet_ckeywordv("gcc");
 #elif defined(JANET_PLAN9)
-	return janet_ckeywordv("kencc");
+    return janet_ckeywordv("kencc");
 #else
     return janet_ckeywordv("unknown");
 #endif
@@ -296,6 +296,7 @@ JANET_CORE_FN(os_cpu_count,
               "Get an approximate number of CPUs available on for this process to use. If "
               "unable to get an approximation, will return a default value dflt.") {
     janet_arity(argc, 0, 1);
+    (void) argv; /* Prevent unused argument warning */
 #ifdef JANET_WINDOWS
     SYSTEM_INFO info;
     GetSystemInfo(&info);
@@ -329,7 +330,7 @@ JANET_CORE_FN(os_cpu_count,
     }
     return janet_wrap_integer(result);
 #elif defined(JANET_PLAN9)
-	return janet_wrap_integer(atoi(getenv("NPROC")));
+    return janet_wrap_integer(atoi(getenv("NPROC")));
 #else
     return argc > 0 ? argv[0] : janet_wrap_nil();
 #endif
@@ -1341,7 +1342,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     if (mode == JANET_EXECUTE_EXEC) {
         int status;
 #ifdef JANET_PLAN9
-		status = exec(cargv[0], cargv);
+        status = exec(cargv[0], cargv);
 #else
         if (!use_environ) {
             environ = envp;
@@ -1535,7 +1536,7 @@ JANET_CORE_FN(os_posix_fork,
 #else
     pid_t result;
 #ifdef JANET_PLAN9
-	result = fork();
+    result = fork();
 #else
     do {
         result = fork();
@@ -1845,7 +1846,7 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
         localtime_s(t_infos, &t);
         t_info = t_infos;
 #elif defined(JANET_PLAN9)
-		t_info = localtime(&t);
+        t_info = localtime(&t);
 #else
         tzset();
         t_info = localtime_r(&t, t_infos);
@@ -1856,7 +1857,7 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
         gmtime_s(t_infos, &t);
         t_info = t_infos;
 #elif defined(JANET_PLAN9)
-		t_info = gmtime(&t);
+        t_info = gmtime(&t);
 #else
         t_info = gmtime_r(&t, t_infos);
 #endif
@@ -2138,7 +2139,7 @@ JANET_CORE_FN(os_rmdir,
 #ifdef JANET_WINDOWS
     int res = _rmdir(path);
 #elif defined(JANET_PLAN9)
-	int res = remove(path);
+    int res = remove(path);
 #else
     int res = rmdir(path);
 #endif
@@ -2437,8 +2438,8 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
     (void) do_lstat;
     int res = _stat(path, &st);
 #elif defined(JANET_PLAN9)
-	(void)do_lstat;
-	int res = stat(path, &st);
+    (void)do_lstat;
+    int res = stat(path, &st);
 #else
     int res;
     if (do_lstat) {

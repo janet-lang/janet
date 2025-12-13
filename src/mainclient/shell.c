@@ -1136,7 +1136,7 @@ int main(int argc, char **argv) {
     JanetTable *env;
 
 #ifdef JANET_PLAN9
-	setfcr(0);
+    setfcr(0);
 #endif
 
 #ifdef _WIN32

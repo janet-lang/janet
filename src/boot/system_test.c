@@ -52,8 +52,8 @@ int system_test() {
     assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
 #ifdef NAN
 #ifdef JANET_PLAN9
-	// Plan 9 traps NaNs by default; disable that.
-	setfcr(0);
+    // Plan 9 traps NaNs by default; disable that.
+    setfcr(0);
 #endif
     assert(janet_checktype(janet_wrap_number(NAN), JANET_NUMBER));
 #else

@@ -565,7 +565,7 @@ JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, 1, memory_order_relaxed) + 1;
 #elif defined(JANET_PLAN9)
-	return aincl((void*)x, 1);
+    return aincl((void*)x, 1);
 #else
     return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
 #endif
@@ -577,7 +577,7 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, -1, memory_order_acq_rel) - 1;
 #elif defined(JANET_PLAN9)
-	return aincl((void*)x, -1);
+    return aincl((void*)x, -1);
 #else
     return __atomic_add_fetch(x, -1, __ATOMIC_ACQ_REL);
 #endif
@@ -587,7 +587,7 @@ JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
 #elif defined(JANET_PLAN9)
-	return agetl((void*)x);
+    return agetl((void*)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_acquire);
 #else
@@ -599,7 +599,7 @@ JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
 #elif defined(JANET_PLAN9)
-	return agetl((void*)x);
+    return agetl((void*)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_relaxed);
 #else

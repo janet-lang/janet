@@ -1082,7 +1082,7 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
     int is_threaded = janet_chan_is_threaded(channel);
     if (janet_q_pop(&channel->items, item, sizeof(Janet))) {
         /* Queue empty */
-        if (is_choice == 2) return 0; // Skip pending read
+        if (is_choice == 2) return 0; /* Skip pending read */
         JanetChannelPending pending;
         pending.thread = &janet_vm;
         pending.fiber = janet_vm.root_fiber,
