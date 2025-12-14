@@ -572,7 +572,15 @@ JANET_CORE_FN(cfun_net_connect,
     }
 #endif
 
-    if (status) {
+    if (status == 0) {
+        /* Connect completed synchronously (common for unix domain sockets).
+         * Return the stream directly without scheduling an async wait,
+         * as edge-triggered kqueue may not signal EVFILT_WRITE if the socket
+         * is already connected when registered. */
+        return janet_wrap_abstract(stream);
+    }
+
+    if (status == -1) {
 #ifdef JANET_WINDOWS
         if (err != WSAEWOULDBLOCK) {
 #else
