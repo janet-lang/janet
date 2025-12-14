@@ -557,6 +557,18 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
     return janet_getabstract(argv, n, at);
 }
 
+uint32_t janet_optuinteger(const Janet *argv, int32_t argc, int32_t n, uint32_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger(argv, n);
+}
+
+uint64_t janet_optuinteger64(const Janet *argv, int32_t argc, int32_t n, uint64_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger64(argv, n);
+}
+
 /* Atomic refcounts */
 
 JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {

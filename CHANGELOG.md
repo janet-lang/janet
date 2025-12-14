@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `janet_optuinteger` and `janet_optuinteger64` to the C API.
 - Add `cms` combinator to PEGs.
 - Add `thaw-keep-keys` as a variant of thaw
 - The `repl` function now respects the `*repl-prompt*` dynamic binding by default.

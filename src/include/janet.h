@@ -2117,6 +2117,8 @@ JANET_API int32_t janet_optinteger(const Janet *argv, int32_t argc, int32_t n, i
 JANET_API int64_t janet_optinteger64(const Janet *argv, int32_t argc, int32_t n, int64_t dflt);
 JANET_API size_t janet_optsize(const Janet *argv, int32_t argc, int32_t n, size_t dflt);
 JANET_API JanetAbstract janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetAbstractType *at, JanetAbstract dflt);
+JANET_API uint32_t janet_optuinteger(const Janet *argv, int32_t argc, int32_t n, uint32_t dflt);
+JANET_API uint64_t janet_optuinteger64(const Janet *argv, int32_t argc, int32_t n, uint64_t dflt);
 
 /* Mutable optional types specify a size default, and construct a new value if none is provided */
 JANET_API JanetBuffer *janet_optbuffer(const Janet *argv, int32_t argc, int32_t n, int32_t dflt_len);
