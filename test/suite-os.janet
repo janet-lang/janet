@@ -144,8 +144,10 @@
         "os/execute with env")
 
 # os/execute with empty environment
-(assert (= 0 (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
-        "os/execute with empty env")
+# pr #1686
+(assert (= (if (= :mingw (os/which)) -1073741515 0) # MinGW can't find DLLs
+           (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
+        "os/execute with minimal env")
 
 # os/execute regressions
 # 427f7c362
