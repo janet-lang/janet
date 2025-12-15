@@ -143,6 +143,10 @@
                          (merge (os/environ) {"HELLO" "WORLD"})))
         "os/execute with env")
 
+# os/execute with empty environment
+(assert (= 0 (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
+        "os/execute with empty env")
+
 # os/execute regressions
 # 427f7c362
 (for i 0 10
