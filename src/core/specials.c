@@ -362,6 +362,23 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
         janet_indexed_view(lhs, &view_lhs.items, &view_lhs.len);
         janet_indexed_view(rhs, &view_rhs.items, &view_rhs.len);
         int found_amp = 0;
+        int found_splice = 0;
+        /* Check for (def [x y z] [(splice [1 2 3]) 4 5 6]), bail out of optimization */
+        for (int32_t i = 0; i < view_rhs.len; i++) {
+            if (!janet_checktype(view_rhs.items[i], JANET_TUPLE)) {
+                continue;
+            }
+            JanetTuple tup = janet_unwrap_tuple(view_rhs.items[i]);
+            if (janet_tuple_length(tup) == 0) {
+                continue;
+            }
+            if (janet_symeq(tup[0], "splice")) {
+                found_splice = 1;
+                /* Good error will be generated later. */
+                break;
+            }
+        }
+        /* Check for (def [x & more] [1 2 3]), bail out of optimization */
         for (int32_t i = 0; i < view_lhs.len; i++) {
             if (janet_symeq(view_lhs.items[i], "&")) {
                 found_amp = 1;
@@ -369,7 +386,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
                 break;
             }
         }
-        if (!found_amp) {
+        if (!found_amp && !found_splice) {
             for (int32_t i = 0; i < view_lhs.len; i++) {
                 Janet sub_rhs = view_rhs.len <= i ? janet_wrap_nil() : view_rhs.items[i];
                 into = dohead_destructure(c, into, subopts, view_lhs.items[i], sub_rhs);

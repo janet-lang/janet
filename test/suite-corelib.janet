@@ -195,5 +195,10 @@
 (assert (= :yes (match [1 2 3] [x y z w] :no1 [x y $] :no2 [x y z] :yes)) "match dollar suffix 1")
 (assert (= :yes (match [1 2 3] [x y z w] :no1 [x y z $] :yes [x y z] :no2)) "match dollar suffix 2")
 
+# Issue #1687
+(assert-no-error "def destructure splice works 1" (do (def [a] [;[1]]) a))
+(assert-no-error "def destructure splice works 2" (do (def (n) [(splice [])]) n))
+(assert-no-error "var destructure splice works" (do (var [a] [;[1]]) a))
+
 (end-suite)
 

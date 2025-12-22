@@ -573,7 +573,7 @@ static const JanetAbstractType janet_filewatch_at = {
 };
 
 JANET_CORE_FN(cfun_filewatch_make,
-              "(filewatch/new channel &opt default-flags)",
+              "(filewatch/new channel & default-flags)",
               "Create a new filewatcher that will give events to a channel channel. See `filewatch/add` for available flags.\n\n"
               "When an event is triggered by the filewatcher, a struct containing information will be given to channel as with `ev/give`. "
               "The contents of the channel depend on the OS, but will contain some common keys:\n\n"
@@ -597,7 +597,7 @@ JANET_CORE_FN(cfun_filewatch_make,
 }
 
 JANET_CORE_FN(cfun_filewatch_add,
-              "(filewatch/add watcher path &opt flags)",
+              "(filewatch/add watcher path flag & more-flags)",
               "Add a path to the watcher. Available flags depend on the current OS, and are as follows:\n\n"
               "Windows/MINGW (flags correspond to `FILE_NOTIFY_CHANGE_*` flags in win32 documentation):\n\n"
               "* `:all` - trigger an event for all of the below triggers.\n\n"
