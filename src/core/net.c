@@ -1073,6 +1073,9 @@ JANET_CORE_FN(cfun_net_setsockopt,
     }
 
     union {
+#ifdef JANET_BSD
+        u_char v_uchar;
+#endif
         int v_int;
         struct ip_mreq v_mreq;
 #ifndef JANET_NO_IPV6
@@ -1087,8 +1090,19 @@ JANET_CORE_FN(cfun_net_setsockopt,
         val.v_int = janet_getboolean(argv, 2);
         optlen = sizeof(val.v_int);
     } else if (st->type == JANET_NUMBER) {
+#ifdef JANET_BSD
+        int v_int = janet_getinteger(argv, 2);
+        if (st->optname == IP_MULTICAST_TTL) {
+            val.v_uchar = v_int;
+            optlen = sizeof(val.v_uchar);
+        } else {
+            val.v_int = v_int;
+            optlen = sizeof(val.v_int);
+        }
+#else
         val.v_int = janet_getinteger(argv, 2);
         optlen = sizeof(val.v_int);
+#endif
     } else if (st->optname == IP_ADD_MEMBERSHIP || st->optname == IP_DROP_MEMBERSHIP) {
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq, 0, sizeof val.v_mreq);
