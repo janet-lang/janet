@@ -464,12 +464,24 @@ static int varleaf(
     }
 }
 
+static void check_metadata_lint(JanetCompiler *c, JanetTable *attr_table) {
+    if (!(c->scope->flags & JANET_SCOPE_TOP) && attr_table && attr_table->count) {
+        /* A macro is a normal lint, other metadata is a strict lint */
+        if (janet_truthy(janet_table_get(attr_table, janet_ckeywordv("macro")))) {
+            janetc_lintf(c, JANET_C_LINT_NORMAL, "macro tag is ignored in inner scopes");
+        } else {
+            janetc_lintf(c, JANET_C_LINT_STRICT, "unused metadata %j in inner scope", janet_wrap_table(attr_table));
+        }
+    }
+}
+
 static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     JanetCompiler *c = opts.compiler;
     JanetTable *attr_table = handleattr(c, "var", argn, argv);
     if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
     }
+    check_metadata_lint(c, attr_table);
     SlotHeadPair *into = NULL;
     into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
     if (c->result.status == JANET_COMPILE_ERROR) {
@@ -530,6 +542,7 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
     }
+    check_metadata_lint(c, attr_table);
     opts.flags &= ~JANET_FOPTS_HINT;
     SlotHeadPair *into = NULL;
     into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
