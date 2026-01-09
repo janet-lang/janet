@@ -174,4 +174,8 @@
                                :px
                                {:out dn :err dn})))
 
+# Issue 16922
+(assert-error "os/realpath errors when path does not exist"
+              (os/realpath "abc123def456"))
+
 (end-suite)
