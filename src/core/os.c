@@ -2616,7 +2616,15 @@ JANET_CORE_FN(os_realpath,
 #endif
     if (NULL == dest) janet_panicf("%s: %s", janet_strerror(errno), src);
     Janet ret = janet_cstringv(dest);
+#ifdef JANET_WINDOWS
+    DWORD attrib = GetFileAttributes(dest);
+    free(dest); /* if janet_malloc is redefined, still use free to correspond with _fullpath */
+    if (attrib == INVALID_FILE_ATTRIBUTES) {
+        janet_panicf("path does not exist: %v", ret);
+    }
+#else
     janet_free(dest);
+#endif
     return ret;
 #endif
 }
