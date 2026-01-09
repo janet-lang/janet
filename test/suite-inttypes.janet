@@ -21,6 +21,9 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+# Disable linting warnings
+(setdyn *lint-warn* :none)
+
 # some tests for bigint
 # 319575c
 (def i64 int/s64)

@@ -2113,11 +2113,15 @@
     (array/concat anda unify)
     # Final binding
     (def defs (seq [[k v] :in (sort (pairs b2g))] ['def k (first v)]))
+    (def unused-defs (seq [[k v] :in (sort (pairs b2g))] ['def k :unused (first v)]))
     # Predicates
     (unless (empty? preds)
-      (def pred-join ~(do ,;defs (and ,;preds)))
+      (def pred-join ~(do ,;unused-defs (and ,;preds)))
       (array/push anda pred-join))
-    (emit-branch (tuple/slice anda) ['do ;defs expression]))
+    # Use `unused-defs` instead of `defs` when we have predicates to avoid unused binding lint
+    # e.g. (match x (n (even? n)) :yes :no) should not warn on unused binding `n`.
+    # This is unfortunately not perfect since one programmer written binding is expanded for use in multiple places.
+    (emit-branch (tuple/slice anda) ['do ;(if (next preds) unused-defs defs) expression]))
 
   # Expand branches
   (def stack @[else])

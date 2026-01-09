@@ -81,10 +81,12 @@
              "marshal nested fibers")
 
 # issue #53 - f4908ebc4
+(setdyn *lint-warn* :none)
 (def issue-53-x
   (fiber/new
     (fn []
       (var y (fiber/new (fn [] (print "1") (yield) (print "2")))))))
+(setdyn *lint-warn* nil)
 
 (check-image issue-53-x "issue 53 regression")
 

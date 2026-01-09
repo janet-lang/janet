@@ -21,6 +21,9 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+# Disable linting warnings
+(setdyn *lint-warn* :none)
+
 # Set global variables to prevent some possible compiler optimizations
 # that defeat point of the test
 # 2771171

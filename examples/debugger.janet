@@ -132,7 +132,7 @@
   "Go to the next breakpoint."
   [&opt n]
   (var res nil)
-  (for i 0 (or n 1)
+  (repeat (or n 1)
     (set res (resume (.fiber))))
   res)
 
@@ -146,6 +146,6 @@
   "Execute the next n instructions."
   [&opt n]
   (var res nil)
-  (for i 0 (or n 1)
+  (repeat (or n 1)
     (set res (debug/step (.fiber))))
   res)

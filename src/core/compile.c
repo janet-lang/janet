@@ -98,6 +98,22 @@ void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
     sp.sym2 = sym;
     sp.slot = s;
     sp.keep = 0;
+    sp.referenced = sym[0] == '_'; /* Fake ref if symbol is _ to avoid lints */
+    sp.slot.flags |= JANET_SLOT_NAMED;
+    sp.birth_pc = cnt ? cnt - 1 : 0;
+    sp.death_pc = UINT32_MAX;
+    janet_v_push(c->scope->syms, sp);
+}
+
+/* Same as janetc_nameslot, but don't have a lint for unused bindings. */
+void janetc_nameslot_no_unused(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
+    SymPair sp;
+    int32_t cnt = janet_v_count(c->buffer);
+    sp.sym = sym;
+    sp.sym2 = sym;
+    sp.slot = s;
+    sp.keep = 0;
+    sp.referenced = 1;
     sp.slot.flags |= JANET_SLOT_NAMED;
     sp.birth_pc = cnt ? cnt - 1 : 0;
     sp.death_pc = UINT32_MAX;
@@ -170,6 +186,10 @@ void janetc_popscope(JanetCompiler *c) {
         /* Keep upvalue slots and symbols for debugging. */
         for (int32_t i = 0; i < janet_v_count(oldscope->syms); i++) {
             SymPair pair = oldscope->syms[i];
+            /* Check for unused symbols */
+            if (pair.referenced == 0 && pair.sym) {
+                janetc_lintf(c, JANET_C_LINT_STRICT, "binding %q is unused", janet_wrap_symbol(pair.sym));
+            }
             /* The variable should not be lexically accessible */
             pair.sym = NULL;
             if (pair.death_pc == UINT32_MAX) {
@@ -262,6 +282,7 @@ JanetSlot janetc_resolve(
             pair = scope->syms + i;
             if (pair->sym == sym) {
                 ret = pair->slot;
+                pair->referenced = 1;
                 goto found;
             }
         }
@@ -346,6 +367,7 @@ found:
     /* non-local scope needs to expose its environment */
     JanetScope *original_scope = scope;
     pair->keep = 1;
+    pair->referenced = 1;
     while (scope && !(scope->flags & JANET_SCOPE_FUNCTION))
         scope = scope->parent;
     janet_assert(scope, "invalid scopes");
@@ -974,6 +996,10 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
         SymPair pair = scope->syms[i];
         if (pair.sym2) {
             JanetSymbolMap jsm;
+            /* Check for unused symbols */
+            if (pair.referenced == 0 && pair.sym) {
+                janetc_lintf(c, JANET_C_LINT_STRICT, "binding %q is unused", janet_wrap_symbol(pair.sym));
+            }
             if (pair.death_pc == UINT32_MAX) {
                 jsm.death_pc = def->bytecode_length;
             } else {

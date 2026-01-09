@@ -31,13 +31,13 @@
   [rng]
   (assert (all identity (seq [i :range [0 1000]]
                              (<= (math/rng-int rng i) i))) "math/rng-int test")
-  (assert (all identity (seq [i :range [0 1000]]
+  (assert (all identity (seq [_ :range [0 1000]]
     (def x (math/rng-uniform rng))
     (and (>= x 0) (< x 1))))
           "math/rng-uniform test"))
 
 (def seedrng (math/rng 123))
-(for i 0 75
+(for _ 0 75
   (test-rng (math/rng (:int seedrng))))
 
 # 70328437f
@@ -49,7 +49,7 @@
 # 027b2a8
 (defn assert-many [f n e]
  (var good true)
- (loop [i :range [0 n]]
+ (loop [_ :range [0 n]]
   (if (not (f))
    (set good false)))
  (assert good e))

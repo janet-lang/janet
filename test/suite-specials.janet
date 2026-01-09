@@ -21,6 +21,9 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+# Disable linting warnings
+(setdyn *lint-warn* :none)
+
 # Regression Test #137
 # affcb5b45
 (def [a b c] (range 10))

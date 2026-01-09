@@ -21,6 +21,8 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(setdyn *lint-warn* :none)
+
 # Assembly test
 # Fibonacci sequence, implemented with naive recursion.
 # a679f60

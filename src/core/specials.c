@@ -404,7 +404,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
 }
 
 /* Def or var a symbol in a local scope */
-static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret) {
+static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret, int no_unused) {
     int isUnnamedRegister = !(ret.flags & JANET_SLOT_NAMED) &&
                             ret.index > 0 &&
                             ret.envindex >= 0;
@@ -425,7 +425,11 @@ static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, Janet
         ret = localslot;
     }
     ret.flags |= flags;
-    janetc_nameslot(c, head, ret);
+    if ((c->scope->flags & JANET_SCOPE_TOP) || no_unused) {
+        janetc_nameslot_no_unused(c, head, ret);
+    } else {
+        janetc_nameslot(c, head, ret);
+    }
     return !isUnnamedRegister;
 }
 
@@ -460,7 +464,8 @@ static int varleaf(
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         return 1;
     } else {
-        return namelocal(c, sym, JANET_SLOT_MUTABLE, s);
+        int no_unused = reftab && reftab->count && janet_truthy(janet_table_get(reftab, janet_ckeywordv("unused")));
+        return namelocal(c, sym, JANET_SLOT_MUTABLE, s, no_unused);
     }
 }
 
@@ -469,8 +474,6 @@ static void check_metadata_lint(JanetCompiler *c, JanetTable *attr_table) {
         /* A macro is a normal lint, other metadata is a strict lint */
         if (janet_truthy(janet_table_get(attr_table, janet_ckeywordv("macro")))) {
             janetc_lintf(c, JANET_C_LINT_NORMAL, "macro tag is ignored in inner scopes");
-        } else {
-            janetc_lintf(c, JANET_C_LINT_STRICT, "unused metadata %j in inner scope", janet_wrap_table(attr_table));
         }
     }
 }
@@ -533,7 +536,8 @@ static int defleaf(
         /* Add env entry to env */
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
     }
-    return namelocal(c, sym, 0, s);
+    int no_unused = tab && tab->count && janet_truthy(janet_table_get(tab, janet_ckeywordv("unused")));
+    return namelocal(c, sym, 0, s, no_unused);
 }
 
 static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
@@ -1114,7 +1118,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
             JanetSlot slot = janetc_farslot(c);
             slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
             janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
-            janetc_nameslot(c, sym, slot);
+            janetc_nameslot_no_unused(c, sym, slot);
         }
     }
 

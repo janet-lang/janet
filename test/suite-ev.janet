@@ -21,6 +21,8 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(setdyn *lint-warn* :none)
+
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
 (def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))
 

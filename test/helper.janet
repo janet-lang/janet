@@ -19,7 +19,6 @@
     (break x))
   (default e "assert error")
   (when x (++ num-tests-passed))
-  (def str (string e))
   (def stack (debug/stack (fiber/current)))
   (def frame (last stack))
   (def line-info (string/format "%s:%d"

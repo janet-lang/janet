@@ -30,7 +30,7 @@
 (defn myfun [x]
   (var a 10)
   (set a (do
-         (def y x)
+         (def _y x)
          (if x 8 9))))
 
 (assert (= (myfun true) 8) "check do form regression")

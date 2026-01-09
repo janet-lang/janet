@@ -2,7 +2,7 @@
 
 (def counts (seq [_ :range [0 100]] 0))
 
-(for i 0 1000000
+(repeat 1000000
   (let [x (math/random)
         intrange (math/floor (* 100 x))
         oldcount (counts intrange)]

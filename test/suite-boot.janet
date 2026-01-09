@@ -21,6 +21,8 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(setdyn *lint-warn* :none)
+
 # Let
 # 807f981
 (assert (= (let [a 1 b 2] (+ a b)) 3) "simple let")
