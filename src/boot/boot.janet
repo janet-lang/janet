@@ -4882,7 +4882,7 @@
         (setdyn *err-color* (if colorize true))
         (setdyn *doc-color* (if colorize true))
         (setdyn *lint-error* error-level)
-        (setdyn *lint-warn* error-level)
+        (setdyn *lint-warn* warn-level)
         (when-let [profile.janet (dyn *profilepath*)]
           (dofile profile.janet :exit true :env env)
           (put env *current-file* nil))
