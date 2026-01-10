@@ -24,8 +24,8 @@
 (assert true)
 
 (def chan (ev/chan 1000))
-(def is-win (or (= :mingw (os/which)) (= :windows (os/which))))
-(def is-linux (= :linux (os/which)))
+(var is-win (or (= :mingw (os/which)) (= :windows (os/which))))
+(var is-linux (= :linux (os/which)))
 
 # If not supported, exit early
 (def [supported msg] (protect (filewatch/new chan)))

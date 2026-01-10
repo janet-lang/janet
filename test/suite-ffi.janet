@@ -21,7 +21,7 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
-(def has-ffi (dyn 'ffi/native))
+(var has-ffi (dyn 'ffi/native))
 (def has-full-ffi
   (and has-ffi
        (when-let [entry (dyn 'ffi/calling-conventions)]

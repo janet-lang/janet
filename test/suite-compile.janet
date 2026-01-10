@@ -46,8 +46,10 @@
 # Edge case should cause old compilers to fail due to
 # if statement optimization
 # 17283241
+(setdyn *lint-warn* :relaxed)
 (var var-a 1)
 (var var-b (if false 2 (string "hello")))
+(setdyn *lint-warn* nil)
 
 (assert (= var-b "hello") "regression 1")
 

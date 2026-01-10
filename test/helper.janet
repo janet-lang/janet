@@ -1,5 +1,8 @@
 # Helper code for running tests
 
+# Turn on strict linting by default in test suite.
+(put root-env *lint-warn* :strict)
+
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (var suite-name 0)
@@ -7,7 +10,7 @@
 (var skip-count 0)
 (var skip-n 0)
 
-(def is-verbose (os/getenv "VERBOSE"))
+(var is-verbose (os/getenv "VERBOSE"))
 
 (defn- assert-no-tail
   "Override's the default assert with some nice error handling."

@@ -538,7 +538,7 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     int32_t mapbufstart = janet_v_count(c->mapbuffer);
     janetc_scope(&unusedScope, c, JANET_SCOPE_UNUSED, "unusued");
     janetc_value(opts, x);
-    janetc_lintf(c, JANET_C_LINT_STRICT, "dead code, consider removing %.2q", x);
+    janetc_lintf(c, JANET_C_LINT_STRICT, "dead code, consider removing %.4q", x);
     janetc_popscope(c);
     if (c->buffer) {
         janet_v__cnt(c->buffer) = bufstart;
