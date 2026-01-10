@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Use color in script output if color is being used in REPL output.
+- Fix `varfn` macros handling of extra metadata.
 - Add linting for unused bindings.
 - Add `janet_optuinteger` and `janet_optuinteger64` to the C API.
 - Add `cms` combinator to PEGs.

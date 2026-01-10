@@ -2403,6 +2403,7 @@
     (cond
       (keyword? m) (put metadata m true)
       (string? m) (put metadata :doc m)
+      (dictionary? m) (merge-into metadata m)
       (error (string "invalid metadata " m))))
   (with-syms [entry old-entry f]
     ~(let [,old-entry (,dyn ',name)]
@@ -4682,6 +4683,11 @@
   (setdyn *err-color* (if colorize true))
   (setdyn *doc-color* (if colorize true)))
 
+(defn- getstdin [prompt buf _]
+  (file/write stdout prompt)
+  (file/flush stdout)
+  (file/read stdin :line buf))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -4705,10 +4711,10 @@
       (module/add-syspath (get paths i)))
     (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
-  (when (and
-          (not (getenv-alias "NO_COLOR"))
-          (os/isatty stdout))
-    (apply-color true))
+  (apply-color
+    (and
+      (not (getenv-alias "NO_COLOR"))
+      (os/isatty stdout)))
 
   (defn- get-lint-level
     [i]
@@ -4861,10 +4867,6 @@
           (when-let [custom-prompt (get env *repl-prompt*)] (break (custom-prompt p)))
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
-        (defn getstdin [prompt buf _]
-          (file/write stdout prompt)
-          (file/flush stdout)
-          (file/read stdin :line buf))
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
