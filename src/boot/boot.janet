@@ -3093,7 +3093,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-parse x y))
     (set exit-error (string/slice buf 0 -2)))
   (defn bc [&opt x y z a b]
@@ -3102,7 +3102,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-compile x nil z a b))
     (set exit-error (string/slice buf 0 -2))
     (set exit-fiber y))
@@ -4837,6 +4837,9 @@
             (put env *args* subargs)
             (put env *lint-error* error-level)
             (put env *lint-warn* warn-level)
+            (put env *pretty-format* (if colorize "%.20Q" "%.20q"))
+            (put env *err-color* (if colorize true))
+            (put env *doc-color* (if colorize true))
             (when debug-flag
               (put env *debug* true)
               (put env *redef* true))
@@ -4846,6 +4849,9 @@
             (put env *args* subargs)
             (put env *lint-error* error-level)
             (put env *lint-warn* warn-level)
+            (put env *pretty-format* (if colorize "%.20Q" "%.20q"))
+            (put env *err-color* (if colorize true))
+            (put env *doc-color* (if colorize true))
             (when debug-flag
               (put env *debug* true)
               (put env *redef* true))
@@ -4878,11 +4884,11 @@
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
-        (setdyn *err-color* (if colorize true))
-        (setdyn *doc-color* (if colorize true))
-        (setdyn *lint-error* error-level)
-        (setdyn *lint-warn* warn-level)
+        (put env *pretty-format* (if colorize "%.20Q" "%.20q"))
+        (put env *err-color* (if colorize true))
+        (put env *doc-color* (if colorize true))
+        (put env *lint-error* error-level)
+        (put env *lint-warn* warn-level)
         (when-let [profile.janet (dyn *profilepath*)]
           (dofile profile.janet :exit true :env env)
           (put env *current-file* nil))
