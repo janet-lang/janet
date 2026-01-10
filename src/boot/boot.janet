@@ -3093,7 +3093,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-parse x y))
     (set exit-error (string/slice buf 0 -2)))
   (defn bc [&opt x y z a b]
@@ -3102,7 +3102,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-compile x nil z a b))
     (set exit-error (string/slice buf 0 -2))
     (set exit-fiber y))
@@ -4676,6 +4676,12 @@
    "-lint-warn" "w"
    "-lint-error" "x"})
 
+(defn- apply-color
+  [colorize]
+  (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
+  (setdyn *err-color* (if colorize true))
+  (setdyn *doc-color* (if colorize true)))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -4689,11 +4695,7 @@
   (var raw-stdin false)
   (var handleopts true)
   (var exit-on-error true)
-  (var colorize true)
-  (var debug-flag false)
   (var compile-only false)
-  (var warn-level nil)
-  (var error-level nil)
   (var expect-image false)
 
   (when-let [jp (getenv-alias "JANET_PATH")]
@@ -4703,9 +4705,10 @@
       (module/add-syspath (get paths i)))
     (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
-  (set colorize (and
-                  (not (getenv-alias "NO_COLOR"))
-                  (os/isatty stdout)))
+  (when (and
+          (not (getenv-alias "NO_COLOR"))
+          (os/isatty stdout))
+    (apply-color true))
 
   (defn- get-lint-level
     [i]
@@ -4755,8 +4758,8 @@
      "q" (fn [&] (set quiet true) 1)
      "i" (fn [&] (set expect-image true) 1)
      "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
-     "n" (fn [&] (set colorize false) 1)
-     "N" (fn [&] (set colorize true) 1)
+     "n" (fn [&] (apply-color false) 1)
+     "N" (fn [&] (apply-color true) 1)
      "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))
@@ -4812,9 +4815,9 @@
      (compif (dyn 'bundle/list)
        (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
        (fn [i &] (eprint "--list not supported with reduced os") 1))
-     "d" (fn [&] (set debug-flag true) 1)
-     "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
-     "x" (fn [i &] (set error-level (get-lint-level i)) 2)
+     "d" (fn [&] (setdyn *debug* true) (setdyn *redef* true) 1)
+     "w" (fn [i &] (setdyn *lint-warn* (get-lint-level i)) 2)
+     "x" (fn [i &] (setdyn *lint-error* (get-lint-level i)) 2)
      "R" (fn [&] (setdyn *profilepath* nil) 1)})
 
   (defn- dohandler [n i &]
@@ -4835,20 +4838,10 @@
           (do
             (def env (load-image (slurp arg)))
             (put env *args* subargs)
-            (put env *lint-error* error-level)
-            (put env *lint-warn* warn-level)
-            (when debug-flag
-              (put env *debug* true)
-              (put env *redef* true))
             (run-main env subargs arg))
           (do
             (def env (make-env))
             (put env *args* subargs)
-            (put env *lint-error* error-level)
-            (put env *lint-warn* warn-level)
-            (when debug-flag
-              (put env *debug* true)
-              (put env *redef* true))
             (if compile-only
               (flycheck arg :exit exit-on-error :env env)
               (do
@@ -4872,17 +4865,9 @@
           (file/write stdout prompt)
           (file/flush stdout)
           (file/read stdin :line buf))
-        (when debug-flag
-          (put env *debug* true)
-          (put env *redef* true))
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
-        (setdyn *err-color* (if colorize true))
-        (setdyn *doc-color* (if colorize true))
-        (setdyn *lint-error* error-level)
-        (setdyn *lint-warn* warn-level)
         (when-let [profile.janet (dyn *profilepath*)]
           (dofile profile.janet :exit true :env env)
           (put env *current-file* nil))
