@@ -1,7 +1,7 @@
 # Helper code for running tests
 
 # Turn on strict linting by default in test suite.
-#(put root-env *lint-warn* :strict)
+(put root-env *lint-warn* :strict)
 
 (var num-tests-passed 0)
 (var num-tests-run 0)
