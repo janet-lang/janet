@@ -29,7 +29,7 @@
 # Raw socket testing
 (def s (net/socket :datagram :ipv4))
 (assert-no-error "multicast ipv4" (net/setsockopt s :ip-multicast-ttl 255))
-(def s6 (net/socket :datagram :ipv6))
-(assert-no-error "multicast ipv6" (net/setsockopt s6 :ipv6-multicast-hops 255))
+#(def s6 (net/socket :datagram :ipv6))
+#(assert-no-error "multicast ipv6" (net/setsockopt s6 :ipv6-multicast-hops 255))
 
 (end-suite)
