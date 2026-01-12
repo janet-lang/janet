@@ -288,6 +288,7 @@ test_files = [
   'test/suite-io.janet',
   'test/suite-marsh.janet',
   'test/suite-math.janet',
+  'test/suite-net.janet',
   'test/suite-os.janet',
   'test/suite-parse.janet',
   'test/suite-peg.janet',

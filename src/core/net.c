@@ -120,6 +120,25 @@ static void janet_net_socknoblock(JSock s) {
 #endif
 }
 
+/* Allow specifying IPV6 vs. IPV4 (or unix domain socket) */
+static int net_get_address_family(Janet x) {
+    if (janet_checktype(x, JANET_NIL)) {
+        return AF_UNSPEC;
+    }
+    if (janet_keyeq(x, "ipv4")) {
+        return AF_INET;
+    }
+    if (janet_keyeq(x, "ipv6")) {
+        return AF_INET6;
+    }
+#ifndef JANET_WINDOWS
+    if (janet_keyeq(x, "unix")) {
+        return AF_UNIX;
+    }
+#endif
+    return AF_UNSPEC;
+}
+
 /* State machine for async connect */
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -596,10 +615,11 @@ JANET_CORE_FN(cfun_net_connect,
 }
 
 JANET_CORE_FN(cfun_net_socket,
-              "(net/socket &opt type)",
+              "(net/socket &opt type address-family)",
               "Creates a new unbound socket. Type is an optional keyword, "
-              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream.") {
-    janet_arity(argc, 0, 1);
+              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream. "
+              "`address-family` should be one of :ipv4 or :ipv6.") {
+    janet_arity(argc, 0, 2);
 
     int socktype = janet_get_sockettype(argv, argc, 0);
 
@@ -610,7 +630,14 @@ JANET_CORE_FN(cfun_net_socket,
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = socktype;
+#ifdef AI_NUMERICSERV
+    hints.ai_flags = AI_NUMERICSERV; /* Explicitly prevent name resolution */
+#else
     hints.ai_flags = 0;
+#endif
+    if (argc >= 2) {
+        hints.ai_family = net_get_address_family(argv[1]);
+    }
     int status = getaddrinfo(NULL, "0", &hints, &ai);
     if (status) {
         janet_panicf("could not get address info: %s", gai_strerror(status));
@@ -1038,6 +1065,8 @@ static const struct sockopt_type sockopt_type_list[] = {
 #ifndef JANET_NO_IPV6
     { "ipv6-join-group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
     { "ipv6-leave-group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
+    { "ipv6-multicast-hops", IPPROTO_IPV6, IPV6_MULTICAST_HOPS, JANET_NUMBER },
+    { "ipv6-unicast-hops", IPPROTO_IPV6, IPV6_UNICAST_HOPS, JANET_NUMBER },
 #endif
     { NULL, 0, 0, JANET_POINTER }
 };
@@ -1054,7 +1083,10 @@ JANET_CORE_FN(cfun_net_setsockopt,
               "- :ip-add-membership string\n"
               "- :ip-drop-membership string\n"
               "- :ipv6-join-group string\n"
-              "- :ipv6-leave-group string\n") {
+              "- :ipv6-leave-group string\n"
+              "- :ipv6-multicast-hops number\n"
+              "- :ipv6-unicast-hops number\n"
+             ) {
     janet_arity(argc, 3, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);
@@ -1073,9 +1105,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
     }
 
     union {
-#ifdef JANET_BSD
-        u_char v_uchar;
-#endif
+        unsigned char v_uchar;
         int v_int;
         struct ip_mreq v_mreq;
 #ifndef JANET_NO_IPV6
