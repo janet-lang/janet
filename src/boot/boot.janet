@@ -3938,23 +3938,32 @@
             (cancel-all chan fibers "sibling canceled")
             (propagate (fiber/last-value fiber) fiber))))))
 
+  (defn ev/go-gather
+    ```
+    Run a dyanmic number of fibers in parallel and resume the current fiber after they complete. Takes
+    an array of functions or fibers, `thunks`, that will be run via `ev/go` in another task.
+    Returns the gathered results in an array.
+    ```
+    [thunks]
+    (def fset @{})
+    (def chan (ev/chan))
+    (def results @[])
+    (each thunk thunks
+      (def ftemp (ev/go thunk nil chan))
+      (array/push results ftemp)
+      (put fset ftemp ftemp))
+    (wait-for-fibers chan fset)
+    (for i 0 (length results) # avoid extra copy from map
+      (set (results i) (fiber/last-value (in results i))))
+    results)
+
   (defmacro ev/gather
     ``
-    Run a number of fibers in parallel on the event loop, and join when they complete.
+    Run a number of fibers in parallel and resume the current fiber after they complete.
     Returns the gathered results in an array.
     ``
     [& bodies]
-    (with-syms [chan res fset ftemp]
-      ~(do
-         (def ,fset @{})
-         (def ,chan (,ev/chan))
-         (def ,res @[])
-         ,;(seq [[i body] :pairs bodies]
-             ~(do
-                (def ,ftemp (,ev/go (fn :ev/gather [] (put ,res ,i ,body)) nil ,chan))
-                (,put ,fset ,ftemp ,ftemp)))
-         (,wait-for-fibers ,chan ,fset)
-         ,res))))
+    ~(,ev/go-gather ,(seq [body :in bodies] ~(fn :ev/gather [] ,body)))))
 
 (compwhen (dyn 'net/listen)
   (defn net/server
