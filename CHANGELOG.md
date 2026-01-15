@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `ev/go-gather` for a dynamic `ev/gather`.
 - Use color in script output if color is being used in REPL output.
 - Fix `varfn` macros handling of extra metadata.
 - Add linting for unused bindings.
