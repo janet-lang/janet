@@ -142,8 +142,8 @@ static void janet_unlock_environ(void) {
 #define janet_stringify(x) janet_stringify1(x)
 
 JANET_CORE_FN(os_which,
-              "(os/which)",
-              "Check the current operating system. Returns one of:\n\n"
+              "(os/which &opt test)",
+              "Check the current operating system. If `test` is nil or unset, Returns one of:\n\n"
               "* :windows\n\n"
               "* :mingw\n\n"
               "* :cygwin\n\n"
@@ -156,9 +156,12 @@ JANET_CORE_FN(os_which,
               "* :dragonfly\n\n"
               "* :bsd\n\n"
               "* :posix - A POSIX compatible system (default)\n\n"
-              "May also return a custom keyword specified at build time.") {
-    janet_fixarity(argc, 0);
-    (void) argv;
+              "May also return a custom keyword specified at build time. Is `test` is truthy, will check if the current operating system equals `test` and return true if they are the same, false otherwise.") {
+    janet_arity(argc, 0, 1);
+    if (argc == 1 && janet_truthy(argv[0])) {
+        janet_getkeyword(argv, 0); /* Constrain to keywords */
+        return janet_wrap_boolean(janet_equals(argv[0], os_which(0, NULL)));
+    }
 #if defined(JANET_OS_NAME)
     return janet_ckeywordv(janet_stringify(JANET_OS_NAME));
 #elif defined(JANET_MINGW)

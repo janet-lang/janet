@@ -178,4 +178,8 @@
 (assert-error "os/realpath errors when path does not exist"
               (os/realpath "abc123def456"))
 
+# os/which changes
+(assert (os/which (os/which)) "os/which 1 arg")
+(assert (not (os/which :gobbledegook)) "os/which 2")
+
 (end-suite)
