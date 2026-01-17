@@ -1297,6 +1297,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     }
 
     int cp_failed = 0;
+    DWORD cp_error_code = 0;
     if (!CreateProcess(janet_flag_at(flags, 1) ? NULL : path,
                        (char *) buf->data, /* Single CLI argument */
                        &saAttr, /* no proc inheritance */
@@ -1308,6 +1309,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                        &startupInfo,
                        &processInfo)) {
         cp_failed = 1;
+        cp_error_code = GetLastError();
     }
 
     if (pipe_in != JANET_HANDLE_NONE) CloseHandle(pipe_in);
@@ -1317,7 +1319,25 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
     os_execute_cleanup(envp, NULL);
 
     if (cp_failed)  {
-        janet_panic("failed to create process");
+        char msgbuf[256];
+        msgbuf[0] = '\0';
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                      NULL,
+                      cp_error_code,
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      msgbuf,
+                      sizeof(msgbuf),
+                      NULL);
+        if (!*msgbuf) sprintf(msgbuf, "%d", code);
+        char *c = msgbuf;
+        while (*c) {
+            if (*c == '\n' || *c == '\r') {
+                *c = '\0';
+                break;
+            }
+            c++;
+        }
+        janet_panicf("failed to create process: %s", janet_cstringv(msgbuf));
     }
 
     pHandle = processInfo.hProcess;
