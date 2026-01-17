@@ -2716,7 +2716,8 @@ JANET_CORE_FN(os_open,
     DWORD desiredAccess = 0;
     DWORD shareMode = 0;
     DWORD creationDisp = 0;
-    DWORD flagsAndAttributes = FILE_FLAG_OVERLAPPED;
+    DWORD fileFlags = FILE_FLAG_OVERLAPPED;
+    DWORD fileAttributes = 0;
     /* We map unix-like open flags to the creationDisp parameter */
     int creatUnix = 0;
 #define OCREAT 1
@@ -2758,22 +2759,22 @@ JANET_CORE_FN(os_open,
                 shareMode |= FILE_SHARE_WRITE;
                 break;
             case 'H':
-                flagsAndAttributes |= FILE_ATTRIBUTE_HIDDEN;
+                fileAttributes |= FILE_ATTRIBUTE_HIDDEN;
                 break;
             case 'O':
-                flagsAndAttributes |= FILE_ATTRIBUTE_READONLY;
+                fileAttributes |= FILE_ATTRIBUTE_READONLY;
                 break;
             case 'F':
-                flagsAndAttributes |= FILE_ATTRIBUTE_OFFLINE;
+                fileAttributes |= FILE_ATTRIBUTE_OFFLINE;
                 break;
             case 'T':
-                flagsAndAttributes |= FILE_ATTRIBUTE_TEMPORARY;
+                fileAttributes |= FILE_ATTRIBUTE_TEMPORARY;
                 break;
             case 'd':
-                flagsAndAttributes |= FILE_FLAG_DELETE_ON_CLOSE;
+                fileFlags |= FILE_FLAG_DELETE_ON_CLOSE;
                 break;
             case 'b':
-                flagsAndAttributes |= FILE_FLAG_NO_BUFFERING;
+                fileFlags |= FILE_FLAG_NO_BUFFERING;
                 break;
                 /* we could potentially add more here -
                  * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
@@ -2799,7 +2800,10 @@ JANET_CORE_FN(os_open,
             creationDisp = TRUNCATE_EXISTING;
             break;
     }
-    fd = CreateFileA(path, desiredAccess, shareMode, NULL, creationDisp, flagsAndAttributes, NULL);
+    if (fileAttributes == 0) {
+        fileAttributes = FILE_ATTRIBUTE_NORMAL;
+    }
+    fd = CreateFileA(path, desiredAccess, shareMode, NULL, creationDisp, fileFlags | fileAttributes, NULL);
     if (fd == INVALID_HANDLE_VALUE) janet_panicv(janet_ev_lasterr());
 #else
     int open_flags = O_NONBLOCK;
