@@ -2706,6 +2706,7 @@ JANET_CORE_FN(os_open,
               "  * :T - FILE\\_ATTRIBUTE\\_TEMPORARY\n"
               "  * :d - FILE\\_FLAG\\_DELETE\\_ON\\_CLOSE\n"
               "  * :V - Turn off FILE\\_FLAG\\_OVERLAPPED and disable ev reading/writing\n"
+              "  * :I - set bInheritHandle on the created file so it can be passed to other processes.\n"
               "  * :b - FILE\\_FLAG\\_NO\\_BUFFERING\n") {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
@@ -2716,6 +2717,7 @@ JANET_CORE_FN(os_open,
     JanetHandle fd;
 #ifdef JANET_WINDOWS
     (void) mode;
+    int inherrited_handle = 0;
     DWORD desiredAccess = 0;
     DWORD shareMode = 0;
     DWORD creationDisp = 0;
@@ -2784,6 +2786,9 @@ JANET_CORE_FN(os_open,
             case 'b':
                 fileFlags |= FILE_FLAG_NO_BUFFERING;
                 break;
+            case 'I':
+                inherrited_handle = 1;
+                break;
             case 'V':
                 fileFlags &= ~FILE_FLAG_OVERLAPPED;
                 disable_stream_mode = 1;
@@ -2818,7 +2823,9 @@ JANET_CORE_FN(os_open,
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
     saAttr.nLength = sizeof(saAttr);
-    saAttr.bInheritHandle = TRUE; /* Needed to do interesting things with file */
+    if (inherrited_handle) {
+        saAttr.bInheritHandle = TRUE; /* Needed to do interesting things with file */
+    }
     fd = CreateFileA(path, desiredAccess, shareMode, &saAttr, creationDisp, fileFlags | fileAttributes, NULL);
     if (fd == INVALID_HANDLE_VALUE) janet_panicv(janet_ev_lasterr());
 #else
