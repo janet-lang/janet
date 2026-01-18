@@ -1214,7 +1214,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         if (is_spawn && janet_keyeq(maybe_stderr, "pipe")) {
             new_err = make_pipes(&pipe_err, 0, &pipe_errflag);
             pipe_owner_flags |= JANET_PROC_OWNS_STDERR;
-        } else if (is_spawn && janet_keyeq(maybe_stderr, "out")) {
+        } else if (janet_keyeq(maybe_stderr, "out")) {
             stderr_is_stdout = 1;
         } else if (!janet_checktype(maybe_stderr, JANET_NIL)) {
             new_err = janet_getjstream(&maybe_stderr, 0, &orig_err);
