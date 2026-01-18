@@ -166,7 +166,22 @@
                    (def path (if (or (= os :mingw) (= os :windows))
                                "NUL"
                                "/dev/null"))
-                   (os/open path :wW))
+                   (os/open path :w))
+                 (with [dn (devnull)]
+                   (os/execute [;run janet
+                                "-e"
+                                "(print :foo) (eprint :bar)"]
+                               :px
+                               {:out dn :err dn})))
+
+# os/execute IO redirection with more windows flags
+(assert-no-error "IO redirection more windows flags"
+                 (defn devnull []
+                   (def os (os/which))
+                   (def path (if (or (= os :mingw) (= os :windows))
+                               "NUL"
+                               "/dev/null"))
+                   (os/open path :wWI))
                  (with [dn (devnull)]
                    (os/execute [;run janet
                                 "-e"
