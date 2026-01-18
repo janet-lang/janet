@@ -4280,12 +4280,12 @@
         (try
           (require (string "@syspath/bundle/" bundle-name))
           ([e f]
-           (def pfx "could not find module @syspath/bundle/")
-           (def msg (if (and (string? e)
-                             (string/has-prefix? pfx e))
-                      "bundle must contain bundle.janet or bundle/init.janet"
-                      e))
-           (propagate msg f))))))
+            (def pfx "could not find module @syspath/bundle/")
+            (def msg (if (and (string? e)
+                              (string/has-prefix? pfx e))
+                       "bundle must contain bundle.janet or bundle/init.janet"
+                       e))
+            (propagate msg f))))))
 
   (defn- do-hook
     [module bundle-name hook & args]
@@ -4417,8 +4417,8 @@
     (def bscript-src1 (string path s "bundle" s "init.janet"))
     (def bscript-src2 (string path s "bundle.janet"))
     (def bscript-src (cond
-                        (fexists bscript-src1) bscript-src1
-                        (fexists bscript-src2) bscript-src2))
+                       (fexists bscript-src1) bscript-src1
+                       (fexists bscript-src2) bscript-src2))
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
