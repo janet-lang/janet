@@ -2691,10 +2691,11 @@ JANET_CORE_FN(os_open,
               "  * :c - create a new file (O\\_CREATE)\n"
               "  * :e - fail if the file exists (O\\_EXCL)\n"
               "  * :t - shorten an existing file to length 0 (O\\_TRUNC)\n\n"
+              "  * :a - append to a file (O\\_APPEND on posix, FILE_APPEND_DATA on windows)\n"
               "Posix-only flags:\n\n"
-              "  * :a - append to a file (O\\_APPEND)\n"
               "  * :x - O\\_SYNC\n"
               "  * :C - O\\_NOCTTY\n\n"
+              "  * :N - Turn off O\\_NONBLOCK and disable ev reading/writing\n\n"
               "Windows-only flags:\n\n"
               "  * :R - share reads (FILE\\_SHARE\\_READ)\n"
               "  * :W - share writes (FILE\\_SHARE\\_WRITE)\n"
@@ -2704,12 +2705,14 @@ JANET_CORE_FN(os_open,
               "  * :F - FILE\\_ATTRIBUTE\\_OFFLINE\n"
               "  * :T - FILE\\_ATTRIBUTE\\_TEMPORARY\n"
               "  * :d - FILE\\_FLAG\\_DELETE\\_ON\\_CLOSE\n"
+              "  * :V - Turn off FILE\\_FLAG\\_OVERLAPPED and disable ev reading/writing\n"
               "  * :b - FILE\\_FLAG\\_NO\\_BUFFERING\n") {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
     const uint8_t *opt_flags = janet_optkeyword(argv, argc, 1, (const uint8_t *) "r");
     jmode_t mode = os_optmode(argc, argv, 2, 0666);
     uint32_t stream_flags = 0;
+    int disable_stream_mode = 0;
     JanetHandle fd;
 #ifdef JANET_WINDOWS
     (void) mode;
@@ -2734,6 +2737,11 @@ JANET_CORE_FN(os_open,
                 break;
             case 'w':
                 desiredAccess |= GENERIC_WRITE;
+                stream_flags |= JANET_STREAM_WRITABLE;
+                janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
+                break;
+            case 'a':
+                desiredAccess |= FILE_APPEND_DATA;
                 stream_flags |= JANET_STREAM_WRITABLE;
                 janet_sandbox_assert(JANET_SANDBOX_FS_WRITE);
                 break;
@@ -2776,6 +2784,10 @@ JANET_CORE_FN(os_open,
             case 'b':
                 fileFlags |= FILE_FLAG_NO_BUFFERING;
                 break;
+            case 'V':
+                fileFlags &= ~FILE_FLAG_OVERLAPPED;
+                disable_stream_mode = 1;
+                break;
                 /* we could potentially add more here -
                  * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea
                  */
@@ -2803,7 +2815,11 @@ JANET_CORE_FN(os_open,
     if (fileAttributes == 0) {
         fileAttributes = FILE_ATTRIBUTE_NORMAL;
     }
-    fd = CreateFileA(path, desiredAccess, shareMode, NULL, creationDisp, fileFlags | fileAttributes, NULL);
+    SECURITY_ATTRIBUTES saAttr;
+    memset(&saAttr, 0, sizeof(saAttr));
+    saAttr.nLength = sizeof(saAttr);
+    saAttr.bInheritHandle = TRUE; /* Needed to do interesting things with file */
+    fd = CreateFileA(path, desiredAccess, shareMode, &saAttr, creationDisp, fileFlags | fileAttributes, NULL);
     if (fd == INVALID_HANDLE_VALUE) janet_panicv(janet_ev_lasterr());
 #else
     int open_flags = O_NONBLOCK;
@@ -2847,6 +2863,10 @@ JANET_CORE_FN(os_open,
             case 'a':
                 open_flags |= O_APPEND;
                 break;
+            case 'N':
+                open_flags &= ~O_NONBLOCK;
+                disable_stream_mode = 1;
+                break;
         }
     }
     /* If both read and write, fix up to O_RDWR */
@@ -2863,7 +2883,7 @@ JANET_CORE_FN(os_open,
     } while (fd == -1 && errno == EINTR);
     if (fd == -1) janet_panicv(janet_ev_lasterr());
 #endif
-    return janet_wrap_abstract(janet_stream(fd, stream_flags, NULL));
+    return janet_wrap_abstract(janet_stream(fd, disable_stream_mode ? 0 : stream_flags, NULL));
 }
 
 JANET_CORE_FN(os_pipe,
