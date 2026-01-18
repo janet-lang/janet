@@ -2717,7 +2717,7 @@ JANET_CORE_FN(os_open,
     JanetHandle fd;
 #ifdef JANET_WINDOWS
     (void) mode;
-    int inherrited_handle = 0;
+    int inherited_handle = 0;
     DWORD desiredAccess = 0;
     DWORD shareMode = 0;
     DWORD creationDisp = 0;
@@ -2787,7 +2787,7 @@ JANET_CORE_FN(os_open,
                 fileFlags |= FILE_FLAG_NO_BUFFERING;
                 break;
             case 'I':
-                inherrited_handle = 1;
+                inherited_handle = 1;
                 break;
             case 'V':
                 fileFlags &= ~FILE_FLAG_OVERLAPPED;
@@ -2823,7 +2823,7 @@ JANET_CORE_FN(os_open,
     SECURITY_ATTRIBUTES saAttr;
     memset(&saAttr, 0, sizeof(saAttr));
     saAttr.nLength = sizeof(saAttr);
-    if (inherrited_handle) {
+    if (inherited_handle) {
         saAttr.bInheritHandle = TRUE; /* Needed to do interesting things with file */
     }
     fd = CreateFileA(path, desiredAccess, shareMode, &saAttr, creationDisp, fileFlags | fileAttributes, NULL);
