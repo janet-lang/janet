@@ -181,7 +181,7 @@
                    (def path (if (or (= os :mingw) (= os :windows))
                                "NUL"
                                "/dev/null"))
-                   (os/open path :wWI))
+                   (os/open path (if (= os :windows) :wWI :wW)))
                  (with [dn (devnull)]
                    (os/execute [;run janet
                                 "-e"
