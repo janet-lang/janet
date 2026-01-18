@@ -370,18 +370,23 @@
     (++ i))
   ~(let (,;accum) ,;body))
 
-(defmacro defer
-  ``Run `form` unconditionally after `body`, even if the body throws an error.
-  Will also run `form` if a user signal 0-4 is received.``
-  [form & body]
+(defn- defer-impl
+  "Defer but allow custom name for stack traces"
+  [name form body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn :defer [] ,;body) :ti))
+       (def ,f (,fiber/new (fn ,name [] ,;body) :ti))
        (def ,r (,resume ,f))
        ,form
        (if (= (,fiber/status ,f) :dead)
          ,r
          (,propagate ,r ,f)))))
+
+(defmacro defer
+  ``Run `form` unconditionally after `body`, even if the body throws an error.
+  Will also run `form` if a user signal 0-4 is received.``
+  [form & body]
+  (defer-impl :defer form body))
 
 (defmacro edefer
   ``Run `form` after `body` in the case that body terminates abnormally (an error or user signal 0-4).
@@ -436,14 +441,14 @@
   [[binding ctor dtor] & body]
   ~(do
      (def ,binding ,ctor)
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(defer-impl :with [(or dtor :close) binding] body)))
 
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(defer-impl :when-with [(or dtor :close) binding] body)))
 
 (defmacro if-with
   ``Similar to `with`, but if binding is false or nil, evaluates
@@ -451,7 +456,7 @@
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] [truthy])
+     ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
      ,falsey))
 
 (defn- for-var-template
