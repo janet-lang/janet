@@ -115,7 +115,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
+(defn empty? "Check if an iterable, `iter`, is empty." [iter] (= nil (next iter nil)))
 
 # For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
