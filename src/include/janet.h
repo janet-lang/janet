@@ -1439,6 +1439,7 @@ JANET_API void janet_loop(void);
  *     } else {
  *       janet_schedule(interrupted_fiber, janet_wrap_nil());
  *     }
+ *     janet_interpreter_interrupt_handled(NULL);
  *   }
  * }
  *
@@ -1889,7 +1890,7 @@ JANET_API void janet_vm_free(JanetVM *vm);
 JANET_API void janet_vm_save(JanetVM *into);
 JANET_API void janet_vm_load(JanetVM *from);
 JANET_API void janet_interpreter_interrupt(JanetVM *vm);
-JANET_API void janet_interpreter_interrupt_handled(JanetVM *vm);
+JANET_API void janet_interpreter_interrupt_handled(JanetVM *vm); /* Call this after running interrupt handler */
 JANET_API JanetSignal janet_continue(JanetFiber *fiber, Janet in, Janet *out);
 JANET_API JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, JanetSignal sig);
 JANET_API JanetSignal janet_pcall(JanetFunction *fun, int32_t argn, const Janet *argv, Janet *out, JanetFiber **f);
@@ -2051,6 +2052,7 @@ JANET_NO_RETURN JANET_API void janet_panicv(Janet message);
 JANET_NO_RETURN JANET_API void janet_panic(const char *message);
 JANET_NO_RETURN JANET_API void janet_panics(JanetString message);
 JANET_NO_RETURN JANET_API void janet_panicf(const char *format, ...);
+JANET_API void janet_xprintf(FILE *file, const char *format, ...);
 JANET_API void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...);
 #define janet_printf(...) janet_dynprintf("out", stdout, __VA_ARGS__)
 #define janet_eprintf(...) janet_dynprintf("err", stderr, __VA_ARGS__)

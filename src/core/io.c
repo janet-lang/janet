@@ -718,6 +718,18 @@ JANET_CORE_FN(cfun_io_eflush,
     return janet_wrap_nil();
 }
 
+void janet_xprintf(FILE *file, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    JanetBuffer buffer;
+    int32_t len = 0;
+    while (format[len]) len++;
+    janet_buffer_init(&buffer, len);
+    janet_formatbv(&buffer, format, args);
+    fwrite(buffer.data, buffer.count, 1, file);
+    janet_buffer_deinit(&buffer);
+}
+
 void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...) {
     va_list args;
     va_start(args, format);
