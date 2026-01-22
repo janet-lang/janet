@@ -156,7 +156,7 @@ Shows the version text and exits immediately.
 
 .TP
 .BR \-s
-Read raw input from stdin and forgo prompt history and other readline-like features.
+Read raw input from stdin and forgo fancy input, which includes prompt history and other readline-like features.
 
 .TP
 .BR \-e\ code
@@ -274,7 +274,8 @@ cannot be defined for this variable to have an effect.
 
 .B JANET_HISTFILE
 .RS
-A file location to use for the default shell's REPL history. This relative path is where commands are persisted between sessions.
+A file location to use for the default shell's REPL history when using fancy input. This relative path is where commands are persisted between sessions.
+If unset, no repl history well be used. Does not work with the -s flag where fancy input is disabled.
 .RE
 
 .B NO_COLOR
