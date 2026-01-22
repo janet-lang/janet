@@ -437,20 +437,8 @@ static void calc_history_file(void) {
     if (hist) {
         gbl_history_file = sdup(hist);
     } else {
-        const char *home = (const char *) getenv("HOME");
-        if (NULL == home) home = "";
-        const char *filename = ".janet_history.jdn";
-        size_t homelen = strlen(home);
-        size_t filelen = strlen(filename);
-        size_t buflen = homelen + filelen + 1;
-        char *buffer = janet_malloc(buflen + 1);
-        if (homelen) memcpy(buffer, home, homelen);
-        buffer[homelen] = '/';
-        memcpy(buffer + homelen + 1, filename, filelen);
-        buffer[buflen] = '\0';
-        gbl_history_file = buffer;
+        gbl_history_file = NULL;
     }
-    /* fprintf(stderr, "history_file: %s\n", gbl_history_file); */
 }
 
 static void loadhistory(void) {
