@@ -1922,7 +1922,7 @@ JANET_CORE_FN(os_date,
     return janet_wrap_struct(janet_struct_end(st));
 }
 
-#define SIZETIMEFMT     250
+#define SIZETIMEFMT 250
 
 JANET_CORE_FN(os_strftime,
               "(os/strftime fmt &opt time local)",
@@ -1937,7 +1937,7 @@ JANET_CORE_FN(os_strftime,
     const char *p = fmt;
     while (*p) {
         if (*p++ == '%') {
-            if (!strchr(valid, *p)) {
+            if (!*p || !strchr(valid, *p)) {
                 janet_panicf("invalid conversion specifier '%%%c'", *p);
             }
             p++;
@@ -1946,7 +1946,7 @@ JANET_CORE_FN(os_strftime,
     struct tm t_infos;
     struct tm *t_info = time_to_tm(argv, argc, 1, &t_infos);
     char buf[SIZETIMEFMT];
-    (void)strftime(buf, SIZETIMEFMT, fmt, t_info);
+    (void)strftime(buf, sizeof(buf), fmt, t_info);
     return janet_cstringv(buf);
 }
 

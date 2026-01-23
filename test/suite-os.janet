@@ -63,7 +63,10 @@
         "strftime january 2014")
 (assert (= (try (os/strftime "%%%d%t") ([err] err))
            "invalid conversion specifier '%t'")
-        "invalid conversion specifier")
+        "invalid conversion specifier 1")
+(assert (= (try (os/strftime "%H:%M:%") ([err] err))
+           "invalid conversion specifier")
+        "invalid conversion specifier 2")
 
 # 07db4c530
 (os/setenv "TESTENV1" "v1")
