@@ -482,7 +482,7 @@ static void savehistory(void) {
     FILE *history_file = fopen(gbl_history_file, "wb");
     for (int i = 0; i < gbl_history_count; i++) {
         if (gbl_history[i][0]) { /* Drop empty strings */
-            janet_xprintf(history_file, "%j\n", janet_cstringv(gbl_history[i]));
+            janet_dynprintf("", history_file, "%j\n", janet_cstringv(gbl_history[i]));
         }
     }
     fclose(history_file);
