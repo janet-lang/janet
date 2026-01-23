@@ -96,9 +96,9 @@ static void simpleline(JanetBuffer *buffer) {
 
 #ifndef JANET_SIMPLE_GETLINE
 /* static state */
-#define JANET_LINE_MAX 4096
+#define JANET_LINE_MAX 1024
 #define JANET_MATCH_MAX 256
-#define JANET_HISTORY_MAX 1000
+#define JANET_HISTORY_MAX 100
 static JANET_THREAD_LOCAL int gbl_israwmode = 0;
 static JANET_THREAD_LOCAL const char *gbl_prompt = "> ";
 static JANET_THREAD_LOCAL int gbl_plen = 2;
@@ -434,7 +434,7 @@ static int insert(char c, int draw) {
 
 static void calc_history_file(void) {
     char *hist = getenv("JANET_HISTFILE");
-    if (hist) {
+    if (hist != NULL) {
         gbl_history_file = sdup(hist);
     } else {
         gbl_history_file = NULL;
@@ -478,7 +478,7 @@ parsing_done:
 }
 
 static void savehistory(void) {
-    if (gbl_history_count <= 1 || !gbl_history_file) return;
+    if (gbl_history_count < 1 || (gbl_history_file == NULL)) return;
     FILE *history_file = fopen(gbl_history_file, "wb");
     for (int i = 0; i < gbl_history_count; i++) {
         if (gbl_history[i][0]) { /* Drop empty strings */
@@ -1152,7 +1152,10 @@ void janet_line_deinit() {
     for (int i = 0; i < gbl_history_count; i++)
         janet_free(gbl_history[i]);
     gbl_historyi = 0;
-    if (gbl_history_file) janet_free(gbl_history_file);
+    if (gbl_history_file) {
+        janet_free(gbl_history_file);
+        gbl_history_file = NULL;
+    }
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
@@ -1190,13 +1193,6 @@ static void clear_at_exit(void) {
  * Entry
  */
 
-static void cleanup_at_exit(void) {
-    /* Deinitialize vm */
-    savehistory();
-    janet_deinit();
-    janet_line_deinit();
-}
-
 int main(int argc, char **argv) {
     int i, status;
     JanetArray *args;
@@ -1213,7 +1209,6 @@ int main(int argc, char **argv) {
 #if !defined(JANET_SIMPLE_GETLINE)
     atexit(clear_at_exit);
 #endif
-    atexit(cleanup_at_exit);
 
 #if defined(JANET_PRF)
     uint8_t hash_key[JANET_HASH_KEY_SIZE + 1];
@@ -1261,6 +1256,10 @@ int main(int argc, char **argv) {
     /* Run the fiber in an event loop */
     status = janet_loop_fiber(fiber);
 
-    /* Deinit moved to atexit */
+    /* Deinitialize vm */
+    savehistory();
+    janet_deinit();
+    janet_line_deinit();
+
     return status;
 }

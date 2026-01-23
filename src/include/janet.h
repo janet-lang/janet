@@ -2052,7 +2052,6 @@ JANET_NO_RETURN JANET_API void janet_panicv(Janet message);
 JANET_NO_RETURN JANET_API void janet_panic(const char *message);
 JANET_NO_RETURN JANET_API void janet_panics(JanetString message);
 JANET_NO_RETURN JANET_API void janet_panicf(const char *format, ...);
-JANET_API void janet_xprintf(FILE *file, const char *format, ...);
 JANET_API void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...);
 #define janet_printf(...) janet_dynprintf("out", stdout, __VA_ARGS__)
 #define janet_eprintf(...) janet_dynprintf("err", stderr, __VA_ARGS__)
