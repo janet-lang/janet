@@ -1937,7 +1937,10 @@ JANET_CORE_FN(os_strftime,
     const char *p = fmt;
     while (*p) {
         if (*p++ == '%') {
-            if (!*p || !strchr(valid, *p)) {
+            if (!*p) {
+                janet_panic("invalid conversion specifier");
+            }
+            if (!strchr(valid, *p)) {
                 janet_panicf("invalid conversion specifier '%%%c'", *p);
             }
             p++;
