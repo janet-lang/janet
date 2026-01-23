@@ -202,5 +202,10 @@
 (assert-no-error "def destructure splice works 2" (do (def (n) [(splice [])]) n))
 (assert-no-error "var destructure splice works" (do (var [a] [;[1]]) a))
 
-(end-suite)
+# Issue #1702 - fuzz case with upvalues
+(each item [1 2 3]
+  # Generate a lot of upvalues (more than 224)
+  (def ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;out-buf @"")
+  (with-dyns [:out out-buf] 1))
 
+(end-suite)

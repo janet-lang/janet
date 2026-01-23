@@ -723,7 +723,7 @@ void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...)
     va_start(args, format);
     JanetType xtype;
     Janet x;
-    if (name[0] == '\0') { /* Allow empty string to just use dflt_file directly */
+    if (!name || name[0] == '\0') { /* Allow NULL or empty string to just use dflt_file directly */
         x = janet_wrap_nil();
         xtype = JANET_NIL;
     } else {

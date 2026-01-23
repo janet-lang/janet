@@ -961,8 +961,9 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
             JANET_OUT_OF_MEMORY;
         }
         memcpy(chunks, scope->ua.chunks, sizeof(uint32_t) * numchunks);
+        /* fprintf(stderr, "slot chunks: %d, scope->ua.count: %d, numchunks: %d\n", slotchunks, scope->ua.count, numchunks); */
         /* Register allocator preallocates some registers [240-255, high 16 bits of chunk index 7], we can ignore those. */
-        if (scope->ua.count > 7) chunks[7] &= 0xFFFFU;
+        if (scope->ua.count > 7 && slotchunks > 7) chunks[7] &= 0xFFFFU;
         def->closure_bitset = chunks;
     }
 
