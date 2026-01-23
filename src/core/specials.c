@@ -308,13 +308,13 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
 static JanetTable *handleattr(JanetCompiler *c, const char *kind, int32_t argn, const Janet *argv) {
     int32_t i;
     JanetTable *tab = janet_table(2);
-    const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
-                               ? ((const char *)janet_unwrap_symbol(argv[0]))
-                               : "<multiple bindings>";
     if (argn < 2) {
         janetc_error(c, janet_formatc("expected at least 2 arguments to %s", kind));
         return NULL;
     }
+    const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
+                               ? ((const char *)janet_unwrap_symbol(argv[0]))
+                               : "<multiple bindings>";
     for (i = 1; i < argn - 1; i++) {
         Janet attr = argv[i];
         switch (janet_type(attr)) {

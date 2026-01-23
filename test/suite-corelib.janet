@@ -203,9 +203,20 @@
 (assert-no-error "var destructure splice works" (do (var [a] [;[1]]) a))
 
 # Issue #1702 - fuzz case with upvalues
-(each item [1 2 3]
-  # Generate a lot of upvalues (more than 224)
-  (def ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;out-buf @"")
-  (with-dyns [:out out-buf] 1))
+(def result
+  (compile
+  '(each item [1 2 3]
+    # Generate a lot of upvalues (more than 224)
+    (def ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;out-buf @"")
+    (with-dyns [:out out-buf] 1))))
+(assert result "bad upvalues fuzz case")
+
+# Issue #1699 - fuzz case with bad def
+(def result
+  (compile '(defn sum3
+              "Solve the 3SUM problem in O(n^2) time."
+              [s]
+              (def)tab @{})))
+(assert (get result :error) "bad sum3 fuzz issue valgrind")
 
 (end-suite)
