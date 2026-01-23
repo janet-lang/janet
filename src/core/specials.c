@@ -686,8 +686,10 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Write jumps - only add jump lengths if jump actually emitted */
     labeld = janet_v_count(c->buffer);
-    c->buffer[labeljr] |= (labelr - labeljr) << 16;
-    if (!tail) c->buffer[labeljd] |= (labeld - labeljd) << 8;
+    if (labeljr < labeld) {
+        c->buffer[labeljr] |= (labelr - labeljr) << 16;
+        if (!tail) c->buffer[labeljd] |= (labeld - labeljd) << 8;
+    }
 
     if (tail) target.flags |= JANET_SLOT_RETURNED;
     return target;

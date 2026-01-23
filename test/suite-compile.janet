@@ -75,5 +75,32 @@
   (foo 0)
   10)
 
+# Issue #1699 - fuzz case with bad def
+(def result
+  (compile '(defn sum3
+              "Solve the 3SUM problem in O(n^2) time."
+              [s]
+              (def)tab @{})))
+(assert (get result :error) "bad sum3 fuzz issue valgrind")
+
+# Issue #1700
+(def result
+  (compile
+    '(defn fuzz-case-1
+      [start end &]
+      (if end
+        (if e start (lazy-range (+ 1 start) end)))
+      1)))
+(assert (get result :error) "fuzz case issue #1700")
+
+# Issue #1702 - fuzz case with upvalues
+(def result
+  (compile
+  '(each item [1 2 3]
+    # Generate a lot of upvalues (more than 224)
+    (def ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;out-buf @"")
+    (with-dyns [:out out-buf] 1))))
+(assert result "bad upvalues fuzz case")
+
 (end-suite)
 
