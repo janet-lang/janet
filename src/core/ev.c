@@ -1269,11 +1269,13 @@ JANET_CORE_FN(cfun_channel_choice,
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
             /* Write */
             JanetChannel *chan = janet_getchannel(data, 0);
+            janet_chan_lock(chan);
             janet_channel_push_with_lock(chan, data[1], 1);
         } else {
             /* Read */
             Janet item;
             JanetChannel *chan = janet_getchannel(argv, i);
+            janet_chan_lock(chan);
             janet_channel_pop_with_lock(chan, &item, 1);
         }
     }
@@ -1376,7 +1378,7 @@ JANET_CORE_FN(cfun_channel_close,
                     janet_ev_post_event(vm, janet_thread_chan_cb, msg);
                 }
             } else {
-                if (janet_fiber_can_resume(writer.fiber)) {
+                if (janet_fiber_can_resume(writer.fiber) && writer.sched_id == writer.fiber->sched_id) {
                     if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                         janet_schedule(writer.fiber, make_close_result(channel));
                     } else {
@@ -1399,7 +1401,7 @@ JANET_CORE_FN(cfun_channel_close,
                     janet_ev_post_event(vm, janet_thread_chan_cb, msg);
                 }
             } else {
-                if (janet_fiber_can_resume(reader.fiber)) {
+                if (janet_fiber_can_resume(reader.fiber) && reader.sched_id == reader.fiber->sched_id) {
                     if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                         janet_schedule(reader.fiber, make_close_result(channel));
                     } else {
