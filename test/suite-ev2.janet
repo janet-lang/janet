@@ -55,4 +55,27 @@
 (ev/sleep 0.2)
 (assert (deep= '(:error "deadline expired" nil) (ev/take super)) "deadline expirataion")
 
+# Issue #1705 - ev select
+(def supervisor (ev/chan 10))
+
+(def ch (ev/chan))
+(def ch2 (ev/chan))
+
+(ev/go |(do
+          (ev/select ch ch2)
+          (:close ch)
+          "close ch...")
+       nil supervisor)
+
+(ev/go |(do
+          (ev/sleep 0.05)
+          (:close ch2)
+          "close ch2...")
+       nil supervisor)
+
+(assert (let [[status] (ev/take supervisor)] (= status :ok)) "status 1 ev/select")
+(assert (let [[status] (ev/take supervisor)] (= status :ok)) "status 2 ev/select")
+(ev/sleep 0.1) # can we do better?
+(assert (= 0 (ev/count supervisor)) "empty supervisor")
+
 (end-suite)
