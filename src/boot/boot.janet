@@ -2845,7 +2845,8 @@
 (defmacro comptime
   "Evals x at compile time and returns the result. Similar to a top level unquote."
   [x]
-  (eval x))
+  (def y (eval x))
+  y)
 
 (defmacro compif
   "Check the condition `cnd` at compile time -- if truthy, compile `tru`, else compile `fals`."
@@ -3168,12 +3169,12 @@
   (def mc (dyn *module-cache* module/cache))
   (def ml (dyn *module-loading* module/loading))
   (def mls (dyn *module-loaders* module/loaders))
-  (if-let [check (if-not (kargs :fresh) (in mc fullpath))]
+  (if-let [check (if-not (get kargs :fresh) (in mc fullpath))]
     check
-    (if (ml fullpath)
+    (if (get ml fullpath)
       (error (string "circular dependency " fullpath " detected"))
       (do
-        (def loader (if (keyword? mod-kind) (mls mod-kind) mod-kind))
+        (def loader (if (keyword? mod-kind) (get mls mod-kind) mod-kind))
         (unless loader (error (string "module type " mod-kind " unknown")))
         (def env (loader fullpath args))
         (put mc fullpath env)
