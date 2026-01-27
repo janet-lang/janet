@@ -1482,6 +1482,9 @@ JANET_API void *janet_abstract_threaded(const JanetAbstractType *atype, size_t s
 JANET_API int32_t janet_abstract_incref(void *abst);
 JANET_API int32_t janet_abstract_decref(void *abst);
 
+/* If this returns 0, *abst will be deinitialized and freed */
+JANET_API int32_t janet_abstract_decref_maybe_free(void *abst);
+
 /* Expose channel utilities */
 JANET_API JanetChannel *janet_channel_make(uint32_t limit);
 JANET_API JanetChannel *janet_channel_make_threaded(uint32_t limit);

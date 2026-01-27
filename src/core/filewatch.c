@@ -521,23 +521,23 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     (void) watcher;
     (void) flags;
     (void) path;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     (void) watcher;
     (void) path;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
     (void) watcher;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_unlisten(JanetWatcher *watcher) {
     (void) watcher;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 #endif

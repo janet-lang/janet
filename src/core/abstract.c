@@ -201,4 +201,17 @@ int32_t janet_abstract_decref(void *abst) {
     return janet_atomic_dec(&janet_abstract_head(abst)->gc.data.refcount);
 }
 
+int32_t janet_abstract_decref_maybe_free(void *abst) {
+    int32_t result = janet_abstract_decref(abst);
+    if (0 == result) {
+        JanetAbstractHead *head = janet_abstract_head(abst);
+        if (head->type->gc) {
+            janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
+        }
+        /* Free memory */
+        janet_free(head);
+    }
+    return result;
+}
+
 #endif
