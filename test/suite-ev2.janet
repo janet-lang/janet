@@ -78,4 +78,10 @@
 (ev/sleep 0.1) # can we do better?
 (assert (= 0 (ev/count supervisor)) "empty supervisor")
 
+# Issue #1707
+(def f (coro (repeat 10 (yield 1))))
+(resume f)
+(assert-error "cannot schedule non-new fiber"
+              (ev/go f))
+
 (end-suite)

@@ -3038,6 +3038,9 @@ JANET_CORE_FN(cfun_ev_go,
         fiber->env->proto = janet_vm.fiber->env;
     } else {
         fiber = janet_getfiber(argv, 0);
+        if (janet_fiber_status(fiber) != JANET_STATUS_NEW) {
+            janet_panic("can only schedule new fibers where (= (fiber/status f) :new)");
+        }
     }
     fiber->supervisor_channel = supervisor;
     janet_schedule(fiber, value);
