@@ -1354,12 +1354,16 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     lidv = midv = janet_wrap_nil();
     janet_resolve(env, janet_csymbol("load-image-dict"), &lidv);
     janet_resolve(env, janet_csymbol("make-image-dict"), &midv);
-    JanetTable *lid = janet_unwrap_table(lidv);
-    JanetTable *mid = janet_unwrap_table(midv);
-    for (int32_t i = 0; i < lid->capacity; i++) {
-        const JanetKV *kv = lid->data + i;
-        if (!janet_checktype(kv->key, JANET_NIL)) {
-            janet_table_put(mid, kv->value, kv->key);
+
+    /* Check that we actually got tables - if we are using a smaller corelib, may not exist */
+    if (janet_checktype(lidv, JANET_TABLE) && janet_checktype(midv, JANET_TABLE)) {
+        JanetTable *lid = janet_unwrap_table(lidv);
+        JanetTable *mid = janet_unwrap_table(midv);
+        for (int32_t i = 0; i < lid->capacity; i++) {
+            const JanetKV *kv = lid->data + i;
+            if (!janet_checktype(kv->key, JANET_NIL)) {
+                janet_table_put(mid, kv->value, kv->key);
+            }
         }
     }
 
