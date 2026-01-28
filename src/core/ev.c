@@ -539,6 +539,9 @@ void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig) {
 }
 
 void janet_cancel(JanetFiber *fiber, Janet value) {
+    if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+        janet_panic("cannot cancel non-task fiber");
+    }
     janet_schedule_signal(fiber, value, JANET_SIGNAL_ERROR);
 }
 
