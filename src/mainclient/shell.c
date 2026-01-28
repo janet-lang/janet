@@ -445,6 +445,7 @@ static void loadhistory(void) {
     if (gbl_history_loaded) return;
     calc_history_file();
     gbl_history_loaded = 1;
+    if (NULL == gbl_history_file) return;
     FILE *history_file = fopen(gbl_history_file, "rb");
     if (NULL == history_file) return;
     JanetParser p;
