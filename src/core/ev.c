@@ -3007,12 +3007,14 @@ error:
 
 JANET_CORE_FN(cfun_ev_go,
               "(ev/go fiber-or-fun &opt value supervisor)",
-              "Put a fiber on the event loop to be resumed later. If a function is used, it is wrapped "
-              "with `fiber/new` first. "
-              "Optionally pass a value to resume with, otherwise resumes with nil. Returns the fiber. "
-              "An optional `core/channel` can be provided as a supervisor. When various "
-              "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
-              "If not provided, the new fiber will inherit the current supervisor.") {
+              "Put a fiber on the event loop to be resumed later. If a "
+              "function is used, it is wrapped with `fiber/new` first. "
+              "Returns a task fiber. Optionally pass a value to resume "
+              "with, otherwise resumes with nil. An optional `core/channel` "
+              "can be provided as a supervisor. When various events occur "
+              "in the newly scheduled fiber, an event will be pushed to the "
+              "supervisor. If not provided, the new fiber will inherit the "
+              "current supervisor.") {
     janet_arity(argc, 1, 3);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     void *supervisor = janet_optabstract(argv, argc, 2, &janet_channel_type, janet_vm.root_fiber->supervisor_channel);
@@ -3324,7 +3326,8 @@ JANET_CORE_FN(cfun_ev_deadline,
 
 JANET_CORE_FN(cfun_ev_cancel,
               "(ev/cancel fiber err)",
-              "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately.") {
+              "Cancel a suspended task fiber in the event loop. Differs from "
+              "`cancel` in that it returns the canceled fiber immediately.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
@@ -3557,7 +3560,7 @@ JANET_CORE_FN(janet_cfun_to_file,
 
 JANET_CORE_FN(janet_cfun_ev_all_tasks,
               "(ev/all-tasks)",
-              "Get an array of all active fibers that are being used by the scheduler.") {
+              "Get an array of all active task fibers that are being used by the scheduler.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetArray *array = janet_array(janet_vm.active_tasks.count);
