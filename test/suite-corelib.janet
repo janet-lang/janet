@@ -202,4 +202,9 @@
 (assert-no-error "def destructure splice works 2" (do (def (n) [(splice [])]) n))
 (assert-no-error "var destructure splice works" (do (var [a] [;[1]]) a))
 
+# Issue #1709
+(assert (= (macex1 '|(set (my-table [2 1]) 'foo))
+           '(fn :short-fn [] (set (my-table [2 1]) (quote foo))))
+        "Macro expand inside set preserves tuple type correctly")
+
 (end-suite)

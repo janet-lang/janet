@@ -2173,7 +2173,10 @@
   (defn expand-bindings [x]
     (case (type x)
       :array (map expand-bindings x)
-      :tuple (tuple/slice (map expand-bindings x))
+      :tuple (let [ctor (if (= :brackets (tuple/type x))
+                          tuple/brackets
+                          tuple)]
+               (ctor ;(map expand-bindings x)))
       :table (dotable x expand-bindings)
       :struct (table/to-struct (dotable x expand-bindings))
       (recur x)))
