@@ -2173,10 +2173,7 @@
   (defn expand-bindings [x]
     (case (type x)
       :array (map expand-bindings x)
-      :tuple (let [ctor (if (= :brackets (tuple/type x))
-                          tuple/brackets
-                          tuple)]
-               (ctor ;(map expand-bindings x)))
+      :tuple (keep-syntax! x (map expand-bindings x))
       :table (dotable x expand-bindings)
       :struct (table/to-struct (dotable x expand-bindings))
       (recur x)))
@@ -2184,7 +2181,7 @@
   (defn expanddef [t]
     (def last (in t (- (length t) 1)))
     (def bound (in t 1))
-    (tuple/slice
+    (keep-syntax! t
       (array/concat
         @[(in t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
@@ -2199,10 +2196,10 @@
     (if (symbol? t1)
       (do
         (def args (map recur (tuple/slice t 3)))
-        (tuple 'fn t1 (in t 2) ;args))
+        (keep-syntax t (tuple 'fn t1 (in t 2) ;args)))
       (do
         (def args (map recur (tuple/slice t 2)))
-        (tuple 'fn t1 ;args))))
+        (keep-syntax t (tuple 'fn t1 ;args)))))
 
   (defn expandqq [t]
     (defn qq [x]
