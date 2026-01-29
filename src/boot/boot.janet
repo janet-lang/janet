@@ -3865,13 +3865,16 @@
   (defn ev/call
     ```
     Call a function asynchronously.
-    Returns a fiber that is scheduled to run the function.
+    Returns a task fiber that is scheduled to run the function.
     ```
     [f & args]
     (ev/go (fn :call [&] (f ;args))))
 
   (defmacro ev/spawn
-    "Run some code in a new fiber. This is shorthand for `(ev/go (fn [] ;body))`."
+    ``
+    Run some code in a new task fiber. This is shorthand for
+    `(ev/go (fn [] ;body))`."
+    ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
 
@@ -3965,8 +3968,9 @@
 
   (defmacro ev/gather
     ``
-    Run a number of fibers in parallel and resume the current fiber after they complete.
-    Returns the gathered results in an array.
+    Run a number of fibers in parallel (created from `bodies`) and resume the
+    current fiber after they complete. Returns the gathered results in an
+    array.
     ``
     [& bodies]
     ~(,ev/go-gather ,(seq [body :in bodies] ~(fn :ev/gather [] ,body)))))

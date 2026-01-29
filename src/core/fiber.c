@@ -610,8 +610,9 @@ JANET_CORE_FN(cfun_fiber_current,
 
 JANET_CORE_FN(cfun_fiber_root,
               "(fiber/root)",
-              "Returns the current root fiber. The root fiber is the oldest ancestor "
-              "that does not have a parent.") {
+              "Returns the current root fiber. The root fiber is the oldest "
+              "ancestor that does not have a parent. Note that a root fiber "
+              "is also a task fiber.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm.root_fiber);
