@@ -522,6 +522,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->bytecode_length = 0;
     def->environments_length = 0;
     def->symbolmap_length = 0;
+    def->named_args_count = 0;
     return def;
 }
 

@@ -1074,6 +1074,7 @@ struct JanetAbstractHead {
 #define JANET_FUNCDEF_FLAG_HASSOURCEMAP 0x800000
 #define JANET_FUNCDEF_FLAG_STRUCTARG 0x1000000
 #define JANET_FUNCDEF_FLAG_HASCLOBITSET 0x2000000
+#define JANET_FUNCDEF_FLAG_NAMEDARGS 0x4000000
 #define JANET_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
@@ -1115,6 +1116,7 @@ struct JanetFuncDef {
     int32_t environments_length;
     int32_t defs_length;
     int32_t symbolmap_length;
+    int32_t named_args_count;
 };
 
 /* A function environment */

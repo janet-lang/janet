@@ -536,7 +536,7 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     JanetScope unusedScope;
     int32_t bufstart = janet_v_count(c->buffer);
     int32_t mapbufstart = janet_v_count(c->mapbuffer);
-    janetc_scope(&unusedScope, c, JANET_SCOPE_UNUSED, "unusued");
+    janetc_scope(&unusedScope, c, JANET_SCOPE_UNUSED, "unused");
     janetc_value(opts, x);
     janetc_lintf(c, JANET_C_LINT_STRICT, "dead code, consider removing %.4q", x);
     janetc_popscope(c);
@@ -548,7 +548,7 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
 }
 
 /* Compile a call or tailcall instruction */
-static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
+static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, const Janet *form) {
     JanetSlot retslot;
     JanetCompiler *c = opts.compiler;
     int specialized = 0;
@@ -574,6 +574,8 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
                     JanetFunction *f = janet_unwrap_function(fun.constant);
                     int32_t min = f->def->min_arity;
                     int32_t max = f->def->max_arity;
+                    int structarg = f->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
+                    int namedarg = f->def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS;
                     if (min_arity < 0) {
                         /* Call has splices */
                         min_arity = -1 - min_arity;
@@ -596,6 +598,42 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun) {
                                                     "%v expects at least %d argument%s, got %d",
                                                     fun.constant, min, min == 1 ? "" : "s", min_arity);
                             janetc_error(c, es);
+                        }
+                        if (structarg && ((min_arity - min) & 1)) {
+                            /* If we have an odd number of variadic arguments to a `&keys` function, that is almost certainly wrong. */
+                            janetc_lintf(c, JANET_C_LINT_NORMAL,
+                                         "odd number of variadic arguments to `&keys` function %v", fun.constant);
+                        }
+                        if (namedarg && f->def->named_args_count > 0) {
+                            /* For each argument passed in, check if it is one of the used named arguments
+                             * by checking the list defined in the function def. If not, raise a normal compiler
+                             * lint. We can also do a strict lint for _missing_ named arguments, although in many
+                             * cases those are assumed to have some kind of default, or we have dynamic keys. */
+                            int32_t first_arg_key_index = min + 1;
+                            for (int32_t i = first_arg_key_index; i < janet_tuple_length(form); i += 2) {
+                                Janet argkey = form[i];
+                                /* Assumption: The first N constants of a function are its named argument keys. This
+                                 * may change if the compiler changes, but is true for all Janet generated functions. */
+                                int found = 0;
+                                if (janet_checktype(argkey, JANET_KEYWORD)) {
+                                    for (int32_t j = 0; j < f->def->named_args_count && j < f->def->constants_length; j++) {
+                                        if (janet_equals(argkey, f->def->constants[j])) {
+                                            found = 1;
+                                            break;
+                                        }
+                                    }
+                                } else if (janet_checktype(argkey, JANET_TUPLE)) {
+                                    /* Possible lint : too dynamic, be dumber
+                                     * (defn f [&named x] [x])
+                                     * (f (if (coin-flip) :x :w) 10)
+                                     * A tuple could be a function call the evaluates to a valid key */
+                                    found = 1;
+                                }
+                                if (!found) {
+                                    janetc_lintf(c, JANET_C_LINT_NORMAL,
+                                                 "unused named argument %v to function %v", argkey, fun.constant);
+                                }
+                            }
                         }
                     }
                 }
@@ -831,14 +869,16 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 } else if (janet_tuple_flag(tup) & JANET_TUPLE_FLAG_BRACKETCTOR) { /* [] tuples are not function call */
                     ret = janetc_tuple(opts, x);
                 } else {
+                    /* Function calls */
                     JanetSlot head = janetc_value(subopts, tup[0]);
                     subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
-                    ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head);
+                    ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head, tup);
                     janetc_freeslot(c, head);
                 }
                 ret.flags &= ~JANET_SLOT_SPLICED;
             }
             break;
+            /* Data Constructors */
             case JANET_SYMBOL:
                 ret = janetc_resolve(c, janet_unwrap_symbol(x));
                 break;
@@ -878,19 +918,21 @@ void janet_def_addflags(JanetFuncDef *def) {
     int32_t set_flags = 0;
     int32_t unset_flags = 0;
     /* pos checks */
-    if (def->name)            set_flags |= JANET_FUNCDEF_FLAG_HASNAME;
-    if (def->source)          set_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
-    if (def->defs)            set_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
-    if (def->environments)    set_flags |= JANET_FUNCDEF_FLAG_HASENVS;
-    if (def->sourcemap)       set_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
-    if (def->closure_bitset)  set_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    if (def->name)              set_flags |= JANET_FUNCDEF_FLAG_HASNAME;
+    if (def->source)            set_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
+    if (def->defs)              set_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
+    if (def->environments)      set_flags |= JANET_FUNCDEF_FLAG_HASENVS;
+    if (def->sourcemap)         set_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+    if (def->closure_bitset)    set_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    if (def->named_args_count)  set_flags |= JANET_FUNCDEF_FLAG_NAMEDARGS;
     /* negative checks */
-    if (!def->name)           unset_flags |= JANET_FUNCDEF_FLAG_HASNAME;
-    if (!def->source)         unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
-    if (!def->defs)           unset_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
-    if (!def->environments)   unset_flags |= JANET_FUNCDEF_FLAG_HASENVS;
-    if (!def->sourcemap)      unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
-    if (!def->closure_bitset) unset_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    if (!def->name)             unset_flags |= JANET_FUNCDEF_FLAG_HASNAME;
+    if (!def->source)           unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCE;
+    if (!def->defs)             unset_flags |= JANET_FUNCDEF_FLAG_HASDEFS;
+    if (!def->environments)     unset_flags |= JANET_FUNCDEF_FLAG_HASENVS;
+    if (!def->sourcemap)        unset_flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+    if (!def->closure_bitset)   unset_flags |= JANET_FUNCDEF_FLAG_HASCLOBITSET;
+    if (!def->named_args_count) unset_flags |= JANET_FUNCDEF_FLAG_NAMEDARGS;
     /* Update flags */
     def->flags |= set_flags;
     def->flags &= ~unset_flags;

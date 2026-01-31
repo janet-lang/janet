@@ -276,6 +276,8 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     pushint(st, def->max_arity);
     pushint(st, def->constants_length);
     pushint(st, def->bytecode_length);
+    if (def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS)
+        pushint(st, def->named_args_count);
     if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
         pushint(st, def->environments_length);
     if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
@@ -914,6 +916,7 @@ static const uint8_t *unmarshal_one_def(
         def->sourcemap = NULL;
         def->symbolmap = NULL;
         def->symbolmap_length = 0;
+        def->named_args_count = 0;
         janet_v_push(st->lookup_defs, def);
 
         /* Set default lengths to zero */
@@ -933,6 +936,8 @@ static const uint8_t *unmarshal_one_def(
         /* Read some lengths */
         constants_length = readnat(st, &data);
         bytecode_length = readnat(st, &data);
+        if (def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS)
+            def->named_args_count = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
             environments_length = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)

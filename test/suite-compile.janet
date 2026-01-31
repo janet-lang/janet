@@ -102,5 +102,38 @@
     (with-dyns [:out out-buf] 1))))
 (assert result "bad upvalues fuzz case")
 
+# Named argument linting
+# Enhancement for #1654
+
+(defn fnamed [&named x y z] [x y z])
+(defn fkeys [&keys ks] ks)
+(defn fnamed2 [_a _b _c &named x y z] [x y z])
+(defn fkeys2 [_a _b _c &keys ks] ks)
+
+(defn check-good-compile
+  [code msg]
+  (def lints @[])
+  (def result (compile code (curenv) "suite-compile.janet" lints))
+  (assert (and (function? result) (empty? lints)) msg))
+
+(defn check-lint-compile
+  [code msg]
+  (def lints @[])
+  (def result (compile code (curenv) "suite-compile.janet" lints))
+  (assert (and (function? result) (next lints)) msg))
+
+(check-good-compile '(fnamed) "named no args")
+(check-good-compile '(fnamed :x 1 :y 2 :z 3) "named full args")
+(check-lint-compile '(fnamed :x) "named odd args")
+(check-lint-compile '(fnamed :w 0) "named wrong key args")
+(check-good-compile '(fkeys :a 1) "keys even args")
+(check-lint-compile '(fkeys :a 1 :b) "keys odd args")
+(check-good-compile '(fnamed2 nil nil nil) "named 2 no args")
+(check-good-compile '(fnamed2 nil nil nil :x 1 :y 2 :z 3) "named 2 full args")
+(check-lint-compile '(fnamed2 nil nil nil :x) "named 2 odd args")
+(check-lint-compile '(fnamed2 nil nil nil :w 0) "named 2 wrong key args")
+(check-good-compile '(fkeys2 nil nil nil :a 1) "keys 2 even args")
+(check-lint-compile '(fkeys2 nil nil nil :a 1 :b) "keys 2 odd args")
+
 (end-suite)
 

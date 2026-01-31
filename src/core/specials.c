@@ -1141,8 +1141,12 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     def->arity = arity;
     def->min_arity = min_arity;
     def->max_arity = max_arity;
+    if (named_table != NULL) {
+        def->named_args_count = named_table->count;
+    }
     if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
     if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
+    if (namedargs) def->flags |= JANET_FUNCDEF_FLAG_NAMEDARGS;
 
     if (hasname) def->name = janet_unwrap_symbol(head); /* Also correctly unwraps keyword */
     janet_def_addflags(def);
