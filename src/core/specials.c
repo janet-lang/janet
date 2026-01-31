@@ -688,7 +688,7 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     labeld = janet_v_count(c->buffer);
     if (labeljr < labeld) {
         c->buffer[labeljr] |= (labelr - labeljr) << 16;
-        if (!tail) c->buffer[labeljd] |= (labeld - labeljd) << 8;
+        if (!tail && labeljd < labeld) c->buffer[labeljd] |= (labeld - labeljd) << 8;
     }
 
     if (tail) target.flags |= JANET_SLOT_RETURNED;
