@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2025 © Calvin Rose
+# Copyright 2026 © Calvin Rose
 
 ###
 ###
@@ -3728,7 +3728,7 @@
           (def digits (inc (math/floor (math/log10 end))))
           (def fmt-str (string "%" digits "d: %s"))
           (for i beg end
-            (eprin " ") # breakpoint someday?
+            (eprin " ")
             (eprin (if (= i cur) "> " "  "))
             (eprintf fmt-str i (get lines i))))
         (let [[sl _] (sourcemap pc)]
