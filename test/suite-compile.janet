@@ -109,6 +109,7 @@
 (defn fkeys [&keys ks] ks)
 (defn fnamed2 [_a _b _c &named x y z] [x y z])
 (defn fkeys2 [_a _b _c &keys ks] ks)
+(defn fnamed3 [{:x x} &named a b c] [x a b c])
 
 (defn check-good-compile
   [code msg]
@@ -134,6 +135,8 @@
 (check-lint-compile '(fnamed2 nil nil nil :w 0) "named 2 wrong key args")
 (check-good-compile '(fkeys2 nil nil nil :a 1) "keys 2 even args")
 (check-lint-compile '(fkeys2 nil nil nil :a 1 :b) "keys 2 odd args")
+(check-good-compile '(fnamed3 {:x 1} :a 1 :b 2 :c 3) "named 3 good")
+(check-lint-compile '(fnamed3 {:x 1} :a 1 :b 2 :d 3) "named 3 lint")
 
 (end-suite)
 

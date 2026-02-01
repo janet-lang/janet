@@ -3968,8 +3968,8 @@
 
   (defmacro ev/gather
     ``
-    Run a number of fibers in parallel (created from `bodies`) and resume the
-    current fiber after they complete. Returns the gathered results in an
+    Create and run a number of fibers in parallel (created from `bodies`) and resume the
+    current fiber after they complete. Shorthand for `ev/go-gather`. Returns the gathered results in an
     array.
     ``
     [& bodies]
