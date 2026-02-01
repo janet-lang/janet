@@ -1832,6 +1832,8 @@ static JanetPeg *compile_peg(Janet x) {
         Janet default_grammarv = janet_dyn("peg-grammar");
         if (janet_checktype(default_grammarv, JANET_TABLE)) {
             builder.default_grammar = janet_unwrap_table(default_grammarv);
+        } else {
+            builder.default_grammar = janet_get_core_table("default-peg-grammar");
         }
     }
     builder.tags = janet_table(0);
@@ -1854,8 +1856,8 @@ static JanetPeg *compile_peg(Janet x) {
 JANET_CORE_FN(cfun_peg_compile,
               "(peg/compile peg)",
               "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to supplement "
-              "the grammar of the peg for otherwise undefined peg keywords.") {
+              "if the same peg will be used multiple times. `(dyn :peg-grammar)` replaces "
+              "`default-peg-grammar` for the grammar of the peg.") {
     janet_fixarity(argc, 1);
     JanetPeg *peg = compile_peg(argv[0]);
     return janet_wrap_abstract(peg);
