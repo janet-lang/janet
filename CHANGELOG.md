@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Add support for persistent REPL history with the environment variable `JANET_HISTFILE`
+- Fix a number of fuzzer-found compiler bugs
 - Fix windows processes launching bug with empty environment table that caused process-launch failures.
 - Add `:I`, `:V`, and `:N` flags to `os/open` for more control when creating streams.
 - Add `ev/go-gather` for a dynamic `ev/gather`.
