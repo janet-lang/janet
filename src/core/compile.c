@@ -599,17 +599,22 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, c
                                                     fun.constant, min, min == 1 ? "" : "s", min_arity);
                             janetc_error(c, es);
                         }
-                        if (structarg && ((min_arity - min) & 1)) {
+                        if (structarg && (min_arity > f->def->arity) && ((min_arity - f->def->arity) & 1)) {
                             /* If we have an odd number of variadic arguments to a `&keys` function, that is almost certainly wrong. */
-                            janetc_lintf(c, JANET_C_LINT_NORMAL,
-                                         "odd number of variadic arguments to `&keys` function %v", fun.constant);
+                            if (namedarg) {
+                                janetc_lintf(c, JANET_C_LINT_NORMAL,
+                                             "odd number of named arguments to `&named` function %v", fun.constant);
+                            } else {
+                                janetc_lintf(c, JANET_C_LINT_NORMAL,
+                                             "odd number of named arguments to `&keys` function %v", fun.constant);
+                            }
                         }
                         if (namedarg && f->def->named_args_count > 0) {
                             /* For each argument passed in, check if it is one of the used named arguments
                              * by checking the list defined in the function def. If not, raise a normal compiler
                              * lint. We can also do a strict lint for _missing_ named arguments, although in many
                              * cases those are assumed to have some kind of default, or we have dynamic keys. */
-                            int32_t first_arg_key_index = min + 1;
+                            int32_t first_arg_key_index = f->def->arity + 1;
                             for (int32_t i = first_arg_key_index; i < janet_tuple_length(form); i += 2) {
                                 Janet argkey = form[i];
                                 /* Assumption: The first N constants of a function are its named argument keys. This

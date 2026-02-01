@@ -110,6 +110,9 @@
 (defn fnamed2 [_a _b _c &named x y z] [x y z])
 (defn fkeys2 [_a _b _c &keys ks] ks)
 (defn fnamed3 [{:x x} &named a b c] [x a b c])
+(defn fnamed4 [_y &opt _z &named a b c] [a b c])
+(defn fnamed5 [&opt _z &named a b c] [a b c])
+(defn g [x &opt y &named z] [x y z])
 
 (defn check-good-compile
   [code msg]
@@ -137,6 +140,15 @@
 (check-lint-compile '(fkeys2 nil nil nil :a 1 :b) "keys 2 odd args")
 (check-good-compile '(fnamed3 {:x 1} :a 1 :b 2 :c 3) "named 3 good")
 (check-lint-compile '(fnamed3 {:x 1} :a 1 :b 2 :d 3) "named 3 lint")
+(check-good-compile '(fnamed4 10 20 :a 1 :b 2 :c 3) "named 4 good")
+(check-lint-compile '(fnamed4 10 20 :a 1 :b 2 :d 3) "named 4 lint")
+(check-good-compile '(fnamed5 10 :a 1 :b 2 :c 3) "named 5 good")
+(check-lint-compile '(fnamed5 10 :a 1 :b 2 :d 3) "named 5 lint")
+(check-good-compile '(g 1) "g good 1")
+(check-good-compile '(g 1 2) "g good 2")
+(check-good-compile '(g 1 2 :z 10) "g good 3")
+(check-lint-compile '(g 1 2 :z) "g lint 1")
+(check-lint-compile '(g 1 2 :z 4 5) "g lint 2")
 
 (end-suite)
 
