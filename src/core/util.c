@@ -321,6 +321,54 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
     return first_bucket;
 }
 
+/* Helper to find a keyword, symbol, or string in a Janet struct or table without allocating
+ * memory or needing to find interned symbols */
+const JanetKV *janet_dict_find_keyword(
+    const JanetKV *buckets, int32_t cap,
+    const uint8_t *cstr, int32_t cstr_len) {
+    int32_t hash = janet_string_calchash(cstr, cstr_len);
+    int32_t index = janet_maphash(cap, hash);
+    int32_t i;
+    const JanetKV *first_bucket = NULL;
+    /* Higher half */
+    for (i = index; i < cap; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_checktype(kv->key, JANET_KEYWORD)) {
+            /* Works for symbol and keyword, too */
+            JanetString str = janet_unwrap_string(kv->key);
+            int32_t len = janet_string_length(str);
+            if (hash == janet_string_hash(str) && len == cstr_len && !memcmp(str, cstr, len)) {
+                return buckets + i;
+            }
+        }
+    }
+    /* Lower half */
+    for (i = 0; i < index; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_checktype(kv->key, JANET_KEYWORD)) {
+            /* Works for symbol and keyword, too */
+            JanetString str = janet_unwrap_string(kv->key);
+            int32_t len = janet_string_length(str);
+            if (hash == janet_string_hash(str) && len == cstr_len && !memcmp(str, cstr, len)) {
+                return buckets + i;
+            }
+        }
+    }
+    return first_bucket;
+}
+
 /* Get a value from a janet struct or table. */
 Janet janet_dictionary_get(const JanetKV *data, int32_t cap, Janet key) {
     const JanetKV *kv = janet_dict_find(data, cap, key);
@@ -628,8 +676,11 @@ JanetBinding janet_binding_from_entry(Janet entry) {
         return binding;
     entry_table = janet_unwrap_table(entry);
 
-    /* deprecation check */
-    Janet deprecate = janet_table_get(entry_table, janet_ckeywordv("deprecated"));
+    Janet deprecate = janet_table_get_keyword(entry_table, "deprecated");
+    int macro = janet_truthy(janet_table_get_keyword(entry_table, "macro"));
+    Janet value = janet_table_get_keyword(entry_table, "value");
+    Janet ref = janet_table_get_keyword(entry_table, "ref");
+
     if (janet_checktype(deprecate, JANET_KEYWORD)) {
         JanetKeyword depkw = janet_unwrap_keyword(deprecate);
         if (!janet_cstrcmp(depkw, "relaxed")) {
@@ -643,11 +694,8 @@ JanetBinding janet_binding_from_entry(Janet entry) {
         binding.deprecation = JANET_BINDING_DEP_NORMAL;
     }
 
-    int macro = janet_truthy(janet_table_get(entry_table, janet_ckeywordv("macro")));
-    Janet value = janet_table_get(entry_table, janet_ckeywordv("value"));
-    Janet ref = janet_table_get(entry_table, janet_ckeywordv("ref"));
     int ref_is_valid = janet_checktype(ref, JANET_ARRAY);
-    int redef = ref_is_valid && janet_truthy(janet_table_get(entry_table, janet_ckeywordv("redef")));
+    int redef = ref_is_valid && janet_truthy(janet_table_get_keyword(entry_table, "redef"));
 
     if (macro) {
         binding.value = redef ? ref : value;

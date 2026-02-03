@@ -307,11 +307,11 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
 /* Add attributes to a global def or var table */
 static JanetTable *handleattr(JanetCompiler *c, const char *kind, int32_t argn, const Janet *argv) {
     int32_t i;
-    JanetTable *tab = janet_table(2);
     if (argn < 2) {
         janetc_error(c, janet_formatc("expected at least 2 arguments to %s", kind));
         return NULL;
     }
+    JanetTable *tab = janet_table(2);
     const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
                                ? ((const char *)janet_unwrap_symbol(argv[0]))
                                : "<multiple bindings>";
@@ -443,8 +443,7 @@ static int varleaf(
         JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
 
-        Janet redef_kw = janet_ckeywordv("redef");
-        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
+        int is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
 
         JanetArray *ref;
         JanetBinding old_binding;
@@ -464,7 +463,7 @@ static int varleaf(
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         return 1;
     } else {
-        int no_unused = reftab && reftab->count && janet_truthy(janet_table_get(reftab, janet_ckeywordv("unused")));
+        int no_unused = reftab && reftab->count && janet_truthy(janet_table_get_keyword(reftab, "unused"));
         return namelocal(c, sym, JANET_SLOT_MUTABLE, s, no_unused);
     }
 }
@@ -472,7 +471,7 @@ static int varleaf(
 static void check_metadata_lint(JanetCompiler *c, JanetTable *attr_table) {
     if (!(c->scope->flags & JANET_SCOPE_TOP) && attr_table && attr_table->count) {
         /* A macro is a normal lint, other metadata is a strict lint */
-        if (janet_truthy(janet_table_get(attr_table, janet_ckeywordv("macro")))) {
+        if (janet_truthy(janet_table_get_keyword(attr_table, "macro"))) {
             janetc_lintf(c, JANET_C_LINT_NORMAL, "macro tag is ignored in inner scopes");
         }
     }
@@ -511,9 +510,8 @@ static int defleaf(
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
 
-        Janet redef_kw = janet_ckeywordv("redef");
-        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
-        if (is_redef) janet_table_put(entry, redef_kw, janet_wrap_true());
+        int is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
+        if (is_redef) janet_table_put(entry, janet_ckeywordv("redef"), janet_wrap_true());
 
         if (is_redef) {
             JanetBinding binding = janet_resolve_ext(c->env, sym);
@@ -536,7 +534,7 @@ static int defleaf(
         /* Add env entry to env */
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
     }
-    int no_unused = tab && tab->count && janet_truthy(janet_table_get(tab, janet_ckeywordv("unused")));
+    int no_unused = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "unused"));
     return namelocal(c, sym, 0, s, no_unused);
 }
 

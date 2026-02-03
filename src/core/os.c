@@ -1959,7 +1959,7 @@ static int entry_getdst(Janet env_entry) {
     Janet v;
     if (janet_checktype(env_entry, JANET_TABLE)) {
         JanetTable *entry = janet_unwrap_table(env_entry);
-        v = janet_table_get(entry, janet_ckeywordv("dst"));
+        v = janet_table_get_keyword(entry, "dst");
     } else if (janet_checktype(env_entry, JANET_STRUCT)) {
         const JanetKV *entry = janet_unwrap_struct(env_entry);
         v = janet_struct_get(entry, janet_ckeywordv("dst"));
@@ -1983,7 +1983,7 @@ static timeint_t entry_getint(Janet env_entry, char *field) {
     Janet i;
     if (janet_checktype(env_entry, JANET_TABLE)) {
         JanetTable *entry = janet_unwrap_table(env_entry);
-        i = janet_table_get(entry, janet_ckeywordv(field));
+        i = janet_table_get_keyword(entry, field);
     } else if (janet_checktype(env_entry, JANET_STRUCT)) {
         const JanetKV *entry = janet_unwrap_struct(env_entry);
         i = janet_struct_get(entry, janet_ckeywordv(field));

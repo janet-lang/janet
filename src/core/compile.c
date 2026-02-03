@@ -295,7 +295,7 @@ JanetSlot janetc_resolve(
     {
         JanetBinding binding = janet_resolve_ext(c->env, sym);
         if (binding.type == JANET_BINDING_NONE) {
-            Janet handler = janet_table_get(c->env, janet_ckeywordv("missing-symbol"));
+            Janet handler = janet_table_get_keyword(c->env, "missing-symbol");
             switch (janet_type(handler)) {
                 case JANET_NIL:
                     break;
