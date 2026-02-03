@@ -1698,6 +1698,7 @@ JANET_CORE_FN(cfun_unmarshal,
               "Unmarshal a value from a buffer. An optional lookup table "
               "can be provided to allow for aliases to be resolved. Returns the value "
               "unmarshalled from the buffer.") {
+    janet_sandbox_assert(JANET_SANDBOX_UNMARSHAL);
     janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetTable *reg = NULL;

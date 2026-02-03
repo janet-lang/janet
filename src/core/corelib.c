@@ -767,6 +767,7 @@ static const SandboxOption sandbox_options[] = {
     {"signal", JANET_SANDBOX_SIGNAL},
     {"subprocess", JANET_SANDBOX_SUBPROCESS},
     {"threads", JANET_SANDBOX_THREADS},
+    {"unmarshal", JANET_SANDBOX_UNMARSHAL},
     {NULL, 0}
 };
 
@@ -795,7 +796,8 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :sandbox - disallow calling this function\n"
               "* :signal - disallow adding or removing signal handlers\n"
               "* :subprocess - disallow running subprocesses\n"
-              "* :threads - disallow spawning threads with `ev/thread`. Certain helper threads may still be spawned.") {
+              "* :threads - disallow spawning threads with `ev/thread`. Certain helper threads may still be spawned.\n"
+              "* :unmarshal - disallow calling the unmarshal function.\n") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
         JanetKeyword kw = janet_getkeyword(argv, i);

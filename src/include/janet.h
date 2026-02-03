@@ -2008,6 +2008,7 @@ JANET_API void janet_stacktrace_ext(JanetFiber *fiber, Janet err, const char *pr
 #define JANET_SANDBOX_COMPILE 32768
 #define JANET_SANDBOX_ASM 65536
 #define JANET_SANDBOX_THREADS 131072
+#define JANET_SANDBOX_UNMARSHAL 262144
 #define JANET_SANDBOX_ALL (UINT32_MAX)
 JANET_API void janet_sandbox(uint32_t flags);
 JANET_API void janet_sandbox_assert(uint32_t forbidden_flags);
