@@ -1064,6 +1064,7 @@ JANET_CORE_FN(cfun_asm,
               "The syntax for the assembly can be found on the Janet website, and should correspond\n"
               "to the return value of disasm. Will throw an\n"
               "error on invalid assembly.") {
+    janet_sandbox_assert(JANET_SANDBOX_ASM);
     janet_fixarity(argc, 1);
     JanetAssembleResult res;
     res = janet_asm(argv[0], 0);
@@ -1094,6 +1095,7 @@ JANET_CORE_FN(cfun_disasm,
               "* :sourcemap - a mapping of each bytecode instruction to a line and column in the source file.\n"
               "* :environments - an internal mapping of which enclosing functions are referenced for bindings.\n"
               "* :defs - other function definitions that this function may instantiate.\n") {
+    janet_sandbox_assert(JANET_SANDBOX_ASM);
     janet_arity(argc, 1, 2);
     JanetFunction *f = janet_getfunction(argv, 0);
     if (argc == 2) {

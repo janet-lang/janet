@@ -1156,6 +1156,7 @@ JANET_CORE_FN(cfun_compile,
               "struct with keys :line, :column, and :error if compilation fails. "
               "If a `lints` array is given, linting messages will be appended to the array. "
               "Each message will be a tuple of the form `(level line col message)`.") {
+    janet_sandbox_assert(JANET_SANDBOX_COMPILE);
     janet_arity(argc, 1, 4);
     JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))
                       ? janet_gettable(argv, 1) : janet_vm.fiber->env;

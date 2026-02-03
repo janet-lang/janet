@@ -746,7 +746,9 @@ typedef struct SandboxOption {
 
 static const SandboxOption sandbox_options[] = {
     {"all", JANET_SANDBOX_ALL},
+    {"asm", JANET_SANDBOX_ASM},
     {"chroot", JANET_SANDBOX_CHROOT},
+    {"compile", JANET_SANDBOX_COMPILE},
     {"env", JANET_SANDBOX_ENV},
     {"ffi", JANET_SANDBOX_FFI},
     {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
@@ -764,6 +766,7 @@ static const SandboxOption sandbox_options[] = {
     {"sandbox", JANET_SANDBOX_SANDBOX},
     {"signal", JANET_SANDBOX_SIGNAL},
     {"subprocess", JANET_SANDBOX_SUBPROCESS},
+    {"threads", JANET_SANDBOX_THREADS},
     {NULL, 0}
 };
 
@@ -772,7 +775,9 @@ JANET_CORE_FN(janet_core_sandbox,
               "Disable feature sets to prevent the interpreter from using certain system resources. "
               "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
+              "* :asm - disallow calling `asm` and `disasm` functions.\n"
               "* :chroot - disallow calling `os/posix-chroot`\n"
+              "* :compile - disallow calling `compile`. This will disable a lot of functionality, such as `eval`.\n"
               "* :env - disallow reading and write env variables\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
               "* :ffi-define - disallow loading new FFI modules and binding new functions\n"
@@ -789,7 +794,8 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :net-listen - disallow accepting inbound network connections\n"
               "* :sandbox - disallow calling this function\n"
               "* :signal - disallow adding or removing signal handlers\n"
-              "* :subprocess - disallow running subprocesses") {
+              "* :subprocess - disallow running subprocesses\n"
+              "* :threads - disallow spawning threads with `ev/thread`. Certain helper threads may still be spawned.") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
         JanetKeyword kw = janet_getkeyword(argv, i);

@@ -3178,6 +3178,7 @@ JANET_CORE_FN(cfun_ev_thread,
               "* `:t` - set the task-id of the new thread to value. The task-id is passed in messages to the supervisor channel.\n"
               "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
               "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
+    janet_sandbox_assert(JANET_SANDBOX_THREADS);
     janet_arity(argc, 1, 4);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     if (!janet_checktype(argv[0], JANET_FUNCTION)) janet_getfiber(argv, 0);
