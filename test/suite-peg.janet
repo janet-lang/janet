@@ -23,9 +23,19 @@
 
 # Peg
 
+# Add bytecode verification for peg unmarshaling
+# e88a9af2f
+# This should be valgrind clean.
+(var pegi 3)
+(defn marshpeg [p]
+  (def p1 (if (abstract? p) p (peg/compile p)))
+  (assert (-> p1 marshal unmarshal)
+          (string "peg marshal " (++ pegi))))
+
 # 83f4a11bf
 (defn check-match
   [pat text should-match]
+  (marshpeg pat)
   (def result (peg/match pat text))
   (assert (= (not should-match) (not result))
           (string "check-match " text)))
@@ -244,13 +254,6 @@
 (check-deep '(drop '"hello") "hello" @[])
 (check-deep '(drop "hello") "hello" @[])
 
-# Add bytecode verification for peg unmarshaling
-# e88a9af2f
-# This should be valgrind clean.
-(var pegi 3)
-(defn marshpeg [p]
-  (assert (-> p peg/compile marshal unmarshal)
-          (string "peg marshal " (++ pegi))))
 (marshpeg '(* 1 2 (set "abcd") "asdasd" (+ "." 3)))
 (marshpeg '(% (* (+ 1 2 3) (* "drop" "bear") '"hi")))
 (marshpeg '(> 123 "abcd"))
@@ -266,6 +269,14 @@
 (marshpeg '(sub "abcdf" "abc"))
 (marshpeg '(* (sub 1 1)))
 (marshpeg '(split "," (+ "a" "b" "c")))
+(marshpeg '(+ (??) (??) (??) (??)))
+(marshpeg '(+ :s+ "ajhasd" (??) (??) (??) (??)))
+(marshpeg '(+ :s+ "ajhasd" '(??) '(debug) '(debug) '(??)))
+(marshpeg "")
+(marshpeg 1)
+(marshpeg 0)
+(marshpeg -1)
+(marshpeg '(drop (some ':a)))
 
 # Peg swallowing errors
 # 159651117
@@ -426,6 +437,8 @@
                                     ~(while (not= (get DATA POS) 0)
                                        ,;captures)))
       :main (any (+ :s :loop :+ :- :> :< :.))}))
+
+(marshpeg bf-peg)
 
 (defn bf
   "Run brainfuck."
@@ -844,5 +857,51 @@
       ~(cmt (* 1 '1 1) ,|[$ $ $])
       "abc"
       @[["b" "b" "b"]])
+
+# Debug and ?? tests.
+(defn test-stderr [name peg input expected-matches expected-stdout]
+  (def actual @"")
+  (marshpeg peg)
+  (with-dyns [:err actual]
+    (test name peg input expected-matches))
+  (assert (deep= (string actual) expected-stdout)))
+
+(test-stderr "?? long form"
+  '(* (debug) "abc")
+  "abc"
+  @[]
+  "\n?? at [abc]\nstack [0]:\n\n")
+
+(test-stderr "?? short form"
+  '(* (??) "abc")
+  "abc"
+  @[]
+  "\n?? at [abc]\nstack [0]:\n\n")
+
+(test-stderr "?? end of text"
+  '(* "abc" (??))
+  "abc"
+  @[]
+  "\n?? at []\nstack [0]:\n\n")
+
+(test-stderr "?? between rules"
+  '(* "a" (??) "bc")
+  "abc"
+  @[]
+  "\n?? at [bc]\nstack [0]:\n\n")
+
+(test-stderr
+  "?? stack display, string"
+  '(* (<- "a") (??) "bc")
+  "abc"
+  @["a"]
+  (string/format "\n?? at [bc]\nstack [1]:\n  [0]: %M\n\n" "a"))
+
+(test-stderr
+  "?? stack display, multiple types"
+  '(* (<- "a") (number :d) (constant true) (constant {}) (constant @[]) (??) "bc")
+  "a1bc"
+  @["a" 1 true {} @[]]
+  (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n\n" "a" 1 true {} @[]))
 
 (end-suite)

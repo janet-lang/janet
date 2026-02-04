@@ -90,6 +90,11 @@
 
 (check-image issue-53-x "issue 53 regression")
 
+# Double check stack overflow for marshal with cycles
+(def a @[])
+(array/push a a)
+(assert-error "stack overflow" (marshal a @{} @"" true))
+
 # Marshal closure over non resumable fiber
 # issue #317 - 7c4ffe9b9
 (do
