@@ -196,7 +196,7 @@ tail:
 
         case RULE_DEBUG: {
             char buffer[32] = {0};
-            size_t len = (s->outer_text_end - text + 1);
+            size_t len = (size_t)(s->outer_text_end - text);
             memcpy(buffer, text, (len > 31 ? 31 : len));
             janet_printf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
             for (int32_t i = 0; i < s->captures->count; i++) {
@@ -1257,10 +1257,11 @@ static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
 }
 
 static void spec_debug(Builder *b, int32_t argc, const Janet *argv) {
-    janet_arity(argc, 0, 0);
-    Reserve r = reserve(b, 2);
+    peg_arity(b, argc, 0, 0);
+    Reserve r = reserve(b, 1);
+    uint32_t empty = 0;
     (void) argv;
-    emit_1(r, RULE_DEBUG, 0);
+    emit_rule(r, RULE_DEBUG, 0, &empty);
 }
 
 static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
