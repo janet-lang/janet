@@ -200,7 +200,7 @@ tail:
             memcpy(buffer, text, (len > 31 ? 31 : len));
             janet_printf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
             for (int32_t i = 0; i < s->captures->count; i++) {
-              janet_printf("  [%d]: %M\n", i, s->captures->data[i]);
+                janet_printf("  [%d]: %M\n", i, s->captures->data[i]);
             }
             return text;
         }
