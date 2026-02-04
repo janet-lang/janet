@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add :threads, :unmarshal, :compiler, and :asm sandbox flags.
 - Add support for persistent REPL history with the environment variable `JANET_HISTFILE`
 - Fix a number of fuzzer-found compiler bugs
 - Fix windows processes launching bug with empty environment table that caused process-launch failures.
