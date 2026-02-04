@@ -198,8 +198,10 @@ tail:
             char buffer[32] = {0};
             size_t len = (s->outer_text_end - text + 1);
             memcpy(buffer, text, (len > 31 ? 31 : len));
-
-            janet_printf("at [%s]\n", buffer);
+            janet_printf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
+            for (int32_t i = 0; i < s->captures->count; i++) {
+              janet_printf("  [%d]: %M\n", i, s->captures->data[i]);
+            }
             return text;
         }
 
