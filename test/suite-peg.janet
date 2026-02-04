@@ -890,4 +890,6 @@
   @["a" 1 true {} @[]]
   (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n" "a" 1 true {} @[]))
 
+(marshpeg '(* (??) "abc"))
+
 (end-suite)
