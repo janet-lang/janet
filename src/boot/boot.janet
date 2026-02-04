@@ -1,5 +1,5 @@
 # The core janet library
-# Copyright 2025 © Calvin Rose
+# Copyright 2026 © Calvin Rose
 
 ###
 ###
@@ -105,9 +105,9 @@
 (defn keyword? "Check if x is a keyword." [x] (= (type x) :keyword))
 (defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
 (defn function? "Check if x is a function (not a cfunction)." [x] (= (type x) :function))
-(defn cfunction? "Check if x a cfunction." [x] (= (type x) :cfunction))
-(defn table? "Check if x a table." [x] (= (type x) :table))
-(defn struct? "Check if x a struct." [x] (= (type x) :struct))
+(defn cfunction? "Check if x is a cfunction." [x] (= (type x) :cfunction))
+(defn table? "Check if x is a table." [x] (= (type x) :table))
+(defn struct? "Check if x is a struct." [x] (= (type x) :struct))
 (defn array? "Check if x is an array." [x] (= (type x) :array))
 (defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
 (defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
@@ -115,7 +115,7 @@
 (defn true? "Check if x is true." [x] (= x true))
 (defn false? "Check if x is false." [x] (= x false))
 (defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if xs is empty." [xs] (= nil (next xs nil)))
+(defn empty? "Check if an iterable, `iter`, is empty." [iter] (= nil (next iter nil)))
 
 # For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
@@ -370,18 +370,23 @@
     (++ i))
   ~(let (,;accum) ,;body))
 
-(defmacro defer
-  ``Run `form` unconditionally after `body`, even if the body throws an error.
-  Will also run `form` if a user signal 0-4 is received.``
-  [form & body]
+(defn- defer-impl
+  "Defer but allow custom name for stack traces"
+  [name form body]
   (with-syms [f r]
     ~(do
-       (def ,f (,fiber/new (fn :defer [] ,;body) :ti))
+       (def ,f (,fiber/new (fn ,name [] ,;body) :ti))
        (def ,r (,resume ,f))
        ,form
        (if (= (,fiber/status ,f) :dead)
          ,r
          (,propagate ,r ,f)))))
+
+(defmacro defer
+  ``Run `form` unconditionally after `body`, even if the body throws an error.
+  Will also run `form` if a user signal 0-4 is received.``
+  [form & body]
+  (defer-impl :defer form body))
 
 (defmacro edefer
   ``Run `form` after `body` in the case that body terminates abnormally (an error or user signal 0-4).
@@ -436,14 +441,14 @@
   [[binding ctor dtor] & body]
   ~(do
      (def ,binding ,ctor)
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(defer-impl :with [(or dtor :close) binding] body)))
 
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] body)))
+     ,(defer-impl :when-with [(or dtor :close) binding] body)))
 
 (defmacro if-with
   ``Similar to `with`, but if binding is false or nil, evaluates
@@ -451,7 +456,7 @@
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
   ~(if-let [,binding ,ctor]
-     ,(apply defer [(or dtor :close) binding] [truthy])
+     ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
      ,falsey))
 
 (defn- for-var-template
@@ -2113,11 +2118,15 @@
     (array/concat anda unify)
     # Final binding
     (def defs (seq [[k v] :in (sort (pairs b2g))] ['def k (first v)]))
+    (def unused-defs (seq [[k v] :in (sort (pairs b2g))] ['def k :unused (first v)]))
     # Predicates
     (unless (empty? preds)
-      (def pred-join ~(do ,;defs (and ,;preds)))
+      (def pred-join ~(do ,;unused-defs (and ,;preds)))
       (array/push anda pred-join))
-    (emit-branch (tuple/slice anda) ['do ;defs expression]))
+    # Use `unused-defs` instead of `defs` when we have predicates to avoid unused binding lint
+    # e.g. (match x (n (even? n)) :yes :no) should not warn on unused binding `n`.
+    # This is unfortunately not perfect since one programmer written binding is expanded for use in multiple places.
+    (emit-branch (tuple/slice anda) ['do ;(if (next preds) unused-defs defs) expression]))
 
   # Expand branches
   (def stack @[else])
@@ -2164,7 +2173,7 @@
   (defn expand-bindings [x]
     (case (type x)
       :array (map expand-bindings x)
-      :tuple (tuple/slice (map expand-bindings x))
+      :tuple (keep-syntax! x (map expand-bindings x))
       :table (dotable x expand-bindings)
       :struct (table/to-struct (dotable x expand-bindings))
       (recur x)))
@@ -2172,7 +2181,7 @@
   (defn expanddef [t]
     (def last (in t (- (length t) 1)))
     (def bound (in t 1))
-    (tuple/slice
+    (keep-syntax! t
       (array/concat
         @[(in t 0) (expand-bindings bound)]
         (tuple/slice t 2 -2)
@@ -2187,10 +2196,10 @@
     (if (symbol? t1)
       (do
         (def args (map recur (tuple/slice t 3)))
-        (tuple 'fn t1 (in t 2) ;args))
+        (keep-syntax t (tuple 'fn t1 (in t 2) ;args)))
       (do
         (def args (map recur (tuple/slice t 2)))
-        (tuple 'fn t1 ;args))))
+        (keep-syntax t (tuple 'fn t1 ;args)))))
 
   (defn expandqq [t]
     (defn qq [x]
@@ -2399,6 +2408,7 @@
     (cond
       (keyword? m) (put metadata m true)
       (string? m) (put metadata :doc m)
+      (dictionary? m) (merge-into metadata m)
       (error (string "invalid metadata " m))))
   (with-syms [entry old-entry f]
     ~(let [,old-entry (,dyn ',name)]
@@ -2835,7 +2845,8 @@
 (defmacro comptime
   "Evals x at compile time and returns the result. Similar to a top level unquote."
   [x]
-  (eval x))
+  (def y (eval x))
+  y)
 
 (defmacro compif
   "Check the condition `cnd` at compile time -- if truthy, compile `tru`, else compile `fals`."
@@ -3089,7 +3100,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-parse x y))
     (set exit-error (string/slice buf 0 -2)))
   (defn bc [&opt x y z a b]
@@ -3098,7 +3109,7 @@
       (os/exit 1))
     (put env :exit true)
     (def buf @"")
-    (with-dyns [*err* buf *err-color* false]
+    (with-dyns [*err* buf]
       (bad-compile x nil z a b))
     (set exit-error (string/slice buf 0 -2))
     (set exit-fiber y))
@@ -3158,12 +3169,12 @@
   (def mc (dyn *module-cache* module/cache))
   (def ml (dyn *module-loading* module/loading))
   (def mls (dyn *module-loaders* module/loaders))
-  (if-let [check (if-not (kargs :fresh) (in mc fullpath))]
+  (if-let [check (if-not (get kargs :fresh) (in mc fullpath))]
     check
-    (if (ml fullpath)
+    (if (get ml fullpath)
       (error (string "circular dependency " fullpath " detected"))
       (do
-        (def loader (if (keyword? mod-kind) (mls mod-kind) mod-kind))
+        (def loader (if (keyword? mod-kind) (get mls mod-kind) mod-kind))
         (unless loader (error (string "module type " mod-kind " unknown")))
         (def env (loader fullpath args))
         (put mc fullpath env)
@@ -3717,7 +3728,7 @@
           (def digits (inc (math/floor (math/log10 end))))
           (def fmt-str (string "%" digits "d: %s"))
           (for i beg end
-            (eprin " ") # breakpoint someday?
+            (eprin " ")
             (eprin (if (= i cur) "> " "  "))
             (eprintf fmt-str i (get lines i))))
         (let [[sl _] (sourcemap pc)]
@@ -3854,13 +3865,16 @@
   (defn ev/call
     ```
     Call a function asynchronously.
-    Returns a fiber that is scheduled to run the function.
+    Returns a task fiber that is scheduled to run the function.
     ```
     [f & args]
     (ev/go (fn :call [&] (f ;args))))
 
   (defmacro ev/spawn
-    "Run some code in a new fiber. This is shorthand for `(ev/go (fn [] ;body))`."
+    ``
+    Run some code in a new task fiber. This is shorthand for
+    `(ev/go (fn [] ;body))`."
+    ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
 
@@ -3933,23 +3947,33 @@
             (cancel-all chan fibers "sibling canceled")
             (propagate (fiber/last-value fiber) fiber))))))
 
+  (defn ev/go-gather
+    ```
+    Run a dyanmic number of fibers in parallel and resume the current fiber after they complete. Takes
+    an array of functions or fibers, `thunks`, that will be run via `ev/go` in another task.
+    Returns the gathered results in an array.
+    ```
+    [thunks]
+    (def fset @{})
+    (def chan (ev/chan))
+    (def results @[])
+    (each thunk thunks
+      (def ftemp (ev/go thunk nil chan))
+      (array/push results ftemp)
+      (put fset ftemp ftemp))
+    (wait-for-fibers chan fset)
+    (for i 0 (length results) # avoid extra copy from map
+      (set (results i) (fiber/last-value (in results i))))
+    results)
+
   (defmacro ev/gather
     ``
-    Run a number of fibers in parallel on the event loop, and join when they complete.
-    Returns the gathered results in an array.
+    Create and run a number of fibers in parallel (created from `bodies`) and resume the
+    current fiber after they complete. Shorthand for `ev/go-gather`. Returns the gathered results in an
+    array.
     ``
     [& bodies]
-    (with-syms [chan res fset ftemp]
-      ~(do
-         (def ,fset @{})
-         (def ,chan (,ev/chan))
-         (def ,res @[])
-         ,;(seq [[i body] :pairs bodies]
-             ~(do
-                (def ,ftemp (,ev/go (fn :ev/gather [] (put ,res ,i ,body)) nil ,chan))
-                (,put ,fset ,ftemp ,ftemp)))
-         (,wait-for-fibers ,chan ,fset)
-         ,res))))
+    ~(,ev/go-gather ,(seq [body :in bodies] ~(fn :ev/gather [] ,body)))))
 
 (compwhen (dyn 'net/listen)
   (defn net/server
@@ -4110,8 +4134,17 @@
     true))
 
 (defn- is-safe-def [thunk source env where]
-  (if (no-side-effects (last source))
-    (thunk)))
+  (if-let [ve (get env (source 1))
+           fc (get ve :flycheck)]
+    (cond
+      # Sometimes safe form
+      (function? fc)
+      (fc thunk source env where)
+      # Always safe form
+      fc
+      (thunk))
+    (if (no-side-effects (last source))
+      (thunk))))
 
 (defn- flycheck-importer
   [thunk source env where]
@@ -4252,12 +4285,12 @@
         (try
           (require (string "@syspath/bundle/" bundle-name))
           ([e f]
-           (def pfx "could not find module @syspath/bundle/")
-           (def msg (if (and (string? e)
-                             (string/has-prefix? pfx e))
-                      "bundle must contain bundle.janet or bundle/init.janet"
-                      e))
-           (propagate msg f))))))
+            (def pfx "could not find module @syspath/bundle/")
+            (def msg (if (and (string? e)
+                              (string/has-prefix? pfx e))
+                       "bundle must contain bundle.janet or bundle/init.janet"
+                       e))
+            (propagate msg f))))))
 
   (defn- do-hook
     [module bundle-name hook & args]
@@ -4389,8 +4422,8 @@
     (def bscript-src1 (string path s "bundle" s "init.janet"))
     (def bscript-src2 (string path s "bundle.janet"))
     (def bscript-src (cond
-                        (fexists bscript-src1) bscript-src1
-                        (fexists bscript-src2) bscript-src2))
+                       (fexists bscript-src1) bscript-src1
+                       (fexists bscript-src2) bscript-src2))
     # Setup installed paths
     (prime-bundle-paths)
     (os/mkdir (bundle-dir bundle-name))
@@ -4663,6 +4696,17 @@
    "-lint-warn" "w"
    "-lint-error" "x"})
 
+(defn- apply-color
+  [colorize]
+  (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
+  (setdyn *err-color* (if colorize true))
+  (setdyn *doc-color* (if colorize true)))
+
+(defn- getstdin [prompt buf _]
+  (file/write stdout prompt)
+  (file/flush stdout)
+  (file/read stdin :line buf))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -4676,11 +4720,7 @@
   (var raw-stdin false)
   (var handleopts true)
   (var exit-on-error true)
-  (var colorize true)
-  (var debug-flag false)
   (var compile-only false)
-  (var warn-level nil)
-  (var error-level nil)
   (var expect-image false)
 
   (when-let [jp (getenv-alias "JANET_PATH")]
@@ -4690,9 +4730,10 @@
       (module/add-syspath (get paths i)))
     (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
-  (set colorize (and
-                  (not (getenv-alias "NO_COLOR"))
-                  (os/isatty stdout)))
+  (apply-color
+    (and
+      (not (getenv-alias "NO_COLOR"))
+      (os/isatty stdout)))
 
   (defn- get-lint-level
     [i]
@@ -4742,8 +4783,8 @@
      "q" (fn [&] (set quiet true) 1)
      "i" (fn [&] (set expect-image true) 1)
      "k" (fn [&] (set compile-only true) (set exit-on-error false) 1)
-     "n" (fn [&] (set colorize false) 1)
-     "N" (fn [&] (set colorize true) 1)
+     "n" (fn [&] (apply-color false) 1)
+     "N" (fn [&] (apply-color true) 1)
      "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
      "c" (fn c-switch [i &]
            (def path (in args (+ i 1)))
@@ -4799,9 +4840,9 @@
      (compif (dyn 'bundle/list)
        (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
        (fn [i &] (eprint "--list not supported with reduced os") 1))
-     "d" (fn [&] (set debug-flag true) 1)
-     "w" (fn [i &] (set warn-level (get-lint-level i)) 2)
-     "x" (fn [i &] (set error-level (get-lint-level i)) 2)
+     "d" (fn [&] (setdyn *debug* true) (setdyn *redef* true) 1)
+     "w" (fn [i &] (setdyn *lint-warn* (get-lint-level i)) 2)
+     "x" (fn [i &] (setdyn *lint-error* (get-lint-level i)) 2)
      "R" (fn [&] (setdyn *profilepath* nil) 1)})
 
   (defn- dohandler [n i &]
@@ -4822,20 +4863,10 @@
           (do
             (def env (load-image (slurp arg)))
             (put env *args* subargs)
-            (put env *lint-error* error-level)
-            (put env *lint-warn* warn-level)
-            (when debug-flag
-              (put env *debug* true)
-              (put env *redef* true))
             (run-main env subargs arg))
           (do
             (def env (make-env))
             (put env *args* subargs)
-            (put env *lint-error* error-level)
-            (put env *lint-warn* warn-level)
-            (when debug-flag
-              (put env *debug* true)
-              (put env *redef* true))
             (if compile-only
               (flycheck arg :exit exit-on-error :env env)
               (do
@@ -4855,21 +4886,9 @@
           (when-let [custom-prompt (get env *repl-prompt*)] (break (custom-prompt p)))
           (def [line] (parser/where p))
           (string "repl:" line ":" (parser/state p :delimiters) "> "))
-        (defn getstdin [prompt buf _]
-          (file/write stdout prompt)
-          (file/flush stdout)
-          (file/read stdin :line buf))
-        (when debug-flag
-          (put env *debug* true)
-          (put env *redef* true))
         (def getter (if raw-stdin getstdin getline))
         (defn getchunk [buf p]
           (getter (getprompt p) buf env))
-        (setdyn *pretty-format* (if colorize "%.20Q" "%.20q"))
-        (setdyn *err-color* (if colorize true))
-        (setdyn *doc-color* (if colorize true))
-        (setdyn *lint-error* error-level)
-        (setdyn *lint-warn* error-level)
         (when-let [profile.janet (dyn *profilepath*)]
           (dofile profile.janet :exit true :env env)
           (put env *current-file* nil))

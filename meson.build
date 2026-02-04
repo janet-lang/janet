@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose and contributors
+# Copyright (c) 2026 Calvin Rose and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.40.1')
+  version : '1.41.0')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -288,6 +288,7 @@ test_files = [
   'test/suite-io.janet',
   'test/suite-marsh.janet',
   'test/suite-math.janet',
+  'test/suite-net.janet',
   'test/suite-os.janet',
   'test/suite-parse.janet',
   'test/suite-peg.janet',

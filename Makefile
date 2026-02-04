@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -57,7 +57,6 @@ CFLAGS?=-O2 -g
 LDFLAGS?=-rdynamic
 LIBJANET_LDFLAGS?=$(LDFLAGS)
 RUN:=$(RUN)
-
 
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 $(COMMON_CFLAGS) -g
@@ -220,9 +219,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.40.dylib
+SONAME=libjanet.1.41.dylib
 else
-SONAME=libjanet.so.1.40
+SONAME=libjanet.so.1.41
 endif
 
 ifeq ($(MINGW_COMPILER), clang)

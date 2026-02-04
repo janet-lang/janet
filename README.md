@@ -148,7 +148,39 @@ You can get the source on [GitHub](https://github.com/janet-lang/janet) or
 [SourceHut](https://git.sr.ht/~bakpakin/janet). While the GitHub repo is the official repo,
 the SourceHut mirror is actively maintained.
 
+## Spork and JPM
+
+Spork and JPM are two companion projects to Janet. They are optional, especially in an embedding use case.
+
+Spork is a collection of common utility modules, and several packaged scripts
+like `janet-format` for code formatting, `janet-netrepl` for a socket-based
+REPL, and `janet-pm` for a comprehensive Janet project manager tool. The
+modules in `spork` are less stable than the interfaces in core Janet, although
+we try to prevent breaking changes to existing modules, with a preference to
+add new modules and functions. Spork requires a C compiler to build and install
+various extenstion components such as miniz and JSON utilities. Many spork
+sub-modules, for example spork/path, are independent and can be manually
+vendored in programmer projects without fully installing spork.
+
+When install Spork, scripts will be installed to $JANET_PATH/bin/ on POSIX systems by default.
+This likely needs to be added to the path to use these scripts.
+
+JPM is the older, more opinionated, project manager tool, which has it's pros
+and cons. It does not require a C compiler to build and install, but is less
+flexible and is not receiving many changes and improvements going forward. It
+may also be harder to configure correctly on new systems. In that sense, it may
+be more stable.
+
+JPM will install to /usr/local/bin/ on posix systems by default, which may or
+may not be on your PATH.
+
 ## Building
+
+When building from source, for stability, please use the latest tagged release. For
+example, run `git checkout $(git describe --tags --abbrev=0)` after cloning but
+before building. For the latest development, build directly on the master
+branch. The master branch is not-necessarily stable as most Janet development
+happens directly on the master branch.
 
 ### macOS and Unix-like
 
@@ -160,15 +192,18 @@ make
 make test
 make repl
 make install
-make install-jpm-git
+make install-spork-git # optional
+make install-jpm-git # optional
 ```
 
 Find out more about the available make targets by running `make help`.
 
 ### Alpine Linux
 
-To build a statically-linked build of Janet, Alpine Linux + MUSL is a good combination. Janet can also
-be built inside a docker container or similar in this manner.
+To build a statically-linked build of Janet, Alpine Linux + MUSL is a good
+combination. Janet can also be built inside a docker container or similar in
+this manner. This is a great way to try Janet without committing to a full
+install or needing to customize the default install.
 
 ```sh
 docker run -it --rm alpine /bin/ash
@@ -178,7 +213,12 @@ $ cd janet
 $ make -j10
 $ make test
 $ make install
+$ make install-spork-git # optional
+$ make install-jpm-git # optional
 ```
+
+Note that for a true statically-linked binary with MUSL, one needs to add `-static` to the Makefile flags. This
+will also disable runtime loading of native modules (plugins) as well as the FFI.
 
 ### 32-bit Haiku
 
@@ -191,7 +231,8 @@ make CC=gcc-x86
 make test
 make repl
 make install
-make install-jpm-git
+make install-spork-git # optional
+make install-jpm-git # optional
 ```
 
 ### FreeBSD
@@ -205,7 +246,8 @@ gmake
 gmake test
 gmake repl
 gmake install
-gmake install-jpm-git
+gmake install-spork-git # optional
+gmake install-jpm-git # optional
 ```
 
 ### NetBSD
@@ -320,8 +362,8 @@ If installed, you can also run `man janet` to get usage information.
 ## Embedding
 
 Janet can be embedded in a host program very easily. The normal build
-will create a file `build/janet.c`, which is a single C file
-that contains all the source to Janet. This file, along with
+will create a file `build/c/janet.c`, a C source code file that
+that contains the amalgamated source to Janet. This file, along with
 `src/include/janet.h` and `src/conf/janetconf.h`, can be dragged into any C
 project and compiled into it. Janet should be compiled with `-std=c99`
 on most compilers, and will need to be linked to the math library, `-lm`, and

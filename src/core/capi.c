@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -557,6 +557,18 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
     return janet_getabstract(argv, n, at);
 }
 
+uint32_t janet_optuinteger(const Janet *argv, int32_t argc, int32_t n, uint32_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger(argv, n);
+}
+
+uint64_t janet_optuinteger64(const Janet *argv, int32_t argc, int32_t n, uint64_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger64(argv, n);
+}
+
 /* Atomic refcounts */
 
 JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
@@ -564,6 +576,8 @@ JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
     return _InterlockedIncrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, 1, memory_order_relaxed) + 1;
+#elif defined(JANET_PLAN9)
+    return aincl((void*)x, 1);
 #else
     return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
 #endif
@@ -574,6 +588,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
     return _InterlockedDecrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, -1, memory_order_acq_rel) - 1;
+#elif defined(JANET_PLAN9)
+    return aincl((void*)x, -1);
 #else
     return __atomic_add_fetch(x, -1, __ATOMIC_ACQ_REL);
 #endif
@@ -582,6 +598,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
+#elif defined(JANET_PLAN9)
+    return agetl((void*)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_acquire);
 #else
@@ -592,6 +610,8 @@ JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
+#elif defined(JANET_PLAN9)
+    return agetl((void*)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_relaxed);
 #else

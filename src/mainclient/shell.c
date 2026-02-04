@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -79,9 +79,11 @@ static void simpleline(JanetBuffer *buffer) {
     int c;
     for (;;) {
         c = fgetc(in);
+#ifndef JANET_PLAN9
         if (c < 0 && !feof(in) && errno == EINTR) {
             continue;
         }
+#endif
         if (feof(in) || c < 0) {
             break;
         }
@@ -110,6 +112,8 @@ static JANET_THREAD_LOCAL int gbl_historyi = 0;
 static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
 static JANET_THREAD_LOCAL int gbl_match_count = 0;
 static JANET_THREAD_LOCAL int gbl_lines_below = 0;
+static JANET_THREAD_LOCAL int gbl_history_loaded = 0;
+static JANET_THREAD_LOCAL char *gbl_history_file = NULL;
 #endif
 
 /* Fallback */
@@ -307,7 +311,9 @@ static int curpos(void) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
+#ifndef JANET_PLAN9
     if (write_console("\x1b[6n", 4) != 4) return -1;
+#endif
     while (i < sizeof(buf) - 1) {
         if (read_console(buf + i, 1) != 1) break;
         if (buf[i] == 'R') break;
@@ -424,6 +430,63 @@ static int insert(char c, int draw) {
         }
     }
     return 0;
+}
+
+static void calc_history_file(void) {
+    char *hist = getenv("JANET_HISTFILE");
+    if (hist != NULL) {
+        gbl_history_file = sdup(hist);
+    } else {
+        gbl_history_file = NULL;
+    }
+}
+
+static void loadhistory(void) {
+    if (gbl_history_loaded) return;
+    calc_history_file();
+    gbl_history_loaded = 1;
+    if (NULL == gbl_history_file) return;
+    FILE *history_file = fopen(gbl_history_file, "rb");
+    if (NULL == history_file) return;
+    JanetParser p;
+    janet_parser_init(&p);
+    int c = 0;
+    while ((c = fgetc(history_file))) {
+        if (c == EOF) {
+            janet_parser_eof(&p);
+        } else {
+            janet_parser_consume(&p, c);
+        }
+
+        while (janet_parser_has_more(&p) && gbl_history_count < JANET_HISTORY_MAX) {
+            if (janet_parser_status(&p) == JANET_PARSE_ERROR) {
+                janet_eprintf("bad history file: %s\n", janet_parser_error(&p));
+                goto parsing_done;
+            }
+            Janet x = janet_parser_produce(&p);
+            const char *cstr = (const char *) janet_to_string(x);
+            if (cstr[0]) { /* Drop empty strings */
+                gbl_history[gbl_history_count++] = sdup(cstr);
+            }
+        }
+
+        if (c == EOF) break;
+    }
+parsing_done:
+    janet_parser_deinit(&p);
+    gbl_historyi = 0;
+    fclose(history_file);
+}
+
+static void savehistory(void) {
+    if (gbl_history_count < 1 || (gbl_history_file == NULL)) return;
+    FILE *history_file = fopen(gbl_history_file, "wb");
+    for (int i = 0; i < gbl_history_count; i++) {
+        if (gbl_history[i][0]) { /* Drop empty strings */
+            janet_dynprintf(NULL, history_file, "%j\n", janet_cstringv(gbl_history[i]));
+        }
+    }
+    fclose(history_file);
 }
 
 static void historymove(int delta) {
@@ -892,6 +955,7 @@ static int line() {
             case 3:     /* ctrl-c */
                 clearlines();
                 norawmode();
+                savehistory();
 #ifdef _WIN32
                 ExitProcess(1);
 #else
@@ -1085,17 +1149,21 @@ void janet_line_init() {
 }
 
 void janet_line_deinit() {
-    int i;
     norawmode();
-    for (i = 0; i < gbl_history_count; i++)
+    for (int i = 0; i < gbl_history_count; i++)
         janet_free(gbl_history[i]);
     gbl_historyi = 0;
+    if (gbl_history_file) {
+        janet_free(gbl_history_file);
+        gbl_history_file = NULL;
+    }
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
     gbl_prompt = p;
     buffer->count = 0;
     gbl_historyi = 0;
+    loadhistory();
     if (check_simpleline(buffer)) return;
     FILE *out = janet_dynfile("err", stderr);
     if (line()) {
@@ -1130,6 +1198,10 @@ int main(int argc, char **argv) {
     int i, status;
     JanetArray *args;
     JanetTable *env;
+
+#ifdef JANET_PLAN9
+    setfcr(0);
+#endif
 
 #ifdef _WIN32
     setup_console_output();
@@ -1186,6 +1258,7 @@ int main(int argc, char **argv) {
     status = janet_loop_fiber(fiber);
 
     /* Deinitialize vm */
+    savehistory();
     janet_deinit();
     janet_line_deinit();
 

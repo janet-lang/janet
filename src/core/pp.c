@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1023,10 +1023,20 @@ void janet_buffer_format(
             char form[MAX_FORMAT], item[MAX_ITEM];
             char width[3], precision[3];
             int nb = 0; /* number of bytes in added item */
-            if (++arg >= argc)
-                janet_panic("not enough values for format");
+#ifdef JANET_PLAN9
+            if (*strfrmt == 'r') {
+                rerrstr(item, MAX_ITEM);
+                nb = strlen(item);
+            } else
+#endif
+                if (++arg >= argc)
+                    janet_panic("not enough values for format");
             strfrmt = scanformat(strfrmt, form, width, precision);
             switch (*strfrmt++) {
+#ifdef JANET_PLAN9
+                case 'r':
+                    break;
+#endif
                 case 'c': {
                     nb = snprintf(item, MAX_ITEM, form, (int)
                                   janet_getinteger(argv, arg));

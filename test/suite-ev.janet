@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,6 +20,8 @@
 
 (import ./helper :prefix "" :exit true)
 (start-suite)
+
+(setdyn *lint-warn* :none)
 
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
 (def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -113,7 +113,7 @@ static void *makef(FILE *f, int32_t flags) {
     JanetFile *iof = (JanetFile *) janet_abstract(&janet_file_type, sizeof(JanetFile));
     iof->file = f;
     iof->flags = flags;
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
     /* While we would like fopen to set cloexec by default (like O_CLOEXEC) with the e flag, that is
      * not standard. */
     if (!(flags & JANET_FILE_NOT_CLOSEABLE))
@@ -165,7 +165,7 @@ JANET_CORE_FN(cfun_io_fopen,
     }
     FILE *f = fopen((const char *)fname, (const char *)fmode);
     if (f != NULL) {
-#ifndef JANET_WINDOWS
+#if !(defined(JANET_WINDOWS) || defined(JANET_PLAN9))
         struct stat st;
         fstat(fileno(f), &st);
         if (S_ISDIR(st.st_mode)) {
@@ -721,8 +721,15 @@ JANET_CORE_FN(cfun_io_eflush,
 void janet_dynprintf(const char *name, FILE *dflt_file, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    Janet x = janet_dyn(name);
-    JanetType xtype = janet_type(x);
+    JanetType xtype;
+    Janet x;
+    if (!name || name[0] == '\0') { /* Allow NULL or empty string to just use dflt_file directly */
+        x = janet_wrap_nil();
+        xtype = JANET_NIL;
+    } else {
+        x = janet_dyn(name);
+        xtype = janet_type(x);
+    }
     switch (xtype) {
         default:
             /* Other values simply do nothing */

@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -63,7 +63,10 @@
         "strftime january 2014")
 (assert (= (try (os/strftime "%%%d%t") ([err] err))
            "invalid conversion specifier '%t'")
-        "invalid conversion specifier")
+        "invalid conversion specifier 1")
+(assert (= (try (os/strftime "%H:%M:%") ([err] err))
+           "invalid conversion specifier")
+        "invalid conversion specifier 2")
 
 # 07db4c530
 (os/setenv "TESTENV1" "v1")
@@ -143,6 +146,15 @@
                          (merge (os/environ) {"HELLO" "WORLD"})))
         "os/execute with env")
 
+# os/execute with empty environment
+# pr #1686
+# native MinGW can't find system DLLs without PATH and so fails
+(assert (= (if (and (= :mingw (os/which))
+                    (nil? (os/stat "C:\\windows\\system32\\wineboot.exe")))
+             -1073741515 0)
+           (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
+        "os/execute with minimal env")
+
 # os/execute regressions
 # 427f7c362
 (for i 0 10
@@ -164,5 +176,28 @@
                                 "(print :foo) (eprint :bar)"]
                                :px
                                {:out dn :err dn})))
+
+# os/execute IO redirection with more windows flags
+(assert-no-error "IO redirection more windows flags"
+                 (defn devnull []
+                   (def os (os/which))
+                   (def path (if (or (= os :mingw) (= os :windows))
+                               "NUL"
+                               "/dev/null"))
+                   (os/open path (if (= os :windows) :wWI :wW)))
+                 (with [dn (devnull)]
+                   (os/execute [;run janet
+                                "-e"
+                                "(print :foo) (eprint :bar)"]
+                               :px
+                               {:out dn :err dn})))
+
+# Issue 16922
+(assert-error "os/realpath errors when path does not exist"
+              (os/realpath "abc123def456"))
+
+# os/which changes
+(assert (os/which (os/which)) "os/which 1 arg")
+(assert (not (os/which :gobbledegook)) "os/which 2")
 
 (end-suite)

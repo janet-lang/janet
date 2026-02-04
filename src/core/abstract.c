@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -199,6 +199,19 @@ int32_t janet_abstract_incref(void *abst) {
 
 int32_t janet_abstract_decref(void *abst) {
     return janet_atomic_dec(&janet_abstract_head(abst)->gc.data.refcount);
+}
+
+int32_t janet_abstract_decref_maybe_free(void *abst) {
+    int32_t result = janet_abstract_decref(abst);
+    if (0 == result) {
+        JanetAbstractHead *head = janet_abstract_head(abst);
+        if (head->type->gc) {
+            janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
+        }
+        /* Free memory */
+        janet_free(head);
+    }
+    return result;
 }
 
 #endif

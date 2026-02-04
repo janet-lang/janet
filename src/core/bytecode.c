@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -522,6 +522,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->bytecode_length = 0;
     def->environments_length = 0;
     def->symbolmap_length = 0;
+    def->named_args_count = 0;
     return def;
 }
 

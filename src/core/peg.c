@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1878,8 +1878,8 @@ static JanetPeg *compile_peg(Janet x) {
 JANET_CORE_FN(cfun_peg_compile,
               "(peg/compile peg)",
               "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to supplement "
-              "the grammar of the peg for otherwise undefined peg keywords.") {
+              "if the same peg will be used multiple times. `(dyn :peg-grammar)` replaces "
+              "`default-peg-grammar` for the grammar of the peg.") {
     janet_fixarity(argc, 1);
     JanetPeg *peg = compile_peg(argv[0]);
     return janet_wrap_abstract(peg);

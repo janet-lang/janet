@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -51,6 +51,10 @@ int system_test() {
     assert(janet_equals(janet_wrap_number(1.4), janet_wrap_number(1.4)));
     assert(janet_equals(janet_wrap_number(3.14159265), janet_wrap_number(3.14159265)));
 #ifdef NAN
+#ifdef JANET_PLAN9
+    // Plan 9 traps NaNs by default; disable that.
+    setfcr(0);
+#endif
     assert(janet_checktype(janet_wrap_number(NAN), JANET_NUMBER));
 #else
     assert(janet_checktype(janet_wrap_number(0.0 / 0.0), JANET_NUMBER));

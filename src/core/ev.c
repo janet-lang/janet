@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -539,6 +539,9 @@ void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig) {
 }
 
 void janet_cancel(JanetFiber *fiber, Janet value) {
+    if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+        janet_panic("cannot cancel non-task fiber");
+    }
     janet_schedule_signal(fiber, value, JANET_SIGNAL_ERROR);
 }
 
@@ -1082,7 +1085,7 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
     int is_threaded = janet_chan_is_threaded(channel);
     if (janet_q_pop(&channel->items, item, sizeof(Janet))) {
         /* Queue empty */
-        if (is_choice == 2) return 0; // Skip pending read
+        if (is_choice == 2) return 0; /* Skip pending read */
         JanetChannelPending pending;
         pending.thread = &janet_vm;
         pending.fiber = janet_vm.root_fiber,
@@ -1269,11 +1272,13 @@ JANET_CORE_FN(cfun_channel_choice,
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
             /* Write */
             JanetChannel *chan = janet_getchannel(data, 0);
+            janet_chan_lock(chan);
             janet_channel_push_with_lock(chan, data[1], 1);
         } else {
             /* Read */
             Janet item;
             JanetChannel *chan = janet_getchannel(argv, i);
+            janet_chan_lock(chan);
             janet_channel_pop_with_lock(chan, &item, 1);
         }
     }
@@ -1376,7 +1381,7 @@ JANET_CORE_FN(cfun_channel_close,
                     janet_ev_post_event(vm, janet_thread_chan_cb, msg);
                 }
             } else {
-                if (janet_fiber_can_resume(writer.fiber)) {
+                if (janet_fiber_can_resume(writer.fiber) && writer.sched_id == writer.fiber->sched_id) {
                     if (writer.mode == JANET_CP_MODE_CHOICE_WRITE) {
                         janet_schedule(writer.fiber, make_close_result(channel));
                     } else {
@@ -1399,7 +1404,7 @@ JANET_CORE_FN(cfun_channel_close,
                     janet_ev_post_event(vm, janet_thread_chan_cb, msg);
                 }
             } else {
-                if (janet_fiber_can_resume(reader.fiber)) {
+                if (janet_fiber_can_resume(reader.fiber) && reader.sched_id == reader.fiber->sched_id) {
                     if (reader.mode == JANET_CP_MODE_CHOICE_READ) {
                         janet_schedule(reader.fiber, make_close_result(channel));
                     } else {
@@ -3002,12 +3007,14 @@ error:
 
 JANET_CORE_FN(cfun_ev_go,
               "(ev/go fiber-or-fun &opt value supervisor)",
-              "Put a fiber on the event loop to be resumed later. If a function is used, it is wrapped "
-              "with `fiber/new` first. "
-              "Optionally pass a value to resume with, otherwise resumes with nil. Returns the fiber. "
-              "An optional `core/channel` can be provided as a supervisor. When various "
-              "events occur in the newly scheduled fiber, an event will be pushed to the supervisor. "
-              "If not provided, the new fiber will inherit the current supervisor.") {
+              "Put a fiber on the event loop to be resumed later. If a "
+              "function is used, it is wrapped with `fiber/new` first. "
+              "Returns a task fiber. Optionally pass a value to resume "
+              "with, otherwise resumes with nil. An optional `core/channel` "
+              "can be provided as a supervisor. When various events occur "
+              "in the newly scheduled fiber, an event will be pushed to the "
+              "supervisor. If not provided, the new fiber will inherit the "
+              "current supervisor.") {
     janet_arity(argc, 1, 3);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     void *supervisor = janet_optabstract(argv, argc, 2, &janet_channel_type, janet_vm.root_fiber->supervisor_channel);
@@ -3033,6 +3040,9 @@ JANET_CORE_FN(cfun_ev_go,
         fiber->env->proto = janet_vm.fiber->env;
     } else {
         fiber = janet_getfiber(argv, 0);
+        if (janet_fiber_status(fiber) != JANET_STATUS_NEW) {
+            janet_panic("can only schedule new fibers where (= (fiber/status f) :new)");
+        }
     }
     fiber->supervisor_channel = supervisor;
     janet_schedule(fiber, value);
@@ -3168,6 +3178,7 @@ JANET_CORE_FN(cfun_ev_thread,
               "* `:t` - set the task-id of the new thread to value. The task-id is passed in messages to the supervisor channel.\n"
               "* `:a` - don't copy abstract registry to new thread (performance optimization)\n"
               "* `:c` - don't copy cfunction registry to new thread (performance optimization)") {
+    janet_sandbox_assert(JANET_SANDBOX_THREADS);
     janet_arity(argc, 1, 4);
     Janet value = argc >= 2 ? argv[1] : janet_wrap_nil();
     if (!janet_checktype(argv[0], JANET_FUNCTION)) janet_getfiber(argv, 0);
@@ -3316,7 +3327,8 @@ JANET_CORE_FN(cfun_ev_deadline,
 
 JANET_CORE_FN(cfun_ev_cancel,
               "(ev/cancel fiber err)",
-              "Cancel a suspended fiber in the event loop. Differs from cancel in that it returns the canceled fiber immediately.") {
+              "Cancel a suspended task fiber in the event loop. Differs from "
+              "`cancel` in that it returns the canceled fiber immediately.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
@@ -3549,7 +3561,7 @@ JANET_CORE_FN(janet_cfun_to_file,
 
 JANET_CORE_FN(janet_cfun_ev_all_tasks,
               "(ev/all-tasks)",
-              "Get an array of all active fibers that are being used by the scheduler.") {
+              "Get an array of all active task fibers that are being used by the scheduler.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetArray *array = janet_array(janet_vm.active_tasks.count);

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -521,23 +521,23 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     (void) watcher;
     (void) flags;
     (void) path;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     (void) watcher;
     (void) path;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_listen(JanetWatcher *watcher) {
     (void) watcher;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 static void janet_watcher_unlisten(JanetWatcher *watcher) {
     (void) watcher;
-    janet_panic("nyi");
+    janet_panic("filewatch not supported on this platform");
 }
 
 #endif
@@ -573,7 +573,7 @@ static const JanetAbstractType janet_filewatch_at = {
 };
 
 JANET_CORE_FN(cfun_filewatch_make,
-              "(filewatch/new channel &opt default-flags)",
+              "(filewatch/new channel & default-flags)",
               "Create a new filewatcher that will give events to a channel channel. See `filewatch/add` for available flags.\n\n"
               "When an event is triggered by the filewatcher, a struct containing information will be given to channel as with `ev/give`. "
               "The contents of the channel depend on the OS, but will contain some common keys:\n\n"
@@ -597,7 +597,7 @@ JANET_CORE_FN(cfun_filewatch_make,
 }
 
 JANET_CORE_FN(cfun_filewatch_add,
-              "(filewatch/add watcher path &opt flags)",
+              "(filewatch/add watcher path flag & more-flags)",
               "Add a path to the watcher. Available flags depend on the current OS, and are as follows:\n\n"
               "Windows/MINGW (flags correspond to `FILE_NOTIFY_CHANGE_*` flags in win32 documentation):\n\n"
               "* `:all` - trigger an event for all of the below triggers.\n\n"

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -746,7 +746,9 @@ typedef struct SandboxOption {
 
 static const SandboxOption sandbox_options[] = {
     {"all", JANET_SANDBOX_ALL},
+    {"asm", JANET_SANDBOX_ASM},
     {"chroot", JANET_SANDBOX_CHROOT},
+    {"compile", JANET_SANDBOX_COMPILE},
     {"env", JANET_SANDBOX_ENV},
     {"ffi", JANET_SANDBOX_FFI},
     {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
@@ -764,6 +766,8 @@ static const SandboxOption sandbox_options[] = {
     {"sandbox", JANET_SANDBOX_SANDBOX},
     {"signal", JANET_SANDBOX_SIGNAL},
     {"subprocess", JANET_SANDBOX_SUBPROCESS},
+    {"threads", JANET_SANDBOX_THREADS},
+    {"unmarshal", JANET_SANDBOX_UNMARSHAL},
     {NULL, 0}
 };
 
@@ -772,7 +776,9 @@ JANET_CORE_FN(janet_core_sandbox,
               "Disable feature sets to prevent the interpreter from using certain system resources. "
               "Once a feature is disabled, there is no way to re-enable it. Capabilities can be:\n\n"
               "* :all - disallow all (except IO to stdout, stderr, and stdin)\n"
+              "* :asm - disallow calling `asm` and `disasm` functions.\n"
               "* :chroot - disallow calling `os/posix-chroot`\n"
+              "* :compile - disallow calling `compile`. This will disable a lot of functionality, such as `eval`.\n"
               "* :env - disallow reading and write env variables\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
               "* :ffi-define - disallow loading new FFI modules and binding new functions\n"
@@ -789,7 +795,9 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :net-listen - disallow accepting inbound network connections\n"
               "* :sandbox - disallow calling this function\n"
               "* :signal - disallow adding or removing signal handlers\n"
-              "* :subprocess - disallow running subprocesses") {
+              "* :subprocess - disallow running subprocesses\n"
+              "* :threads - disallow spawning threads with `ev/thread`. Certain helper threads may still be spawned.\n"
+              "* :unmarshal - disallow calling the unmarshal function.\n") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
         JanetKeyword kw = janet_getkeyword(argv, i);
@@ -1354,12 +1362,16 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     lidv = midv = janet_wrap_nil();
     janet_resolve(env, janet_csymbol("load-image-dict"), &lidv);
     janet_resolve(env, janet_csymbol("make-image-dict"), &midv);
-    JanetTable *lid = janet_unwrap_table(lidv);
-    JanetTable *mid = janet_unwrap_table(midv);
-    for (int32_t i = 0; i < lid->capacity; i++) {
-        const JanetKV *kv = lid->data + i;
-        if (!janet_checktype(kv->key, JANET_NIL)) {
-            janet_table_put(mid, kv->value, kv->key);
+
+    /* Check that we actually got tables - if we are using a smaller corelib, may not exist */
+    if (janet_checktype(lidv, JANET_TABLE) && janet_checktype(midv, JANET_TABLE)) {
+        JanetTable *lid = janet_unwrap_table(lidv);
+        JanetTable *mid = janet_unwrap_table(midv);
+        for (int32_t i = 0; i < lid->capacity; i++) {
+            const JanetKV *kv = lid->data + i;
+            if (!janet_checktype(kv->key, JANET_NIL)) {
+                janet_table_put(mid, kv->value, kv->key);
+            }
         }
     }
 

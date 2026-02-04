@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -67,7 +67,7 @@
   (def str
     (if rewrite
       (peg/replace-all ~(* '(* (? "\r") "\n") (between 0 ,indent " "))
-                      (fn [mtch eol] eol) text)
+                      (fn [_mtch eol] eol) text)
       text))
 
   (def first-eol (cond
@@ -177,12 +177,12 @@
 (def p1 (parser/new))
 (parser/state p1)
 (parser/consume p1 step1)
-(loop [v :iterate (parser/produce p1)])
+(loop [_ :iterate (parser/produce p1)])
 (parser/state p1)
 (def p2 (parser/clone p1))
 (parser/state p2)
 (parser/consume p2 step2)
-(loop [v :iterate (parser/produce p2)])
+(loop [_ :iterate (parser/produce p2)])
 (parser/state p2)
 
 # parser delimiter errors

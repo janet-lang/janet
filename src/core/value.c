@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -768,7 +768,8 @@ void janet_put(Janet ds, Janet key, Janet value) {
             JanetArray *array = janet_unwrap_array(ds);
             int32_t index = getter_checkint(type, key, INT32_MAX - 1);
             if (index >= array->count) {
-                janet_array_setcount(array, index + 1);
+                janet_array_ensure(array, index + 1, 2);
+                array->count = index + 1;
             }
             array->data[index] = value;
             break;
@@ -779,7 +780,8 @@ void janet_put(Janet ds, Janet key, Janet value) {
             if (!janet_checkint(value))
                 janet_panicf("can only put integers in buffers, got %v", value);
             if (index >= buffer->count) {
-                janet_buffer_setcount(buffer, index + 1);
+                janet_buffer_ensure(buffer, index + 1, 2);
+                buffer->count = index + 1;
             }
             buffer->data[index] = (uint8_t)(janet_unwrap_integer(value) & 0xFF);
             break;

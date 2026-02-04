@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -114,6 +114,7 @@ typedef struct SymPair {
     const uint8_t *sym;
     const uint8_t *sym2;
     int keep;
+    int referenced; /* Has this value been used */
     uint32_t birth_pc;
     uint32_t death_pc;
 } SymPair;
@@ -222,6 +223,7 @@ const JanetSpecial *janetc_special(const uint8_t *name);
 
 void janetc_freeslot(JanetCompiler *c, JanetSlot s);
 void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s);
+void janetc_nameslot_no_unused(JanetCompiler *c, const uint8_t *sym, JanetSlot s);
 JanetSlot janetc_farslot(JanetCompiler *c);
 
 /* Throw away some code after checking that it is well formed. */

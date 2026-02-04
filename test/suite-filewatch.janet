@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -24,8 +24,8 @@
 (assert true)
 
 (def chan (ev/chan 1000))
-(def is-win (or (= :mingw (os/which)) (= :windows (os/which))))
-(def is-linux (= :linux (os/which)))
+(var is-win (or (= :mingw (os/which)) (= :windows (os/which))))
+(var is-linux (= :linux (os/which)))
 
 # If not supported, exit early
 (def [supported msg] (protect (filewatch/new chan)))

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -149,6 +149,17 @@ static void janet_table_rehash(JanetTable *t, int32_t size) {
 Janet janet_table_get(JanetTable *t, Janet key) {
     for (int i = JANET_MAX_PROTO_DEPTH; t && i; t = t->proto, --i) {
         JanetKV *bucket = janet_table_find(t, key);
+        if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
+            return bucket->value;
+    }
+    return janet_wrap_nil();
+}
+
+/* Used internally for compiler stuff */
+Janet janet_table_get_keyword(JanetTable *t, const char *keyword) {
+    int32_t keyword_len = strlen(keyword);
+    for (int i = JANET_MAX_PROTO_DEPTH; t && i; t = t->proto, --i) {
+        JanetKV *bucket = (JanetKV *) janet_dict_find_keyword(t->data, t->capacity, (const uint8_t *) keyword, keyword_len);
         if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
             return bucket->value;
     }

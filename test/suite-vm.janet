@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -64,11 +64,11 @@
 # b9c0fc820
 (assert (= 1 ({:ok 1} :ok)) "calling struct")
 (assert (= 2 (@{:ok 2} :ok)) "calling table")
-(assert (= :bad (try ((identity @{:ok 2}) :ok :no) ([err] :bad)))
+(assert (= :bad (try ((identity @{:ok 2}) :ok :no) ([_err] :bad)))
         "calling table too many arguments")
-(assert (= :bad (try ((identity :ok) @{:ok 2} :no) ([err] :bad)))
+(assert (= :bad (try ((identity :ok) @{:ok 2} :no) ([_err] :bad)))
         "calling keyword too many arguments")
-(assert (= :oops (try ((+ 2 -1) 1) ([err] :oops)))
+(assert (= :oops (try ((+ 2 -1) 1) ([_err] :oops)))
         "calling number fails")
 
 # Method test
@@ -119,7 +119,7 @@
              (with-dyns []
                (ev/sleep 0)
                (error "oops")))
-           ([err] :caught))))
+           ([_err] :caught))))
     "regression #638"))
 
 #

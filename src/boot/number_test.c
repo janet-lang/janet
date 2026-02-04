@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -44,7 +44,9 @@ static void test_valid_str(const char *str) {
 }
 
 int number_test() {
-
+#ifdef JANET_PLAN9
+    return 0;
+#endif
     test_valid_str("1.0");
     test_valid_str("1");
     test_valid_str("2.1");

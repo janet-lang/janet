@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -192,8 +192,19 @@
 (assert (deep-not= (thaw ds2) (thaw-keep-keys ds2)) "thaw vs. thaw-keep-keys 2")
 
 # match
+(setdyn *lint-warn* :none)
 (assert (= :yes (match [1 2 3] [x y z w] :no1 [x y $] :no2 [x y z] :yes)) "match dollar suffix 1")
 (assert (= :yes (match [1 2 3] [x y z w] :no1 [x y z $] :yes [x y z] :no2)) "match dollar suffix 2")
+(setdyn *lint-warn* nil)
+
+# Issue #1687
+(assert-no-error "def destructure splice works 1" (do (def [a] [;[1]]) a))
+(assert-no-error "def destructure splice works 2" (do (def (n) [(splice [])]) n))
+(assert-no-error "var destructure splice works" (do (var [a] [;[1]]) a))
+
+# Issue #1709
+(assert (= (macex1 '|(set (my-table [2 1]) 'foo))
+           '(fn :short-fn [] (set (my-table [2 1]) (quote foo))))
+        "Macro expand inside set preserves tuple type correctly")
 
 (end-suite)
-

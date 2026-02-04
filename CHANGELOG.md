@@ -2,10 +2,23 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add support for persistent REPL history with the environment variable `JANET_HISTFILE`
+- Fix a number of fuzzer-found compiler bugs
+- Fix windows processes launching bug with empty environment table that caused process-launch failures.
+- Add `:I`, `:V`, and `:N` flags to `os/open` for more control when creating streams.
+- Add `ev/go-gather` for a dynamic `ev/gather`.
+- Use color in script output if color is being used in REPL output.
+- Fix `varfn` macros handling of extra metadata.
+- Disallow certain degenerate uses of fibers with the ev/ module.
+- Add linting for unused bindings.
+- Add linting for extra or wrong parameters to &named functions.
+- Add `janet_optuinteger` and `janet_optuinteger64` to the C API.
 - Add `cms` combinator to PEGs.
 - Add `thaw-keep-keys` as a variant of thaw
 - The `repl` function now respects the `*repl-prompt*` dynamic binding by default.
 - Allow matching exact lengths of datastructures with the `match` macro using a dollar suffix.
+- Add initial support for Plan 9. Some modules (e.g. ev) are not yet enabled.
+- Allow specifying `:flycheck` for individual defines to annotate that they are safe to evaluate for flychecking.
 
 ## 1.40.1 - 2025-11-16
 - Fix `JANET_REDUCED_OS` build regression caused by `os/posix-chroot`.
