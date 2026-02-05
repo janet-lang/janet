@@ -460,7 +460,7 @@ Janet janet_dyn(const char *name) {
         return janet_table_get(janet_vm.top_dyns, janet_ckeywordv(name));
     }
     if (janet_vm.fiber->env) {
-        return janet_table_get(janet_vm.fiber->env, janet_ckeywordv(name));
+        return janet_table_get_keyword(janet_vm.fiber->env, name);
     } else {
         return janet_wrap_nil();
     }

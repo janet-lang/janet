@@ -198,10 +198,16 @@ tail:
             char buffer[32] = {0};
             size_t len = (size_t)(s->outer_text_end - text);
             memcpy(buffer, text, (len > 31 ? 31 : len));
-            janet_printf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
+            janet_eprintf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
+            int has_color = janet_truthy(janet_dyn("err-color"));
             for (int32_t i = 0; i < s->captures->count; i++) {
-                janet_printf("  [%d]: %M\n", i, s->captures->data[i]);
+                if (has_color) {
+                    janet_eprintf("  [%d]: %M\n", i, s->captures->data[i]);
+                } else {
+                    janet_eprintf("  [%d]: %m\n", i, s->captures->data[i]);
+                }
             }
+            janet_eprintf("\n");
             return text;
         }
 

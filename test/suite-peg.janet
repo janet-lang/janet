@@ -266,6 +266,12 @@
 (marshpeg '(sub "abcdf" "abc"))
 (marshpeg '(* (sub 1 1)))
 (marshpeg '(split "," (+ "a" "b" "c")))
+(marshpeg "")
+(marshpeg 1)
+(marshpeg 0)
+(marshpeg -1)
+(marshpeg '(drop 1))
+(marshpeg '(accumulate 1))
 
 # Peg swallowing errors
 # 159651117
@@ -846,49 +852,49 @@
       @[["b" "b" "b"]])
 
 # Debug and ?? tests.
-(defn test-stdout [name peg input expected-matches expected-stdout]
+(defn test-stderr [name peg input expected-matches expected-stdout]
   (def actual @"")
-  (with-dyns [:out actual]
+  (with-dyns [:err actual]
     (test name peg input expected-matches))
   (assert (deep= (string actual) expected-stdout)))
 
-(test-stdout "?? long form"
+(test-stderr "?? long form"
   '(* (debug) "abc")
   "abc"
   @[]
-  "\n?? at [abc]\nstack [0]:\n")
+  "\n?? at [abc]\nstack [0]:\n\n")
 
-(test-stdout "?? short form"
+(test-stderr "?? short form"
   '(* (??) "abc")
   "abc"
   @[]
-  "\n?? at [abc]\nstack [0]:\n")
+  "\n?? at [abc]\nstack [0]:\n\n")
 
-(test-stdout "?? end of text"
+(test-stderr "?? end of text"
   '(* "abc" (??))
   "abc"
   @[]
-  "\n?? at []\nstack [0]:\n")
+  "\n?? at []\nstack [0]:\n\n")
 
-(test-stdout "?? between rules"
+(test-stderr "?? between rules"
   '(* "a" (??) "bc")
   "abc"
   @[]
-  "\n?? at [bc]\nstack [0]:\n")
+  "\n?? at [bc]\nstack [0]:\n\n")
 
-(test-stdout
+(test-stderr
   "?? stack display, string"
   '(* (<- "a") (??) "bc")
   "abc"
   @["a"]
-  (string/format "\n?? at [bc]\nstack [1]:\n  [0]: %M\n" "a"))
+  (string/format "\n?? at [bc]\nstack [1]:\n  [0]: %M\n\n" "a"))
 
-(test-stdout
+(test-stderr
   "?? stack display, multiple types"
   '(* (<- "a") (number :d) (constant true) (constant {}) (constant @[]) (??) "bc")
   "a1bc"
   @["a" 1 true {} @[]]
-  (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n" "a" 1 true {} @[]))
+  (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n\n" "a" 1 true {} @[]))
 
 (marshpeg '(* (??) "abc"))
 
