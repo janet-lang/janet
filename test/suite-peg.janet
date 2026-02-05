@@ -101,9 +101,9 @@
 # 798c88b4c
 (def csv
   '{:field (+
-            (* `"` (% (any (+ (<- (if-not `"` 1))
-                              (* (constant `"`) `""`)))) `"`)
-            (<- (any (if-not (set ",\n") 1))))
+             (* `"` (% (any (+ (<- (if-not `"` 1))
+                               (* (constant `"`) `""`)))) `"`)
+             (<- (any (if-not (set ",\n") 1))))
     :main (* :field (any (* "," :field)) (+ "\n" -1))})
 
 (defn check-csv
@@ -351,16 +351,16 @@
 # Using a large test grammar
 # cf05ff610
 (def- specials {'fn true
-               'var true
-               'do true
-               'while true
-               'def true
-               'splice true
-               'set true
-               'unquote true
-               'quasiquote true
-               'quote true
-               'if true})
+                'var true
+                'do true
+                'while true
+                'def true
+                'splice true
+                'set true
+                'unquote true
+                'quasiquote true
+                'quote true
+                'if true})
 
 (defn- check-number [text] (and (scan-number text) text))
 
@@ -405,7 +405,7 @@
     :struct (* '"{" :root2 (+ '"}" (error "")))
     :parray (* '"@" :ptuple)
     :barray (* '"@" :btuple)
-    :dict (* '"@"  :struct)
+    :dict (* '"@" :struct)
     :main (+ :root (error ""))})
 
 (def p (peg/compile grammar))
@@ -569,18 +569,18 @@
   (assert (= (string (f peg subst text)) expected) name))
 
 (peg-test "peg/replace has access to captures"
-  peg/replace
-  ~(sequence "." (capture (set "ab")))
-  (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
-  ".a.b.c"
-  ".a -> A, .b.c")
+          peg/replace
+          ~(sequence "." (capture (set "ab")))
+          (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
+          ".a.b.c"
+          ".a -> A, .b.c")
 
 (peg-test "peg/replace-all has access to captures"
-  peg/replace-all
-  ~(sequence "." (capture (set "ab")))
-  (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
-  ".a.b.c"
-  ".a -> A, .b -> B, .c")
+          peg/replace-all
+          ~(sequence "." (capture (set "ab")))
+          (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
+          ".a.b.c"
+          ".a -> A, .b -> B, .c")
 
 # Peg bug
 # eab5f67c5
@@ -654,20 +654,20 @@
 
 # issue #1026 - 9341081a4
 (assert (deep=
-  (peg/match '(not (* (constant 7) "a")) "hello")
-  @[]) "peg not")
+          (peg/match '(not (* (constant 7) "a")) "hello")
+          @[]) "peg not")
 
 (assert (deep=
-  (peg/match '(if-not (* (constant 7) "a") "hello") "hello")
-  @[]) "peg if-not")
+          (peg/match '(if-not (* (constant 7) "a") "hello") "hello")
+          @[]) "peg if-not")
 
 (assert (deep=
-  (peg/match '(if-not (drop (* (constant 7) "a")) "hello") "hello")
-  @[]) "peg if-not drop")
+          (peg/match '(if-not (drop (* (constant 7) "a")) "hello") "hello")
+          @[]) "peg if-not drop")
 
 (assert (deep=
-  (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
-  @[]) "peg if not")
+          (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
+          @[]) "peg if not")
 
 (defn test [name peg input expected]
   (assert-no-error "compile peg" (peg/compile peg))
@@ -675,143 +675,143 @@
   (assert (deep= (peg/match peg input) expected) name))
 
 (test "sub: matches the same input twice"
-  ~(sub "abcd" "abc")
-  "abcdef"
-  @[])
+      ~(sub "abcd" "abc")
+      "abcdef"
+      @[])
 
 (test "sub: second pattern cannot match more than the first pattern"
-  ~(sub "abcd" "abcde")
-  "abcdef"
-  nil)
+      ~(sub "abcd" "abcde")
+      "abcdef"
+      nil)
 
 (test "sub: fails if first pattern fails"
-  ~(sub "x" "abc")
-  "abcdef"
-  nil)
+      ~(sub "x" "abc")
+      "abcdef"
+      nil)
 
 (test "sub: fails if second pattern fails"
-  ~(sub "abc" "x")
-  "abcdef"
-  nil)
+      ~(sub "abc" "x")
+      "abcdef"
+      nil)
 
 (test "sub: keeps captures from both patterns"
-  ~(sub '"abcd" '"abc")
-  "abcdef"
-  @["abcd" "abc"])
+      ~(sub '"abcd" '"abc")
+      "abcdef"
+      @["abcd" "abc"])
 
 (test "sub: second pattern can reference captures from first"
-  ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
-  "abcdef"
-  @[5 "abc" "abc"])
+      ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
+      "abcdef"
+      @[5 "abc" "abc"])
 
 (test "sub: second pattern can't see past what the first pattern matches"
-  ~(sub "abc" (* "abc" -1))
-  "abcdef"
-  @[])
+      ~(sub "abc" (* "abc" -1))
+      "abcdef"
+      @[])
 
 (test "sub: positions inside second match are still relative to the entire input"
-  ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
-  "one\ntwo\nthree\n"
-  @[6 2 3])
+      ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
+      "one\ntwo\nthree\n"
+      @[6 2 3])
 
 (test "sub: advances to the end of the first pattern's match"
-  ~(* (sub "abc" "ab") "d")
-  "abcdef"
-  @[])
+      ~(* (sub "abc" "ab") "d")
+      "abcdef"
+      @[])
 
 (test "til: basic matching"
-  ~(til "d" "abc")
-  "abcdef"
-  @[])
+      ~(til "d" "abc")
+      "abcdef"
+      @[])
 
 (test "til: second pattern can't see past the first occurrence of first pattern"
-  ~(til "d" (* "abc" -1))
-  "abcdef"
-  @[])
+      ~(til "d" (* "abc" -1))
+      "abcdef"
+      @[])
 
 (test "til: fails if first pattern fails"
-  ~(til "x" "abc")
-  "abcdef"
-  nil)
+      ~(til "x" "abc")
+      "abcdef"
+      nil)
 
 (test "til: fails if second pattern fails"
-  ~(til "abc" "x")
-  "abcdef"
-  nil)
+      ~(til "abc" "x")
+      "abcdef"
+      nil)
 
 (test "til: discards captures from initial pattern"
-  ~(til '"d" '"abc")
-  "abcdef"
-  @["abc"])
+      ~(til '"d" '"abc")
+      "abcdef"
+      @["abc"])
 
 (test "til: positions inside second match are still relative to the entire input"
-  ~(* "one\ntw" (til 0 (* ($) (line) (column))))
-  "one\ntwo\nthree\n"
-  @[6 2 3])
+      ~(* "one\ntw" (til 0 (* ($) (line) (column))))
+      "one\ntwo\nthree\n"
+      @[6 2 3])
 
 (test "til: advances to the end of the first pattern's first occurrence"
-  ~(* (til "d" "ab") "e")
-  "abcdef"
-  @[])
+      ~(* (til "d" "ab") "e")
+      "abcdef"
+      @[])
 
 (test "split: basic functionality"
-  ~(split "," '1)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(split "," '1)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "split: drops captures from separator pattern"
-  ~(split '"," '1)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(split '"," '1)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "split: can match empty subpatterns"
-  ~(split "," ':w*)
-  ",a,,bar,,,c,,"
-  @["" "a" "" "bar" "" "" "c" "" ""])
+      ~(split "," ':w*)
+      ",a,,bar,,,c,,"
+      @["" "a" "" "bar" "" "" "c" "" ""])
 
 (test "split: subpattern is limited to only text before the separator"
-  ~(split "," '(to -1))
-  "a,,bar,c"
-  @["a" "" "bar" "c"])
+      ~(split "," '(to -1))
+      "a,,bar,c"
+      @["a" "" "bar" "c"])
 
 (test "split: fails if any subpattern fails"
-  ~(split "," '"a")
-  "a,a,b"
-  nil)
+      ~(split "," '"a")
+      "a,a,b"
+      nil)
 
 (test "split: separator does not have to match anything"
-  ~(split "x" '(to -1))
-  "a,a,b"
-  @["a,a,b"])
+      ~(split "x" '(to -1))
+      "a,a,b"
+      @["a,a,b"])
 
 (test "split: always consumes entire input"
-  ~(split 1 '"")
-  "abc"
-  @["" "" "" ""])
+      ~(split 1 '"")
+      "abc"
+      @["" "" "" ""])
 
 (test "split: separator can be an arbitrary PEG"
-  ~(split :s+ '(to -1))
-  "a   b      c"
-  @["a" "b" "c"])
+      ~(split :s+ '(to -1))
+      "a   b      c"
+      @["a" "b" "c"])
 
 (test "split: does not advance past the end of the input"
-  ~(* (split "," ':w+) 0)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(* (split "," ':w+) 0)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "nth 1"
-  ~{:prefix (number :d+ nil :n)
-    :word '(lenprefix (-> :n) :w)
-    :main (some (nth 1 (* :prefix ":" :word)))}
-  "5:apple6:banana6:cherry"
-  @["apple" "banana" "cherry"])
+      ~{:prefix (number :d+ nil :n)
+        :word '(lenprefix (-> :n) :w)
+        :main (some (nth 1 (* :prefix ":" :word)))}
+      "5:apple6:banana6:cherry"
+      @["apple" "banana" "cherry"])
 
 (test "only-tags 1"
-  ~{:prefix (number :d+ nil :n)
-    :word (capture (lenprefix (-> :n) :w) :W)
-    :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
-  "5:apple6:banana6:cherry"
-  @["apple" "banana" "cherry"])
+      ~{:prefix (number :d+ nil :n)
+        :word (capture (lenprefix (-> :n) :w) :W)
+        :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
+      "5:apple6:banana6:cherry"
+      @["apple" "banana" "cherry"])
 
 # Issue #1539 - make sure split with "" doesn't infinite loop/oom
 (test "issue 1539"
@@ -820,9 +820,9 @@
       nil)
 
 (test "issue 1539 pt. 2"
-  ~(split "," (capture 0))
-  "abc123,,,,"
-  @["" "" "" "" ""])
+      ~(split "," (capture 0))
+      "abc123,,,,"
+      @["" "" "" "" ""])
 
 # Issue #1549 - allow buffers as peg literals
 (test "issue 1549"
@@ -865,28 +865,28 @@
   (assert (deep= (string actual) expected-stderr)))
 
 (test-stderr "?? long form"
-  '(* (debug) "abc")
-  "abc"
-  @[]
-  "?? at [abc] (index 0)\n")
+             '(* (debug) "abc")
+             "abc"
+             @[]
+             "?? at [abc] (index 0)\n")
 
 (test-stderr "?? short form"
-  '(* (??) "abc")
-  "abc"
-  @[]
-  "?? at [abc] (index 0)\n")
+             '(* (??) "abc")
+             "abc"
+             @[]
+             "?? at [abc] (index 0)\n")
 
 (test-stderr "?? end of text"
-  '(* "abc" (??))
-  "abc"
-  @[]
-  "?? at [] (index 3)\n")
+             '(* "abc" (??))
+             "abc"
+             @[]
+             "?? at [] (index 3)\n")
 
 (test-stderr "?? between rules"
-  '(* "a" (??) "bc")
-  "abc"
-  @[]
-  "?? at [bc] (index 1)\n")
+             '(* "a" (??) "bc")
+             "abc"
+             @[]
+             "?? at [bc] (index 1)\n")
 
 (test-stderr
   "?? stack display, string"
@@ -917,7 +917,8 @@
   '(* '1 '2 (% (* '1 (??) (<- 2 :tag) '3 (backref :tag) (??))))
   "aksjndkajsnd"
   @["a" "ks" "jndkajnd"]
-  (string/replace-all # In case on windows someone messes with line endings.
+  (string/replace-all
+    # In case on windows someone messes with line endings.
     "\r" ""
     ```
     ?? at [ndkajsnd] (index 4)
