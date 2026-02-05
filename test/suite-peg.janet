@@ -845,4 +845,51 @@
       "abc"
       @[["b" "b" "b"]])
 
+# Debug and ?? tests.
+(defn test-stdout [name peg input expected-matches expected-stdout]
+  (def actual @"")
+  (with-dyns [:out actual]
+    (test name peg input expected-matches))
+  (assert (deep= (string actual) expected-stdout)))
+
+(test-stdout "?? long form"
+  '(* (debug) "abc")
+  "abc"
+  @[]
+  "\n?? at [abc]\nstack [0]:\n")
+
+(test-stdout "?? short form"
+  '(* (??) "abc")
+  "abc"
+  @[]
+  "\n?? at [abc]\nstack [0]:\n")
+
+(test-stdout "?? end of text"
+  '(* "abc" (??))
+  "abc"
+  @[]
+  "\n?? at []\nstack [0]:\n")
+
+(test-stdout "?? between rules"
+  '(* "a" (??) "bc")
+  "abc"
+  @[]
+  "\n?? at [bc]\nstack [0]:\n")
+
+(test-stdout
+  "?? stack display, string"
+  '(* (<- "a") (??) "bc")
+  "abc"
+  @["a"]
+  (string/format "\n?? at [bc]\nstack [1]:\n  [0]: %M\n" "a"))
+
+(test-stdout
+  "?? stack display, multiple types"
+  '(* (<- "a") (number :d) (constant true) (constant {}) (constant @[]) (??) "bc")
+  "a1bc"
+  @["a" 1 true {} @[]]
+  (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n" "a" 1 true {} @[]))
+
+(marshpeg '(* (??) "abc"))
+
 (end-suite)
