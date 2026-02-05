@@ -74,6 +74,7 @@ JanetBuffer *janet_pointer_buffer_unsafe(void *memory, int32_t capacity, int32_t
 void janet_buffer_deinit(JanetBuffer *buffer) {
     if (!(buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC)) {
         janet_free(buffer->data);
+        buffer->data = NULL;
     }
 }
 

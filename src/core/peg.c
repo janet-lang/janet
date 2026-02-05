@@ -198,16 +198,34 @@ tail:
             char buffer[32] = {0};
             size_t len = (size_t)(s->outer_text_end - text);
             memcpy(buffer, text, (len > 31 ? 31 : len));
-            janet_eprintf("\n?? at [%s]\nstack [%d]:\n", buffer, s->captures->count);
+            janet_eprintf("?? at [%s] (index %d)\n", buffer, (int32_t)(text - s->text_start));
             int has_color = janet_truthy(janet_dyn("err-color"));
-            for (int32_t i = 0; i < s->captures->count; i++) {
-                if (has_color) {
-                    janet_eprintf("  [%d]: %M\n", i, s->captures->data[i]);
-                } else {
-                    janet_eprintf("  [%d]: %m\n", i, s->captures->data[i]);
+            /* Accumulate buffer */
+            if (s->scratch->count) {
+                janet_eprintf("accumulate buffer: %v\n", janet_wrap_buffer(s->scratch));
+            }
+            /* Normal captures */
+            if (s->captures->count) {
+                janet_eprintf("stack [%d]:\n", s->captures->count);
+                for (int32_t i = 0; i < s->captures->count; i++) {
+                    if (has_color) {
+                        janet_eprintf("  [%d]: %M\n", i, s->captures->data[i]);
+                    } else {
+                        janet_eprintf("  [%d]: %m\n", i, s->captures->data[i]);
+                    }
                 }
             }
-            janet_eprintf("\n");
+            /* Tagged captures */
+            if (s->tagged_captures->count) {
+                janet_eprintf("tag stack [%d]:\n", s->tagged_captures->count);
+                for (int32_t i = 0; i < s->tagged_captures->count; i++) {
+                    if (has_color) {
+                        janet_eprintf("  [%d] tag=%d: %M\n", i, s->tags->data[i], s->tagged_captures->data[i]);
+                    } else {
+                        janet_eprintf("  [%d] tag=%d: %m\n", i, s->tags->data[i], s->tagged_captures->data[i]);
+                    }
+                }
+            }
             return text;
         }
 

@@ -852,50 +852,96 @@
       @[["b" "b" "b"]])
 
 # Debug and ?? tests.
-(defn test-stderr [name peg input expected-matches expected-stdout]
+(defn test-stderr [name peg input expected-matches expected-stderr]
   (def actual @"")
-  (with-dyns [:err actual]
+  (with-dyns [:err actual *err-color* true]
     (test name peg input expected-matches))
-  (assert (deep= (string actual) expected-stdout)))
+  (assert (deep= (string actual) expected-stderr)))
+
+(defn test-stderr-no-color [name peg input expected-matches expected-stderr]
+  (def actual @"")
+  (with-dyns [:err actual *err-color* false]
+    (test name peg input expected-matches))
+  (assert (deep= (string actual) expected-stderr)))
 
 (test-stderr "?? long form"
   '(* (debug) "abc")
   "abc"
   @[]
-  "\n?? at [abc]\nstack [0]:\n\n")
+  "?? at [abc] (index 0)\n")
 
 (test-stderr "?? short form"
   '(* (??) "abc")
   "abc"
   @[]
-  "\n?? at [abc]\nstack [0]:\n\n")
+  "?? at [abc] (index 0)\n")
 
 (test-stderr "?? end of text"
   '(* "abc" (??))
   "abc"
   @[]
-  "\n?? at []\nstack [0]:\n\n")
+  "?? at [] (index 3)\n")
 
 (test-stderr "?? between rules"
   '(* "a" (??) "bc")
   "abc"
   @[]
-  "\n?? at [bc]\nstack [0]:\n\n")
+  "?? at [bc] (index 1)\n")
 
 (test-stderr
   "?? stack display, string"
   '(* (<- "a") (??) "bc")
   "abc"
   @["a"]
-  (string/format "\n?? at [bc]\nstack [1]:\n  [0]: %M\n\n" "a"))
+  (string/format "?? at [bc] (index 1)\nstack [1]:\n  [0]: %M\n" "a"))
 
 (test-stderr
   "?? stack display, multiple types"
   '(* (<- "a") (number :d) (constant true) (constant {}) (constant @[]) (??) "bc")
   "a1bc"
   @["a" 1 true {} @[]]
-  (string/format "\n?? at [bc]\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n\n" "a" 1 true {} @[]))
+  (string/format "?? at [bc] (index 2)\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n" "a" 1 true {} @[]))
 
 (marshpeg '(* (??) "abc"))
+(marshpeg '(* (some (debug)) (??) "abc"))
+
+(test-stderr
+  "?? displays when capture fails"
+  '(* '1 (??) "x")
+  "abc"
+  nil
+  (string/format "?? at [bc] (index 1)\nstack [1]:\n  [0]: %M\n" "a"))
+
+(test-stderr-no-color
+  "?? displays accumuate and tagged captures"
+  '(* '1 '2 (% (* '1 (??) (<- 2 :tag) '3 (backref :tag) (??))))
+  "aksjndkajsnd"
+  @["a" "ks" "jndkajnd"]
+  (string/replace-all # In case on windows someone messes with line endings.
+    "\r" ""
+    ```
+    ?? at [ndkajsnd] (index 4)
+    accumulate buffer: @"j"
+    stack [2]:
+      [0]: "a"
+      [1]: "ks"
+    tag stack [3]:
+      [0] tag=0: "a"
+      [1] tag=0: "ks"
+      [2] tag=0: "j"
+    ?? at [snd] (index 9)
+    accumulate buffer: @"jndkajnd"
+    stack [2]:
+      [0]: "a"
+      [1]: "ks"
+    tag stack [6]:
+      [0] tag=0: "a"
+      [1] tag=0: "ks"
+      [2] tag=0: "j"
+      [3] tag=1: "nd"
+      [4] tag=0: "kaj"
+      [5] tag=0: "nd"
+
+    ```))
 
 (end-suite)
