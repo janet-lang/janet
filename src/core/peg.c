@@ -198,7 +198,7 @@ tail:
             char buffer[32] = {0};
             size_t len = (size_t)(s->outer_text_end - text);
             memcpy(buffer, text, (len > 31 ? 31 : len));
-            janet_eprintf("?? at [%s] (index %D)\n", buffer, (int64_t)(text - s->text_start));
+            janet_eprintf("?? at [%s] (index %d)\n", buffer, (int32_t)(text - s->text_start));
             int has_color = janet_truthy(janet_dyn("err-color"));
             /* Accumulate buffer */
             if (s->scratch->count) {
