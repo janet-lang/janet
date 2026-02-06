@@ -2924,6 +2924,7 @@
   (array/insert mp sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
   (array/insert mp curall-index [(string ":cur:/:all:" ext) loader check-relative])
+  (array/insert mp 0 [":all:" loader (fn :check-ext [x] (string/has-suffix? ext x))])
   mp)
 
 # Don't expose this externally yet - could break if custom module/paths is setup.
@@ -2976,20 +2977,22 @@
   or :image if the module is found, otherwise a tuple with nil followed by
   an error message.
   ```
-  [path]
+  [path &opt find-all]
   (var ret nil)
   (def mp (dyn *module-paths* module/paths))
+  (def all-matches (if find-all @[]))
   (each [p mod-kind checker] mp
     (when (mod-filter checker path)
       (if (function? p)
         (when-let [res (p path)]
           (set ret [res mod-kind])
-          (break))
+          (if find-all (array/push all-matches ret) (break)))
         (do
           (def fullpath (string (module/expand-path path p)))
           (when (fexists fullpath)
             (set ret [fullpath mod-kind])
-            (break))))))
+            (if find-all (array/push all-matches ret) (break)))))))
+  (if find-all (break all-matches))
   (if ret ret
     (let [expander (fn :expander [[t _ chk]]
                      (when (string? t)
@@ -3164,7 +3167,10 @@
 
 (defn- require-1
   [path args kargs]
-  (def [fullpath mod-kind] (module/find path))
+  (def [fullpath mod-kind]
+    (if-let [loader (get kargs :loader)]
+      [path loader]
+      (module/find path)))
   (unless fullpath (error mod-kind))
   (def mc (dyn *module-cache* module/cache))
   (def ml (dyn *module-loading* module/loading))
