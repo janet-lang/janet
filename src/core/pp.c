@@ -897,7 +897,7 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                 case 's':
                 case 'S': {
                     const char *str = va_arg(args, const char *);
-                    int32_t len = c[-1] == 's'
+                    int32_t len = (c[-1] == 's')
                                   ? (int32_t) strlen(str)
                                   : janet_string_length((JanetString) str);
                     if (form[2] == '\0')

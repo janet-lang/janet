@@ -857,7 +857,8 @@
   (with-dyns [:err actual *err-color* true]
     (test name peg input expected-matches))
   (when (os/getenv "VERBOSE")
-    (eprint actual))
+    (eprint (describe actual))
+    (eprint (describe expected-stderr)))
   (assert (deep= (string actual) expected-stderr)))
 
 (defn test-stderr-no-color [name peg input expected-matches expected-stderr]
@@ -865,7 +866,8 @@
   (with-dyns [:err actual *err-color* false]
     (test name peg input expected-matches))
   (when (os/getenv "VERBOSE")
-    (eprint actual))
+    (eprint (describe actual))
+    (eprint (describe expected-stderr)))
   (assert (deep= (string actual) expected-stderr)))
 
 (test-stderr
