@@ -220,9 +220,9 @@ tail:
                 janet_eprintf("tag stack [%d]:\n", s->tagged_captures->count);
                 for (int32_t i = 0; i < s->tagged_captures->count; i++) {
                     if (has_color) {
-                        janet_eprintf("  [%d] tag=%d: %M\n", i, s->tags->data[i], s->tagged_captures->data[i]);
+                        janet_eprintf("  [%d] tag=%d: %M\n", i, (int32_t) s->tags->data[i], s->tagged_captures->data[i]);
                     } else {
-                        janet_eprintf("  [%d] tag=%d: %m\n", i, s->tags->data[i], s->tagged_captures->data[i]);
+                        janet_eprintf("  [%d] tag=%d: %m\n", i, (int32_t) s->tags->data[i], s->tagged_captures->data[i]);
                     }
                 }
             }

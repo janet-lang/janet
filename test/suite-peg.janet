@@ -856,37 +856,45 @@
   (def actual @"")
   (with-dyns [:err actual *err-color* true]
     (test name peg input expected-matches))
-  (assert (deep= (string/replace-all "\r" "" actual) expected-stderr)))
+  (when (os/getenv "VERBOSE")
+    (eprint actual))
+  (assert (deep= (string actual) expected-stderr)))
 
 (defn test-stderr-no-color [name peg input expected-matches expected-stderr]
   (def actual @"")
   (with-dyns [:err actual *err-color* false]
     (test name peg input expected-matches))
-  (assert (deep= (string/replace-all "\r" "" actual) expected-stderr)))
+  (when (os/getenv "VERBOSE")
+    (eprint actual))
+  (assert (deep= (string actual) expected-stderr)))
 
-(test-stderr "?? long form"
-             '(* (debug) "abc")
-             "abc"
-             @[]
-             "?? at [abc] (index 0)\n")
+(test-stderr
+  "?? long form"
+  '(* (debug) "abc")
+  "abc"
+  @[]
+  "?? at [abc] (index 0)\n")
 
-(test-stderr "?? short form"
-             '(* (??) "abc")
-             "abc"
-             @[]
-             "?? at [abc] (index 0)\n")
+(test-stderr
+  "?? short form"
+  '(* (??) "abc")
+  "abc"
+  @[]
+  "?? at [abc] (index 0)\n")
 
-(test-stderr "?? end of text"
-             '(* "abc" (??))
-             "abc"
-             @[]
-             "?? at [] (index 3)\n")
+(test-stderr
+  "?? end of text"
+  '(* "abc" (??))
+  "abc"
+  @[]
+  "?? at [] (index 3)\n")
 
-(test-stderr "?? between rules"
-             '(* "a" (??) "bc")
-             "abc"
-             @[]
-             "?? at [bc] (index 1)\n")
+(test-stderr
+  "?? between rules"
+  '(* "a" (??) "bc")
+  "abc"
+  @[]
+  "?? at [bc] (index 1)\n")
 
 (test-stderr
   "?? stack display, string"
