@@ -856,13 +856,13 @@
   (def actual @"")
   (with-dyns [:err actual *err-color* true]
     (test name peg input expected-matches))
-  (assert (deep= (string actual) expected-stderr)))
+  (assert (deep= (string/replace-all "\r" "" actual) expected-stderr)))
 
 (defn test-stderr-no-color [name peg input expected-matches expected-stderr]
   (def actual @"")
   (with-dyns [:err actual *err-color* false]
     (test name peg input expected-matches))
-  (assert (deep= (string actual) expected-stderr)))
+  (assert (deep= (string/replace-all "\r" "" actual) expected-stderr)))
 
 (test-stderr "?? long form"
              '(* (debug) "abc")
