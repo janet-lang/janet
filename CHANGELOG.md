@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Allow overriding the loader when doing imports with the `:loader` argument.
+- Allow importing modules with a path extension to do what one would expect.
+- Add `find-all` argument to `module/find`
 - Add :threads, :unmarshal, :compiler, and :asm sandbox flags.
 - Add support for persistent REPL history with the environment variable `JANET_HISTFILE`
 - Fix a number of fuzzer-found compiler bugs

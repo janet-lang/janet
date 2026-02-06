@@ -2182,10 +2182,10 @@
     (def last (in t (- (length t) 1)))
     (def bound (in t 1))
     (keep-syntax! t
-      (array/concat
-        @[(in t 0) (expand-bindings bound)]
-        (tuple/slice t 2 -2)
-        @[(recur last)])))
+                  (array/concat
+                    @[(in t 0) (expand-bindings bound)]
+                    (tuple/slice t 2 -2)
+                    @[(recur last)])))
 
   (defn expandall [t]
     (def args (map recur (tuple/slice t 1)))
