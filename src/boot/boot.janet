@@ -2874,7 +2874,8 @@
 
 (defn- check-dyn-relative [x] (if (string/has-prefix? "@" x) x))
 (defn- check-relative [x] (if (string/has-prefix? "." x) x))
-(defn- check-not-relative [x] (if-not (string/has-prefix? "." x) x))
+# Don't try to preload absolute or relative paths
+(defn- check-preloadable [x] (if-not (or (string/has-prefix? "/" x) (string/find "." x) (string/find "@" x)) x))
 (defn- check-is-dep [x] (unless (or (string/has-prefix? "/" x) (string/has-prefix? "@" x) (string/has-prefix? "." x)) x))
 (defn- check-project-relative [x] (if (string/has-prefix? "/" x) x))
 
@@ -2949,7 +2950,10 @@
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
-(array/insert module/paths 0 [(fn is-cached [path] (if (in (dyn *module-cache* module/cache) path) path)) :preload check-not-relative])
+(array/insert module/paths 0
+              [(fn is-cached [path] (if (in (dyn *module-cache* module/cache) path) path))
+               :preload
+               check-preloadable])
 
 # Version of fexists that works even with a reduced OS
 (defn- fexists
@@ -3219,7 +3223,7 @@
   (def prefix (or
                 (and as (string as "/"))
                 prefix
-                (string (last (string/split "/" path)) "/")))
+                (string (first (string/split "." (last (string/split "/" path)))) "/")))
   (merge-module env newenv prefix ep only))
 
 (defmacro import
