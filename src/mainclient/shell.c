@@ -1258,7 +1258,10 @@ int main(int argc, char **argv) {
     status = janet_loop_fiber(fiber);
 
     /* Deinitialize vm */
+
+#if !defined(JANET_SIMPLE_GETLINE)
     savehistory();
+#endif
     janet_deinit();
     janet_line_deinit();
 

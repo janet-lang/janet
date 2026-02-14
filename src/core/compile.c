@@ -459,11 +459,22 @@ JanetSlot *janetc_toslotskv(JanetCompiler *c, Janet ds) {
     const JanetKV *kvs = NULL;
     int32_t cap = 0, len = 0;
     janet_dictionary_view(ds, &kvs, &len, &cap);
-    for (int32_t i = 0; i < cap; i++) {
-        if (janet_checktype(kvs[i].key, JANET_NIL)) continue;
-        janet_v_push(ret, janetc_value(subopts, kvs[i].key));
-        janet_v_push(ret, janetc_value(subopts, kvs[i].value));
+    /* Sort keys for stability of order? */
+    int32_t *index_buf;
+    int32_t index_buf_stack[32];
+    int32_t *index_buf_heap = NULL;
+    if (len < 32) {
+        index_buf = index_buf_stack;
+    } else {
+        index_buf_heap = janet_smalloc(sizeof(int32_t) * len);
+        index_buf = index_buf_heap;
     }
+    if (len) janet_sorted_keys(kvs, cap, index_buf);
+    for (int32_t i = 0; i < len; i++) {
+        janet_v_push(ret, janetc_value(subopts, kvs[index_buf[i]].key));
+        janet_v_push(ret, janetc_value(subopts, kvs[index_buf[i]].value));
+    }
+    if (index_buf_heap) janet_sfree(index_buf_heap);
     return ret;
 }
 
