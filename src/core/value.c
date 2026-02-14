@@ -335,10 +335,9 @@ int32_t janet_hash(Janet x) {
             } as;
             as.d = janet_unwrap_number(x);
             as.d += 0.0; /* normalize negative 0 */
-            uint32_t lo = (uint32_t)(as.u & 0xFFFFFFFF);
+            as.u = murmur64(as.u);
             uint32_t hi = (uint32_t)(as.u >> 32);
-            uint32_t hilo = (hi ^ lo) * 2654435769u;
-            hash = (int32_t)((hilo << 16) | (hilo >> 16));
+            hash = (int32_t)hi;
             break;
         }
         case JANET_ABSTRACT: {

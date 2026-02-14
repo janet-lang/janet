@@ -487,6 +487,7 @@ static const char *janet_pretty_colors[] = {
 #define JANET_PRETTY_DICT_ONELINE 4
 #define JANET_PRETTY_IND_ONELINE 10
 #define JANET_PRETTY_DICT_LIMIT 30
+#define JANET_PRETTY_DICT_KEYSORT_LIMIT 2000
 #define JANET_PRETTY_ARRAY_LIMIT 160
 
 /* Helper for pretty printing */
@@ -625,55 +626,78 @@ static void janet_pretty_one(struct pretty *S, Janet x, int is_dict_value) {
             if (S->depth == 0) {
                 janet_buffer_push_cstring(S->buffer, "...");
             } else {
-                int32_t i = 0, len = 0, cap = 0;
+                int32_t len = 0, cap = 0;
                 const JanetKV *kvs = NULL;
                 janet_dictionary_view(x, &kvs, &len, &cap);
                 if (!istable && !(S->flags & JANET_PRETTY_ONELINE) && len >= JANET_PRETTY_DICT_ONELINE)
                     janet_buffer_push_u8(S->buffer, ' ');
                 if (is_dict_value && len >= JANET_PRETTY_DICT_ONELINE) print_newline(S, 0);
                 int32_t ks_start = S->keysort_start;
-
-                /* Ensure buffer is large enough to sort keys. */
                 int truncated = 0;
-                int64_t mincap = (int64_t) len + (int64_t) ks_start;
-                if (mincap > INT32_MAX) {
-                    truncated = 1;
-                    len = 0;
-                    mincap = ks_start;
-                }
 
-                if (S->keysort_capacity < mincap) {
-                    if (mincap >= INT32_MAX / 2) {
-                        S->keysort_capacity = INT32_MAX;
-                    } else {
-                        S->keysort_capacity = (int32_t)(mincap * 2);
+                /* Shortcut for huge dictionaries, don't bother sorting keys */
+                if (len > JANET_PRETTY_DICT_KEYSORT_LIMIT) {
+                    if (!(S->flags & JANET_PRETTY_NOTRUNC) && (len > JANET_PRETTY_DICT_LIMIT)) {
+                        len = JANET_PRETTY_DICT_LIMIT;
+                        truncated = 1;
                     }
-                    S->keysort_buffer = janet_srealloc(S->keysort_buffer, sizeof(int32_t) * S->keysort_capacity);
-                    if (NULL == S->keysort_buffer) {
-                        JANET_OUT_OF_MEMORY;
+                    int32_t j = 0;
+                    for (int32_t i = 0; i < len; i++) {
+                        while (janet_checktype(kvs[j].key, JANET_NIL)) j++;
+                        if (i) print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
+                        janet_pretty_one(S, kvs[j].key, 0);
+                        janet_buffer_push_u8(S->buffer, ' ');
+                        janet_pretty_one(S, kvs[j].value, 1);
+                        j++;
                     }
-                }
+                    if (truncated) {
+                        print_newline(S, 0);
+                        janet_buffer_push_cstring(S->buffer, "...");
+                    }
+                } else {
+                    /* Sorted keys dictionaries */
 
-                janet_sorted_keys(kvs, cap, S->keysort_buffer == NULL ? NULL : S->keysort_buffer + ks_start);
-                S->keysort_start += len;
-                if (!(S->flags & JANET_PRETTY_NOTRUNC) && (len > JANET_PRETTY_DICT_LIMIT)) {
-                    len = JANET_PRETTY_DICT_LIMIT;
-                    truncated = 1;
-                }
+                    /* Ensure buffer is large enough to sort keys. */
+                    int64_t mincap = (int64_t) len + (int64_t) ks_start;
+                    if (mincap > INT32_MAX) {
+                        truncated = 1;
+                        len = 0;
+                        mincap = ks_start;
+                    }
 
-                for (i = 0; i < len; i++) {
-                    if (i) print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
-                    int32_t j = S->keysort_buffer[i + ks_start];
-                    janet_pretty_one(S, kvs[j].key, 0);
-                    janet_buffer_push_u8(S->buffer, ' ');
-                    janet_pretty_one(S, kvs[j].value, 1);
-                }
+                    if (S->keysort_capacity < mincap) {
+                        if (mincap >= INT32_MAX / 2) {
+                            S->keysort_capacity = INT32_MAX;
+                        } else {
+                            S->keysort_capacity = (int32_t)(mincap * 2);
+                        }
+                        S->keysort_buffer = janet_srealloc(S->keysort_buffer, sizeof(int32_t) * S->keysort_capacity);
+                        if (NULL == S->keysort_buffer) {
+                            JANET_OUT_OF_MEMORY;
+                        }
+                    }
 
-                if (truncated) {
-                    print_newline(S, 0);
-                    janet_buffer_push_cstring(S->buffer, "...");
-                }
+                    janet_sorted_keys(kvs, cap, S->keysort_buffer == NULL ? NULL : S->keysort_buffer + ks_start);
+                    S->keysort_start += len;
+                    if (!(S->flags & JANET_PRETTY_NOTRUNC) && (len > JANET_PRETTY_DICT_LIMIT)) {
+                        len = JANET_PRETTY_DICT_LIMIT;
+                        truncated = 1;
+                    }
 
+                    for (int32_t i = 0; i < len; i++) {
+                        if (i) print_newline(S, len < JANET_PRETTY_DICT_ONELINE);
+                        int32_t j = S->keysort_buffer[i + ks_start];
+                        janet_pretty_one(S, kvs[j].key, 0);
+                        janet_buffer_push_u8(S->buffer, ' ');
+                        janet_pretty_one(S, kvs[j].value, 1);
+                    }
+
+                    if (truncated) {
+                        print_newline(S, 0);
+                        janet_buffer_push_cstring(S->buffer, "...");
+                    }
+
+                }
                 S->keysort_start = ks_start;
             }
             S->indent -= 2;
