@@ -1331,7 +1331,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
                       msgbuf,
                       sizeof(msgbuf),
                       NULL);
-        if (!*msgbuf) sprintf(msgbuf, "%d", cp_error_code);
+        if (!*msgbuf) snprintf(msgbuf, sizeof(msgbuf), "%d", cp_error_code);
         char *c = msgbuf;
         while (*c) {
             if (*c == '\n' || *c == '\r') {

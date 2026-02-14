@@ -37,7 +37,7 @@ int system_test() {
 
     /* Check the version defines are self consistent */
     char version_combined[256];
-    sprintf(version_combined, "%d.%d.%d%s", JANET_VERSION_MAJOR, JANET_VERSION_MINOR, JANET_VERSION_PATCH, JANET_VERSION_EXTRA);
+    snprintf(version_combined, sizeof(version_combined), "%d.%d.%d%s", JANET_VERSION_MAJOR, JANET_VERSION_MINOR, JANET_VERSION_PATCH, JANET_VERSION_EXTRA);
     assert(!strcmp(JANET_VERSION, version_combined));
 
     /* Reflexive testing and nanbox testing */

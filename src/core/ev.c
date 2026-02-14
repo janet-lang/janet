@@ -2416,7 +2416,7 @@ Janet janet_ev_lasterr(void) {
                   msgbuf,
                   sizeof(msgbuf),
                   NULL);
-    if (!*msgbuf) sprintf(msgbuf, "%d", code);
+    if (!*msgbuf) snprintf(msgbuf, sizeof(msgbuf), "%d", code);
     char *c = msgbuf;
     while (*c) {
         if (*c == '\n' || *c == '\r') {
