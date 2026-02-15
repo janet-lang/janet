@@ -1,19 +1,19 @@
 #!/bin/sh
 set -e
 
-sudo apt update
+sudo apt-get update
 sudo apt-get install -y ca-certificates libssl-dev\
-    qemu qemu-utils qemu-user-static\
+    qemu-utils qemu-user-static\
     texinfo groff\
     cmake ninja-build bison zip\
     pkg-config build-essential autoconf re2c
 
 # download cosmocc
 cd /sc
-wget https://github.com/jart/cosmopolitan/releases/download/3.3.3/cosmocc-3.3.3.zip
+wget https://github.com/jart/cosmopolitan/releases/download/4.0.2/cosmocc-4.0.2.zip
 mkdir -p cosmocc
 cd cosmocc
-unzip ../cosmocc-3.3.3.zip
+unzip ../cosmocc-4.0.2.zip
 
 # register
 cd /sc/cosmocc
