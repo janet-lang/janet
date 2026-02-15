@@ -40,6 +40,7 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <locale.h>
+#include <inttypes.h>
 
 #ifdef JANET_BSD
 #include <sys/sysctl.h>
