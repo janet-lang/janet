@@ -157,7 +157,7 @@ Janet janet_table_get(JanetTable *t, Janet key) {
 
 /* Used internally for compiler stuff */
 Janet janet_table_get_keyword(JanetTable *t, const char *keyword) {
-    int32_t keyword_len = strlen(keyword);
+    int32_t keyword_len = (int32_t) strlen(keyword);
     for (int i = JANET_MAX_PROTO_DEPTH; t && i; t = t->proto, --i) {
         JanetKV *bucket = (JanetKV *) janet_dict_find_keyword(t->data, t->capacity, (const uint8_t *) keyword, keyword_len);
         if (NULL != bucket && !janet_checktype(bucket->key, JANET_NIL))
