@@ -570,15 +570,16 @@ JANET_CORE_FN(cfun_net_connect,
     if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
     JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
 
-    /* Set up the socket for non-blocking IO before connecting */
-    janet_net_socknoblock(sock);
-
     /* Connect to socket */
 #ifdef JANET_WINDOWS
     int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
     int err = WSAGetLastError();
     freeaddrinfo(ai);
+    /* Set up the socket for non-blocking IO after connecting on windows by default */
+    janet_net_socknoblock(sock);
 #else
+    /* Set up the socket for non-blocking IO before connecting */
+    janet_net_socknoblock(sock);
     int status;
     do {
         status = connect(sock, addr, addrlen);
@@ -599,10 +600,11 @@ JANET_CORE_FN(cfun_net_connect,
         return janet_wrap_abstract(stream);
     }
 
-    if (status == -1) {
 #ifdef JANET_WINDOWS
+    if (status == SOCKET_ERROR) {
         if (err != WSAEWOULDBLOCK) {
 #else
+    if (status == -1) {
         if (err != EINPROGRESS) {
 #endif
             JSOCKCLOSE(sock);

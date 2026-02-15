@@ -87,7 +87,9 @@
                     <Directory Id="BinDir" Name="bin"/>
                     <Directory Id="CDir" Name="C"/>
                     <Directory Id="DocsDir" Name="docs"/>
-                    <Directory Id="LibraryDir" Name="Library"/>
+		    <Directory Id="LibraryDir" Name="Library">
+		        <Directory Id="LibBinDir" Name="bin"/>
+		    </Directory>
                 </Directory>
             </Directory>
             <Directory Id="ProgramMenuFolder">
@@ -169,6 +171,7 @@
         <Component Id="SetEnvVarsPerMachine" Directory="ApplicationProgramsFolder" Guid="57b1e1ef-89c8-4ce4-9f0f-37618677c5a4" KeyPath="yes">
             <Condition>ALLUSERS=1</Condition>
             <Environment Id="PATH_PERMACHINE" Name="PATH" Value="[BinDir]" Action="set" Permanent="no" System="yes" Part="last"/>
+            <Environment Id="PATH2_PERMACHINE" Name="PATH" Value="[LibBinDir]" Action="set" Permanent="no" System="yes" Part="last"/>
             <Environment Id="JANET_BINPATH_PERMACHINE" Name="JANET_BINPATH" Value="[BinDir]" Action="set" Permanent="no" System="yes"/>
             <Environment Id="JANET_MANPATH_PERMACHINE" Name="JANET_MANPATH" Value="[DocsDir]" Action="set" Permanent="no" System="yes"/>
             <Environment Id="JANET_PATH_PERMACHINE" Name="JANET_PATH" Value="[LibraryDir]" Action="set" Permanent="no" System="yes" />
@@ -178,6 +181,7 @@
         <Component Id="SetEnvVarsPerUser" Directory="ApplicationProgramsFolder" Guid="128be307-488b-49aa-971a-d2ae00a1a584" KeyPath="yes">
             <Condition>NOT ALLUSERS=1</Condition>
             <Environment Id="PATH_PERUSER" Name="PATH" Value="[BinDir]" Action="set" Permanent="no" System="no" Part="last"/>
+            <Environment Id="PATH2_PERUSER" Name="PATH" Value="[LibBinDir]" Action="set" Permanent="no" System="no" Part="last"/>
             <Environment Id="JANET_BINPATH_PERUSER" Name="JANET_BINPATH" Value="[BinDir]" Action="set" Permanent="no" System="no"/>
             <Environment Id="JANET_MANPATH_PERUSER" Name="JANET_MANPATH" Value="[DocsDir]" Action="set" Permanent="no" System="no"/>
             <Environment Id="JANET_PATH_PERUSER" Name="JANET_PATH" Value="[LibraryDir]" Action="set" Permanent="no" System="no" />
