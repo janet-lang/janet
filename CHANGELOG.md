@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.41.0 - 2026-02-15
+## 1.41.1 - 2026-02-15
 - Revert to blocking behaior of `net/connect` on windows to fix spurious errors.
 - Allow overriding the loader when doing imports with the `:loader` argument.
 - Allow importing modules with a path extension to do what one would expect.
