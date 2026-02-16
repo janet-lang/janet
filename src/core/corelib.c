@@ -295,6 +295,7 @@ JANET_CORE_FN(janet_core_native,
               "from the native module.") {
     JanetModule init;
     janet_arity(argc, 1, 2);
+    Janet argv0 = argv[0];
     const uint8_t *path = janet_getstring(argv, 0);
     const uint8_t *error = NULL;
     JanetTable *env;
@@ -310,7 +311,7 @@ JANET_CORE_FN(janet_core_native,
     /* GC root incase garbage collection called inside module entry */
     janet_fiber_push(janet_vm.fiber, janet_wrap_table(env));
     init(env);
-    janet_table_put(env, janet_ckeywordv("native"), argv[0]);
+    janet_table_put(env, janet_ckeywordv("native"), argv0);
     return janet_wrap_table(env);
 }
 

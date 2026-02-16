@@ -2932,7 +2932,8 @@
 (defn module/add-file-extension
   ```
   Add paths to `module/paths` for a given file extension such that
-  the programmer can import a module by relative or absolute path.
+  the programmer can import a module by relative or absolute path from
+  the current working directory.
   Returns the modified `module/paths`.
   ```
   [ext loader]
