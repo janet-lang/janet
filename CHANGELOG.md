@@ -1,6 +1,11 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Add `module/add-file-extension`
+- Add `module/add-syspath`
+- Allow use of the interpreter and garbage collection inside module entry for native modules.
+
 ## 1.41.1 - 2026-02-15
 - Revert to blocking behaior of `net/connect` on windows to fix spurious errors.
 - Allow overriding the loader when doing imports with the `:loader` argument.

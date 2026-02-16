@@ -2943,7 +2943,7 @@
   mp)
 
 # Don't expose this externally yet - could break if custom module/paths is setup.
-(defn- module/add-syspath
+(defn module/add-syspath
   ```
   Add a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
   adding duplicates with a specific path prefix instead.
