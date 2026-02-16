@@ -2910,7 +2910,9 @@
   the generated paths behave like other module types, including
   relative imports and syspath imports. `ext` is the file extension
   to associate with this module type, including the dot. `loader` is the
-  keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
+  keyword name of a loader in `module/loaders`. The parameter `match-exact-path`
+  will allow users to import files with this extension directly with a relative
+  or absolute path. Returns the modified `module/paths`.
   ```
   [ext loader]
   (def mp (dyn *module-paths* module/paths))
@@ -2925,6 +2927,17 @@
   (array/insert mp sys-index [(string ":sys:/:all:" ext) loader check-is-dep])
   (def curall-index (find-prefix ":cur:/:all:"))
   (array/insert mp curall-index [(string ":cur:/:all:" ext) loader check-relative])
+  mp)
+
+(defn module/add-file-extension
+  ```
+  Add paths to `module/paths` for a given file extension such that
+  the programmer can import a module by relative or absolute path.
+  Returns the modified `module/paths`.
+  ```
+  [ext loader]
+  (assert (string/has-prefix? "." ext) "file extension must have . prefix")
+  (def mp (dyn *module-paths* module/paths))
   (array/insert mp 0 [":all:" loader (fn :check-ext [x] (string/has-suffix? ext x))])
   mp)
 
@@ -2950,6 +2963,12 @@
 (module/add-paths "/init.janet" :source)
 (module/add-paths ".janet" :source)
 (module/add-paths ".jimage" :image)
+(module/add-file-extension ".janet" :source)
+(module/add-file-extension ".jimage" :source)
+# These obviously won't work on all platforms, but if a user explicitly
+# tries to import them, we may as well try.
+(module/add-file-extension ".so" :native)
+(module/add-file-extension ".dll" :native)
 (array/insert module/paths 0
               [(fn is-cached [path] (if (in (dyn *module-cache* module/cache) path) path))
                :preload
