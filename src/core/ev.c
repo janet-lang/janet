@@ -2948,10 +2948,11 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
         if (!CreatePipe(handles, handles + 1, &saAttr, 0)) return -1;
         return 0;
     }
-    sprintf(PipeNameBuffer,
-            "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
-            (unsigned int) GetCurrentProcessId(),
-            (unsigned int) InterlockedIncrement(&PipeSerialNumber));
+    snprintf(PipeNameBuffer,
+             sizeof(PipeNameBuffer),
+             "\\\\.\\Pipe\\JanetPipeFile.%08x.%08x",
+             (unsigned int) GetCurrentProcessId(),
+             (unsigned int) InterlockedIncrement(&PipeSerialNumber));
 
     /* server handle goes to subprocess */
     shandle = CreateNamedPipeA(
