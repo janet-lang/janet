@@ -2579,7 +2579,7 @@ JANET_CORE_FN(os_dir,
     char pattern[MAX_PATH + 1];
     if (strlen(dir) > (sizeof(pattern) - 3))
         janet_panicf("path too long: %s", dir);
-    sprintf(pattern, "%s/*", dir);
+    snprintf(pattern, sizeof(pattern), "%s/*", dir);
     intptr_t res = _findfirst(pattern, &afile);
     if (-1 == res) janet_panicv(janet_cstringv(janet_strerror(errno)));
     do {
