@@ -495,7 +495,7 @@ Janet janet_in(Janet ds, Janet key) {
                 if (!(type->get)(janet_unwrap_abstract(ds), key, &value))
                     janet_panicf("key %v not found in %v ", key, ds);
             } else {
-                janet_panicf("no getter for %v ", ds);
+                janet_panicf("no getter for %v", ds);
             }
             break;
         }
@@ -622,7 +622,7 @@ Janet janet_getindex(Janet ds, int32_t index) {
                 if (!(type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index), &value))
                     value = janet_wrap_nil();
             } else {
-                janet_panicf("no getter for %v ", ds);
+                janet_panicf("no getter for %v", ds);
             }
             break;
         }
