@@ -179,5 +179,9 @@
 (assert (= (string buf) "xxxxxx") "buffer/format-at negative index")
 (assert-error "expected index at to be in range [0, 0), got 1" (buffer/format-at @"" 1 "abc"))
 
+# Regression 1714
+(repeat 10
+  (assert (deep= (put @"" 100 10) (put (buffer (string/repeat "\0" 101)) 100 10)) "regression 1714"))
+
 (end-suite)
 

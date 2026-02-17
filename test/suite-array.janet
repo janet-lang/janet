@@ -86,5 +86,9 @@
 (assert-error "array/join error 4" (array/join @[] "abc123"))
 (assert-error "array/join error 5" (array/join @[] "abc123"))
 
+# Regression 1714
+(repeat 10
+  (assert (deep= (put @[] 100 10) (put (seq [_ :range [0 101]] nil) 100 10)) "regression 1714"))
+
 (end-suite)
 
