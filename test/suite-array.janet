@@ -88,7 +88,8 @@
 
 # Regression 1714
 (repeat 10
-  (assert (deep= (put @[] 100 10) (put (seq [_ :range [0 101]] nil) 100 10)) "regression 1714"))
+  (assert (deep= (put @[] 100 10) (put (seq [_ :range [0 101]] nil) 100 10)) "regression 1714")
+  (assert (deep= (put @[] 200 10) (put (seq [_ :range [0 201]] nil) 200 10)) "regression 1714"))
 
 (end-suite)
 

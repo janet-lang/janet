@@ -181,7 +181,8 @@
 
 # Regression 1714
 (repeat 10
-  (assert (deep= (put @"" 100 10) (put (buffer (string/repeat "\0" 101)) 100 10)) "regression 1714"))
+  (assert (deep= (put @"" 100 10) (put (buffer (string/repeat "\0" 101)) 100 10)) "regression 1714")
+  (assert (deep= (put @"" 200 10) (put (buffer (string/repeat "\0" 201)) 200 10)) "regression 1714"))
 
 (end-suite)
 

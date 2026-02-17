@@ -201,14 +201,29 @@ static JanetSlot do_cmp(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_COMPARE, 0, janet_wrap_nil(), janet_wrap_nil());
 }
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
-    if (opts.flags & JANET_FOPTS_DROP) {
-        janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
-        return janetc_cslot(janet_wrap_nil());
+    int8_t inline_index = 0;
+    if (can_slot_be_imm(args[1], &inline_index)) {
+        /* Use JOP_PUT_INDEX */
+        if (opts.flags & JANET_FOPTS_DROP) {
+            janetc_emit_ssi(opts.compiler, JOP_PUT_INDEX, args[0], args[2], inline_index, 0);
+            return janetc_cslot(janet_wrap_nil());
+        } else {
+            JanetSlot t = janetc_gettarget(opts);
+            janetc_copy(opts.compiler, t, args[0]);
+            janetc_emit_ssi(opts.compiler, JOP_PUT_INDEX, t, args[2], inline_index, 0);
+            return t;
+        }
     } else {
-        JanetSlot t = janetc_gettarget(opts);
-        janetc_copy(opts.compiler, t, args[0]);
-        janetc_emit_sss(opts.compiler, JOP_PUT, t, args[1], args[2], 0);
-        return t;
+        /* Use JOP_PUT */
+        if (opts.flags & JANET_FOPTS_DROP) {
+            janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
+            return janetc_cslot(janet_wrap_nil());
+        } else {
+            JanetSlot t = janetc_gettarget(opts);
+            janetc_copy(opts.compiler, t, args[0]);
+            janetc_emit_sss(opts.compiler, JOP_PUT, t, args[1], args[2], 0);
+            return t;
+        }
     }
 }
 static JanetSlot do_length(JanetFopts opts, JanetSlot *args) {
