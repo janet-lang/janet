@@ -909,7 +909,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         janetc_regalloc_freetemp(&c->scope->ra, tempself, JANETC_REGTEMP_0);
         /* Compile function */
         JanetFuncDef *def = janetc_pop_funcdef(c);
-        def->name = janet_cstring("_while");
+        def->name = janet_cstring("while");
         janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
         /* And then load the closure and call it. */

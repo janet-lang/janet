@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## Unreleased - ???
+## 1.41.2 - ???
 - Fix regressions in `put` for arrays and buffers.
 - Add `module/add-file-extension`
 - Add `module/add-syspath`
