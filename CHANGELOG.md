@@ -1,6 +1,9 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## Unreleased - ???
+- Documentation fixes
+
 ## 1.41.2 - 2026-02-18
 - Fix regressions in `put` for arrays and buffers.
 - Add `module/add-file-extension`
