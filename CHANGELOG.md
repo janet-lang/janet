@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 - Fix regressions in `put` for arrays and buffers.
 - Add `module/add-file-extension`
 - Add `module/add-syspath`
+- Fix issue with possible stack corrpution with abstract types that modify the current fiber.
 - Allow use of the interpreter and garbage collection inside module entry for native modules.
 
 ## 1.41.1 - 2026-02-15
