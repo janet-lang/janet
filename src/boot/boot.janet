@@ -2910,9 +2910,7 @@
   the generated paths behave like other module types, including
   relative imports and syspath imports. `ext` is the file extension
   to associate with this module type, including the dot. `loader` is the
-  keyword name of a loader in `module/loaders`. The parameter `match-exact-path`
-  will allow users to import files with this extension directly with a relative
-  or absolute path. Returns the modified `module/paths`.
+  keyword name of a loader in `module/loaders`. Returns the modified `module/paths`.
   ```
   [ext loader]
   (def mp (dyn *module-paths* module/paths))
