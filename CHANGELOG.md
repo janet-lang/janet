@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Fix regressions in `put` for arrays and buffers.
 - Add `module/add-file-extension`
 - Add `module/add-syspath`
 - Allow use of the interpreter and garbage collection inside module entry for native modules.
