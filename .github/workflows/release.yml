@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ macos-latest ]
+        os: [ macos-latest, macos-15-intel ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
