@@ -1122,7 +1122,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
         val.v_int = janet_getboolean(argv, 2);
         optlen = sizeof(val.v_int);
     } else if (st->type == JANET_NUMBER) {
-#ifdef JANET_BSD
+#if defined(JANET_BSD) || defined(JANET_ILLUMOS)
         int v_int = janet_getinteger(argv, 2);
         if (st->optname == IP_MULTICAST_TTL) {
             val.v_uchar = v_int;
