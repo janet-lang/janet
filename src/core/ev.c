@@ -1199,20 +1199,6 @@ JANET_CORE_FN(cfun_channel_pop,
     janet_await();
 }
 
-static void chan_unlock_args(const Janet *argv, int32_t n) {
-    for (int32_t i = 0; i < n; i++) {
-        int32_t len;
-        const Janet *data;
-        JanetChannel *chan;
-        if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
-            chan = janet_getchannel(data, 0);
-        } else {
-            chan = janet_getchannel(argv, i);
-        }
-        janet_chan_unlock(chan);
-    }
-}
-
 JANET_CORE_FN(cfun_channel_choice,
               "(ev/select & clauses)",
               "Block until the first of several channel operations occur. Returns a "
@@ -1241,12 +1227,10 @@ JANET_CORE_FN(cfun_channel_choice,
             janet_chan_lock(chan);
             if (chan->closed) {
                 janet_chan_unlock(chan);
-                chan_unlock_args(argv, i);
                 return make_close_result(chan);
             }
             if (janet_q_count(&chan->items) < chan->limit) {
                 janet_channel_push_with_lock(chan, data[1], 1);
-                chan_unlock_args(argv, i);
                 return make_write_result(chan);
             }
             janet_chan_unlock(chan);
@@ -1256,13 +1240,11 @@ JANET_CORE_FN(cfun_channel_choice,
             janet_chan_lock(chan);
             if (chan->closed) {
                 janet_chan_unlock(chan);
-                chan_unlock_args(argv, i);
                 return make_close_result(chan);
             }
             if (chan->items.head != chan->items.tail) {
                 Janet item;
                 janet_channel_pop_with_lock(chan, &item, 1);
-                chan_unlock_args(argv, i);
                 return make_read_result(chan, item);
             }
             janet_chan_unlock(chan);
