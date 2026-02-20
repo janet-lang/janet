@@ -1249,6 +1249,7 @@ JANET_CORE_FN(cfun_channel_choice,
                 chan_unlock_args(argv, i);
                 return make_write_result(chan);
             }
+            janet_chan_unlock(chan);
         } else {
             /* Read */
             JanetChannel *chan = janet_getchannel(argv, i);
@@ -1264,6 +1265,7 @@ JANET_CORE_FN(cfun_channel_choice,
                 chan_unlock_args(argv, i);
                 return make_read_result(chan, item);
             }
+            janet_chan_unlock(chan);
         }
     }
 
