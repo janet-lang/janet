@@ -3302,7 +3302,6 @@
   [&opt env local]
   (env-walk keyword? env local))
 
-
 (defdyn *doc-width*
   "Width in columns to print documentation printed with `doc-format`.")
 
@@ -4761,7 +4760,8 @@
   (apply-color
     (and
       (not (getenv-alias "NO_COLOR"))
-      (os/isatty stdout)))
+      (os/isatty stdout)
+      (os/isatty stderr)))
 
   (defn- get-lint-level
     [i]
