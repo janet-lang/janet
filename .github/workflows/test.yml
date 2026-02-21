@@ -21,6 +21,20 @@ jobs:
       - name: Test the project
         run: make test
 
+  test-posix-sanitizers:
+    name: Build and test on POSIX systems with sanitizers turned on
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Compile the project
+        run: make clean && CFLAGS="-g -O2 -fsanitize=address,undefined" make
+      - name: Test the project
+        run: make test
+
   test-windows:
     name: Build and test on Windows
     strategy:
