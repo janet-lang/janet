@@ -592,8 +592,8 @@ JANET_CORE_FN(cfun_fiber_status,
               "* :user(0-7) - the fiber is suspended by a user signal\n"
               "* :interrupted - the fiber was interrupted\n"
               "* :suspended - the fiber is waiting to be resumed by the scheduler\n"
-              "* :alive - the fiber is currently running and cannot be resumed\n"
-              "* :new - the fiber has just been created and not yet run") {
+              "* :new - the fiber has just been created and not yet run\n"
+              "* :alive - the fiber is currently running and cannot be resumed") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = janet_fiber_status(fiber);
