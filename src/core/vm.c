@@ -1559,6 +1559,15 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
         }
     }
 
+    /* If this is a nested continue (root_fiber already set), root the fiber
+     * so it survives GC. janet_collect only marks root_fiber, so without
+     * this a nested fiber (e.g., from janet_pcall in a C function) would be
+     * invisible to GC and could be collected while actively running. */
+    int fiber_rooted = (janet_vm.root_fiber != NULL);
+    if (fiber_rooted) {
+        janet_gcroot(janet_wrap_fiber(fiber));
+    }
+
     /* Save global state */
     JanetTryState tstate;
     JanetSignal sig = janet_try(&tstate);
@@ -1574,6 +1583,9 @@ static JanetSignal janet_continue_no_check(JanetFiber *fiber, Janet in, Janet *o
     if (janet_vm.root_fiber == fiber) janet_vm.root_fiber = NULL;
     janet_fiber_set_status(fiber, sig);
     janet_restore(&tstate);
+    if (fiber_rooted) {
+        janet_gcunroot(janet_wrap_fiber(fiber));
+    }
     fiber->last_value = tstate.payload;
     *out = tstate.payload;
 
