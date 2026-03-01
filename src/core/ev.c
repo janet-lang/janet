@@ -1712,20 +1712,20 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp to) {
             janet_free(response);
         } else {
             /* Normal event */
+            JanetOverlapped *jo = (JanetOverlapped *) overlapped;
             JanetStream *stream = (JanetStream *) completionKey;
             JanetFiber *fiber = NULL;
-            if (stream->read_fiber && stream->read_fiber->ev_state == overlapped) {
+            if (stream->read_fiber && stream->read_fiber->ev_state == jo) {
                 fiber = stream->read_fiber;
-            } else if (stream->write_fiber && stream->write_fiber->ev_state == overlapped) {
+            } else if (stream->write_fiber && stream->write_fiber->ev_state == jo) {
                 fiber = stream->write_fiber;
             }
             if (fiber != NULL) {
                 fiber->flags &= ~JANET_FIBER_EV_FLAG_IN_FLIGHT;
-                /* System is done with this, we can reused this data */
-                overlapped->InternalHigh = (ULONG_PTR) num_bytes_transferred;
+                jo->bytes_transfered = (ULONG_PTR) num_bytes_transferred;
                 fiber->ev_callback(fiber, result ? JANET_ASYNC_EVENT_COMPLETE : JANET_ASYNC_EVENT_FAILED);
             } else {
-                janet_free((void *) overlapped);
+                janet_free((void *) jo);
                 janet_ev_dec_refcount();
             }
             janet_stream_checktoclose(stream);
@@ -2437,7 +2437,7 @@ typedef enum {
 
 typedef struct {
 #ifdef JANET_WINDOWS
-    OVERLAPPED overlapped;
+    JanetOverlapped overlapped;
     DWORD flags;
 #ifdef JANET_NET
     WSABUF wbuf;
@@ -2472,7 +2472,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_FAILED:
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when read finished */
-            uint32_t ev_bytes = (uint32_t) state->overlapped.InternalHigh;
+            uint32_t ev_bytes = (uint32_t) state->overlapped.bytes_transfered;
             state->bytes_read += ev_bytes;
             if (state->bytes_read == 0 && (state->mode != JANET_ASYNC_READMODE_RECVFROM)) {
                 janet_schedule(fiber, janet_wrap_nil());
@@ -2504,7 +2504,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
         /* fallthrough */
         case JANET_ASYNC_EVENT_INIT: {
             int32_t chunk_size = state->bytes_left > JANET_EV_CHUNKSIZE ? JANET_EV_CHUNKSIZE : state->bytes_left;
-            memset(&(state->overlapped), 0, sizeof(OVERLAPPED));
+            memset(&(state->overlapped), 0, sizeof(JanetOverlapped));
             int status;
 #ifdef JANET_NET
             if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
@@ -2512,7 +2512,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                 state->wbuf.buf = (char *) state->chunk_buf;
                 state->fromlen = sizeof(state->from);
                 status = WSARecvFrom((SOCKET) stream->handle, &state->wbuf, 1,
-                                     NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
+                                     NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped.as.wsaoverlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(fiber, janet_ev_lasterr());
                     janet_async_end(fiber);
@@ -2523,9 +2523,9 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             {
                 /* Some handles (not all) read from the offset in lpOverlapped
                  * if its not set before calling `ReadFile` these streams will always read from offset 0 */
-                state->overlapped.Offset = (DWORD) state->bytes_read;
+                state->overlapped.as.overlapped.Offset = (DWORD) state->bytes_read;
 
-                status = ReadFile(stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
+                status = ReadFile(stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped.as.overlapped);
                 if (!status && (ERROR_IO_PENDING != GetLastError())) {
                     if (GetLastError() == ERROR_BROKEN_PIPE) {
                         if (state->bytes_read) {
@@ -2681,7 +2681,7 @@ typedef enum {
 
 typedef struct {
 #ifdef JANET_WINDOWS
-    OVERLAPPED overlapped;
+    JanetOverlapped overlapped;
     DWORD flags;
 #ifdef JANET_NET
     WSABUF wbuf;
@@ -2722,7 +2722,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_FAILED:
         case JANET_ASYNC_EVENT_COMPLETE: {
             /* Called when write finished */
-            uint32_t ev_bytes = (uint32_t) state->overlapped.InternalHigh;
+            uint32_t ev_bytes = (uint32_t) state->overlapped.bytes_transfered;
             if (ev_bytes == 0 && (state->mode != JANET_ASYNC_WRITEMODE_SENDTO)) {
                 janet_cancel(fiber, janet_cstringv("disconnect"));
                 janet_async_end(fiber);
@@ -2751,7 +2751,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 bytes = state->src.str;
                 len = janet_string_length(bytes);
             }
-            memset(&(state->overlapped), 0, sizeof(WSAOVERLAPPED));
+            memset(&(state->overlapped), 0, sizeof(JanetOverlapped));
 
             int status;
 #ifdef JANET_NET
@@ -2761,7 +2761,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 state->wbuf.len = len;
                 const struct sockaddr *to = state->dest_abst;
                 int tolen = (int) janet_abstract_size((void *) to);
-                status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
+                status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped.as.wsaoverlapped, NULL);
                 if (status) {
                     if (WSA_IO_PENDING == WSAGetLastError()) {
                         janet_async_in_flight(fiber);
@@ -2784,9 +2784,9 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                  * for more details see the lpOverlapped parameter in
                  * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
                  */
-                state->overlapped.Offset = (DWORD) 0xFFFFFFFF;
-                state->overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
-                status = WriteFile(stream->handle, bytes, len, NULL, &state->overlapped);
+                state->overlapped.as.overlapped.Offset = (DWORD) 0xFFFFFFFF;
+                state->overlapped.as.overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
+                status = WriteFile(stream->handle, bytes, len, NULL, &state->overlapped.as.overlapped);
                 if (!status) {
                     if (ERROR_IO_PENDING == GetLastError()) {
                         janet_async_in_flight(fiber);

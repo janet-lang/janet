@@ -203,6 +203,21 @@ char *get_processed_name(const char *name);
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
 #endif
 
+#ifdef JANET_EV
+#ifdef JANET_WINDOWS
+#include <winsock2.h>
+#include <windows.h>
+#include <io.h>
+typedef struct {
+    union {
+        OVERLAPPED overlapped;
+        WSAOVERLAPPED wsaoverlapped;
+    } as;
+    uint32_t bytes_transfered;
+} JanetOverlapped;
+#endif
+#endif
+
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);
 void janet_lib_math(JanetTable *env);

@@ -148,11 +148,10 @@
 
 # os/execute with empty environment
 # pr #1686
-# native MinGW can't find system DLLs without PATH and so fails
-(assert (= (if (and (= :mingw (os/which))
-                    (nil? (os/stat "C:\\windows\\system32\\wineboot.exe")))
-             -1073741515 0)
-           (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
+# native MinGW can't find system DLLs without PATH, SystemRoot, etc. and so fails
+# Also fails for address sanitizer builds on windows.
+(def result (os/execute [;run janet "-e" "(+ 1 2 3)"] :pe {}))
+(assert (or (= result -1073741515) (= result 0))
         "os/execute with minimal env")
 
 # os/execute regressions
