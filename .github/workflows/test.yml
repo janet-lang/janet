@@ -56,6 +56,27 @@ jobs:
         shell: cmd
         run: build_win dist
 
+  test-windows-sanitizers:
+    name: Build and test on Windows with sanitizers
+    strategy:
+      matrix:
+        os: [ windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@master
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Build the project
+        shell: cmd
+        run: set SANITIZE=1 & build_win
+      - name: Test the project
+        shell: cmd
+        run: build_win test
+      - name: Test installer build
+        shell: cmd
+        run: build_win dist
+
   test-windows-min:
     name: Build and test on Windows Minimal build
     strategy:

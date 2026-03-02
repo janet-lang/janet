@@ -39,6 +39,15 @@
 #ifndef JANET_WINDOWS
 #include <pthread.h>
 #endif
+#ifdef JANET_WINDOWS
+typedef struct {
+    union {
+        OVERLAPPED overlapped;
+        WSAOVERLAPPED wsaoverlapped;
+    } as;
+    uint32_t bytes_transfered;
+} JanetOverlapped;
+#endif
 #endif
 
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)

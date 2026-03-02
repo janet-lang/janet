@@ -182,6 +182,7 @@ struct JanetVM {
     JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;
+    void *connect_ex; /* MSWsock extension if available */
 #elif defined(JANET_EV_EPOLL)
     pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];

@@ -140,6 +140,12 @@ static int net_get_address_family(Janet x) {
 }
 
 /* State machine for async connect */
+#ifdef JANET_WINDOWS
+typedef struct NetStateConnect {
+    /* Only used for ConnectEx */
+    JanetOverlapped overlapped;
+};
+#endif
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetStream *stream = fiber->ev_stream;
@@ -159,15 +165,21 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
             return;
     }
 #ifdef JANET_WINDOWS
+    /* We should be using ConnectEx here */
     int res = 0;
     int size = sizeof(res);
-    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
+    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_CONNECT_TIME, (char *)&res, &size);
+    if (r == NO_ERROR && res == 0xFFFFFFFF) {
+        return; /* This apparently indicates we haven't yet gotten a connection */
+    }
+    const int no_error = NO_ERROR;
 #else
     int res = 0;
-    socklen_t size = sizeof res;
+    socklen_t size = sizeof(res);
     int r = getsockopt(stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+    const int no_error = 0;
 #endif
-    if (r == 0) {
+    if (r == no_error) {
         if (res == 0) {
             janet_schedule(fiber, janet_wrap_abstract(stream));
         } else {
@@ -181,8 +193,8 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     janet_async_end(fiber);
 }
 
-static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
-    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, NULL);
+static JANET_NO_RETURN void net_sched_connect(JanetStream *stream, void *state) {
+    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, state);
 }
 
 /* State machine for accepting connections. */
@@ -190,7 +202,7 @@ static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
 #ifdef JANET_WINDOWS
 
 typedef struct {
-    WSAOVERLAPPED overlapped;
+    JanetOverlapped overlapped;
     JanetFunction *function;
     JanetStream *lstream;
     JanetStream *astream;
@@ -253,7 +265,7 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
     Janet err;
     NetStateAccept *state = janet_malloc(sizeof(NetStateAccept));
-    memset(&state->overlapped, 0, sizeof(WSAOVERLAPPED));
+    memset(&state->overlapped, 0, sizeof(JanetOverlapped));
     memset(&state->buf, 0, 1024);
     state->function = fun;
     state->lstream = stream;
@@ -274,7 +286,7 @@ static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet
     JanetStream *astream = make_stream(asock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
     state->astream = astream;
     int socksize = sizeof(SOCKADDR_STORAGE) + 16;
-    if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped)) {
+    if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped.as.wsaoverlapped)) {
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) {
             /* indicates io is happening async */
@@ -572,11 +584,37 @@ JANET_CORE_FN(cfun_net_connect,
 
     /* Connect to socket */
 #ifdef JANET_WINDOWS
-    int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
-    int err = WSAGetLastError();
-    freeaddrinfo(ai);
-    /* Set up the socket for non-blocking IO after connecting on windows by default */
-    janet_net_socknoblock(sock);
+    int status = 0;
+    if (janet_vm.connect_ex && socktype == SOCK_STREAM) {
+        /* Prefer ConnecEx as it works well with overlapped IO. */
+        janet_net_socknoblock(sock);
+        NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
+        memset(state, 0, sizeof(NetStateConnect));
+        BOOL success = janet_vm.connect_ex(sock, addr, addrlen, NULL, 0, NULL, &state->overlapped.as.overlapped);
+        freeaddrinfo(ai);
+        if (success) {
+            /* Did not fail */
+        } else {
+            int err = WSAGetLastError();
+            if (err == ERROR_IO_PENDING) {
+                /* Did not actually fail yet */
+            } else {
+                janet_free(state);
+                Janet lasterr = janet_ev_lasterr();
+                janet_panicf("could not connect socket (ConnectEx): %V", lasterr);
+            }
+        }
+
+        net_sched_connect(stream, state);
+    } else {
+        /* Default to blocking connect if ConnectEx not available */
+        status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
+        int err = WSAGetLastError();
+        freeaddrinfo(ai);
+        /* Set up the socket for non-blocking IO after connecting on windows by default */
+        janet_net_socknoblock(sock);
+    }
+
 #else
     /* Set up the socket for non-blocking IO before connecting */
     janet_net_socknoblock(sock);
@@ -613,7 +651,7 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
-    net_sched_connect(stream);
+    net_sched_connect(stream, NULL);
 }
 
 JANET_CORE_FN(cfun_net_socket,
@@ -1213,6 +1251,19 @@ void janet_net_init(void) {
 #ifdef JANET_WINDOWS
     WSADATA wsaData;
     janet_assert(!WSAStartup(MAKEWORD(2, 2), &wsaData), "could not start winsock");
+    /* Get ConnectEx */
+    GUID guid = WSAID_CONNECTEX;
+    LPFN_CONNECTEX connect_ex_ptr = NULL;
+    DWORD byte_len = 0
+    int success = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
+                           (void*)&guid, sizeof(guid),
+                           (void*)&connect_ex_ptr, sizeof(ConnectExPtr),
+                           &byte_len, NULL, NULL);
+    if (success) {
+        janet_vm.connect_ex = connect_ex_ptr;
+    } else {
+        janet_vm.connect_ex = NULL;
+    }
 #endif
 }
 
