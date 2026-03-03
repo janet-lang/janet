@@ -23,15 +23,15 @@
 @rem set JANET_COMPILE=cl /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD /fsanitize=address /Zi
 @rem set JANET_LINK=link /nologo clang_rt.asan_dynamic-x86_64.lib clang_rt.asan_dynamic_runtime_thunk-x86_64.lib
 
-if not %CLANG% == "" (
+if DEFINED CLANG (
     @set COMPILER=clang-cl.exe
 ) else (
     @set COMPILER=cl.exe
 )
-if not %SANITIZE% == "" (
-    set SANITIZERS=/fsanitize=address,undefined
+if DEFINED SANITIZE (
+    @set "SANITIZERS=/fsanitize=address,undefined"
 ) else (
-    set SANITIZERS=
+    @set "SANITIZERS="
 )
 @set JANET_COMPILE=%COMPILER% /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD %SANITIZERS%
 @set JANET_LINK=link /nologo
