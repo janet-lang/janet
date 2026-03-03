@@ -326,7 +326,7 @@ static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uin
 #define FILE_INFO_PADDING (4096 * 4)
 
 typedef struct {
-    OVERLAPPED overlapped;
+    JanetOverlapped overlapped;
     JanetStream *stream;
     JanetWatcher *watcher;
     JanetFiber *fiber;
@@ -456,7 +456,7 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
     Janet pathv = janet_wrap_string(ow->dir_path);
     ow->flags = flags | watcher->default_flags;
     ow->watcher = watcher;
-    ow->overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL); /* Do we need this */
+    ow->overlapped.as.overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL); /* Do we need this */
     Janet streamv = janet_wrap_pointer(ow);
     janet_table_put(watcher->watch_descriptors, pathv, streamv);
     if (watcher->is_watching) {
