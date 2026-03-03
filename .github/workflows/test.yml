@@ -72,7 +72,7 @@ jobs:
         run: set SANITIZE=1 & build_win
       - name: Test the project
         shell: cmd
-        run: build_win test
+        run: set VERBOSE=1 & build_win test
       - name: Test installer build
         shell: cmd
         run: build_win dist
