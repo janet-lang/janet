@@ -141,10 +141,33 @@ static int net_get_address_family(Janet x) {
 
 /* State machine for async connect */
 #ifdef JANET_WINDOWS
+
 typedef struct NetStateConnect {
     /* Only used for ConnectEx */
     JanetOverlapped overlapped;
 } NetStateConnect;
+
+static LPFN_CONNECTEX lazy_get_connectex(JSock sock) {
+    /* Get ConnectEx */
+    if (janet_vm.connect_ex_loaded) {
+        return janet_vm.connect_ex;
+    }
+    GUID guid = WSAID_CONNECTEX;
+    LPFN_CONNECTEX connect_ex_ptr = NULL;
+    DWORD byte_len = 0;
+    int success = WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
+                           (void*)&guid, sizeof(guid),
+                           (void*)&connect_ex_ptr, sizeof(connect_ex_ptr),
+                           &byte_len, NULL, NULL);
+    if (success) {
+        janet_vm.connect_ex = connect_ex_ptr;
+    } else {
+        janet_vm.connect_ex = NULL;
+    }
+    janet_vm.connect_ex_loaded = 1;
+    return janet_vm.connect_ex;
+}
+
 #endif
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -586,12 +609,13 @@ JANET_CORE_FN(cfun_net_connect,
 #ifdef JANET_WINDOWS
     int status = 0;
     int err = 0;
-    if (janet_vm.connect_ex && socktype == SOCK_STREAM) {
+    LPFN_CONNECTEX connect_ex = NULL;
+    if (socktype == SOCK_STREAM && ((connect_ex = lazy_get_connectex(sock)))) {
         /* Prefer ConnecEx as it works well with overlapped IO. */
         janet_net_socknoblock(sock);
         NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
         memset(state, 0, sizeof(NetStateConnect));
-        BOOL success = janet_vm.connect_ex(sock, addr, addrlen, NULL, 0, NULL, &state->overlapped.as.overlapped);
+        BOOL success = connect_ex(sock, addr, addrlen, NULL, 0, NULL, &state->overlapped.as.overlapped);
         freeaddrinfo(ai);
         if (success) {
             /* Did not fail */
@@ -1252,19 +1276,8 @@ void janet_net_init(void) {
 #ifdef JANET_WINDOWS
     WSADATA wsaData;
     janet_assert(!WSAStartup(MAKEWORD(2, 2), &wsaData), "could not start winsock");
-    /* Get ConnectEx */
-    GUID guid = WSAID_CONNECTEX;
-    LPFN_CONNECTEX connect_ex_ptr = NULL;
-    DWORD byte_len = 0;
-    int success = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
-                           (void*)&guid, sizeof(guid),
-                           (void*)&connect_ex_ptr, sizeof(connect_ex_ptr),
-                           &byte_len, NULL, NULL);
-    if (success) {
-        janet_vm.connect_ex = connect_ex_ptr;
-    } else {
-        janet_vm.connect_ex = NULL;
-    }
+    janet_vm.connect_ex_loaded = 0;
+    janet_vm.connect_ex = NULL;
 #endif
 }
 
