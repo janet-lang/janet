@@ -144,7 +144,7 @@ static int net_get_address_family(Janet x) {
 typedef struct NetStateConnect {
     /* Only used for ConnectEx */
     JanetOverlapped overlapped;
-};
+} NetStateConnect;
 #endif
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -585,6 +585,7 @@ JANET_CORE_FN(cfun_net_connect,
     /* Connect to socket */
 #ifdef JANET_WINDOWS
     int status = 0;
+    int err = 0;
     if (janet_vm.connect_ex && socktype == SOCK_STREAM) {
         /* Prefer ConnecEx as it works well with overlapped IO. */
         janet_net_socknoblock(sock);
@@ -609,7 +610,7 @@ JANET_CORE_FN(cfun_net_connect,
     } else {
         /* Default to blocking connect if ConnectEx not available */
         status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
-        int err = WSAGetLastError();
+        err = WSAGetLastError();
         freeaddrinfo(ai);
         /* Set up the socket for non-blocking IO after connecting on windows by default */
         janet_net_socknoblock(sock);
@@ -1254,10 +1255,10 @@ void janet_net_init(void) {
     /* Get ConnectEx */
     GUID guid = WSAID_CONNECTEX;
     LPFN_CONNECTEX connect_ex_ptr = NULL;
-    DWORD byte_len = 0
+    DWORD byte_len = 0;
     int success = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
                            (void*)&guid, sizeof(guid),
-                           (void*)&connect_ex_ptr, sizeof(ConnectExPtr),
+                           (void*)&connect_ex_ptr, sizeof(connect_ex_ptr),
                            &byte_len, NULL, NULL);
     if (success) {
         janet_vm.connect_ex = connect_ex_ptr;
