@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
 - Documentation fixes
+- ev/thread-chan deadlock bug fixed
+- Re-add removed support for non-blocking net/connect on windows.
 
 ## 1.41.2 - 2026-02-18
 - Fix regressions in `put` for arrays and buffers.
