@@ -39,15 +39,6 @@
 #ifndef JANET_WINDOWS
 #include <pthread.h>
 #endif
-#ifdef JANET_WINDOWS
-typedef struct {
-    union {
-        OVERLAPPED overlapped;
-        WSAOVERLAPPED wsaoverlapped;
-    } as;
-    uint32_t bytes_transfered;
-} JanetOverlapped;
-#endif
 #endif
 
 #if !defined(JANET_REDUCED_OS) || !defined(JANET_SINGLE_THREADED)
@@ -210,6 +201,21 @@ char *get_processed_name(const char *name);
 #define RETRY_EINTR(RC, CALL) (RC) = CALL;
 #else
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
+#endif
+
+#ifdef JANET_EV
+#ifdef JANET_WINDOWS
+#include <winsock2.h>
+#include <windows.h>
+#include <io.h>
+typedef struct {
+    union {
+        OVERLAPPED overlapped;
+        WSAOVERLAPPED wsaoverlapped;
+    } as;
+    uint32_t bytes_transfered;
+} JanetOverlapped;
+#endif
 #endif
 
 /* Initialize builtin libraries */
