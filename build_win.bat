@@ -29,7 +29,7 @@ if DEFINED CLANG (
     @set COMPILER=cl.exe
 )
 if DEFINED SANITIZE (
-    @set "SANITIZERS=/fsanitize=address,undefined"
+    @set "SANITIZERS=/fsanitize=address"
 ) else (
     @set "SANITIZERS="
 )
