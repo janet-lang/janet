@@ -2512,7 +2512,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                 state->wbuf.buf = (char *) state->chunk_buf;
                 state->fromlen = sizeof(state->from);
                 status = WSARecvFrom((SOCKET) stream->handle, &state->wbuf, 1,
-                                     NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped, NULL);
+                                     NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped.as.wsaoverlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(fiber, janet_ev_lasterr());
                     janet_async_end(fiber);
@@ -2523,9 +2523,9 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             {
                 /* Some handles (not all) read from the offset in lpOverlapped
                  * if its not set before calling `ReadFile` these streams will always read from offset 0 */
-                state->overlapped.Offset = (DWORD) state->bytes_read;
+                state->overlapped.as.overlapped.Offset = (DWORD) state->bytes_read;
 
-                status = ReadFile(stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped);
+                status = ReadFile(stream->handle, state->chunk_buf, chunk_size, NULL, &state->overlapped.as.overlapped);
                 if (!status && (ERROR_IO_PENDING != GetLastError())) {
                     if (GetLastError() == ERROR_BROKEN_PIPE) {
                         if (state->bytes_read) {
@@ -2761,7 +2761,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                 state->wbuf.len = len;
                 const struct sockaddr *to = state->dest_abst;
                 int tolen = (int) janet_abstract_size((void *) to);
-                status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped, NULL);
+                status = WSASendTo(sock, &state->wbuf, 1, NULL, state->flags, to, tolen, &state->overlapped.as.wsaoverlapped, NULL);
                 if (status) {
                     if (WSA_IO_PENDING == WSAGetLastError()) {
                         janet_async_in_flight(fiber);
@@ -2784,9 +2784,9 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
                  * for more details see the lpOverlapped parameter in
                  * https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile
                  */
-                state->overlapped.Offset = (DWORD) 0xFFFFFFFF;
-                state->overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
-                status = WriteFile(stream->handle, bytes, len, NULL, &state->overlapped);
+                state->overlapped.as.overlapped.Offset = (DWORD) 0xFFFFFFFF;
+                state->overlapped.as.overlapped.OffsetHigh = (DWORD) 0xFFFFFFFF;
+                status = WriteFile(stream->handle, bytes, len, NULL, &state->overlapped.as.overlapped);
                 if (!status) {
                     if (ERROR_IO_PENDING == GetLastError()) {
                         janet_async_in_flight(fiber);
