@@ -55,7 +55,8 @@
   (file/flush f)
   (file/seek f :set 0)
   (assert (= 0 (file/tell f)) "start of file again")
-  (assert (= (string (file/read f :all)) "foo\n") "temp files work"))
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work")
+  (assert-no-error "fsync" (file/sync f)))
 
 # issue #1055 - 2c927ea76
 (let [b @""]
@@ -74,9 +75,13 @@
 (defn to-b [a] (buffer/push b a))
 (xprintf to-b "123")
 (assert (deep= b @"123\n") "xprintf to buffer")
-
-
 (assert-error "cannot print to 3" (xprintf 3 "123"))
+
+# file/sync
+(with [f (file/temp "wb")]
+  (file/write f "123abc")
+  (file/flush f)
+  (file/sync f))
 
 (end-suite)
 

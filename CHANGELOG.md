@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `file/sync` as a wrapper around fsync.
 - Documentation fixes
 - ev/thread-chan deadlock bug fixed
 - Re-add removed support for non-blocking net/connect on windows.

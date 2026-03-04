@@ -320,6 +320,41 @@ static int cfun_io_gc(void *p, size_t len) {
     return 0;
 }
 
+/* Cross-platform fsync binding for Janet */
+JANET_CORE_FN(cfun_io_fsync,
+              "(file/sync f)",
+              "Flushes all operating system buffers to disk for file `f`. Guarantees data is physically "
+              "written to disk in a platform-dependent way. Returns the file handle if successful, raises error if not.") {
+    janet_fixarity(argc, 1);
+    JanetFile *iof = janet_getabstract(argv, 0, &janet_file_type);
+    if (iof->flags & JANET_FILE_CLOSED)
+        janet_panic("file is closed");
+#ifdef JANET_WINDOWS
+    {
+        intptr_t fd = _fileno(iof->file);
+        if (fd < 0)
+            janet_panic("invalid file descriptor");
+        HANDLE hFile = (HANDLE)_get_osfhandle(fd);
+        if (hFile == INVALID_HANDLE_VALUE)
+            janet_panic("invalid file handle");
+        if (!FlushFileBuffers(hFile))
+            janet_panic("could not flush file buffers");
+    }
+#elif defined(_POSIX_VERSION)
+    {
+        int fd = fileno(iof->file);
+        if (fd < 0)
+            janet_panic("invalid file descriptor");
+        if (fsync(fd) != 0)
+            janet_panic("could not fsync file");
+    }
+#else
+    janet_panic("fsync not supported on this platform");
+#endif
+    return argv[0];
+}
+
+
 /* Close a file */
 JANET_CORE_FN(cfun_io_fclose,
               "(file/close f)",
@@ -394,6 +429,7 @@ static JanetMethod io_file_methods[] = {
     {"seek", cfun_io_fseek},
     {"tell", cfun_io_ftell},
     {"write", cfun_io_fwrite},
+    {"sync", cfun_io_fsync},
     {NULL, NULL}
 };
 
@@ -846,6 +882,7 @@ void janet_lib_io(JanetTable *env) {
         JANET_CORE_REG("file/flush", cfun_io_fflush),
         JANET_CORE_REG("file/seek", cfun_io_fseek),
         JANET_CORE_REG("file/tell", cfun_io_ftell),
+        JANET_CORE_REG("file/sync", cfun_io_fsync),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, io_cfuns);

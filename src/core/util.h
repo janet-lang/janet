@@ -213,7 +213,7 @@ typedef struct {
         OVERLAPPED overlapped;
         WSAOVERLAPPED wsaoverlapped;
     } as;
-    uint32_t bytes_transfered;
+    uint32_t bytes_transferred;
 } JanetOverlapped;
 #endif
 #endif
