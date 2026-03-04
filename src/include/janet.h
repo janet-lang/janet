@@ -1531,6 +1531,9 @@ JANET_API Janet janet_ev_lasterr(void);
  * We could just use a pointer but this prevents malloc/free in the common case
  * of only a handful of arguments. */
 typedef struct {
+#ifdef JANET_WINDOWS
+    char padding[48]; /* On windows, used for OVERLAPPED storage */
+#endif
     int tag;
     int argi;
     void *argp;
