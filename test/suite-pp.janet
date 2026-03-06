@@ -61,5 +61,68 @@
 (check-jdn "a string")
 (check-jdn @"a buffer")
 
+# Test multiline pretty specifiers
+(let [tup [:keyword "string" @"buffer"]
+      tab @{true (table/setproto @{:bar tup
+                                   :baz 42}
+                                 @{:_name "Foo"})}]
+  (set (tab tup) tab)
+  (assert (= (string/format "%m" {tup @[tup tab]
+                                  'symbol tup})
+          `
+{symbol (:keyword
+         "string"
+         @"buffer")
+ (:keyword
+  "string"
+  @"buffer") @[(:keyword
+                "string"
+                @"buffer")
+               @{true @Foo{:bar (:keyword
+                                 "string"
+                                 @"buffer")
+                           :baz 42}
+                 (:keyword
+                  "string"
+                  @"buffer") <cycle 2>}]}`))
+  (assert (= (string/format "%p" {(freeze (zipcoll (range 42)
+                                                   (range -42 0))) tab})
+             `
+{{0 -42
+  1 -41
+  2 -40
+  3 -39
+  4 -38
+  5 -37
+  6 -36
+  7 -35
+  8 -34
+  9 -33
+  10 -32
+  11 -31
+  12 -30
+  13 -29
+  14 -28
+  15 -27
+  16 -26
+  17 -25
+  18 -24
+  19 -23
+  20 -22
+  21 -21
+  22 -20
+  23 -19
+  24 -18
+  25 -17
+  26 -16
+  27 -15
+  28 -14
+  29 -13
+  ...} @{true @Foo{:bar (:keyword
+                         "string"
+                         @"buffer")
+                   :baz 42}
+         (:keyword
+          "string"
+          @"buffer") <cycle 1>}}`)))
 (end-suite)
-
