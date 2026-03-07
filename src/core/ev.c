@@ -1172,7 +1172,7 @@ JanetChannel *janet_channel_make(uint32_t limit) {
 JanetChannel *janet_channel_make_threaded(uint32_t limit) {
     janet_assert(limit <= INT32_MAX, "bad limit");
     JanetChannel *channel = janet_abstract_threaded(&janet_channel_type, sizeof(JanetChannel));
-    janet_chan_init(channel, (int32_t) limit, 0);
+    janet_chan_init(channel, (int32_t) limit, 1);
     return channel;
 }
 
