@@ -331,7 +331,7 @@ JANET_CORE_FN(cfun_io_fsync,
         janet_panic("file is closed");
 #ifdef JANET_WINDOWS
     {
-        intptr_t fd = _fileno(iof->file);
+        int fd = _fileno(iof->file);
         if (fd < 0)
             janet_panic("invalid file descriptor");
         HANDLE hFile = (HANDLE)_get_osfhandle(fd);

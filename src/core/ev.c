@@ -2262,8 +2262,8 @@ static DWORD WINAPI janet_thread_body(LPVOID ptr) {
                                             0,
                                             (LPOVERLAPPED) init);
     if (!result) {
-        Janet x = janet_formatv("failed to post completion event: %V", janet_ev_lasterr());
-        janet_assert(0, janet_unwrap_string(x));
+        JanetString x = janet_formatc("failed to post completion event: %V", janet_ev_lasterr());
+        janet_assert(0, (const char *)x);
     }
     return 0;
 }

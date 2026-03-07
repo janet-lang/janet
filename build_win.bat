@@ -29,14 +29,16 @@ if DEFINED CLANG (
     @set COMPILER=cl.exe
 )
 if DEFINED SANITIZE (
-    @set "SANITIZERS=/fsanitize=address"
+    @set "SANITIZERS=/fsanitize=address /Zi"
+    @set "LINK_SAN=/DEBUG"
 ) else (
     @set "SANITIZERS="
+    @set "LINK_SAN=/DEBUG"
 )
 @set JANET_COMPILE=%COMPILER% /nologo /Isrc\include /Isrc\conf /c /O2 /W3 /D_CRT_SECURE_NO_WARNINGS /MD %SANITIZERS%
-@set JANET_LINK=link /nologo
+@set JANET_LINK=link /nologo %LINK_SAN%
 
-@set JANET_LINK_STATIC=lib /nologo
+@set JANET_LINK_STATIC=lib /nologo %LINK_SAN%
 
 @rem Add janet build tag
 if not "%JANET_BUILD%" == "" (

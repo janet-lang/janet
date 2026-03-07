@@ -78,7 +78,7 @@
 (assert-error "cannot print to 3" (xprintf 3 "123"))
 
 # file/sync
-(with [f (file/temp "wb")]
+(with [f (file/temp)]
   (file/write f "123abc")
   (file/flush f)
   (file/sync f))
