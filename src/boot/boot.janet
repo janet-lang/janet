@@ -612,7 +612,7 @@
   "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
   [n & body]
   (with-syms [iter]
-    ~(do (var ,iter ,n) (while (> ,iter 0) ,;body (-- ,iter)))))
+    ~(do (var ,iter ,n) (while (,> ,iter 0) ,;body (as-macro ,-- ,iter)))))
 
 (defmacro forever
   "Evaluate body forever in a loop, or until a break statement."
