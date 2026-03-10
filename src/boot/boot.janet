@@ -4085,15 +4085,15 @@
     (defn make-ptr []
       (assertf (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find ffi symbol %v" raw-symbol))
     (if lazy
-      ~(defn ,alias ,;meta [,;formal-args]
+      ~(as-macro ,defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-      ~(defn ,alias ,;meta [,;formal-args]
+      ~(as-macro ,defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
   (defmacro ffi/defbind :flycheck
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
-    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
+    ~(as-macro ,ffi/defbind-alias ,name ,name ,ret-type ,;body)))
 
 ###
 ###
