@@ -2411,8 +2411,8 @@
       (dictionary? m) (merge-into metadata m)
       (error (string "invalid metadata " m))))
   (with-syms [entry old-entry f]
-    ~(let [,old-entry (,dyn ',name)]
-       (def ,entry (or ,old-entry @{:ref @[nil]}))
+    ~(as-macro ,let [,old-entry (,dyn ',name)]
+       (def ,entry (as-macro ,or ,old-entry @{:ref @[nil]}))
        (,setdyn ',name ,entry)
        (def ,f ,fbody)
        (,put-in ,entry [:ref 0] ,f)
