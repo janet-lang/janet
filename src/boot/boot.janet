@@ -698,14 +698,14 @@
   See `loop` for details.``
   [head key-body & value-body]
   (def $accum (gensym))
-  ~(do (def ,$accum @{}) (loop ,head (,put ,$accum ,key-body (do ,;value-body))) ,$accum))
+  ~(do (def ,$accum @{}) (as-macro ,loop ,head (,put ,$accum ,key-body (do ,;value-body))) ,$accum))
 
 (defmacro generate
   ``Create a generator expression using the `loop` syntax. Returns a fiber
   that yields all values inside the loop in order. See `loop` for details.``
   [head & body]
   (check-empty-body body)
-  ~(,fiber/new (fn :generate [] (loop ,head (yield (do ,;body)))) :yi))
+  ~(,fiber/new (fn :generate [] (as-macro ,loop ,head (,yield (do ,;body)))) :yi))
 
 (defmacro coro
   "A wrapper for making fibers that may yield multiple values (coroutine). Same as `(fiber/new (fn [] ;body) :yi)`."
