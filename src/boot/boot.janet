@@ -1432,7 +1432,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
-    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
+    ~(as-macro ,let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defmacro -?>>
@@ -1448,7 +1448,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
-    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
+    ~(as-macro ,let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defn- walk-ind [f form]
