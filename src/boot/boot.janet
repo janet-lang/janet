@@ -564,13 +564,13 @@
         (case binding
           :until ~(do (if ,verb (break) nil) ,rest)
           :while ~(do (if ,verb nil (break)) ,rest)
-          :let ~(let ,verb (do ,rest))
+          :let ~(as-macro ,let ,verb (do ,rest))
           :after ~(do ,rest ,verb nil)
           :before ~(do ,verb ,rest nil)
           :repeat (with-syms [iter]
-                    ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
-          :when ~(when ,verb ,rest)
-          :unless ~(unless ,verb ,rest)
+                    ~(do (var ,iter ,verb) (while (,> ,iter 0) ,rest (as-macro ,-- ,iter))))
+          :when ~(as-macro ,when ,verb ,rest)
+          :unless ~(as-macro ,unless ,verb ,rest)
           (error (string "unexpected loop modifier " binding))))))
 
   # 3 term expression
