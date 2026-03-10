@@ -708,7 +708,7 @@
   [head & body]
   (def $accum (gensym))
   (check-empty-body body)
-  ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (as-macro ,loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro catseq
   ``Similar to `loop`, but concatenates each element from the loop body into an array and returns that.
@@ -716,7 +716,7 @@
   [head & body]
   (def $accum (gensym))
   (check-empty-body body)
-  ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (as-macro ,loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
 
 (defmacro tabseq
   ``Similar to `loop`, but accumulates key value pairs into a table.
