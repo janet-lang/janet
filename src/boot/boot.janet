@@ -3953,7 +3953,7 @@
     ``
     [sec & body]
     (with-syms [f]
-      ~(let [,f (coro ,;body)]
+      ~(as-macro ,let [,f (as-macro ,coro ,;body)]
          (,ev/deadline ,sec nil ,f)
          (,resume ,f))))
 
