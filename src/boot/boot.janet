@@ -443,11 +443,36 @@
      (def ,binding ,ctor)
      ,(defer-impl :with [(or dtor :close) binding] body)))
 
+# declare ahead of time
+(var- macexvar nil)
+
+(defmacro if-let
+  ``Make multiple bindings, and if all are truthy,
+  evaluate the `tru` form. If any are false or nil, evaluate
+  the `fal` form. Bindings have the same syntax as the `let` macro.``
+  [bindings tru &opt fal]
+  (def len (length bindings))
+  (if (= 0 len) (error "expected at least 1 binding"))
+  (if (odd? len) (error "expected an even number of bindings"))
+  (def fal2 (if macexvar (macexvar fal) fal))
+  (defn aux [i]
+    (if (>= i len)
+      tru
+      (do
+        (def bl (in bindings i))
+        (def br (in bindings (+ 1 i)))
+        (if (symbol? bl)
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
+          ~(if (def ,(def sym (gensym)) ,br)
+             (do (def ,bl ,sym) ,(aux (+ 2 i)))
+             ,fal2)))))
+  (aux 0))
+
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
-  ~(if-let [,binding ,ctor]
+  ~(as-macro ,if-let [,binding ,ctor]
      ,(defer-impl :when-with [(or dtor :close) binding] body)))
 
 (defmacro if-with
@@ -455,7 +480,7 @@
   the falsey path. Otherwise, evaluates the truthy path. In both cases,
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
-  ~(if-let [,binding ,ctor]
+  ~(as-macro ,if-let [,binding ,ctor]
      ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
      ,falsey))
 
@@ -754,35 +779,10 @@
   (each x xs (*= accum x))
   accum)
 
-# declare ahead of time
-(var- macexvar nil)
-
-(defmacro if-let
-  ``Make multiple bindings, and if all are truthy,
-  evaluate the `tru` form. If any are false or nil, evaluate
-  the `fal` form. Bindings have the same syntax as the `let` macro.``
-  [bindings tru &opt fal]
-  (def len (length bindings))
-  (if (= 0 len) (error "expected at least 1 binding"))
-  (if (odd? len) (error "expected an even number of bindings"))
-  (def fal2 (if macexvar (macexvar fal) fal))
-  (defn aux [i]
-    (if (>= i len)
-      tru
-      (do
-        (def bl (in bindings i))
-        (def br (in bindings (+ 1 i)))
-        (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
-          ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i)))
-             ,fal2)))))
-  (aux 0))
-
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
   [bindings & body]
-  ~(if-let ,bindings (do ,;body)))
+  ~(as-macro ,if-let ,bindings (do ,;body)))
 
 (defn comp
   `Takes multiple functions and returns a function that is the composition
