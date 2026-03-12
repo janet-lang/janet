@@ -443,11 +443,36 @@
      (def ,binding ,ctor)
      ,(defer-impl :with [(or dtor :close) binding] body)))
 
+# declare ahead of time
+(var- macexvar nil)
+
+(defmacro if-let
+  ``Make multiple bindings, and if all are truthy,
+  evaluate the `tru` form. If any are false or nil, evaluate
+  the `fal` form. Bindings have the same syntax as the `let` macro.``
+  [bindings tru &opt fal]
+  (def len (length bindings))
+  (if (= 0 len) (error "expected at least 1 binding"))
+  (if (odd? len) (error "expected an even number of bindings"))
+  (def fal2 (if macexvar (macexvar fal) fal))
+  (defn aux [i]
+    (if (>= i len)
+      tru
+      (do
+        (def bl (in bindings i))
+        (def br (in bindings (+ 1 i)))
+        (if (symbol? bl)
+          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
+          ~(if (def ,(def sym (gensym)) ,br)
+             (do (def ,bl ,sym) ,(aux (+ 2 i)))
+             ,fal2)))))
+  (aux 0))
+
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
-  ~(if-let [,binding ,ctor]
+  ~(as-macro ,if-let [,binding ,ctor]
      ,(defer-impl :when-with [(or dtor :close) binding] body)))
 
 (defmacro if-with
@@ -455,7 +480,7 @@
   the falsey path. Otherwise, evaluates the truthy path. In both cases,
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
-  ~(if-let [,binding ,ctor]
+  ~(as-macro ,if-let [,binding ,ctor]
      ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
      ,falsey))
 
@@ -539,13 +564,13 @@
         (case binding
           :until ~(do (if ,verb (break) nil) ,rest)
           :while ~(do (if ,verb nil (break)) ,rest)
-          :let ~(let ,verb (do ,rest))
+          :let ~(as-macro ,let ,verb (do ,rest))
           :after ~(do ,rest ,verb nil)
           :before ~(do ,verb ,rest nil)
           :repeat (with-syms [iter]
-                    ~(do (var ,iter ,verb) (while (> ,iter 0) ,rest (-- ,iter))))
-          :when ~(when ,verb ,rest)
-          :unless ~(unless ,verb ,rest)
+                    ~(do (var ,iter ,verb) (while (,> ,iter 0) ,rest (as-macro ,-- ,iter))))
+          :when ~(as-macro ,when ,verb ,rest)
+          :unless ~(as-macro ,unless ,verb ,rest)
           (error (string "unexpected loop modifier " binding))))))
 
   # 3 term expression
@@ -587,7 +612,7 @@
   "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
   [n & body]
   (with-syms [iter]
-    ~(do (var ,iter ,n) (while (> ,iter 0) ,;body (-- ,iter)))))
+    ~(do (var ,iter ,n) (while (,> ,iter 0) ,;body (as-macro ,-- ,iter)))))
 
 (defmacro forever
   "Evaluate body forever in a loop, or until a break statement."
@@ -683,7 +708,7 @@
   [head & body]
   (def $accum (gensym))
   (check-empty-body body)
-  ~(do (def ,$accum @[]) (loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (as-macro ,loop ,head (,array/push ,$accum (do ,;body))) ,$accum))
 
 (defmacro catseq
   ``Similar to `loop`, but concatenates each element from the loop body into an array and returns that.
@@ -691,7 +716,7 @@
   [head & body]
   (def $accum (gensym))
   (check-empty-body body)
-  ~(do (def ,$accum @[]) (loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
+  ~(do (def ,$accum @[]) (as-macro ,loop ,head (,array/concat ,$accum (do ,;body))) ,$accum))
 
 (defmacro tabseq
   ``Similar to `loop`, but accumulates key value pairs into a table.
@@ -754,35 +779,10 @@
   (each x xs (*= accum x))
   accum)
 
-# declare ahead of time
-(var- macexvar nil)
-
-(defmacro if-let
-  ``Make multiple bindings, and if all are truthy,
-  evaluate the `tru` form. If any are false or nil, evaluate
-  the `fal` form. Bindings have the same syntax as the `let` macro.``
-  [bindings tru &opt fal]
-  (def len (length bindings))
-  (if (= 0 len) (error "expected at least 1 binding"))
-  (if (odd? len) (error "expected an even number of bindings"))
-  (def fal2 (if macexvar (macexvar fal) fal))
-  (defn aux [i]
-    (if (>= i len)
-      tru
-      (do
-        (def bl (in bindings i))
-        (def br (in bindings (+ 1 i)))
-        (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
-          ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i)))
-             ,fal2)))))
-  (aux 0))
-
 (defmacro when-let
   "Same as `(if-let bindings (do ;body))`."
   [bindings & body]
-  ~(if-let ,bindings (do ,;body)))
+  ~(as-macro ,if-let ,bindings (do ,;body)))
 
 (defn comp
   `Takes multiple functions and returns a function that is the composition
@@ -1432,7 +1432,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h sym] t))
-    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
+    ~(as-macro ,let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defmacro -?>>
@@ -1448,7 +1448,7 @@
                  (tuple n @[])))
     (def sym (gensym))
     (def parts (array/concat @[h] t @[sym]))
-    ~(let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
+    ~(as-macro ,let [,sym ,last] (if ,sym ,(keep-syntax! n parts))))
   (reduce fop x forms))
 
 (defn- walk-ind [f form]
@@ -2411,8 +2411,8 @@
       (dictionary? m) (merge-into metadata m)
       (error (string "invalid metadata " m))))
   (with-syms [entry old-entry f]
-    ~(let [,old-entry (,dyn ',name)]
-       (def ,entry (or ,old-entry @{:ref @[nil]}))
+    ~(as-macro ,let [,old-entry (,dyn ',name)]
+       (def ,entry (as-macro ,or ,old-entry @{:ref @[nil]}))
        (,setdyn ',name ,entry)
        (def ,f ,fbody)
        (,put-in ,entry [:ref 0] ,f)
@@ -3953,7 +3953,7 @@
     ``
     [sec & body]
     (with-syms [f]
-      ~(let [,f (coro ,;body)]
+      ~(as-macro ,let [,f (as-macro ,coro ,;body)]
          (,ev/deadline ,sec nil ,f)
          (,resume ,f))))
 
@@ -4085,15 +4085,15 @@
     (defn make-ptr []
       (assertf (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find ffi symbol %v" raw-symbol))
     (if lazy
-      ~(defn ,alias ,;meta [,;formal-args]
+      ~(as-macro ,defn ,alias ,;meta [,;formal-args]
          (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
-      ~(defn ,alias ,;meta [,;formal-args]
+      ~(as-macro ,defn ,alias ,;meta [,;formal-args]
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
   (defmacro ffi/defbind :flycheck
     "Generate bindings for native functions in a convenient manner."
     [name ret-type & body]
-    ~(ffi/defbind-alias ,name ,name ,ret-type ,;body)))
+    ~(as-macro ,ffi/defbind-alias ,name ,name ,ret-type ,;body)))
 
 ###
 ###
