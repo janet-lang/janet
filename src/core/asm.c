@@ -1110,6 +1110,7 @@ JANET_CORE_FN(cfun_disasm,
         if (!janet_cstrcmp(kw, "structarg")) return janet_disasm_structarg(f->def);
         if (!janet_cstrcmp(kw, "namedargs")) return janet_disasm_namedargs(f->def);
         if (!janet_cstrcmp(kw, "slotcount")) return janet_disasm_slotcount(f->def);
+        if (!janet_cstrcmp(kw, "symbolmap")) return janet_disasm_symbolslots(f->def);
         if (!janet_cstrcmp(kw, "constants")) return janet_disasm_constants(f->def);
         if (!janet_cstrcmp(kw, "sourcemap")) return janet_disasm_sourcemap(f->def);
         if (!janet_cstrcmp(kw, "environments")) return janet_disasm_environments(f->def);
