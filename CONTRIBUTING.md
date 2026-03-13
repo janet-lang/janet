@@ -90,3 +90,16 @@ timely manner. In short, if you want extra functionality now, then build it.
 
 * Include a good description of the problem that is being solved
 * Include descriptions of potential solutions if you have some in mind.
+
+## LLMs, Tool Usage, and Transparency
+
+All usage of Large Language Models (LLMs), Neural Networks, "AI" tools, and
+other tools such as software fuzzers or static analyzers must be disclosed.
+This applies both pull requests, email patches, bug reports, and any meaningful
+contribution to Janet's source code. Please also refrain from generative AI for
+large amounts code that will be embedded in the Janet runtime, which include
+all C source files as well as boot.janet All submitted code should be both
+understood and inspected by a human author, including test cases. Large and
+obviously AI driven changes will be rejected. Be mindful and transparent on the
+copyright implications of any submitted code. We will use discretion when
+accepting LLM or generated test cases for bug reproductions.
