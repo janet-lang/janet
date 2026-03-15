@@ -46,7 +46,6 @@
 (defn defmacro :macro :flycheck
   "Define a macro."
   [name & more]
-  (setdyn name @{}) # override old macro definitions in the case of a recursive macro
   (apply defn name :macro more))
 
 (defmacro as-macro
@@ -219,9 +218,9 @@
 
 (defmacro default
   ``Define a default value for an optional argument.
-  Expands to `(def sym (if (= nil sym) val sym))`.``
+  Expands to `(def sym :shadow (if (= nil sym) val sym))`.``
   [sym val]
-  ~(def ,sym (if (,= nil ,sym) ,val ,sym)))
+  ~(def ,sym :shadow (if (,= nil ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."

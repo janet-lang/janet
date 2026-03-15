@@ -404,7 +404,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
 }
 
 /* Def or var a symbol in a local scope */
-static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret, int no_unused) {
+static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret, uint32_t def_flags) {
     int isUnnamedRegister = !(ret.flags & JANET_SLOT_NAMED) &&
                             ret.index > 0 &&
                             ret.envindex >= 0;
@@ -425,11 +425,10 @@ static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, Janet
         ret = localslot;
     }
     ret.flags |= flags;
-    if ((c->scope->flags & JANET_SCOPE_TOP) || no_unused) {
-        janetc_nameslot_no_unused(c, head, ret);
-    } else {
-        janetc_nameslot(c, head, ret);
+    if (c->scope->flags & JANET_SCOPE_TOP) {
+        def_flags |= JANET_DEFFLAG_NO_UNUSED;
     }
+    janetc_nameslot(c, head, ret, def_flags);
     return !isUnnamedRegister;
 }
 
@@ -443,6 +442,7 @@ static int varleaf(
         JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
 
+        /* TODO - hoist to top level "compile" entry */
         int is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
 
         JanetArray *ref;
@@ -464,7 +464,11 @@ static int varleaf(
         return 1;
     } else {
         int no_unused = reftab && reftab->count && janet_truthy(janet_table_get_keyword(reftab, "unused"));
-        return namelocal(c, sym, JANET_SLOT_MUTABLE, s, no_unused);
+        int no_shadow = reftab && reftab->count && janet_truthy(janet_table_get_keyword(reftab, "shadow"));
+        uint32_t def_flags = 0;
+        if (no_unused) def_flags |= JANET_DEFFLAG_NO_UNUSED;
+        if (no_shadow) def_flags |= JANET_DEFFLAG_NO_SHADOWCHECK;
+        return namelocal(c, sym, JANET_SLOT_MUTABLE, s, def_flags);
     }
 }
 
@@ -505,8 +509,9 @@ static int defleaf(
     const uint8_t *sym,
     JanetSlot s,
     JanetTable *tab) {
+    JanetTable *entry = NULL;
     if (c->scope->flags & JANET_SCOPE_TOP) {
-        JanetTable *entry = janet_table_clone(tab);
+        entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
 
@@ -530,12 +535,18 @@ static int defleaf(
             JanetSlot tabslot = janetc_cslot(janet_wrap_table(entry));
             janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);
         }
-
-        /* Add env entry to env */
-        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
     }
     int no_unused = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "unused"));
-    return namelocal(c, sym, 0, s, no_unused);
+    int no_shadow = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "shadow"));
+    uint32_t def_flags = 0;
+    if (no_unused) def_flags |= JANET_DEFFLAG_NO_UNUSED;
+    if (no_shadow) def_flags |= JANET_DEFFLAG_NO_SHADOWCHECK;
+    int result = namelocal(c, sym, 0, s, def_flags);
+    if (entry) {
+        /* Add env entry to env AFTER namelocal to avoid the shadowcheck false positive */
+        janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
+    }
+    return result;
 }
 
 static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
@@ -1066,10 +1077,10 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
                     named_table = janet_table(10);
                     named_slot = janetc_farslot(c);
                 } else {
-                    janetc_nameslot(c, sym, janetc_farslot(c));
+                    janetc_nameslot(c, sym, janetc_farslot(c), 0);
                 }
             } else {
-                janetc_nameslot(c, sym, janetc_farslot(c));
+                janetc_nameslot(c, sym, janetc_farslot(c), 0);
             }
         } else {
             janet_v_push(destructed_params, janetc_farslot(c));
@@ -1118,7 +1129,8 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
             JanetSlot slot = janetc_farslot(c);
             slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
             janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
-            janetc_nameslot_no_unused(c, sym, slot);
+            /* TODO - be smarted about the shadowcheck */
+            janetc_nameslot(c, sym, slot, JANET_DEFFLAG_NO_UNUSED | JANET_DEFFLAG_NO_SHADOWCHECK);
         }
     }
 

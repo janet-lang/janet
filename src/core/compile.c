@@ -91,29 +91,28 @@ void janetc_freeslot(JanetCompiler *c, JanetSlot s) {
 }
 
 /* Add a slot to a scope with a symbol associated with it (def or var). */
-void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
+void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s, uint32_t flags) {
+    if (!(flags & JANET_DEFFLAG_NO_SHADOWCHECK)) {
+        if (sym[0] != '_') {
+            int check = janetc_shadowcheck(c, sym);
+            if (check == 2) {
+                janetc_lintf(c, JANET_C_LINT_NORMAL, "binding %q is shadowing a local binding", janet_wrap_symbol(sym));
+            } else if (check) {
+                janetc_lintf(c, JANET_C_LINT_NORMAL, "binding %q is shadowing a global binding", janet_wrap_symbol(sym));
+            }
+        }
+    }
     SymPair sp;
     int32_t cnt = janet_v_count(c->buffer);
     sp.sym = sym;
     sp.sym2 = sym;
     sp.slot = s;
     sp.keep = 0;
-    sp.referenced = sym[0] == '_'; /* Fake ref if symbol is _ to avoid lints */
-    sp.slot.flags |= JANET_SLOT_NAMED;
-    sp.birth_pc = cnt ? cnt - 1 : 0;
-    sp.death_pc = UINT32_MAX;
-    janet_v_push(c->scope->syms, sp);
-}
-
-/* Same as janetc_nameslot, but don't have a lint for unused bindings. */
-void janetc_nameslot_no_unused(JanetCompiler *c, const uint8_t *sym, JanetSlot s) {
-    SymPair sp;
-    int32_t cnt = janet_v_count(c->buffer);
-    sp.sym = sym;
-    sp.sym2 = sym;
-    sp.slot = s;
-    sp.keep = 0;
-    sp.referenced = 1;
+    if (flags & JANET_DEFFLAG_NO_UNUSED) {
+        sp.referenced = 1;
+    } else {
+        sp.referenced = sym[0] == '_'; /* Fake ref if symbol starts with _ to avoid lints */
+    }
     sp.slot.flags |= JANET_SLOT_NAMED;
     sp.birth_pc = cnt ? cnt - 1 : 0;
     sp.death_pc = UINT32_MAX;
@@ -258,6 +257,24 @@ static int lookup_missing(
     /* Alternative could use janet_resolve_ext(c->env, sym) to read result from environment. */
     *out = janet_binding_from_entry(tempOut);
     return 1;
+}
+
+/* Check if a binding is defined in an upper scope. This let's us check for
+ * variable shadowing. */
+int janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym) {
+    /* Check locals */
+    JanetScope *scope = c->scope;
+    while (scope) {
+        int32_t len = janet_v_count(scope->syms);
+        for (int32_t i = len - 1; i >= 0; i--) {
+            SymPair *pair = scope->syms + i;
+            if (pair->sym == sym) return 2;
+        }
+        scope = scope->parent;
+    }
+    /* Check globals */
+    JanetBinding binding = janet_resolve_ext(c->env, sym);
+    return binding.type != JANET_BINDING_NONE;
 }
 
 /* Allow searching for symbols. Return information about the symbol */

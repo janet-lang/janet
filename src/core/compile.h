@@ -221,9 +221,11 @@ const JanetFunOptimizer *janetc_funopt(uint32_t flags);
 /* Get a special. Return NULL if none exists */
 const JanetSpecial *janetc_special(const uint8_t *name);
 
+#define JANET_DEFFLAG_NO_SHADOWCHECK 1
+#define JANET_DEFFLAG_NO_UNUSED 2
+
 void janetc_freeslot(JanetCompiler *c, JanetSlot s);
-void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s);
-void janetc_nameslot_no_unused(JanetCompiler *c, const uint8_t *sym, JanetSlot s);
+void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s, uint32_t flags);
 JanetSlot janetc_farslot(JanetCompiler *c);
 
 /* Throw away some code after checking that it is well formed. */
@@ -267,8 +269,11 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c);
 /* Create a destroy slot */
 JanetSlot janetc_cslot(Janet x);
 
-/* Search for a symbol */
+/* Search for a symbol, and mark any found symbols as "used" for dead code elimintation and linting */
 JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
+
+/* Check if a symbol is already in scope for shadowing lints */
+int janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 
 /* Bytecode optimization */
 void janet_bytecode_movopt(JanetFuncDef *def);
