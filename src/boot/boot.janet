@@ -46,7 +46,6 @@
 (defn defmacro :macro :flycheck
   "Define a macro."
   [name & more]
-  (setdyn name @{}) # override old macro definitions in the case of a recursive macro
   (apply defn name :macro more))
 
 (defmacro as-macro
@@ -219,9 +218,9 @@
 
 (defmacro default
   ``Define a default value for an optional argument.
-  Expands to `(def sym (if (= nil sym) val sym))`.``
+  Expands to `(def sym :shadow (if (= nil sym) val sym))`.``
   [sym val]
-  ~(def ,sym (if (,= nil ,sym) ,val ,sym)))
+  ~(def ,sym :shadow (if (,= nil ,sym) ,val ,sym)))
 
 (defmacro comment
   "Ignores the body of the comment."
@@ -2675,17 +2674,17 @@
     (var resumeval nil)
     (def f
       (fiber/new
-        (fn []
+        (fn :compile-and-lint []
           (array/clear lints)
           (def res (compile source env where lints))
-          (unless (empty? lints)
+          (when (next lints)
             # Convert lint levels to numbers.
             (def levels (get env *lint-levels* lint-levels))
             (def lint-error (get env *lint-error*))
             (def lint-warning (get env *lint-warn*))
             (def lint-error (or (get levels lint-error lint-error) 0))
             (def lint-warning (or (get levels lint-warning lint-warning) 2))
-            (each [level line col msg] lints
+            (each [level line col msg] (distinct lints) # some macros might cause code to be duplicated. Avoid repeated messages.
               (def lvl (get lint-levels level 0))
               (cond
                 (<= lvl lint-error) (do

@@ -27,9 +27,11 @@
   (def line-info (string/format "%s:%d"
                               (frame :source) (frame :source-line)))
   (if x
-    (when is-verbose (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x))
+    (when is-verbose
+      (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x)
+      (eflush) (flush))
     (do
-      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush)))
+      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush) (flush)))
   x)
 
 (defn skip-asserts
@@ -38,7 +40,7 @@
   (+= skip-n n)
   nil)
 
-(defmacro assert
+(defmacro assert :shadow
   [x &opt e]
   (def xx (gensym))
   (default e (string/format "%j" x))
@@ -50,12 +52,12 @@
 (defmacro assert-error
   [msg & forms]
   (def errsym (keyword (gensym)))
-  ~(assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
+  ~(as-macro ,assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
 
 (defmacro assert-error-value
   [msg errval & forms]
   (def e (gensym))
-  ~(assert (= ,errval (try (do ,;forms) ([,e] ,e))) ,msg))
+  ~(as-macro ,assert (= ,errval (try (do ,;forms) ([,e] ,e))) ,msg))
 
 (defn check-compile-error
   [form]

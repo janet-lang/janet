@@ -138,13 +138,13 @@
 
 # Parser clone
 # 43520ac67
-(def p (parser/new))
-(assert (= 7 (parser/consume p "(1 2 3 ")) "parser 1")
-(def p2 (parser/clone p))
+(def p0 (parser/new))
+(assert (= 7 (parser/consume p0 "(1 2 3 ")) "parser 1")
+(def p2 (parser/clone p0))
 (parser/consume p2 ") 1 ")
-(parser/consume p ") 1 ")
-(assert (deep= (parser/status p) (parser/status p2)) "parser 2")
-(assert (deep= (parser/state p) (parser/state p2)) "parser 3")
+(parser/consume p0 ") 1 ")
+(assert (deep= (parser/status p0) (parser/status p2)) "parser 2")
+(assert (deep= (parser/state p0) (parser/state p2)) "parser 3")
 
 # Parser errors
 # 976dfc719
@@ -179,11 +179,11 @@
 (parser/consume p1 step1)
 (loop [_ :iterate (parser/produce p1)])
 (parser/state p1)
-(def p2 (parser/clone p1))
-(parser/state p2)
-(parser/consume p2 step2)
-(loop [_ :iterate (parser/produce p2)])
-(parser/state p2)
+(def p3 (parser/clone p1))
+(parser/state p3)
+(parser/consume p3 step2)
+(loop [_ :iterate (parser/produce p3)])
+(parser/state p3)
 
 # parser delimiter errors
 (defn test-error [delim fmt]
@@ -202,11 +202,11 @@
 (parser/consume p ")")
 (assert (= (parser/produce p) ["hello"]))
 
-(def p (parser/new))
-(parser/consume p `("hel`)
-(parser/insert p `lo`)
-(parser/consume p `")`)
-(assert (= (parser/produce p) ["hello"]))
+(def p4 (parser/new))
+(parser/consume p4 `("hel`)
+(parser/insert p4 `lo`)
+(parser/consume p4 `")`)
+(assert (= (parser/produce p4) ["hello"]))
 
 # Hex floats
 (assert (= math/pi +0x1.921fb54442d18p+0001))

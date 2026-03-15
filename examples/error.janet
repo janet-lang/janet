@@ -3,10 +3,10 @@
 
 (defn bork [x]
 
-  (defn bark [x]
+  (defn bark [y]
     (print "Woof!")
-    (print x)
-    (error x)
+    (print y)
+    (error y)
     (print "Woof!"))
 
   (bark (* 2 x))

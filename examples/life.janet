@@ -16,8 +16,8 @@
   (def cell-set (frequencies state))
   (def neighbor-set (frequencies (mapcat neighbors state)))
   (seq [coord :keys neighbor-set
-         :let [count (get neighbor-set coord)]
-         :when (or (= count 3) (and (get cell-set coord) (= count 2)))]
+         :let [ncount (get neighbor-set coord)]
+         :when (or (= ncount 3) (and (get cell-set coord) (= ncount 2)))]
       coord))
 
 (defn draw

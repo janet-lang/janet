@@ -70,9 +70,9 @@
 (assert (= (array/pop @[]) nil) "array/pop empty")
 
 # Code coverage
-(def a @[1])
-(array/pop a)
-(array/trim a)
+(def a1 @[1])
+(array/pop a1)
+(array/trim a1)
 (array/ensure @[1 1] 6 2)
 
 # array/join
