@@ -1120,6 +1120,7 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
     c->current_mapping.line = -1;
     c->current_mapping.column = -1;
     c->lints = lints;
+    c->is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
     /* Init result */
     c->result.error = NULL;
     c->result.status = JANET_COMPILE_OK;

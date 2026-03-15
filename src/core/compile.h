@@ -184,6 +184,9 @@ struct JanetCompiler {
 
     /* Collect linting results */
     JanetArray *lints;
+
+    /* Cached version of (dyn *redef*) */
+    int is_redef;
 };
 
 #define JANET_FOPTS_TAIL 0x10000

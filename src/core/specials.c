@@ -442,8 +442,7 @@ static int varleaf(
         JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
 
-        /* TODO - hoist to top level "compile" entry */
-        int is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
+        int is_redef = c->is_redef;
 
         JanetArray *ref;
         JanetBinding old_binding;
@@ -510,12 +509,13 @@ static int defleaf(
     JanetSlot s,
     JanetTable *tab) {
     JanetTable *entry = NULL;
+    int is_redef = 0;
     if (c->scope->flags & JANET_SCOPE_TOP) {
         entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
 
-        int is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
+        is_redef = c->is_redef;
         if (is_redef) janet_table_put(entry, janet_ckeywordv("redef"), janet_wrap_true());
 
         if (is_redef) {
@@ -537,7 +537,7 @@ static int defleaf(
         }
     }
     int no_unused = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "unused"));
-    int no_shadow = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "shadow"));
+    int no_shadow = is_redef || (tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "shadow")));
     uint32_t def_flags = 0;
     if (no_unused) def_flags |= JANET_DEFFLAG_NO_UNUSED;
     if (no_shadow) def_flags |= JANET_DEFFLAG_NO_SHADOWCHECK;
