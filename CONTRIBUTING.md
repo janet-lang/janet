@@ -108,6 +108,6 @@ all C source files as well as boot.janet. All code should be well
 and completely understood by the human author, including test cases. Large and
 obviously AI-driven changes will be rejected. Be mindful and transparent on the
 copyright implications of any submitted code. We will use discretion when
-accepting LLM or generated test cases for bug reproductions, one-line bug
+accepting generated test cases for bug reproductions, one-line bug
 fixes, or typo fixes. Often, these can be trivially rewritten by a human to
 avoid the problem.
