@@ -103,12 +103,11 @@ All usage of Large Language Models (LLMs), Neural Networks, "AI" tools, and
 other tools such as software fuzzers or static analyzers must be disclosed.
 This applies to pull requests, email patches, bug reports, and any other
 meaningful contribution to Janet's source code. Please also refrain from using
-generative AI for large amounts code that will be embedded in the Janet
-runtime, which include all C source files as well as boot.janet. "Large" means
-about 15 lines of C, and 5 lines of typically formatted Janet source code. All
-code should be well and completely understood by the human author, including
-test cases. Large and obviously AI-driven changes will be rejected. Be mindful
-and transparent on the copyright implications of any submitted code. We will
-use discretion when accepting LLM or generated test cases for bug
-reproductions, one-line bug fixes, or typo fixes. Often, these can be trivially
-rewritten to avoid the problem.
+generative AI for code that will be embedded in the Janet runtime, which include
+all C source files as well as boot.janet. All code should be well
+and completely understood by the human author, including test cases. Large and
+obviously AI-driven changes will be rejected. Be mindful and transparent on the
+copyright implications of any submitted code. We will use discretion when
+accepting LLM or generated test cases for bug reproductions, one-line bug
+fixes, or typo fixes. Often, these can be trivially rewritten by a human to
+avoid the problem.
