@@ -150,5 +150,10 @@
 (check-lint-compile '(g 1 2 :z) "g lint 1")
 (check-lint-compile '(g 1 2 :z 4 5) "g lint 2")
 
-(end-suite)
+# Variable shadowing linting
+(def outer1 "a")
+(check-lint-compile '(def outer1 "b") "shadow global-to-global")
+(check-lint-compile '(let [outer1 "b"] outer1) "shadow local-to-global")
+(check-lint-compile '(do (def x "b") (def x "c")) "shadow local-to-local")
 
+(end-suite)
