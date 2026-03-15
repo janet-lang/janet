@@ -1129,7 +1129,8 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
             JanetSlot slot = janetc_farslot(c);
             slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
             janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
-            /* TODO - be smarted about the shadowcheck */
+            /* We should figure out a better way to avoid `(def x 1) (def x :shadow (fn x [...] ...))` triggering a
+             * shadow lint for the last x */
             janetc_nameslot(c, sym, slot, JANET_DEFFLAG_NO_UNUSED | JANET_DEFFLAG_NO_SHADOWCHECK);
         }
     }
