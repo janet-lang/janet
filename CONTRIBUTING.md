@@ -37,6 +37,12 @@ may require changes before being merged.
   do this indentation, or approximate as close as possible. There is a janet formatter
   in [spork](https://github.com/janet-lang/spork.git) that can be used to format code as well.
 
+Bot pull requests will not be accepted, and anonymous submissions, including
+new accounts, unknown emails, and first time contributors will be subjected
+to greater scrutiny and code reivew. Automatically generated and filed bug
+reports MAY be ok, if they are of consistent and good quality, such as
+OSSFuzz or well constructed CI pipelines.
+
 ## C style
 
 For changes to the VM and Core code, you will probably need to know C. Janet is programmed with
@@ -90,3 +96,18 @@ timely manner. In short, if you want extra functionality now, then build it.
 
 * Include a good description of the problem that is being solved
 * Include descriptions of potential solutions if you have some in mind.
+
+## LLMs, Tool Usage, and Transparency
+
+All usage of Large Language Models (LLMs), Neural Networks, "AI" tools, and
+other tools such as software fuzzers or static analyzers must be disclosed.
+This applies to pull requests, email patches, bug reports, and any other
+meaningful contribution to Janet's source code. Please also refrain from using
+generative AI for code that will be embedded in the Janet runtime, which include
+all C source files as well as boot.janet. All code should be well
+and completely understood by the human author, including test cases. Large and
+obviously AI-driven changes will be rejected. Be mindful and transparent on the
+copyright implications of any submitted code. We will use discretion when
+accepting generated test cases for bug reproductions, one-line bug
+fixes, or typo fixes. Often, these can be trivially rewritten by a human to
+avoid the problem.
