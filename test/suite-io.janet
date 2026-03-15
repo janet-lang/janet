@@ -37,7 +37,7 @@
 
 # Printing to functions
 # 4e263b8c3
-(def out-buf @"")
+(def out-buf :shadow @"")
 (defn prepend [x]
   (with-dyns [:out out-buf]
     (prin "> " x)))
@@ -59,8 +59,8 @@
 
 # issue #1055 - 2c927ea76
 (let [b @""]
-  (defn dummy [a b c]
-    (+ a b c))
+  (defn dummy [a bb c]
+    (+ a bb c))
   (trace dummy)
   (defn errout [arg]
     (buffer/push b arg))

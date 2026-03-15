@@ -43,9 +43,9 @@
 (assert (deep= '(:error "deadline expired" nil) (ev/take super)) "deadline expirataion")
 
 # Another variant
-(def thread-channel (ev/thread-chan 100))
-(def super (ev/thread-chan 10))
-(defn worker []
+(def thread-channel :shadow (ev/thread-chan 100))
+(def super :shadow (ev/thread-chan 10))
+(defn worker :shadow []
   (while true
     (def item (ev/take thread-channel))
     (when (= item :deadline)

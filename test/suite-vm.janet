@@ -132,11 +132,11 @@
 
 # Cancel test
 # 28439d822
-(def f (fiber/new (fn [&] (yield 1) (yield 2) (yield 3) 4) :yti))
-(assert (= 1 (resume f)) "cancel resume 1")
-(assert (= 2 (resume f)) "cancel resume 2")
-(assert (= :hi (cancel f :hi)) "cancel resume 3")
-(assert (= :error (fiber/status f)) "cancel resume 4")
+(def fc (fiber/new (fn [&] (yield 1) (yield 2) (yield 3) 4) :yti))
+(assert (= 1 (resume fc)) "cancel resume 1")
+(assert (= 2 (resume fc)) "cancel resume 2")
+(assert (= :hi (cancel fc :hi)) "cancel resume 3")
+(assert (= :error (fiber/status fc)) "cancel resume 4")
 
 (end-suite)
 

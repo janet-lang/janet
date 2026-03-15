@@ -84,10 +84,10 @@
 
 # Substitution test with peg
 # d7626f8c5
-(def grammar '(accumulate (any (+ (/ "dog" "purple panda") (<- 1)))))
+(def grammar1 '(accumulate (any (+ (/ "dog" "purple panda") (<- 1)))))
 (defn try-grammar [text]
   (assert (= (string/replace-all "dog" "purple panda" text)
-             (0 (peg/match grammar text))) text))
+             (0 (peg/match grammar1 text))) text))
 
 (try-grammar "i have a dog called doug the dog. he is good.")
 (try-grammar "i have a dog called doug the dog. he is a good boy.")
@@ -336,7 +336,7 @@
 
 # unref
 # 96513665d
-(def grammar
+(def grammar2
   (peg/compile
     ~{:main (* :tagged -1)
       :tagged (unref (replace (* :open-tag :value :close-tag) ,struct))
@@ -344,9 +344,9 @@
       :value (* (constant :value) (group (any (+ :tagged :untagged))))
       :close-tag (* "</" (backmatch :tag-name) ">")
       :untagged (capture (any (if-not "<" 1)))}))
-(check-deep grammar "<p><em>foobar</em></p>"
+(check-deep grammar2 "<p><em>foobar</em></p>"
             @[{:tag "p" :value @[{:tag "em" :value @["foobar"]}]}])
-(check-deep grammar "<p>foobar</p>" @[{:tag "p" :value @["foobar"]}])
+(check-deep grammar2 "<p>foobar</p>" @[{:tag "p" :value @["foobar"]}])
 
 # Using a large test grammar
 # cf05ff610
@@ -369,7 +369,7 @@
   (def sym (symbol text))
   [(if (or (root-env sym) (specials sym)) :coresym :symbol) text])
 
-(def grammar
+(def grammar3
   ~{:ws (set " \v\t\r\f\n\0")
     :readermac (set "';~,")
     :symchars (+ (range "09" "AZ" "az" "\x80\xFF")
@@ -408,13 +408,13 @@
     :dict (* '"@" :struct)
     :main (+ :root (error ""))})
 
-(def p (peg/compile grammar))
+(def porig (peg/compile grammar3))
 
 # Just make sure is valgrind clean.
-(def p (-> p make-image load-image))
+(def pprime (-> porig make-image load-image))
 
-(assert (peg/match p "abc") "complex peg grammar 1")
-(assert (peg/match p "[1 2 3 4]") "complex peg grammar 2")
+(assert (peg/match pprime "abc") "complex peg grammar 1")
+(assert (peg/match pprime "[1 2 3 4]") "complex peg grammar 2")
 
 ###
 ### Compiling brainfuck to Janet.
@@ -565,8 +565,8 @@
         "peg/replace-all function")
 
 # 9dc7e8ed3
-(defn peg-test [name f peg subst text expected]
-  (assert (= (string (f peg subst text)) expected) name))
+(defn peg-test [name f pegg subst text expected]
+  (assert (= (string (f pegg subst text)) expected) name))
 
 (peg-test "peg/replace has access to captures"
           peg/replace
@@ -602,10 +602,10 @@
 
 # Marshal and unmarshal pegs
 # 446ab037b
-(def p (-> "abcd" peg/compile marshal unmarshal))
-(assert (peg/match p "abcd") "peg marshal 1")
-(assert (peg/match p "abcdefg") "peg marshal 2")
-(assert (not (peg/match p "zabcdefg")) "peg marshal 3")
+(def p3 (-> "abcd" peg/compile marshal unmarshal))
+(assert (peg/match p3 "abcd") "peg marshal 1")
+(assert (peg/match p3 "abcdefg") "peg marshal 2")
+(assert (not (peg/match p3 "zabcdefg")) "peg marshal 3")
 
 # to/thru bug
 # issue #971 - a895219d2
@@ -669,10 +669,10 @@
           (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
           @[]) "peg if not")
 
-(defn test [name peg input expected]
-  (assert-no-error "compile peg" (peg/compile peg))
-  (assert-no-error "marshal/unmarshal peg" (-> peg marshal unmarshal))
-  (assert (deep= (peg/match peg input) expected) name))
+(defn test [name pegg input expected]
+  (assert-no-error "compile peg" (peg/compile pegg))
+  (assert-no-error "marshal/unmarshal peg" (-> pegg marshal unmarshal))
+  (assert (deep= (peg/match pegg input) expected) name))
 
 (test "sub: matches the same input twice"
       ~(sub "abcd" "abc")
@@ -852,20 +852,20 @@
       @[["b" "b" "b"]])
 
 # Debug and ?? tests.
-(defn test-stderr [name peg input expected-matches expected-stderr]
+(defn test-stderr [name pegg input expected-matches expected-stderr]
   (with-dyns [:err @""]
-    (test name peg input expected-matches))
+    (test name pegg input expected-matches))
   (def actual @"")
   (with-dyns [:err actual *err-color* true]
-    (peg/match peg input))
+    (peg/match pegg input))
   (assert (deep= (string actual) expected-stderr)))
 
-(defn test-stderr-no-color [name peg input expected-matches expected-stderr]
+(defn test-stderr-no-color [name pegg input expected-matches expected-stderr]
   (with-dyns [:err @""]
-    (test name peg input expected-matches))
+    (test name pegg input expected-matches))
   (def actual @"")
   (with-dyns [:err actual *err-color* false]
-    (peg/match peg input))
+    (peg/match pegg input))
   (assert (deep= (string actual) expected-stderr)))
 
 (test-stderr

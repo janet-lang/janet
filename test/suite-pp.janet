@@ -44,8 +44,8 @@
 (def buftemp @"abcd")
 (assert (= (string (buffer/format buftemp "---%p---" buftemp))
            `abcd---@"abcd"---`) "buffer/format on self 1")
-(def buftemp @"abcd")
-(assert (= (string (buffer/format buftemp "---%p %p---" buftemp buftemp))
+(def buftemp2 @"abcd")
+(assert (= (string (buffer/format buftemp2 "---%p %p---" buftemp2 buftemp2))
            `abcd---@"abcd" @"abcd"---`) "buffer/format on self 2")
 
 # 5c364e0
