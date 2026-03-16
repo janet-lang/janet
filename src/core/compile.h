@@ -272,7 +272,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c);
 /* Create a destroy slot */
 JanetSlot janetc_cslot(Janet x);
 
-/* Search for a symbol, and mark any found symbols as "used" for dead code elimintation and linting */
+/* Search for a symbol, and mark any found symbols as "used" for dead code elimination and linting */
 JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
 /* Check if a symbol is already in scope for shadowing lints */

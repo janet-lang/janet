@@ -259,7 +259,7 @@ static int lookup_missing(
     return 1;
 }
 
-/* Check if a binding is defined in an upper scope. This let's us check for
+/* Check if a binding is defined in an upper scope. This lets us check for
  * variable shadowing. */
 int janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym) {
     /* Check locals */
