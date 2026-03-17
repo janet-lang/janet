@@ -36,6 +36,15 @@ typedef enum {
     JANET_C_LINT_STRICT
 } JanetCompileLintLevel;
 
+/* Kinds of variable shadowing for linting */
+typedef enum {
+    JANETC_SHADOW_NONE,
+    JANETC_SHADOW_MACRO,
+    JANETC_SHADOW_GLOBAL_HIDES_GLOBAL,
+    JANETC_SHADOW_LOCAL_HIDES_GLOBAL,
+    JANETC_SHADOW_LOCAL_HIDES_LOCAL
+} Shadowing;
+
 /* Tags for some functions for the prepared inliner */
 #define JANET_FUN_DEBUG 1
 #define JANET_FUN_ERROR 2
@@ -276,7 +285,7 @@ JanetSlot janetc_cslot(Janet x);
 JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 
 /* Check if a symbol is already in scope for shadowing lints */
-int janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
+Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 
 /* Bytecode optimization */
 void janet_bytecode_movopt(JanetFuncDef *def);

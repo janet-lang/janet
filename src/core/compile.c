@@ -94,11 +94,21 @@ void janetc_freeslot(JanetCompiler *c, JanetSlot s) {
 void janetc_nameslot(JanetCompiler *c, const uint8_t *sym, JanetSlot s, uint32_t flags) {
     if (!(flags & JANET_DEFFLAG_NO_SHADOWCHECK)) {
         if (sym[0] != '_') {
-            int check = janetc_shadowcheck(c, sym);
-            if (check == 2) {
-                janetc_lintf(c, JANET_C_LINT_NORMAL, "binding %q is shadowing a local binding", janet_wrap_symbol(sym));
-            } else if (check) {
-                janetc_lintf(c, JANET_C_LINT_NORMAL, "binding %q is shadowing a global binding", janet_wrap_symbol(sym));
+            switch (janetc_shadowcheck(c, sym)) {
+                default:
+                    break;
+                case JANETC_SHADOW_MACRO:
+                    janetc_lintf(c, JANET_C_LINT_NORMAL, "binding %q is shadowing a macro", janet_wrap_symbol(sym));
+                    break;
+                case JANETC_SHADOW_LOCAL_HIDES_LOCAL:
+                    janetc_lintf(c, JANET_C_LINT_STRICT, "binding %q is shadowing a binding", janet_wrap_symbol(sym));
+                    break;
+                case JANETC_SHADOW_LOCAL_HIDES_GLOBAL:
+                    janetc_lintf(c, JANET_C_LINT_STRICT, "binding %q is shadowing a top-level binding", janet_wrap_symbol(sym));
+                    break;
+                case JANETC_SHADOW_GLOBAL_HIDES_GLOBAL:
+                    janetc_lintf(c, JANET_C_LINT_STRICT, "top-level binding %q is shadowing another top-level binding", janet_wrap_symbol(sym));
+                    break;
             }
         }
     }
@@ -261,20 +271,34 @@ static int lookup_missing(
 
 /* Check if a binding is defined in an upper scope. This lets us check for
  * variable shadowing. */
-int janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym) {
+Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym) {
     /* Check locals */
     JanetScope *scope = c->scope;
+    int is_global = (scope->flags & JANET_SCOPE_TOP);
     while (scope) {
         int32_t len = janet_v_count(scope->syms);
         for (int32_t i = len - 1; i >= 0; i--) {
             SymPair *pair = scope->syms + i;
-            if (pair->sym == sym) return 2;
+            if (pair->sym == sym) {
+                janet_assert(!is_global, "shadowing analysis is incorrect. compiler bug");
+                return JANETC_SHADOW_LOCAL_HIDES_LOCAL;
+            }
         }
         scope = scope->parent;
     }
     /* Check globals */
     JanetBinding binding = janet_resolve_ext(c->env, sym);
-    return binding.type != JANET_BINDING_NONE;
+    if (binding.type == JANET_BINDING_MACRO || binding.type == JANET_BINDING_DYNAMIC_MACRO) {
+        return JANETC_SHADOW_MACRO;
+    } else if (binding.type == JANET_BINDING_NONE) {
+        return JANETC_SHADOW_NONE;
+    } else {
+        if (is_global) {
+            return JANETC_SHADOW_GLOBAL_HIDES_GLOBAL;
+        } else {
+            return JANETC_SHADOW_LOCAL_HIDES_GLOBAL;
+        }
+    }
 }
 
 /* Allow searching for symbols. Return information about the symbol */
