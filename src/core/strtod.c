@@ -49,6 +49,8 @@
 #include <math.h>
 #include <string.h>
 
+#define JANET_NUMBER_LENGTH_RIDICULOUS 0xFFFF
+
 /* Lookup table for getting values of characters when parsing numbers. Handles
  * digits 0-9 and a-z (and A-Z). A-Z have values of 10 to 35. */
 static uint8_t digit_lookup[128] = {
@@ -266,7 +268,7 @@ int janet_scan_number_base(
      * the decimal point, exponent could wrap around and become positive. It's
      * easier to reject ridiculously large inputs than to check for overflows.
      * */
-    if (len > INT32_MAX / 40) goto error;
+    if (len > JANET_NUMBER_LENGTH_RIDICULOUS) goto error;
 
     /* Get sign */
     if (str >= end) goto error;
@@ -410,10 +412,7 @@ static int scan_uint64(
     *neg = 0;
     *out = 0;
     uint64_t accum = 0;
-    /* len max is INT64_MAX in base 2 with _ between each bits */
-    /* '2r' + 64 bits + 63 _  + sign = 130 => 150 for some leading  */
-    /* zeros */
-    if (len > 150) return 0;
+    if (len > JANET_NUMBER_LENGTH_RIDICULOUS) return 0;
     /* Get sign */
     if (str >= end) return 0;
     if (*str == '-') {
