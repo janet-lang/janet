@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, ubuntu-24.04-latest, macos-latest, macos-14, macos-15-intel ]
+        os: [ ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-14, macos-15-intel ]
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
