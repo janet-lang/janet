@@ -16,6 +16,7 @@
 /* #define JANET_THREAD_LOCAL _Thread_local */
 /* #define JANET_NO_DYNAMIC_MODULES */
 /* #define JANET_NO_NANBOX */
+/* #define JANET_NANBOX_64_POINTER_SHIFT 0 */
 /* #define JANET_API __attribute__((visibility ("default"))) */
 
 /* These settings should be specified before amalgamation is

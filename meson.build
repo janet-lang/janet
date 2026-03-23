@@ -72,6 +72,9 @@ conf.set_quoted('JANET_VERSION', meson.project_version())
 # Use options
 conf.set_quoted('JANET_BUILD', get_option('git_hash'))
 conf.set('JANET_NO_NANBOX', not get_option('nanbox'))
+if get_option('nanbox_pointer_shift') != -1 # -1 is auto-detect
+  conf.set('JANET_NANBOX_64_POINTER_SHIFT', get_option('nanbox_pointer_shift'))
+endif
 conf.set('JANET_SINGLE_THREADED', get_option('single_threaded'))
 conf.set('JANET_NO_DYNAMIC_MODULES', not get_option('dynamic_modules'))
 conf.set('JANET_NO_DOCSTRINGS', not get_option('docstrings'))

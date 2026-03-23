@@ -29,7 +29,7 @@
 #endif
 
 /* Look up table for instructions */
-enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
+const enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_0, /* JOP_NOOP, */
     JINT_S, /* JOP_ERROR, */
     JINT_ST, /* JOP_TYPECHECK, */
