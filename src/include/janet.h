@@ -2082,12 +2082,8 @@ JANET_API Janet janet_resolve_core(const char *name);
  *
  * */
 
-#ifdef JANET_NANBOX_64
-#if JANET_NANBOX_64_POINTER_SHIFT != 0 && !defined(_MSC_VER)
+#if defined(JANET_NANBOX_64) && (JANET_NANBOX_64_POINTER_SHIFT != 0) && !defined(JANET_MSVC)
 #define JANET_CFUNCTION_ALIGN __attribute__((aligned(1 << JANET_NANBOX_64_POINTER_SHIFT)))
-#else
-#define JANET_CFUNCTION_ALIGN
-#endif
 #else
 #define JANET_CFUNCTION_ALIGN
 #endif
