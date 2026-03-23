@@ -325,7 +325,7 @@ extern "C" {
 #if (defined(_M_ARM64) || defined(__aarch64__)) && !defined(JANET_APPLE)
 /* All pointers, including function pointers, should be 4-byte aligned on aarch64 by default.
  * The exception is aarch64 macos, as it uses the same 47-bit userland address-space as on amd64. */
-#define JANET_NANBOX_64_POINTER_SHIFT 2
+#define JANET_NANBOX_64_POINTER_SHIFT 0 /* TODO - set me back to 2! (trying to trigger crash) */
 #endif
 #endif
 #endif
