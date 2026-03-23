@@ -2122,7 +2122,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 #define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
     static const int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
-    Janet __attribute__((aligned(4))) CNAME (int32_t argc, Janet *argv)
+    Janet JANET_CFUNCTION_ALIGN CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, DOC, __FILE__, __LINE__)
 
