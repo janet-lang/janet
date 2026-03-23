@@ -307,25 +307,38 @@ extern "C" {
  * architectures (Nanboxing only tested on x86 and x64), comment out
  * the JANET_NANBOX define.*/
 
-#if defined(_M_ARM64) || defined(_M_ARM) || defined(__aarch64__)
-#define JANET_NO_NANBOX
-#endif
-
 #ifndef JANET_NO_NANBOX
 #ifdef JANET_32
 #define JANET_NANBOX_32
-#elif defined(__x86_64__) || defined(_WIN64) || defined(__riscv)
+#elif defined(__x86_64__) || defined(_WIN64) || defined(__riscv) || defined(__aarch64__) || defined(_M_ARM64)
 /* We will only enable nanboxing by default on 64 bit systems
- * for x64 and risc-v. This is mainly because the approach is tied to the
+ * for x64, risc-v, and arm64. This is mainly because the approach is tied to the
  * implicit 47 bit address space. Many arches allow/require this, but not all,
- * and it requires cooperation from the OS. ARM should also work in many configurations. */
+ * and it requires cooperation from the OS. ARM should also work in many configurations by taking advantage
+ * of pointer alignment to allow for 48 or 49 bits of address space. */
 #define JANET_NANBOX_64
+
+/* Allow 64-bit nanboxing to assume aligned pointers to get back some extra bits for representation.
+ * This is needed to use nanboxing on systems with larger than 47-bit address spaces, such as many
+ * aarch64 systems. */
+#ifndef JANET_NANBOX_64_POINTER_SHIFT
+#if (defined(_M_ARM64) || defined(__aarch64__)) && !defined(JANET_APPLE)
+/* All pointers, including function pointers, should be 4-byte aligned on aarch64 by default.
+ * The exception is aarch64 macos, as it uses the same 47-bit userland address-space as on amd64. */
+#define JANET_NANBOX_64_POINTER_SHIFT 2
 #endif
+#endif
+#endif
+#endif
+
+/* Allow for custom pointer alignment as well */
+#if defined(JANET_NANBOX_64) && !defined(JANET_NANBOX_64_POINTER_SHIFT)
+#define JANET_NANBOX_64_POINTER_SHIFT 0
 #endif
 
 /* Runtime config constants */
 #ifdef JANET_NO_NANBOX
-#define JANET_NANBOX_BIT 0
+#define JANET_NANBOX_BIT 0x0
 #else
 #define JANET_NANBOX_BIT 0x1
 #endif
@@ -336,9 +349,16 @@ extern "C" {
 #define JANET_SINGLE_THREADED_BIT 0
 #endif
 
+#ifdef JANET_NANBOX_64_POINTER_SHIFT
+#define JANET_NANBOX_POINTER_SHIFT_BITS (JANET_NANBOX_64_POINTER_SHIFT ? (0x4 << JANET_NANBOX_64_POINTER_SHIFT) : 0)
+#else
+#define JANET_NANBOX_POINTER_SHIFT_BITS 0
+#endif
+
 #define JANET_CURRENT_CONFIG_BITS \
     (JANET_SINGLE_THREADED_BIT | \
-     JANET_NANBOX_BIT)
+     JANET_NANBOX_BIT | \
+     JANET_NANBOX_POINTER_SHIFT_BITS)
 
 /* Represents the settings used to compile Janet, as well as the version */
 typedef struct {
@@ -1415,7 +1435,7 @@ enum JanetOpCode {
 };
 
 /* Info about all instructions */
-extern enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
+extern const enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT];
 
 /***** END SECTION OPCODES *****/
 
@@ -2063,8 +2083,14 @@ JANET_API Janet janet_resolve_core(const char *name);
  *
  * */
 
+#if defined(JANET_NANBOX_64) && (JANET_NANBOX_64_POINTER_SHIFT != 0) && !defined(JANET_MSVC)
+#define JANET_CFUNCTION_ALIGN __attribute__((aligned(1 << JANET_NANBOX_64_POINTER_SHIFT)))
+#else
+#define JANET_CFUNCTION_ALIGN
+#endif
+
 /* Shorthand for janet C function declarations */
-#define JANET_CFUN(name) Janet name (int32_t argc, Janet *argv)
+#define JANET_CFUN(name) JANET_CFUNCTION_ALIGN Janet name (int32_t argc, Janet *argv)
 
 /* Declare a C function with documentation and source mapping */
 #define JANET_REG_END {NULL, NULL, NULL, NULL, 0}
@@ -2080,7 +2106,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 #define JANET_REG_S(JNAME, CNAME) {JNAME, CNAME, NULL, __FILE__, CNAME##_sourceline_}
 #define JANET_FN_S(CNAME, USAGE, DOCSTRING) \
     static const int32_t CNAME##_sourceline_ = __LINE__; \
-    Janet CNAME (int32_t argc, Janet *argv)
+    Janet JANET_CFUNCTION_ALIGN CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_S(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, NULL, __FILE__, __LINE__)
 
@@ -2088,7 +2114,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 #define JANET_REG_D(JNAME, CNAME) {JNAME, CNAME, CNAME##_docstring_, NULL, 0}
 #define JANET_FN_D(CNAME, USAGE, DOCSTRING) \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
-    Janet CNAME (int32_t argc, Janet *argv)
+    Janet JANET_CFUNCTION_ALIGN CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_D(ENV, JNAME, VAL, DOC) \
     janet_def(ENV, JNAME, VAL, DOC)
 
@@ -2097,7 +2123,7 @@ JANET_API Janet janet_resolve_core(const char *name);
 #define JANET_FN_SD(CNAME, USAGE, DOCSTRING) \
     static const int32_t CNAME##_sourceline_ = __LINE__; \
     static const char CNAME##_docstring_[] = USAGE "\n\n" DOCSTRING; \
-    Janet CNAME (int32_t argc, Janet *argv)
+    Janet JANET_CFUNCTION_ALIGN CNAME (int32_t argc, Janet *argv)
 #define JANET_DEF_SD(ENV, JNAME, VAL, DOC) \
     janet_def_sm(ENV, JNAME, VAL, DOC, __FILE__, __LINE__)
 

@@ -194,12 +194,18 @@ Janet janet_wrap_number_safe(double d) {
 
 void *janet_nanbox_to_pointer(Janet x) {
     x.i64 &= JANET_NANBOX_PAYLOADBITS;
+    x.u64 <<= JANET_NANBOX_64_POINTER_SHIFT; /* Alignment, usually 0 */
     return x.pointer;
 }
 
 Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
     Janet ret;
     ret.pointer = p;
+    /* Should be noop when pointer shift is 0 */
+    /*
+    janet_assert(!(ret.u64 & (uint64_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)), "unaligned pointer wrap");
+    */
+    ret.u64 >>= JANET_NANBOX_64_POINTER_SHIFT; /* Alignment, usually 0 */
     ret.u64 |= tagmask;
     return ret;
 }
@@ -207,6 +213,11 @@ Janet janet_nanbox_from_pointer(void *p, uint64_t tagmask) {
 Janet janet_nanbox_from_cpointer(const void *p, uint64_t tagmask) {
     Janet ret;
     ret.pointer = (void *)p;
+    /* Should be noop when pointer shift is 0 */
+    /*
+    janet_assert(!(ret.u64 & (uint64_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)), "unaligned pointer wrap");
+    */
+    ret.u64 >>= JANET_NANBOX_64_POINTER_SHIFT; /* Alignment, usually 0 */
     ret.u64 |= tagmask;
     return ret;
 }

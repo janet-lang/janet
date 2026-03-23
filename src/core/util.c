@@ -573,8 +573,24 @@ static char *namebuf_name(NameBuf *namebuf, const char *suffix) {
     return (char *)(namebuf->buf);
 }
 
+/* Add a little bit of safety when using nanboxing on arm. Instead of inserting run-time checks everywhere, we are
+ * only doing it during registration which has much less cost (1 shift and mask). */
+static void janet_check_pointer_align(void *p) {
+    (void) p;
+#if defined(JANET_NANBOX_64) && JANET_NANBOX_64_POINTER_SHIFT != 0
+    union {
+        void *p;
+        uintptr_t u;
+    } un;
+    un.p = p;
+    janet_assert(!(un.u & (uintptr_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
+        "unaligned pointer wrap - cfunction pointers and abstract types must be aligned with this nanboxing configuration.");
+#endif
+}
+
 void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) {
     while (cfuns->name) {
+        janet_check_pointer_align(cfuns->cfun);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         if (env) janet_def(env, cfuns->name, fun, cfuns->documentation);
         janet_registry_put(cfuns->cfun, cfuns->name, regprefix, NULL, 0);
@@ -584,6 +600,7 @@ void janet_cfuns(JanetTable *env, const char *regprefix, const JanetReg *cfuns) 
 
 void janet_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns) {
     while (cfuns->name) {
+        janet_check_pointer_align(cfuns->cfun);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         if (env) janet_def_sm(env, cfuns->name, fun, cfuns->documentation, cfuns->source_file, cfuns->source_line);
         janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);
@@ -595,6 +612,7 @@ void janet_cfuns_prefix(JanetTable *env, const char *regprefix, const JanetReg *
     NameBuf nb;
     if (env) namebuf_init(&nb, regprefix);
     while (cfuns->name) {
+        janet_check_pointer_align(cfuns->cfun);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         if (env) janet_def(env, namebuf_name(&nb, cfuns->name), fun, cfuns->documentation);
         janet_registry_put(cfuns->cfun, cfuns->name, regprefix, NULL, 0);
@@ -607,6 +625,7 @@ void janet_cfuns_ext_prefix(JanetTable *env, const char *regprefix, const JanetR
     NameBuf nb;
     if (env) namebuf_init(&nb, regprefix);
     while (cfuns->name) {
+        janet_check_pointer_align(cfuns->cfun);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         if (env) janet_def_sm(env, namebuf_name(&nb, cfuns->name), fun, cfuns->documentation, cfuns->source_file, cfuns->source_line);
         janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);
@@ -623,6 +642,7 @@ void janet_register(const char *name, JanetCFunction cfun) {
 /* Abstract type introspection */
 
 void janet_register_abstract_type(const JanetAbstractType *at) {
+    janet_check_pointer_align((void *) at);
     Janet sym = janet_csymbolv(at->name);
     Janet check = janet_table_get(janet_vm.abstract_registry, sym);
     if (!janet_checktype(check, JANET_NIL) && at != janet_unwrap_pointer(check)) {
@@ -655,6 +675,7 @@ void janet_core_def_sm(JanetTable *env, const char *name, Janet x, const void *p
 void janet_core_cfuns_ext(JanetTable *env, const char *regprefix, const JanetRegExt *cfuns) {
     (void) regprefix;
     while (cfuns->name) {
+        janet_check_pointer_align(cfuns->cfun);
         Janet fun = janet_wrap_cfunction(cfuns->cfun);
         janet_table_put(env, janet_csymbolv(cfuns->name), fun);
         janet_registry_put(cfuns->cfun, cfuns->name, regprefix, cfuns->source_file, cfuns->source_line);

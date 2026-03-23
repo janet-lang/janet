@@ -70,7 +70,7 @@ JanetModule janet_native(const char *name, const uint8_t **error) {
             host.minor != modconf.minor ||
             host.bits != modconf.bits) {
         char errbuf[128];
-        snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x)",
+        snprintf(errbuf, sizeof(errbuf), "config mismatch - host %d.%.d.%d(%.4x) vs. module %d.%d.%d(%.4x) - native needs to be recompiled!",
                  host.major,
                  host.minor,
                  host.patch,
