@@ -322,8 +322,9 @@ extern "C" {
  * This is needed to use nanboxing on systems with larger than 47-bit address spaces, such as many
  * aarch64 systems. */
 #ifndef JANET_NANBOX_64_POINTER_SHIFT
-#if defined(_M_ARM64) || defined(__aarch64__)
-/* All pointers, including function pointers, should be 4-byte aligned on aarch64 by default */
+#if (defined(_M_ARM64) || defined(__aarch64__)) && !defined(JANET_APPLE)
+/* All pointers, including function pointers, should be 4-byte aligned on aarch64 by default.
+ * The exception is aarch64 macos, as it uses the same 47-bit userland address-space as on amd64. */
 #define JANET_NANBOX_64_POINTER_SHIFT 2
 #endif
 #endif
