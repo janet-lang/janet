@@ -1962,7 +1962,7 @@ void janet_stream_level_triggered(JanetStream *stream) {
     janet_register_stream_impl(stream, 0);
 }
 
-#define JANET_KQUEUE_MAX_EVENTS 64
+#define JANET_KQUEUE_MAX_EVENTS 512
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     /* Poll for events */
@@ -2026,6 +2026,7 @@ void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
 
 void janet_ev_init(void) {
     janet_ev_init_common();
+    /* TODO - replace selfpipe with EVFILT_USER (or other events) */
     janet_ev_setup_selfpipe();
     janet_vm.kq = kqueue();
     janet_vm.timer_enabled = 0;

@@ -38,6 +38,13 @@
 #include <windows.h>
 #endif
 
+#if defined(JANET_APPLE) || defined(JANET_BSD)
+#include <sys/event.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
 typedef struct {
     const char *name;
     uint32_t flag;
@@ -89,7 +96,7 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
                                            sizeof(JanetWatchFlagName),
                                            keyw);
         if (!result) {
-            janet_panicf("unknown inotify flag %v", options[i]);
+            janet_panicf("unknown linux flag %v", options[i]);
         }
         flags |= result->flag;
     }
@@ -128,8 +135,11 @@ static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t 
 
 static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     if (watcher->stream == NULL) janet_panic("watcher closed");
-    Janet check = janet_table_get(watcher->watch_descriptors, janet_cstringv(path));
-    janet_assert(janet_checktype(check, JANET_NUMBER), "bad watch descriptor");
+    Janet pathv = janet_cstringv(path);
+    Janet check = janet_table_get(watcher->watch_descriptors, pathv);
+    if (!janet_checktype(check, JANET_NUMBER)) {
+        janet_panic("bad watch descriptor");
+    }
     int watch_handle = janet_unwrap_integer(check);
     int result;
     do {
@@ -138,6 +148,10 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     if (result == -1) {
         janet_panicv(janet_ev_lasterr());
     }
+    /*
+    janet_table_put(watcher->watch_descriptors, pathv, janet_wrap_nil());
+    janet_table_put(watcher->watch_descriptors, janet_wrap_integer(watch_handle), janet_wrap_nil());
+    */
 }
 
 static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -500,6 +514,254 @@ static void janet_watcher_unlisten(JanetWatcher *watcher) {
     janet_gcunroot(janet_wrap_abstract(watcher));
 }
 
+#elif defined(JANET_APPLE) || defined(JANET_BSD)
+
+/* kqueue implementation */
+
+/* Cribbed from ev.c */
+#define EV_SETx(ev, a, b, c, d, e, f) EV_SET((ev), (a), (b), (c), (d), (e), ((__typeof__((ev)->udata))(f)))
+
+/* Different BSDs define different NOTE_* constants for different kinds of events. Use ifdef to
+   determine when they are available (assuming they are defines and not enums */
+static const JanetWatchFlagName watcher_flags_kqueue[] = {
+    {
+        "all", NOTE_ATTRIB | NOTE_DELETE | NOTE_EXTEND | NOTE_RENAME | NOTE_REVOKE | NOTE_WRITE | NOTE_LINK
+#ifdef NOTE_CLOSE
+        | NOTE_CLOSE
+#endif
+#ifdef NOTE_CLOSE_WRITE
+        | NOTE_CLOSE_WRITE
+#endif
+#ifdef NOTE_OPEN
+        | NOTE_OPEN
+#endif
+#ifdef NOTE_READ
+        | NOTE_READ
+#endif
+#ifdef NOTE_FUNLOCK
+        | NOTE_FUNLOCK
+#endif
+#ifdef NOTE_TRUNCATE
+        | NOTE_TRUNCATE
+#endif
+    },
+    {"attrib", NOTE_ATTRIB},
+#ifdef NOTE_CLOSE
+    {"close", NOTE_CLOSE},
+#endif
+#ifdef NOTE_CLOSE_WRITE
+    {"close-write", NOTE_CLOSE_WRITE},
+#endif
+    {"delete", NOTE_DELETE},
+    {"extend", NOTE_EXTEND},
+#ifdef NOTE_FUNLOCK
+    {"funlock", NOTE_FUNLOCK},
+#endif
+    {"link", NOTE_LINK},
+#ifdef NOTE_OPEN
+    {"open", NOTE_OPEN},
+#endif
+#ifdef NOTE_READ
+    {"read", NOTE_READ},
+#endif
+    {"rename", NOTE_RENAME},
+    {"revoke", NOTE_REVOKE},
+#ifdef NOTE_TRUNCATE
+    {"truncate", NOTE_TRUNCATE},
+#endif
+    {"write", NOTE_WRITE},
+};
+
+static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
+    uint32_t flags = 0;
+    for (int32_t i = 0; i < n; i++) {
+        if (!(janet_checktype(options[i], JANET_KEYWORD))) {
+            janet_panicf("expected keyword, got %v", options[i]);
+        }
+        JanetKeyword keyw = janet_unwrap_keyword(options[i]);
+        const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_kqueue,
+                                           sizeof(watcher_flags_kqueue) / sizeof(JanetWatchFlagName),
+                                           sizeof(JanetWatchFlagName),
+                                           keyw);
+        if (!result) {
+            janet_panicf("unknown bsd flag %v", options[i]);
+        }
+        flags |= result->flag;
+    }
+    return flags;
+}
+
+static void janet_watcher_init(JanetWatcher *watcher, JanetChannel *channel, uint32_t default_flags) {
+    int kq = kqueue();
+    watcher->watch_descriptors = janet_table(0);
+    watcher->channel = channel;
+    watcher->default_flags = default_flags;
+    watcher->is_watching = 0;
+    watcher->stream = janet_stream(kq, JANET_STREAM_READABLE, NULL);
+    janet_stream_level_triggered(watcher->stream);
+}
+
+static void janet_watcher_add(JanetWatcher *watcher, const char *path, uint32_t flags) {
+    if (watcher->stream == NULL) janet_panic("watcher closed");
+    int kq = watcher->stream->handle;
+    struct kevent kev = {0};
+    /* Get file descriptor for path */
+    int file_fd;
+    do {
+        file_fd = open(path, O_RDONLY);
+    } while (file_fd == -1 && errno == EINTR);
+    if (file_fd == -1) {
+        janet_panicf("failed to open: %v", janet_ev_lasterr());
+    }
+    /* Watch for EVFILT_VNODE on the file descriptor */
+    EV_SETx(&kev, file_fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_CLEAR, flags, 0, NULL);
+    int status;
+    do {
+        status = kevent(kq, &kev, 1, NULL, 0, NULL);
+    } while (status == -1 && errno == EINTR);
+    if (status == -1) {
+        close(file_fd);
+        janet_panicf("failed to listen: %v", janet_ev_lasterr());
+    }
+    /* Bookkeeping */
+    Janet name = janet_cstringv(path);
+    Janet wd = janet_wrap_integer(file_fd);
+    janet_table_put(watcher->watch_descriptors, name, wd);
+    janet_table_put(watcher->watch_descriptors, wd, name);
+}
+
+static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
+    if (watcher->stream == NULL) janet_panic("watcher closed");
+    Janet pathv = janet_cstringv(path);
+    Janet check = janet_table_get(watcher->watch_descriptors, pathv);
+    if (!janet_checktype(check, JANET_NUMBER)) {
+        janet_panic("bad watch descriptor");
+    }
+    /* Closing the file descriptor will also remove it from the kqueue */
+    int wd = janet_unwrap_integer(check);
+    int result;
+    do {
+        result = close(wd);
+    } while (result != -1 && errno == EINTR);
+    if (result == -1) {
+        janet_panicv(janet_ev_lasterr());
+    }
+    janet_table_put(watcher->watch_descriptors, pathv, janet_wrap_nil());
+    janet_table_put(watcher->watch_descriptors, janet_wrap_integer(wd), janet_wrap_nil());
+}
+
+typedef struct {
+    JanetWatcher *watcher;
+    uint32_t cookie;
+} KqueueWatcherState;
+
+static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
+    JanetStream *stream = fiber->ev_stream;
+    KqueueWatcherState *state = fiber->ev_state;
+    JanetWatcher *watcher = state->watcher;
+    switch (event) {
+        case JANET_ASYNC_EVENT_MARK:
+            janet_mark(janet_wrap_abstract(watcher));
+            break;
+        case JANET_ASYNC_EVENT_CLOSE:
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            break;
+        case JANET_ASYNC_EVENT_ERR: {
+            janet_schedule(fiber, janet_wrap_nil());
+            janet_async_end(fiber);
+            break;
+        }
+        case JANET_ASYNC_EVENT_HUP:
+        case JANET_ASYNC_EVENT_INIT:
+            break;
+        case JANET_ASYNC_EVENT_READ: {
+            /* Pump events from the sub kqueue */
+            const int num_events = 512; /* Extra will be pumped after another event loop rotation. */
+            struct kevent events[num_events];
+            int kq = stream->handle;
+            int status;
+            do {
+                status = kevent(kq, NULL, 0, events, num_events, NULL);
+            } while (status == -1 && errno == EINTR);
+            if (status == -1) {
+                janet_schedule(fiber, janet_wrap_nil());
+                janet_async_end(fiber);
+                break;
+            }
+            for (int i = 0; i < status; i++) {
+                state->cookie += 6700417;
+                struct kevent kev = events[i];
+                /* TODO - avoid stat call here, maybe just when adding listener? */
+                struct stat stat_buf = {0};
+                int status;
+                do {
+                    status = fstat(kev.ident, &stat_buf);
+                } while (status == -1 && errno == EINTR);
+                if (status == -1) continue;
+                int is_dir = S_ISDIR(stat_buf.st_mode);
+                Janet ident = janet_wrap_integer(kev.ident);
+                Janet path = janet_table_get(watcher->watch_descriptors, ident);
+                for (unsigned int j = 1; j < (sizeof(watcher_flags_kqueue) / sizeof(watcher_flags_kqueue[0])); j++) {
+                    uint32_t flagcheck = watcher_flags_kqueue[j].flag;
+                    if (kev.fflags & flagcheck) {
+                        JanetKV *event = janet_struct_begin(6);
+                        janet_struct_put(event, janet_ckeywordv("wd"), ident);
+                        janet_struct_put(event, janet_ckeywordv("wd-path"), path);
+                        janet_struct_put(event, janet_ckeywordv("cookie"), janet_wrap_number((double) state->cookie));
+                        janet_struct_put(event, janet_ckeywordv("type"), janet_ckeywordv(watcher_flags_kqueue[j].name));
+                        if (is_dir) {
+                            /* Pass in directly */
+                            janet_struct_put(event, janet_ckeywordv("file-name"), janet_cstringv(""));
+                            janet_struct_put(event, janet_ckeywordv("dir-name"), path);
+                        } else {
+                            /* Split path */
+                            JanetString spath = janet_unwrap_string(path);
+                            const uint8_t *cursor = spath + janet_string_length(spath);
+                            const uint8_t *cursor_end = cursor;
+                            while (cursor > spath && cursor[0] != '/') {
+                                cursor--;
+                            }
+                            if (cursor == spath) {
+                                /* No path separators */
+                                janet_struct_put(event, janet_ckeywordv("dir-name"), janet_cstringv("."));
+                                janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(spath));
+                            } else {
+                                /* Found path separator */
+                                janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(janet_string(spath, (cursor - spath))));
+                                janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(janet_string(cursor + 1, (cursor_end - cursor - 1))));
+                            }
+                        }
+                        Janet eventv = janet_wrap_struct(janet_struct_end(event));
+                        janet_channel_give(watcher->channel, eventv);
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+static void janet_watcher_listen(JanetWatcher *watcher) {
+    if (watcher->is_watching) janet_panic("already watching");
+    watcher->is_watching = 1;
+    JanetFunction *thunk = janet_thunk_delay(janet_wrap_nil());
+    JanetFiber *fiber = janet_fiber(thunk, 64, 0, NULL);
+    KqueueWatcherState *state = janet_malloc(sizeof(KqueueWatcherState));
+    state->watcher = watcher;
+    janet_async_start_fiber(fiber, watcher->stream, JANET_ASYNC_LISTEN_READ, watcher_callback_read, state);
+    janet_gcroot(janet_wrap_abstract(watcher));
+}
+
+static void janet_watcher_unlisten(JanetWatcher *watcher) {
+    if (!watcher->is_watching) return;
+    watcher->is_watching = 0;
+    janet_stream_close(watcher->stream);
+    janet_gcunroot(janet_wrap_abstract(watcher));
+}
+
 #else
 
 /* Default implementation */
@@ -582,10 +844,10 @@ JANET_CORE_FN(cfun_filewatch_make,
               "* `:dir-name` -- the directory name of the file that triggered the event.\n\n"
               "Events also will contain keys specific to the host OS.\n\n"
               "Windows has no extra properties on events.\n\n"
-              "Linux has the following extra properties on events:\n\n"
-              "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this.\n\n"
+              "Linux and the BSDs have the following extra properties on events:\n\n"
+              "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this. This is a file descriptor integer on BSD and macos.\n\n"
               "* `:wd-path` -- the string path for watched directory of file. For files, will be the same as `:file-name`, and for directories, will be the same as `:dir-name`.\n\n"
-              "* `:cookie` -- a randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
+              "* `:cookie` -- a semi-randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
               "") {
     janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, -1);
@@ -600,6 +862,7 @@ JANET_CORE_FN(cfun_filewatch_add,
               "(filewatch/add watcher path flag & more-flags)",
               "Add a path to the watcher. Available flags depend on the current OS, and are as follows:\n\n"
               "Windows/MINGW (flags correspond to `FILE_NOTIFY_CHANGE_*` flags in win32 documentation):\n\n"
+              "FLAGS\n\n"
               "* `:all` - trigger an event for all of the below triggers.\n\n"
               "* `:attributes` - `FILE_NOTIFY_CHANGE_ATTRIBUTES`\n\n"
               "* `:creation` - `FILE_NOTIFY_CHANGE_CREATION`\n\n"
@@ -626,6 +889,22 @@ JANET_CORE_FN(cfun_filewatch_add,
               "* `:open` - `IN_OPEN`\n\n"
               "* `:q-overflow` - `IN_Q_OVERFLOW`\n\n"
               "* `:unmount` - `IN_UNMOUNT`\n\n\n"
+              "BSDs and macos (flags correspond to `NOTE_*` flags from <sys/event.h>). Not all flags are available on all systems:\n\n"
+              "* `:all` - `All available NOTE_* flags on the current platform`\n\n"
+              "* `:attrib` - `NOTE_ATTRIB`\n\n"
+              "* `:close-write` - `NOTE_CLOSE_WRITE`\n\n"
+              "* `:close` - `NOTE_CLOSE`\n\n"
+              "* `:delete` - `NOTE_DELETE`\n\n"
+              "* `:extend` - `NOTE_EXTEND`\n\n"
+              "* `:funlock` - `NOTE_FUNLOCK`\n\n"
+              "* `:link` - `NOTE_LINK`\n\n"
+              "* `:open` - `NOTE_OPEN`\n\n"
+              "* `:read` - `NOTE_READ`\n\n"
+              "* `:rename` - `NOTE_RENAME`\n\n"
+              "* `:revoke` - `NOTE_REVOKE`\n\n"
+              "* `:truncate` - `NOTE_TRUNCATE`\n\n"
+              "* `:write` - `NOTE_WRITE`\n\n\n"
+              "EVENT TYPES\n\n"
               "On Windows, events will have the following possible types:\n\n"
               "* `:unknown`\n\n"
               "* `:added`\n\n"
@@ -633,7 +912,7 @@ JANET_CORE_FN(cfun_filewatch_add,
               "* `:modified`\n\n"
               "* `:renamed-old`\n\n"
               "* `:renamed-new`\n\n"
-              "On Linux, events will have a `:type` corresponding to the possible flags, excluding `:all`.\n"
+              "On Linux and BSDs, events will have a `:type` corresponding to the possible flags, excluding `:all`.\n"
               "") {
     janet_arity(argc, 2, -1);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
@@ -648,6 +927,7 @@ JANET_CORE_FN(cfun_filewatch_remove,
               "Remove a path from the watcher.") {
     janet_fixarity(argc, 2);
     JanetWatcher *watcher = janet_getabstract(argv, 0, &janet_filewatch_at);
+    /* TODO - pass string in directly to avoid extra allocation */
     const char *path = janet_getcstring(argv, 1);
     janet_watcher_remove(watcher, path);
     return argv[0];

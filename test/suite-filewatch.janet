@@ -26,6 +26,8 @@
 (def chan (ev/chan 1000))
 (var is-win (or (= :mingw (os/which)) (= :windows (os/which))))
 (var is-linux (= :linux (os/which)))
+(def bsds [:freebsd :macos :openbsd :bsd :dragonfly :netbsd])
+(var is-kqueue (index-of (os/which) bsds))
 
 # If not supported, exit early
 (def [supported msg] (protect (filewatch/new chan)))
@@ -97,6 +99,10 @@
   (filewatch/add fw (string td3 "/file3.txt") :close-write :create :delete)
   (filewatch/add fw td1 :close-write :create :delete)
   (filewatch/add fw td2 :close-write :create :delete :ignored))
+(when is-kqueue
+  (filewatch/add fw (string td3 "/file3.txt") :all)
+  (filewatch/add fw td1 :all)
+  (filewatch/add fw td2 :all))
 (assert-no-error "filewatch/listen no error" (filewatch/listen fw))
 
 #
@@ -195,6 +201,30 @@
   (expect :type :close-write)
   (expect-empty)
   (gccollect))
+
+#
+# Macos and BSD file writing
+#
+
+# TODO - kqueue capabilities here are a bit more limited than inotify and windows by default.
+# This could be ammended with some heavier-weight functionality in userspace, though.
+(when is-kqueue
+  (spit-file td1 "file1.txt")
+  (expect :wd-path td1 :type :write)
+  (expect-empty)
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  # Currently, only operations that modify the parent vnode do anything
+  (expect-empty)
+  (gccollect)
+  # Check that we don't get anymore events from test directory 2
+  (spit-file td2 "file2.txt")
+  (expect :wd-path td2 :type :write)
+  (expect-empty)
+  # Remove a file, then wait for remove event
+  (rmrf (string td1 "/file1.txt"))
+  (expect :type :write) # a "write" to the vnode
+  (expect-empty))
 
 (assert-no-error "filewatch/unlisten no error" (filewatch/unlisten fw))
 (assert-no-error "cleanup 1" (rmrf td1))
