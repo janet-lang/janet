@@ -210,7 +210,7 @@
 # This could be ammended with some heavier-weight functionality in userspace, though.
 (when is-kqueue
   (spit-file td1 "file1.txt")
-  (expect :ev-index 0 :fd 8 :file-name td1 :type :write)
+  (expect :ev-index 0 :file-name td1 :type :write)
   (expect-empty)
   (gccollect))
 

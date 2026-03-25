@@ -147,8 +147,10 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
     if (result == -1) {
         janet_panicv(janet_ev_lasterr());
     }
+    /*
     janet_table_put(watcher->watch_descriptors, pathv, janet_wrap_nil());
     janet_table_put(watcher->watch_descriptors, janet_wrap_integer(watch_handle), janet_wrap_nil());
+    */
 }
 
 static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
