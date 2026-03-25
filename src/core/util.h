@@ -50,9 +50,9 @@
 #ifndef JANET_EXIT
 #include <stdio.h>
 #define JANET_EXIT(m) do { \
-    fprintf(stderr, "janet internal error at line %d in file %s: %s\n",\
-        __LINE__,\
+    fprintf(stderr, "janet abort at %s:%d: %s\n",\
         __FILE__,\
+        __LINE__,\
         (m));\
     abort();\
 } while (0)

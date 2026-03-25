@@ -26,6 +26,8 @@
 (def chan (ev/chan 1000))
 (var is-win (or (= :mingw (os/which)) (= :windows (os/which))))
 (var is-linux (= :linux (os/which)))
+(def bsds [:freebsd :macos :openbsd :bsd :dragonfly :netbsd])
+(var is-kqueue (index-of (os/which) bsds))
 
 # If not supported, exit early
 (def [supported msg] (protect (filewatch/new chan)))
@@ -97,6 +99,10 @@
   (filewatch/add fw (string td3 "/file3.txt") :close-write :create :delete)
   (filewatch/add fw td1 :close-write :create :delete)
   (filewatch/add fw td2 :close-write :create :delete :ignored))
+(when is-kqueue
+  (filewatch/add fw (string td3 "/file3.txt") :all)
+  (filewatch/add fw td1 :all)
+  (filewatch/add fw td2 :all))
 (assert-no-error "filewatch/listen no error" (filewatch/listen fw))
 
 #
@@ -193,6 +199,18 @@
   (gccollect)
   (spit-file td1 "file1.txt")
   (expect :type :close-write)
+  (expect-empty)
+  (gccollect))
+
+#
+# Macos and BSD file writing
+#
+
+# TODO - kqueue capabilities here are a bit more limited than inotify and windows by default.
+# This could be ammended with some heavier-weight functionality in userspace, though.
+(when is-kqueue
+  (spit-file td1 "file1.txt")
+  (expect :ev-index 0 :fd 8 :file-name td1 :type :write)
   (expect-empty)
   (gccollect))
 
