@@ -223,7 +223,7 @@
   (expect-empty)
   # Remove a file, then wait for remove event
   (rmrf (string td1 "/file1.txt"))
-  (expect :type :delete)
+  (expect :type :write) # a "write" to the vnode
   (expect-empty))
 
 (assert-no-error "filewatch/unlisten no error" (filewatch/unlisten fw))

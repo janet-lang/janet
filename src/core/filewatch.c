@@ -702,7 +702,6 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                 int is_dir = S_ISDIR(stat_buf.st_mode);
                 Janet ident = janet_wrap_integer(kev.ident);
                 Janet path = janet_table_get(watcher->watch_descriptors, ident);
-                int32_t ev_index = 0;
                 for (unsigned int j = 1; j < (sizeof(watcher_flags_kqueue) / sizeof(watcher_flags_kqueue[0])); j++) {
                     uint32_t flagcheck = watcher_flags_kqueue[j].flag;
                     if (kev.fflags & flagcheck) {
