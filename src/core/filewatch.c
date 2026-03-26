@@ -40,6 +40,7 @@
 
 #if defined(JANET_APPLE) || defined(JANET_BSD)
 #include <sys/event.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #endif
