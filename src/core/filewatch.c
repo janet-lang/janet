@@ -692,15 +692,15 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             for (int i = 0; i < status; i++) {
                 state->cookie += 6700417;
                 struct kevent kev = events[i];
-                Janet ident = janet_wrap_integer(kev.ident);
                 /* TODO - avoid stat call here, maybe just when adding listener? */
                 struct stat stat_buf = {0};
                 int status;
                 do {
-                    status = fstat(ident, &stat_buf);
+                    status = fstat(kev.ident, &stat_buf);
                 } while (status == -1 && errno == EINTR);
                 if (status == -1) continue;
                 int is_dir = S_ISDIR(stat_buf.st_mode);
+                Janet ident = janet_wrap_integer(kev.ident);
                 Janet path = janet_table_get(watcher->watch_descriptors, ident);
                 int32_t ev_index = 0;
                 for (unsigned int j = 1; j < (sizeof(watcher_flags_kqueue) / sizeof(watcher_flags_kqueue[0])); j++) {
