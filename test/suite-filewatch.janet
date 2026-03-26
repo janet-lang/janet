@@ -210,9 +210,21 @@
 # This could be ammended with some heavier-weight functionality in userspace, though.
 (when is-kqueue
   (spit-file td1 "file1.txt")
-  (expect :ev-index 0 :file-name td1 :type :write)
+  (expect :wd-path td1 :type :write)
   (expect-empty)
-  (gccollect))
+  (gccollect)
+  (spit-file td1 "file1.txt")
+  # Currently, only operations that modify the parent vnode do anything
+  (expect-empty)
+  (gccollect)
+  # Check that we don't get anymore events from test directory 2
+  (spit-file td2 "file2.txt")
+  (expect :wd-path td2 :type :write)
+  (expect-empty)
+  # Remove a file, then wait for remove event
+  (rmrf (string td1 "/file1.txt"))
+  (expect :type :delete)
+  (expect-empty))
 
 (assert-no-error "filewatch/unlisten no error" (filewatch/unlisten fw))
 (assert-no-error "cleanup 1" (rmrf td1))

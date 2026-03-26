@@ -651,6 +651,7 @@ static void janet_watcher_remove(JanetWatcher *watcher, const char *path) {
 
 typedef struct {
     JanetWatcher *watcher;
+    uint32_t cookie;
 } KqueueWatcherState;
 
 static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
@@ -688,18 +689,49 @@ static void watcher_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                 break;
             }
             for (int i = 0; i < status; i++) {
+                state->cookie += 6700417;
                 struct kevent kev = events[i];
                 Janet ident = janet_wrap_integer(kev.ident);
+                /* TODO - avoid stat call here, maybe just when adding listener? */
+                struct stat stat_buf = {0};
+                int status;
+                do {
+                    status = fstat(ident, &stat_buf);
+                } while (status == -1 && errno == EINTR);
+                if (status == -1) continue;
+                int is_dir = S_ISDIR(stat_buf.st_mode);
                 Janet path = janet_table_get(watcher->watch_descriptors, ident);
                 int32_t ev_index = 0;
                 for (unsigned int j = 1; j < (sizeof(watcher_flags_kqueue) / sizeof(watcher_flags_kqueue[0])); j++) {
                     uint32_t flagcheck = watcher_flags_kqueue[j].flag;
                     if (kev.fflags & flagcheck) {
-                        JanetKV *event = janet_struct_begin(4);
-                        janet_struct_put(event, janet_ckeywordv("fd"), ident);
-                        janet_struct_put(event, janet_ckeywordv("file-name"), path);
-                        janet_struct_put(event, janet_ckeywordv("ev-index"), janet_wrap_integer(ev_index++));
+                        JanetKV *event = janet_struct_begin(6);
+                        janet_struct_put(event, janet_ckeywordv("wd"), ident);
+                        janet_struct_put(event, janet_ckeywordv("wd-path"), path);
+                        janet_struct_put(event, janet_ckeywordv("cookie"), janet_wrap_number((double) state->cookie));
                         janet_struct_put(event, janet_ckeywordv("type"), janet_ckeywordv(watcher_flags_kqueue[j].name));
+                        if (is_dir) {
+                            /* Pass in directly */
+                            janet_struct_put(event, janet_ckeywordv("file-name"), janet_cstringv(""));
+                            janet_struct_put(event, janet_ckeywordv("dir-name"), path);
+                        } else {
+                            /* Split path */
+                            JanetString spath = janet_unwrap_string(path);
+                            const uint8_t *cursor = spath + janet_string_length(spath);
+                            const uint8_t *cursor_end = cursor;
+                            while (cursor > spath && cursor[0] != '/') {
+                                cursor--;
+                            }
+                            if (cursor == spath) {
+                                /* No path separators */
+                                janet_struct_put(event, janet_ckeywordv("dir-name"), janet_cstringv("."));
+                                janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(spath));
+                            } else {
+                                /* Found path separator */
+                                janet_struct_put(event, janet_ckeywordv("dir-name"), janet_wrap_string(janet_string(spath, (cursor - spath))));
+                                janet_struct_put(event, janet_ckeywordv("file-name"), janet_wrap_string(janet_string(cursor + 1, (cursor_end - cursor - 1))));
+                            }
+                        }
                         Janet eventv = janet_wrap_struct(janet_struct_end(event));
                         janet_channel_give(watcher->channel, eventv);
                     }
@@ -812,10 +844,10 @@ JANET_CORE_FN(cfun_filewatch_make,
               "* `:dir-name` -- the directory name of the file that triggered the event.\n\n"
               "Events also will contain keys specific to the host OS.\n\n"
               "Windows has no extra properties on events.\n\n"
-              "Linux has the following extra properties on events:\n\n"
-              "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this.\n\n"
+              "Linux and the BSDs have the following extra properties on events:\n\n"
+              "* `:wd` -- the integer key returned by `filewatch/add` for the path that triggered this. This is a file descriptor integer on BSD and macos.\n\n"
               "* `:wd-path` -- the string path for watched directory of file. For files, will be the same as `:file-name`, and for directories, will be the same as `:dir-name`.\n\n"
-              "* `:cookie` -- a randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
+              "* `:cookie` -- a semi-randomized integer used to associate related events, such as :moved-from and :moved-to events.\n\n"
               "") {
     janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, -1);
