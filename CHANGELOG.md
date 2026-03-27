@@ -2,11 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add filewatch support to BSD and macos.
 - Add linting support for shadowed bindings.
 - Add nanboxing support for Linux on ARM64 and turn on nanboxing by default on macos on ARM64 (aarch64).
 - Documentation fixes
 - ev/thread-chan deadlock bug fixed
-- Re-add removed support for non-blocking net/connect on windows.
+- Re-add removed support for non-blocking net/connect on windows with bug fixes.
 
 ## 1.41.2 - 2026-02-18
 - Fix regressions in `put` for arrays and buffers.
