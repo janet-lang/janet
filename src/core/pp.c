@@ -786,14 +786,15 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
 
 #define JANET_COLUMNS 80
 
-static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int flags, Janet x, int32_t startlen) {
+static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int width,
+                                  int flags, Janet x, int32_t startlen) {
     struct pretty S;
     if (NULL == buffer) {
         buffer = janet_buffer(0);
     }
     S.buffer = buffer;
     S.depth = depth;
-    S.width = JANET_COLUMNS;
+    S.width = width;
     S.align = 0;
     S.flags = flags;
     S.bufstartlen = startlen;
@@ -810,7 +811,8 @@ static JanetBuffer *janet_pretty_(JanetBuffer *buffer, int depth, int flags, Jan
 /* Helper for printing a janet value in a pretty form. Not meant to be used
  * for serialization or anything like that. */
 JanetBuffer *janet_pretty(JanetBuffer *buffer, int depth, int flags, Janet x) {
-    return janet_pretty_(buffer, depth, flags, x, buffer ? buffer->count : 0);
+    return janet_pretty_(buffer, depth, JANET_COLUMNS, flags,
+                         x, buffer ? buffer->count : 0);
 }
 
 static JanetBuffer *janet_jdn_(JanetBuffer *buffer, int depth, Janet x, int32_t startlen) {
@@ -1042,11 +1044,17 @@ void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
                     int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
                     int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
                     int has_notrunc = (d == 'M') || (d == 'm') || (d == 'N') || (d == 'n');
+                    int columns = atoi(width);
+                    if (columns == 0)
+                        columns = JANET_COLUMNS;
+                    else if (columns < 0)
+                        has_oneline = 1;
                     int flags = 0;
                     flags |= has_color ? JANET_PRETTY_COLOR : 0;
                     flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
                     flags |= has_notrunc ? JANET_PRETTY_NOTRUNC : 0;
-                    janet_pretty_(b, depth, flags, va_arg(args, Janet), startlen);
+                    janet_pretty_(b, depth, columns, flags,
+                                  va_arg(args, Janet), startlen);
                     break;
                 }
                 case 'j': {
@@ -1204,11 +1212,17 @@ void janet_buffer_format(
                     int has_color = (d == 'P') || (d == 'Q') || (d == 'M') || (d == 'N');
                     int has_oneline = (d == 'Q') || (d == 'q') || (d == 'N') || (d == 'n');
                     int has_notrunc = (d == 'M') || (d == 'm') || (d == 'N') || (d == 'n');
+                    int columns = atoi(width);
+                    if (columns == 0)
+                        columns = JANET_COLUMNS;
+                    else if (columns < 0)
+                        has_oneline = 1;
                     int flags = 0;
                     flags |= has_color ? JANET_PRETTY_COLOR : 0;
                     flags |= has_oneline ? JANET_PRETTY_ONELINE : 0;
                     flags |= has_notrunc ? JANET_PRETTY_NOTRUNC : 0;
-                    janet_pretty_(b, depth, flags, argv[arg], startlen);
+                    janet_pretty_(b, depth, columns, flags,
+                                  argv[arg], startlen);
                     break;
                 }
                 case 'j': {
