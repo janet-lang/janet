@@ -472,12 +472,12 @@ static void backtrack_newlines(const struct pretty *S) {
     if (S->flags & JANET_PRETTY_ONELINE || S->buffer->count <= 0)
         return;
     switch (S->buffer->data[S->buffer->count - 1]) {
-    case ')':
-    case '}':
-    case ']':
-        break;
-    default:
-        return;
+        case ')':
+        case '}':
+        case ']':
+            break;
+        default:
+            return;
     }
     int32_t removed = 0;
     int32_t offset = S->buffer->count;
