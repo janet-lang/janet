@@ -3,4 +3,5 @@
 (while (parser/has-more p)
   (def x (parser/produce p))
   (printf "%m\n%99M\n%1m\n%0M" x x x x)
+  (printf "%q\n%99Q\n%1p\n%P" x x x x)
   (protect (printf "%j" x)))
