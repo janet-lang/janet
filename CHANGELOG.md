@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Improve pretty printing layout for %M and %m modifiers to be more code-like.
 - Add filewatch support to BSD and macos.
 - Add linting support for shadowed bindings.
 - Add nanboxing support for Linux on ARM64 and turn on nanboxing by default on macos on ARM64 (aarch64).
