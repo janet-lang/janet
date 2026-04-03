@@ -61,14 +61,27 @@
 (check-jdn "a string")
 (check-jdn @"a buffer")
 
+# Issue 1737
+(assert (deep= "@[]" (string/format "%M" @[])))
+(assert (deep= " @[]" (string/format " %M" @[])))
+(assert (deep= "  @[]" (string/format "  %M" @[])))
+(assert (deep= "   @[]" (string/format "   %M" @[])))
+(assert (deep= "    @[]" (string/format "    %M" @[])))
+(assert (deep= "     @[]" (string/format "     %M" @[])))
+(assert (deep= "@[1]" (string/format "%m" @[1])))
+(assert (deep= " @[2]" (string/format " %m" @[2])))
+(assert (deep= "  @[3]" (string/format "  %m" @[3])))
+(assert (deep= "   @[4]" (string/format "   %m" @[4])))
+(assert (deep= "    @[5]" (string/format "    %m" @[5])))
+(assert (deep= "     @[6]" (string/format "     %m" @[6])))
+
 # Test multiline pretty specifiers
 (let [tup [:keyword "string" @"buffer"]
       tab @{true (table/setproto @{:bar tup
                                    :baz 42}
                                  @{:_name "Foo"})}]
   (set (tab tup) tab)
-  (assert (= (string/format "%67m" {tup @[tup tab]
-                                    'symbol tup})
+  (assert (= (string/format "%67m" {tup @[tup tab] 'symbol tup})
           `
 {symbol (:keyword "string" @"buffer")
  (:keyword
@@ -112,4 +125,22 @@
   29 -13
   ...} @{true @Foo{:bar (:keyword "string" @"buffer") :baz 42}
          (:keyword "string" @"buffer") <cycle 1>}}`)))
+
+# Issue 1737
+(def capture-buf @"")
+(with-dyns [*err* capture-buf]
+  (peg/match ~(* (constant @[]) (??)) "a"))
+(assert (deep= ```
+               ?? at [a] (index 0)
+               stack [1]:
+                 [0]: @[]
+
+               ```
+               (string capture-buf)))
+
+(assert (=
+         (string/format "?? at [bc] (index 2)\nstack [5]:\n  [0]: %m\n  [1]: %m\n  [2]: %m\n  [3]: %m\n  [4]: %m\n" "a" 1 true {} @[])
+         "?? at [bc] (index 2)\nstack [5]:\n  [0]: \"a\"\n  [1]: 1\n  [2]: true\n  [3]: {}\n  [4]: @[]\n")
+        "pretty format should not eat explicit newlines")
+
 (end-suite)
