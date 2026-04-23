@@ -114,6 +114,7 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
 static void janetc_movenear(JanetCompiler *c,
                             int32_t dest,
                             JanetSlot src) {
+    janet_assert(dest <= 255, "dest slot index must be <= 255");
     if (src.flags & (JANET_SLOT_CONSTANT | JANET_SLOT_REF)) {
         janetc_loadconst(c, src.constant, dest);
         /* If we also are a reference, deref the one element array */
@@ -138,7 +139,7 @@ static void janetc_movenear(JanetCompiler *c,
     }
 }
 
-/* Move a near register to a Slot. */
+/* Move a near or far register to a Slot. */
 static void janetc_moveback(JanetCompiler *c,
                             JanetSlot dest,
                             int32_t src) {
@@ -151,6 +152,11 @@ static void janetc_moveback(JanetCompiler *c,
                     JOP_PUT_INDEX);
         janetc_regalloc_freetemp(&c->scope->ra, refreg, JANETC_REGTEMP_5);
     } else if (dest.envindex >= 0) {
+        /* Convert src to near reg */
+        if (src > 255) {
+            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | (JANETC_REGTEMP_5 << 8));
+            src = JANETC_REGTEMP_5;
+        }
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 24) |
                     ((uint32_t)(dest.envindex) << 16) |
@@ -158,6 +164,11 @@ static void janetc_moveback(JanetCompiler *c,
                     JOP_SET_UPVALUE);
     } else if (dest.index != src) {
         janet_assert(dest.index >= 0, "bad slot");
+        /* Convert src to near reg */
+        if (src > 255) {
+            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | (JANETC_REGTEMP_5 << 8));
+            src = JANETC_REGTEMP_5;
+        }
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 16) |
                     ((uint32_t)(src) << 8) |
