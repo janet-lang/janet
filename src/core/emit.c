@@ -154,8 +154,9 @@ static void janetc_moveback(JanetCompiler *c,
     } else if (dest.envindex >= 0) {
         /* Convert src to near reg */
         if (src > 255) {
-            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | (JANETC_REGTEMP_5 << 8));
-            src = JANETC_REGTEMP_5;
+            int32_t newsrc = JANETC_REGTEMP_5 + 0xF0;
+            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | (newsrc << 8));
+            src = newsrc;
         }
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 24) |
@@ -166,8 +167,9 @@ static void janetc_moveback(JanetCompiler *c,
         janet_assert(dest.index >= 0, "bad slot");
         /* Convert src to near reg */
         if (src > 255) {
-            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | (JANETC_REGTEMP_5 << 8));
-            src = JANETC_REGTEMP_5;
+            int32_t newsrc = JANETC_REGTEMP_5 + 0xF0;
+            janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | ((uint32_t)newsrc << 8));
+            src = newsrc;
         }
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 16) |
