@@ -496,6 +496,30 @@ int janet_verify(JanetFuncDef *def) {
         }
     }
 
+    /* Verify debug info - slotmapping, etc. */
+    for (int32_t i = def->symbolmap_length - 1; i >= 0; i--) {
+        JanetSymbolMap jsm = def->symbolmap[i];
+        if (jsm.birth_pc == UINT32_MAX) {
+            if (jsm.death_pc >= (uint32_t) def->environments_length) {
+                return 10;
+                /* We should also check jsm.slot_index */
+            }
+        } else {
+            if (jsm.slot_index >= (uint32_t) def->slotcount) {
+                return 11;
+            }
+            if (jsm.birth_pc != UINT32_MAX && jsm.birth_pc >= (uint32_t) def->bytecode_length) {
+                return 12;
+            }
+            if (jsm.death_pc != UINT32_MAX && jsm.death_pc > (uint32_t) def->bytecode_length) {
+                return 13;
+            }
+        }
+        if (jsm.symbol == NULL) {
+            return 14;
+        }
+    }
+
     return 0;
 }
 

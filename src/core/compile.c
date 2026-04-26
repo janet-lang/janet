@@ -1082,7 +1082,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
                 if (pair.sym2) {
                     JanetSymbolMap jsm;
                     jsm.birth_pc = UINT32_MAX;
-                    jsm.death_pc = j;
+                    jsm.death_pc = j; /* Use death_pc to encode environment index */
                     jsm.slot_index = pair.slot.index;
                     jsm.symbol = pair.sym2;
                     janet_v_push(locals, jsm);
