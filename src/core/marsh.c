@@ -1111,7 +1111,12 @@ static const uint8_t *unmarshal_one_fiber(
     }
 
     /* Allocate stack memory */
-    fiber->capacity = fiber_stacktop + 10;
+    if (fiber_stacktop < INT32_MAX - 10) {
+        fiber->capacity = fiber_stacktop + 10;
+    } else {
+        /* Extra capacity is usually nice to avoid immediately reallocing on pushed arguments, but not needed */
+        fiber->capacity = INT32_MAX;
+    }
     fiber->data = janet_malloc(sizeof(Janet) * fiber->capacity);
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
