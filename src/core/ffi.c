@@ -1628,7 +1628,11 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     fn->size = 0;
 #ifdef JANET_WINDOWS
     void *ptr = VirtualAlloc(NULL, alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#elif defined(MAP_ANONYMOUS)
+    if (!ptr) {
+        janet_panic("failed to allocate writable memory");
+    }
+#else
+#ifdef MAP_ANONYMOUS
     void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #elif defined(MAP_ANON)
     /* macos doesn't have MAP_ANONYMOUS */
@@ -1638,9 +1642,10 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     /* #define MAP_ANONYMOUS 0x20 should work, though. */
     void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
 #endif
-    if (!ptr) {
+    if (ptr == MAP_FAILED) {
         janet_panic("failed to memory map writable memory");
     }
+#endif
     memcpy(ptr, bytes.bytes, bytes.len);
 #ifdef JANET_WINDOWS
     DWORD old = 0;
