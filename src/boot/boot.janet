@@ -4953,7 +4953,9 @@
   # Build dictionary for loading images
   (def load-dict (env-lookup root-env))
   (each [k v] (pairs load-dict)
-    (if (number? v) (put load-dict k nil)))
+    # Drop simple types, otherwise we get odd issues when loading foreign data from a different Janet version.
+    # It also doesn't usually save any space to encode these anyway.
+    (if (or (string? v) (keyword? v) (number? v)) (put load-dict k nil)))
   (merge-into load-image-dict load-dict)
 
   (def image
