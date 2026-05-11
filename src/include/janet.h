@@ -1202,13 +1202,7 @@ struct JanetParser {
 };
 
 /* A context for marshaling and unmarshaling abstract types */
-typedef struct {
-    void *m_state;
-    void *u_state;
-    int flags;
-    const uint8_t *data;
-    const JanetAbstractType *at;
-} JanetMarshalContext;
+typedef struct JanetMarshalContext JanetMarshalContext;
 
 /* Defines an abstract type. Use a const pointer to one of these structures
  * when creating abstract types. The memory for this pointer should not be free
@@ -2285,6 +2279,7 @@ JANET_API void janet_marshal_byte(JanetMarshalContext *ctx, uint8_t value);
 JANET_API void janet_marshal_bytes(JanetMarshalContext *ctx, const uint8_t *bytes, size_t len);
 JANET_API void janet_marshal_janet(JanetMarshalContext *ctx, Janet x);
 JANET_API void janet_marshal_abstract(JanetMarshalContext *ctx, JanetAbstract abstract);
+JANET_API int janet_marshal_flags(JanetMarshalContext *ctx);
 
 JANET_API void janet_unmarshal_ensure(JanetMarshalContext *ctx, size_t size);
 JANET_API size_t janet_unmarshal_size(JanetMarshalContext *ctx);
@@ -2297,6 +2292,7 @@ JANET_API Janet janet_unmarshal_janet(JanetMarshalContext *ctx);
 JANET_API JanetAbstract janet_unmarshal_abstract(JanetMarshalContext *ctx, size_t size);
 JANET_API JanetAbstract janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size);
 JANET_API void janet_unmarshal_abstract_reuse(JanetMarshalContext *ctx, void *p);
+JANET_API int janet_unmarshal_flags(JanetMarshalContext *ctx);
 
 JANET_API void janet_register_abstract_type(const JanetAbstractType *at);
 JANET_API const JanetAbstractType *janet_get_abstract_type(Janet key);
