@@ -346,9 +346,6 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 #endif
     }
 
-    Janet *stack = fiber->data + fiber->frame;
-    Janet *args = fiber->data + fiber->stackstart;
-
     /* Detach old function */
     if (NULL != janet_fiber_frame(fiber)->func)
         janet_env_detach(janet_fiber_frame(fiber)->env);
@@ -378,7 +375,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
         stacksize = fiber->stacktop - fiber->stackstart;
     }
 
-    if (stacksize) memmove(stack, args, stacksize * sizeof(Janet));
+    if (stacksize) memmove(fiber->data + fiber->frame, fiber->data + fiber->stackstart, stacksize * sizeof(Janet));
 
     /* Nil unset locals (Needed for functional correctness) */
     for (i = fiber->frame + stacksize; i < nextframetop; ++i)
