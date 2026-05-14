@@ -234,18 +234,22 @@
         }\
     }
 
-/* Trace a function call */
-static void vm_do_trace(JanetFunction *func, int32_t argc, const Janet *argv) {
-    if (func->def->name) {
-        janet_eprintf("trace (%S", func->def->name);
-    } else {
-        janet_eprintf("trace (%p", janet_wrap_function(func));
-    }
-    for (int32_t i = 0; i < argc; i++) {
-        janet_eprintf(" %p", argv[i]);
-    }
-    janet_eprintf(")\n");
-}
+/* Trace a function call.
+ * This is a macro to avoid stale argv if janet_eprintf resizes the stack
+ */
+#define vm_do_trace(func, argc, argv) do { \
+    JanetFunction* _func = (func);\
+    if (_func->def->name) {\
+        janet_eprintf("trace (%S", _func->def->name);\
+    } else {\
+        janet_eprintf("trace (%p", janet_wrap_function(_func));\
+    }\
+    int32_t _argc = (argc);\
+    for (int32_t i = 0; i < _argc; i++) {\
+        janet_eprintf(" %p", (argv)[i]);\
+    }\
+    janet_eprintf(")\n");\
+} while (0)
 
 /* Invoke a method once we have looked it up */
 static Janet janet_method_invoke(Janet method, int32_t argc, Janet *argv) {
