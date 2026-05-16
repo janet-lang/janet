@@ -30,6 +30,14 @@
 #include "util.h"
 #endif
 
+struct JanetMarshalContext {
+    void *m_state;
+    void *u_state;
+    int flags;
+    const uint8_t *data;
+    const JanetAbstractType *at;
+};
+
 typedef struct {
     JanetBuffer *buf;
     JanetTable seen;
@@ -431,6 +439,10 @@ void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     Janet x = janet_wrap_abstract(abstract);
     MARK_SEEN();
+}
+
+int janet_marshal_flags(JanetMarshalContext *ctx) {
+    return ctx->flags;
 }
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
@@ -1299,6 +1311,10 @@ void *janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size) {
     (void) size;
     janet_panic("threaded abstracts not supported");
 #endif
+}
+
+int janet_unmarshal_flags(JanetMarshalContext *ctx) {
+    return ctx->flags;
 }
 
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {

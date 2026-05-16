@@ -411,7 +411,7 @@ static Janet io_file_next(void *p, Janet key) {
 
 static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
     JanetFile *iof = (JanetFile *)p;
-    if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+    if (janet_marshal_flags(ctx) & JANET_MARSHAL_UNSAFE) {
         janet_marshal_abstract(ctx, p);
         int fno = -1;
 #ifdef JANET_WINDOWS
@@ -436,7 +436,7 @@ static void io_file_marshal(void *p, JanetMarshalContext *ctx) {
 }
 
 static void *io_file_unmarshal(JanetMarshalContext *ctx) {
-    if (ctx->flags & JANET_MARSHAL_UNSAFE) {
+    if (janet_unmarshal_flags(ctx) & JANET_MARSHAL_UNSAFE) {
         JanetFile *iof = janet_unmarshal_abstract(ctx, sizeof(JanetFile));
         int32_t fd = janet_unmarshal_int(ctx);
         int32_t flags = janet_unmarshal_int(ctx);

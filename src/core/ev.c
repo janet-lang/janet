@@ -433,7 +433,7 @@ static int janet_stream_getter(void *p, Janet key, Janet *out) {
 
 static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
     JanetStream *s = p;
-    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+    if (!(janet_marshal_flags(ctx) & JANET_MARSHAL_UNSAFE)) {
         janet_panic("can only marshal stream with unsafe flag");
     }
     janet_marshal_abstract(ctx, p);
@@ -467,7 +467,7 @@ static void janet_stream_marshal(void *p, JanetMarshalContext *ctx) {
 }
 
 static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
-    if (!(ctx->flags & JANET_MARSHAL_UNSAFE)) {
+    if (!(janet_unmarshal_flags(ctx) & JANET_MARSHAL_UNSAFE)) {
         janet_panic("can only unmarshal stream with unsafe flag");
     }
     JanetStream *p = janet_unmarshal_abstract(ctx, sizeof(JanetStream));
