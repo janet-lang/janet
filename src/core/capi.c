@@ -50,11 +50,18 @@ JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
     JANET_TOP_LEVEL_SIGNAL(msg);
 #else
     fputs(msg, stdout);
+    if (!(janet_vm.sandbox_flags & JANET_SANDBOX_EXIT)) {
+        /* Exit is not forbidden */
+        exit(EXIT_FAILURE);
+    }
+    /* If not able to signal, then select good default behavior - for single threaded programs, we have no
+     * choice but to exit. */
 # ifdef JANET_SINGLE_THREADED
-    exit(-1);
+    exit(EXIT_FAILURE);
 # elif defined(JANET_WINDOWS)
     ExitThread(-1);
 # else
+    /* Other threads will continue as usual */
     pthread_exit(NULL);
 # endif
 #endif

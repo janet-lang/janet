@@ -754,6 +754,7 @@ static const SandboxOption sandbox_options[] = {
     {"chroot", JANET_SANDBOX_CHROOT},
     {"compile", JANET_SANDBOX_COMPILE},
     {"env", JANET_SANDBOX_ENV},
+    {"exit", JANET_SANDBOX_EXIT},
     {"ffi", JANET_SANDBOX_FFI},
     {"ffi-define", JANET_SANDBOX_FFI_DEFINE},
     {"ffi-jit", JANET_SANDBOX_FFI_JIT},
@@ -784,6 +785,7 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :chroot - disallow calling `os/posix-chroot`\n"
               "* :compile - disallow calling `compile`. This will disable a lot of functionality, such as `eval`.\n"
               "* :env - disallow reading and write env variables\n"
+              "* :exit - disallow calling `os/exit` or otherwise early exiting the process in trivial ways.\n"
               "* :ffi - disallow FFI (recommended if disabling anything else)\n"
               "* :ffi-define - disallow loading new FFI modules and binding new functions\n"
               "* :ffi-jit - disallow calling `ffi/jitfn`\n"
@@ -801,7 +803,7 @@ JANET_CORE_FN(janet_core_sandbox,
               "* :signal - disallow adding or removing signal handlers\n"
               "* :subprocess - disallow running subprocesses\n"
               "* :threads - disallow spawning threads with `ev/thread`. Certain helper threads may still be spawned.\n"
-              "* :unmarshal - disallow calling the unmarshal function.\n") {
+              "* :unmarshal - disallow calling the `unmarshal` function.\n") {
     uint32_t flags = 0;
     for (int32_t i = 0; i < argc; i++) {
         JanetKeyword kw = janet_getkeyword(argv, i);

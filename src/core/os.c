@@ -276,6 +276,7 @@ JANET_CORE_FN(os_exit,
               "the exit with status equal the hash of x. If `force` is truthy will exit immediately and "
               "skip cleanup code.") {
     janet_arity(argc, 0, 2);
+    janet_sandbox_assert(JANET_SANDBOX_EXIT);
     int status;
     if (argc == 0) {
         status = EXIT_SUCCESS;
