@@ -30,13 +30,6 @@
 #include "util.h"
 #endif
 
-struct JanetMarshalContext {
-    void *m_state;
-    void *u_state;
-    int flags;
-    const uint8_t *data;
-    const JanetAbstractType *at;
-};
 
 typedef struct {
     JanetBuffer *buf;
