@@ -2502,7 +2502,7 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
 
 JANET_CORE_FN(os_stat,
               "(os/stat path &opt tab|key)",
-              "Gets information about a file or directory. Returns a table if the second argument is a keyword, returns "
+              "Gets information about a file or directory. Returns a table. If the second argument is a keyword, returns "
               "only that information from stat. If the file or directory does not exist, returns nil. The keys are:\n\n"
               "* :dev - the device that the file is on\n\n"
               "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
