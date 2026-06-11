@@ -11,7 +11,7 @@
   ```
   (defn name & more)
 
-  Define a function. Equivalent to `(def name (fn name [args] ...))`.
+  Defines a function. Equivalent to `(def name (fn name [args] ...))`.
   ```
   (fn defn [name & more]
     (def len (length more))
@@ -44,12 +44,12 @@
     ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
 (defn defmacro :macro :flycheck
-  "Define a macro."
+  "Defines a macro."
   [name & more]
   (apply defn name :macro more))
 
 (defmacro as-macro
-  ``Use a function or macro literal `f` as a macro. This lets
+  ``Uses a function or macro literal `f` as a macro. This lets
   any function be used as a macro. Inside a quasiquote, the
   idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
   to avoid unwanted variable capture of `my-custom-macro`.``
@@ -57,64 +57,64 @@
   (f ;args))
 
 (defmacro defmacro- :flycheck
-  "Define a private macro that will not be exported."
+  "Defines a private macro that will not be exported."
   [name & more]
   (apply defn name :macro :private more))
 
 (defmacro defn- :flycheck
-  "Define a private function that will not be exported."
+  "Defines a private function that will not be exported."
   [name & more]
   (apply defn name :private more))
 
 (defmacro def-
-  "Define a private value that will not be exported."
+  "Defines a private value that will not be exported."
   [name & more]
   ~(def ,name :private ,;more))
 
 (defmacro var-
-  "Define a private var that will not be exported."
+  "Defines a private var that will not be exported."
   [name & more]
   ~(var ,name :private ,;more))
 
 (defmacro toggle
-  "Set a value to its boolean inverse. Same as `(set value (not value))`."
+  "Sets a value to its boolean inverse. Same as `(set value (not value))`."
   [value]
   ~(set ,value (,not ,value)))
 
 (defn defglobal
-  "Dynamically create a global def."
+  "Dynamically creates a global def."
   [name value]
   (def name* (symbol name))
   (setdyn name* @{:value value})
   nil)
 
 (defn varglobal
-  "Dynamically create a global var."
+  "Dynamically creates a global var."
   [name init]
   (def name* (symbol name))
   (setdyn name* @{:ref @[init]})
   nil)
 
 # Basic predicates
-(defn nan? "Check if x is NaN." [x] (not= x x))
-(defn number? "Check if x is a number." [x] (= (type x) :number))
-(defn fiber? "Check if x is a fiber." [x] (= (type x) :fiber))
-(defn string? "Check if x is a string." [x] (= (type x) :string))
-(defn symbol? "Check if x is a symbol." [x] (= (type x) :symbol))
-(defn keyword? "Check if x is a keyword." [x] (= (type x) :keyword))
-(defn buffer? "Check if x is a buffer." [x] (= (type x) :buffer))
-(defn function? "Check if x is a function (not a cfunction)." [x] (= (type x) :function))
-(defn cfunction? "Check if x is a cfunction." [x] (= (type x) :cfunction))
-(defn table? "Check if x is a table." [x] (= (type x) :table))
-(defn struct? "Check if x is a struct." [x] (= (type x) :struct))
-(defn array? "Check if x is an array." [x] (= (type x) :array))
-(defn tuple? "Check if x is a tuple." [x] (= (type x) :tuple))
-(defn boolean? "Check if x is a boolean." [x] (= (type x) :boolean))
-(defn truthy? "Check if x is truthy." [x] (if x true false))
-(defn true? "Check if x is true." [x] (= x true))
-(defn false? "Check if x is false." [x] (= x false))
-(defn nil? "Check if x is nil." [x] (= x nil))
-(defn empty? "Check if an iterable, `iter`, is empty." [iter] (= nil (next iter nil)))
+(defn nan? "Checks if x is NaN." [x] (not= x x))
+(defn number? "Checks if x is a number." [x] (= (type x) :number))
+(defn fiber? "Checks if x is a fiber." [x] (= (type x) :fiber))
+(defn string? "Checks if x is a string." [x] (= (type x) :string))
+(defn symbol? "Checks if x is a symbol." [x] (= (type x) :symbol))
+(defn keyword? "Checks if x is a keyword." [x] (= (type x) :keyword))
+(defn buffer? "Checks if x is a buffer." [x] (= (type x) :buffer))
+(defn function? "Checks if x is a function (not a cfunction)." [x] (= (type x) :function))
+(defn cfunction? "Checks if x is a cfunction." [x] (= (type x) :cfunction))
+(defn table? "Checks if x is a table." [x] (= (type x) :table))
+(defn struct? "Checks if x is a struct." [x] (= (type x) :struct))
+(defn array? "Checks if x is an array." [x] (= (type x) :array))
+(defn tuple? "Checks if x is a tuple." [x] (= (type x) :tuple))
+(defn boolean? "Checks if x is a boolean." [x] (= (type x) :boolean))
+(defn truthy? "Checks if x is truthy." [x] (if x true false))
+(defn true? "Checks if x is true." [x] (= x true))
+(defn false? "Checks if x is false." [x] (= x false))
+(defn nil? "Checks if x is nil." [x] (= x nil))
+(defn empty? "Checks if an iterable, `iter`, is empty." [iter] (= nil (next iter nil)))
 
 # For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
@@ -128,7 +128,7 @@
    :struct true})
 
 (defn idempotent?
-  "Check if x is a value that evaluates to itself when compiled."
+  "Checks if x is a value that evaluates to itself when compiled."
   [x]
   (not (in non-atomic-types (type x))))
 
@@ -144,7 +144,7 @@
 (defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
 (defmacro assert :flycheck # should top level assert flycheck?
-  "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
+  "Throws an error if x is not truthy. Will not evaluate `err` if x is truthy."
   [x &opt err]
   (def v (gensym))
   ~(do
@@ -154,7 +154,7 @@
        (,error ,(if err err (string/format "assert failure in %j" x))))))
 
 (defmacro defdyn :flycheck
-  ``Define an alias for a keyword that is used as a dynamic binding. The
+  ``Defines an alias for a keyword that is used as a dynamic binding. The
   alias is a normal, lexically scoped binding that can be used instead of
   a keyword to prevent typos. `defdyn` does not set dynamic bindings or otherwise
   replace `dyn` and `setdyn`. The alias *must* start and end with the `*` character, usually
@@ -217,7 +217,7 @@
        (,errorf ,fmt ,;args))))
 
 (defmacro default
-  ``Define a default value for an optional argument.
+  ``Defines a default value for an optional argument.
   Expands to `(def sym :shadow (if (= nil sym) val sym))`.``
   [sym val]
   ~(def ,sym :shadow (if (,= nil ,sym) ,val ,sym)))
@@ -257,7 +257,7 @@
   (aux 0))
 
 (defmacro case
-  ``Select the body that equals the dispatch value. When `pairs`
+  ``Selects the body that equals the dispatch value. When `pairs`
   has an odd number of elements, the last is the default expression.
   If no match is found, returns nil.``
   [dispatch & pairs]
@@ -277,7 +277,7 @@
            (aux 0))))
 
 (defmacro let
-  ``Create a scope and bind values to symbols. Each pair in `bindings` is
+  ``Creates a scope and bind values to symbols. Each pair in `bindings` is
   assigned as if with `def`, and the body of the `let` form returns the last
   value.``
   [bindings & body]
@@ -293,7 +293,7 @@
   (tuple/slice accum 0))
 
 (defmacro protect
-  `Evaluate expressions, while capturing any errors. Evaluates to a tuple
+  `Evaluates expressions, while capturing any errors. Evaluates to a tuple
   of two elements. The first element is true if successful, false if an
   error, and the second is the return value or error.`
   [& body]
@@ -339,7 +339,7 @@
   ret)
 
 (defmacro try
-  ``Try something and catch errors. `body` is any expression,
+  ``Tries something and catches errors. `body` is any expression,
   and `catch` should be a form, the first element of which is a tuple. This tuple
   should contain a binding for errors and an optional binding for
   the fiber wrapping the body. Returns the result of `body` if no error,
@@ -370,7 +370,7 @@
   ~(let (,;accum) ,;body))
 
 (defn- defer-impl
-  "Defer but allow custom name for stack traces"
+  "Defers but allows a custom name for stack traces"
   [name form body]
   (with-syms [f r]
     ~(do
@@ -382,13 +382,13 @@
          (,propagate ,r ,f)))))
 
 (defmacro defer
-  ``Run `form` unconditionally after `body`, even if the body throws an error.
+  ``Runs `form` unconditionally after `body`, even if the body throws an error.
   Will also run `form` if a user signal 0-4 is received.``
   [form & body]
   (defer-impl :defer form body))
 
 (defmacro edefer
-  ``Run `form` after `body` in the case that body terminates abnormally (an error or user signal 0-4).
+  ``Runs `form` after `body` in the case that body terminates abnormally (an error or user signal 0-4).
   Otherwise, return last form in `body`.``
   [form & body]
   (with-syms [f r]
@@ -400,7 +400,7 @@
          (do ,form (,propagate ,r ,f))))))
 
 (defmacro prompt
-  ``Set up a checkpoint that can be returned to. `tag` should be a value
+  ``Sets up a checkpoint that can be returned to. `tag` should be a value
   that is used in a `return` statement, like a keyword.``
   [tag & body]
   (with-syms [res target payload fib]
@@ -413,14 +413,14 @@
          (,propagate ,res ,fib)))))
 
 (defmacro chr
-  `Convert a string of length 1 to its byte (ascii) value at compile time.`
+  `Converts a string of length 1 to its byte (ascii) value at compile time.`
   [c]
   (unless (and (string? c) (= (length c) 1))
     (error (string/format "expected string of length 1, got %v" c)))
   (c 0))
 
 (defmacro label
-  ``Set a label point that is lexically scoped. `name` should be a symbol
+  ``Sets a label point that is lexically scoped. `name` should be a symbol
   that will be bound to the label.``
   [name & body]
   ~(do
@@ -428,12 +428,12 @@
      ,(apply prompt name body)))
 
 (defn return
-  "Return to a prompt point."
+  "Returns to a prompt point."
   [to &opt value]
   (signal 0 [to value]))
 
 (defmacro with
-  ``Evaluate `body` with some resource, which will be automatically cleaned up
+  ``Evaluates `body` with some resource, which will be automatically cleaned up
   if there is an error in `body`. `binding` is bound to the expression `ctor`, and
   `dtor` is a function or callable that is passed the binding. If no destructor
   (`dtor`) is given, will call :close on the resource.``
@@ -446,8 +446,8 @@
 (var- macexvar nil)
 
 (defmacro if-let
-  ``Make multiple bindings, and if all are truthy,
-  evaluate the `tru` form. If any are false or nil, evaluate
+  ``Makes multiple bindings, and if all are truthy,
+  evaluates the `tru` form. If any are false or nil, evaluates
   the `fal` form. Bindings have the same syntax as the `let` macro.``
   [bindings tru &opt fal]
   (def len (length bindings))
@@ -587,28 +587,28 @@
       (error (string "unexpected loop verb " verb)))))
 
 (defmacro forv
-  ``Do a C-style for-loop for side effects. The iteration variable `i`
+  ``Does a C-style for-loop for side effects. The iteration variable `i`
   can be mutated in the loop, unlike normal `for`. Returns nil.``
   [i start stop & body]
   (for-var-template i start stop 1 < + body))
 
 (defmacro for
-  "Do a C-style for-loop for side effects. Returns nil."
+  "Does a C-style for-loop for side effects. Returns nil."
   [i start stop & body]
   (for-template i start stop 1 < + body))
 
 (defmacro eachk
-  "Loop over each key in `ds`. Returns nil."
+  "Loops over each key in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :keys body))
 
 (defmacro eachp
-  "Loop over each (key, value) pair in `ds`. Returns nil."
+  "Loops over each (key, value) pair in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :pairs body))
 
 (defmacro repeat
-  "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
+  "Evaluates body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
   [n & body]
   (with-syms [iter]
     ~(do (var ,iter ,n) (while (,> ,iter 0) ,;body (as-macro ,-- ,iter)))))
@@ -619,7 +619,7 @@
   ~(while true ,;body))
 
 (defmacro each
-  "Loop over each value in `ds`. Returns nil."
+  "Loops over each value in `ds`. Returns nil."
   [x ds & body]
   (each-template x ds :each body))
 
@@ -841,12 +841,12 @@
   [args] (do-extreme < args))
 
 (defn first
-  "Get the first element from an indexed data structure."
+  "Gets the first element from an indexed data structure."
   [xs]
   (get xs 0))
 
 (defn last
-  "Get the last element from an indexed data structure."
+  "Gets the last element from an indexed data structure."
   [xs]
   (get xs (- (length xs) 1)))
 
@@ -916,32 +916,32 @@
   (compare-reduce >= xs))
 
 (defn zero?
-  "Check if x is zero. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is zero. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) 0))
 
 (defn pos?
-  "Check if x is greater than 0. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is greater than 0. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) 1))
 
 (defn neg?
-  "Check if x is less than 0. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is less than 0. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) -1))
 
 (defn one?
-  "Check if x is equal to 1. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is equal to 1. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 1) 0))
 
 (defn even?
-  "Check if x is even. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is even. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= 0 (compare 0 (mod x 2))))
 
 (defn odd?
-  "Check if x is odd. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is odd. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= 0 (compare 1 (mod x 2))))
 
@@ -1119,8 +1119,8 @@
 
 (defn map
   ```
-  Map a function `f` over every value in a data structure `ind`
-  and return an array of results, but only if no `inds` are
+  Maps a function `f` over every value in a data structure `ind`
+  and returns an array of results, but only if no `inds` are
   provided. Multiple data structures can be handled if each
   `inds` is a data structure and `f` is a function of arity
   one more than the number of `inds`.  The resulting array has
@@ -1133,8 +1133,8 @@
 
 (defn mapcat
   ```
-  Map a function `f` over every value in a data structure `ind`
-  and use `array/concat` to concatenate the results, but only if
+  Maps a function `f` over every value in a data structure `ind`
+  and uses `array/concat` to concatenate the results, but only if
   no `inds` are provided. Multiple data structures can be handled
   if each `inds` is a data structure and `f` is a function of
   arity one more than the number of `inds`. Note that `f` is only
@@ -1147,7 +1147,7 @@
   res)
 
 (defn filter
-  ``Given a predicate, take only elements from an array or tuple for
+  ``Given a predicate, takes only elements from an array or tuple for
   which `(pred element)` is truthy. Returns a new array.``
   [pred ind]
   (def res @[])
@@ -1158,7 +1158,7 @@
 
 (defn count
   ```
-  Count the number of values in a data structure `ind` for which
+  Counts the number of values in a data structure `ind` for which
   applying `pred` yields a truthy value, but only if no `inds` are
   provided. Multiple data structures can be handled if each `inds`
   is a data structure and `pred` is a function of arity one more
@@ -1173,7 +1173,7 @@
 
 (defn keep
   ```
-  Given a predicate `pred`, return a new array containing the
+  Given a predicate `pred`, returns a new array containing the
   truthy results of applying `pred` to each value in the data
   structure `ind`, but only if no `inds` are provided. Multiple
   data structures can be handled if each `inds` is a data
@@ -1187,7 +1187,7 @@
   res)
 
 (defn find-index
-  ``Find the index of indexed type for which `pred` is true. Returns `dflt` if not found.``
+  ``Finds the index of indexed type for which `pred` is true. Returns `dflt` if not found.``
   [pred ind &opt dflt]
   (var k nil)
   (var ret dflt)
@@ -1201,7 +1201,7 @@
   ret)
 
 (defn find
-  ``Find the first value in an indexed collection that satisfies a predicate. Returns
+  ``Finds the first value in an indexed collection that satisfies a predicate. Returns
   `dflt` if not found.``
   [pred ind &opt dflt]
   (var k nil)
@@ -1216,7 +1216,7 @@
   ret)
 
 (defn index-of
-  ``Find the first key associated with a value x in a data structure, acting like a reverse lookup.
+  ``Finds the first key associated with a value x in a data structure, acting like a reverse lookup.
   Will not look at table prototypes.
   Returns `dflt` if not found.``
   [x ind &opt dflt]
@@ -1236,7 +1236,7 @@
   (f ind start end))
 
 (defn take
-  ``Take the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string,
+  ``Takes the first n elements of a fiber, indexed or bytes type. Returns a new array, tuple or string,
   respectively. If `n` is negative, takes the last `n` elements instead.``
   [n ind]
   (cond
@@ -1270,8 +1270,8 @@
     (seq [x :in ind :until (pred x)] x)))
 
 (defn take-while
-  `Given a predicate, take only elements from a fiber, indexed, or bytes type that satisfy
-  the predicate, and abort on first failure. Returns a new array, tuple, or string, respectively.`
+  `Given a predicate, takes only elements from a fiber, indexed, or bytes type that satisfy
+  the predicate, and aborts on first failure. Returns a new array, tuple, or string, respectively.`
   [pred ind]
   (take-until (complement pred) ind))
 
@@ -1291,7 +1291,7 @@
   res)
 
 (defn drop
-  ``Drop the first `n` elements in an indexed or bytes type. Returns a new tuple or string
+  ``Drops the first `n` elements in an indexed or bytes type. Returns a new tuple or string
   instance, respectively. If `n` is negative, drops the last `n` elements instead.``
   [n ind]
   (cond
@@ -1329,8 +1329,8 @@
     (do (find pred ind) ind)))
 
 (defn drop-while
-  `Given a predicate, remove elements from an indexed or bytes type that satisfy
-  the predicate, and abort on first failure. Returns a new tuple or string, respectively.`
+  `Given a predicate, removes elements from an indexed or bytes type that satisfy
+  the predicate, and aborts on first failure. Returns a new tuple or string, respectively.`
   [pred ind]
   (drop-until (complement pred) ind))
 
@@ -1354,12 +1354,12 @@
   (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
 (defn has-key?
-  "Check if a data structure `ds` contains the key `key`."
+  "Checks if a data structure `ds` contains the key `key`."
   [ds key]
   (not= nil (get ds key)))
 
 (defn has-value?
-  "Check if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
+  "Checks if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
   [ds value]
   (not= nil (index-of value ds)))
 
@@ -1377,7 +1377,7 @@
   "Bound to the name of the currently compiling file.")
 
 (defmacro tracev
-  `Print to stderr a value and a description of the form that produced that value.
+  `Prints to stderr a value and a description of the form that produced that value.
   Evaluates to x.`
   [x]
   (def [l c] (tuple/sourcemap (dyn *macro-form* ())))
@@ -1491,8 +1491,8 @@
   ret)
 
 (defn walk
-  ``Iterate over the values in ast and apply `f`
-  to them. Collect the results in a data structure. If ast is not a
+  ``Iterates over the values in ast and applies `f`
+  to them. Collects the results in a data structure. If ast is not a
   table, struct, array, or tuple,
   returns form.``
   [f form]
@@ -1504,18 +1504,18 @@
     form))
 
 (defn postwalk
-  ``Do a post-order traversal of a data structure and call `(f x)`
+  ``Does a post-order traversal of a data structure and calls `(f x)`
   on every visitation.``
   [f form]
   (f (walk (fn [x] (postwalk f x)) form)))
 
 (defn prewalk
-  "Similar to `postwalk`, but do pre-order traversal."
+  "Similar to `postwalk`, but does pre-order traversal."
   [f form]
   (walk (fn [x] (prewalk f x)) (f form)))
 
 (defmacro as->
-  ``Thread forms together, replacing `as` in `forms` with the value
+  ``Threads forms together, replacing `as` in `forms` with the value
   of the previous form. The first form is the value x. Returns the
   last value.``
   [x as & forms]
@@ -1527,7 +1527,7 @@
   prev)
 
 (defmacro as?->
-  ``Thread forms together, replacing `as` in `forms` with the value
+  ``Threads forms together, replacing `as` in `forms` with the value
   of the previous form. The first form is the value x. If any
   intermediate values are falsey, return nil; otherwise, returns the
   last value.``
@@ -1540,7 +1540,7 @@
   prev)
 
 (defmacro with-dyns
-  `Run a block of code in a new fiber that has some
+  `Runs a block of code in a new fiber that has some
   dynamic bindings set. The fiber will not mask errors
   or signals, but the dynamic bindings will be properly
   unset, as dynamic bindings are fiber-local.`
@@ -1551,7 +1551,7 @@
   ~(,resume (,fiber/new (fn :with-dyns [] ,;dyn-forms ,;body) :p)))
 
 (defmacro with-env
-  `Run a block of code with a given environment table`
+  `Runs a block of code with a given environment table`
   [env & body]
   ~(,resume (,fiber/new (fn :with-env [] ,;body) : ,env)))
 
@@ -1652,7 +1652,7 @@
   res)
 
 (defn get-in
-  ``Access a value in a nested data structure. Looks into the data structure via
+  ``Accesses a value in a nested data structure. Looks into the data structure via
   a sequence of keys. If value is not found, and `dflt` is provided, returns `dflt`.``
   [ds ks &opt dflt]
   (var d ds)
@@ -1660,7 +1660,7 @@
   (if (= nil d) dflt d))
 
 (defn update-in
-  ``Update a value in a nested data structure `ds`. Looks into `ds` via a sequence of keys,
+  ``Updates a value in a nested data structure `ds`. Looks into `ds` via a sequence of keys,
   and replaces the value found there with `f` applied to that value.
   Missing data structures will be replaced with tables. Returns
   the modified, original data structure.``
@@ -1703,7 +1703,7 @@
   ds)
 
 (defn update
-  ``For a given key in data structure `ds`, replace its corresponding value with the
+  ``For a given key in data structure `ds`, replaces its corresponding value with the
   result of calling `func` on that value. If `args` are provided, they will be passed
   along to `func` as well. Returns `ds`, updated.``
   [ds key func & args]
@@ -1731,7 +1731,7 @@
   container)
 
 (defn keys
-  "Get the keys of an associative data structure."
+  "Gets the keys of an associative data structure."
   [x]
   (if (lengthable? x)
     (do
@@ -1744,7 +1744,7 @@
     (seq [k :keys x] k)))
 
 (defn values
-  "Get the values of an associative data structure."
+  "Gets the values of an associative data structure."
   [x]
   (if (lengthable? x)
     (do
@@ -1757,7 +1757,7 @@
     (seq [v :in x] v)))
 
 (defn pairs
-  "Get the key-value pairs of an associative data structure."
+  "Gets the key-value pairs of an associative data structure."
   [x]
   (if (lengthable? x)
     (do
@@ -1770,7 +1770,7 @@
     (seq [p :pairs x] p)))
 
 (defn frequencies
-  "Get the number of occurrences of each value in an indexed data structure."
+  "Gets the number of occurrences of each value in an indexed data structure."
   [ind]
   (def freqs @{})
   (each x ind
@@ -1779,7 +1779,7 @@
   freqs)
 
 (defn group-by
-  ``Group elements of `ind` by a function `f` and put the results into a new table. The keys of
+  ``Groups elements of `ind` by a function `f` and puts the results into a new table. The keys of
   the table are the distinct return values from calling `f` on the elements of `ind`. The values
   of the table are arrays of all elements of `ind` for which `f` called on the element equals
   that corresponding key.``
@@ -1793,7 +1793,7 @@
   ret)
 
 (defn partition-by
-  ``Partition elements of a sequential data structure by a representative function `f`. Partitions
+  ``Partitions elements of a sequential data structure by a representative function `f`. Partitions
   split when `(f x)` changes values when iterating to the next element `x` of `ind`. Returns a new array
   of arrays.``
   [f ind]
@@ -1892,7 +1892,7 @@
   ret)
 
 (defn partition
-  ``Partition an indexed data structure `ind` into tuples
+  ``Partitions an indexed data structure `ind` into tuples
   of size `n`. Returns a new array.``
   [n ind]
   (cond
@@ -1907,7 +1907,7 @@
 ###
 
 (defn slurp
-  ``Read all data from a file with name `path` and then close the file.``
+  ``Reads all data from a file with name `path` and then close the file.``
   [path]
   (def f (file/open path :rb))
   (if-not f (error (string "could not open file " path)))
@@ -1916,7 +1916,7 @@
   contents)
 
 (defn spit
-  ``Write `contents` to a file at `path`. Can optionally append to the file.``
+  ``Writes `contents` to a file at `path`. Can optionally append to the file.``
   [path contents &opt mode]
   (default mode :wb)
   (def f (file/open path mode))
@@ -1938,7 +1938,7 @@
   (flush))
 
 (defn file/lines
-  "Return an iterator over the lines of a file."
+  "Returns an iterator over the lines of a file."
   [file]
   (coro
     (while (def line (file/read file :line))
@@ -1952,7 +1952,7 @@
 
 (defmacro match
   ```
-  Pattern matching. Match an expression `x` against any number of cases.
+  Pattern matching. Matches an expression `x` against any number of cases.
   Each case is a pattern to match against, followed by an expression to
   evaluate to if that case is matched.  Legal patterns are:
 
@@ -2174,7 +2174,7 @@
 ###
 
 (defn macex1
-  ``Expand macros in a form, but do not recursively expand macros.
+  ``Expands macros in a form, but does not recursively expand macros.
   See `macex` docs for info on `on-binding`.``
   [x &opt on-binding]
 
@@ -2308,7 +2308,7 @@
   res)
 
 (defn freeze
-  `Freeze an object (make it immutable) and do a deep copy, making
+  `Freezes an object (make it immutable) and does a deep copy, making
   child values also immutable. Closures, fibers, and abstract types
   will not be recursively frozen, but all other types will.`
   [x]
@@ -2336,7 +2336,7 @@
 
 (defn thaw
   ```
-  Thaw an object (make it mutable) and do a deep copy, making
+  Thaws an object (make it mutable) and does a deep copy, making
   child values also mutable. Closures, fibers, and abstract
   types will not be recursively thawed, but all other types will.
   ```
@@ -2351,7 +2351,7 @@
 
 (defn thaw-keep-keys
   ```
-  Similar to `thaw`, but do not modify table or struct keys.
+  Similar to `thaw`, but does not modify table or struct keys.
   ```
   [ds]
   (case (type ds)
@@ -2398,7 +2398,7 @@
   (not (deep-not= x y)))
 
 (defn macex
-  ``Expand macros completely.
+  ``Expands macros completely.
   `on-binding` is an optional callback for whenever a normal symbolic binding
   is encountered. This allows macros to easily see all bindings used by their
   arguments by calling `macex` on their contents. The binding itself is also
@@ -2417,7 +2417,7 @@
 (set macexvar macex)
 
 (defmacro varfn :flycheck
-  ``Create a function that can be rebound. `varfn` has the same signature
+  ``Creates a function that can be rebound. `varfn` has the same signature
   as `defn`, but defines functions in the environment as vars. If a var `name`
   already exists in the environment, it is rebound to the new function. Returns
   a function.``
@@ -2549,7 +2549,7 @@
     "JANET_PATH" (setdyn *syspath* v)))
 
 (defn make-env
-  `Create a new environment table. The new environment
+  `Creates a new environment table. The new environment
   will inherit bindings from the parent environment, but new
   bindings will not pollute the parent environment.`
   [&opt parent]
@@ -2610,7 +2610,7 @@
   (eflush))
 
 (defn curenv
-  ``Get the current environment table. Same as `(fiber/getenv (fiber/current))`. If `n`
+  ``Gets the current environment table. Same as `(fiber/getenv (fiber/current))`. If `n`
   is provided, gets the nth prototype of the environment table.``
   [&opt n]
   (var e (fiber/getenv (fiber/current)))
@@ -2626,7 +2626,7 @@
 
 (defn run-context
   ```
-  Run a context. This evaluates expressions in an environment,
+  Runs a context. This evaluates expressions in an environment,
   and encapsulates the parsing, compilation, and evaluation.
   Returns `(in environment :exit-value environment)` when complete.
   `opts` is a table or struct of options. The options are as follows:
@@ -2816,7 +2816,7 @@
     (error (get res :error))))
 
 (defn parse
-  `Parse a string and return the first value. For complex parsing, such as for a repl with error handling,
+  `Parses a string and returns the first value. For complex parsing, such as for a repl with error handling,
   use the parser api.`
   [str]
   (let [p (parser/new)]
@@ -2831,7 +2831,7 @@
         (error "no value")))))
 
 (defn parse-all
-  `Parse a string and return all parsed values. For complex parsing, such as for a repl with error handling,
+  `Parses a string and returns all parsed values. For complex parsing, such as for a repl with error handling,
   use the parser api.`
   [str]
   (let [p (parser/new)
@@ -2871,20 +2871,20 @@
   y)
 
 (defmacro compif
-  "Check the condition `cnd` at compile time -- if truthy, compile `tru`, else compile `fals`."
+  "Checks the condition `cnd` at compile time -- if truthy, compiles `tru`, else compiles `fals`."
   [cnd tru &opt fals]
   (if (eval cnd)
     tru
     fals))
 
 (defmacro compwhen
-  "Check the condition `cnd` at compile time -- if truthy, compile `(upscope ;body)`, else compile nil."
+  "Checks the condition `cnd` at compile time -- if truthy, compiles `(upscope ;body)`, else compiles nil."
   [cnd & body]
   (if (eval cnd)
     ~(upscope ,;body)))
 
 (defn make-image
-  ``Create an image from an environment returned by `require`.
+  ``Creates an image from an environment returned by `require`.
   Returns the image source as a string.``
   [env]
   (marshal env make-image-dict))
@@ -2928,7 +2928,7 @@
 
 (defn module/add-paths
   ```
-  Add paths to `module/paths` for a given loader such that
+  Adds paths to `module/paths` for a given loader such that
   the generated paths behave like other module types, including
   relative imports and syspath imports. `ext` is the file extension
   to associate with this module type, including the dot. `loader` is the
@@ -2951,7 +2951,7 @@
 
 (defn module/add-file-extension
   ```
-  Add paths to `module/paths` for a given file extension such that
+  Adds paths to `module/paths` for a given file extension such that
   the programmer can import a module by relative or absolute path from
   the current working directory.
   Returns the modified `module/paths`.
@@ -2965,7 +2965,7 @@
 # Don't expose this externally yet - could break if custom module/paths is setup.
 (defn module/add-syspath
   ```
-  Add a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
+  Adds a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
   adding duplicates with a specific path prefix instead.
   ```
   [path]
@@ -3016,7 +3016,7 @@
 
 (defn module/find
   ```
-  Try to match a module or path name from the patterns in `module/paths`.
+  Tries to match a module or path name from the patterns in `module/paths`.
   Returns a tuple (fullpath kind) where the kind is one of :source, :native,
   or :image if the module is found, otherwise a tuple with nil followed by
   an error message.
@@ -3052,7 +3052,7 @@
   @{})
 
 (defn module/value
-  ``Given a module table, get the value bound to a symbol `sym`. If `private` is
+  ``Given a module table, gets the value bound to a symbol `sym`. If `private` is
   truthy, will also resolve private module symbols. If no binding is found, will return
   nil.``
   [module sym &opt private]
@@ -3073,7 +3073,7 @@
 (var- debugger-on-status-var nil)
 
 (defn debugger
-  "Run a repl-based debugger on a fiber. Optionally pass in a level
+  "Runs a repl-based debugger on a fiber. Optionally pass in a level
   to differentiate nested debuggers."
   [fiber &opt level]
   (default level 1)
@@ -3099,7 +3099,7 @@
   (nextenv :resume-value))
 
 (defn debugger-on-status
-  "Create a function that can be passed to `run-context`'s `:on-status`
+  "Creates a function that can be passed to `run-context`'s `:on-status`
   argument that will drop into a debugger on errors. The debugger will
   only start on abnormal signals if the env table has the `:debug` dyn
   set to a truthy value."
@@ -3125,7 +3125,7 @@
 (set debugger-on-status-var debugger-on-status)
 
 (defn dofile
-  ``Evaluate a file, file path, or stream and return the resulting environment. :env, :expander,
+  ``Evaluates a file, file path, or stream and returns the resulting environment. :env, :expander,
   :source, :evaluator, :read, and :parser are passed through to the underlying
   `run-context` call. If `exit` is true, any top level errors will trigger a
   call to `(os/exit 1)` after printing the error.``
@@ -3231,14 +3231,14 @@
         env))))
 
 (defn require
-  ``Require a module with the given name. Will search all of the paths in
+  ``Requires a module with the given name. Will search all of the paths in
   `module/paths`. Returns the new environment
   returned from compiling and running the file.``
   [path & args]
   (require-1 path args (struct ;args)))
 
 (defn merge-module
-  ``Merge a module source into the `target` environment with a `prefix`, as with the `import` macro.
+  ``Merges a module source into the `target` environment with a `prefix`, as with the `import` macro.
   This lets users emulate the behavior of `import` with a custom module table.
   If `export` is truthy, then merged functions are not marked as private. Returns
   the modified target environment. If a tuple or array `only` is passed, only merge keys in `only`.``
@@ -3267,7 +3267,7 @@
   (merge-module env newenv prefix ep only))
 
 (defmacro import
-  ``Import a module. First requires the module, and then merges its
+  ``Imports a module. First requires the module, and then merges its
   symbols into the current environment, prepending a given prefix as needed.
   (use the :as or :prefix option to set a prefix). If no prefix is provided,
   use the name of the module as a prefix. One can also use "`:export true`"
@@ -3311,14 +3311,14 @@
   (sort (keys ret-set)))
 
 (defn all-bindings
-  ``Get all symbols available in an environment. Defaults to the current
+  ``Gets all symbols available in an environment. Defaults to the current
   fiber's environment. If `local` is truthy, will not show inherited bindings
   (from prototype tables).``
   [&opt env local]
   (env-walk symbol? env local))
 
 (defn all-dynamics
-  ``Get all dynamic bindings in an environment. Defaults to the current
+  ``Gets all dynamic bindings in an environment. Defaults to the current
   fiber's environment. If `local` is truthy, will not show inherited bindings
   (from prototype tables).``
   [&opt env local]
@@ -3331,7 +3331,7 @@
   "Whether or not to colorize documentation printed with `doc-format`.")
 
 (defn doc-format
-  `Reformat a docstring to wrap a certain width. Docstrings can either be plaintext
+  `Reformats a docstring to wrap a certain width. Docstrings can either be plaintext
   or a subset of markdown. This allows a long single line of prose or formatted text to be
   a well-formed docstring. Returns a buffer containing the formatted text.`
   [str &opt width indent colorize]
@@ -3595,7 +3595,7 @@
   buf)
 
 (defn- print-index
-  "Print bindings in the current environment given a filter function."
+  "Prints bindings in the current environment given a filter function."
   [fltr]
   (def bindings (filter fltr (all-bindings)))
   (def dynamics (map describe (filter fltr (all-dynamics))))
@@ -3634,7 +3634,7 @@
          "    See https://janet-lang.org/docs/specials.html\n\n"))
 
 (defn doc*
-  "Get the documentation for a symbol in a given environment. Function form of `doc`."
+  "Gets the documentation for a symbol in a given environment. Function form of `doc`."
   [&opt sym]
 
   (cond
@@ -3692,45 +3692,45 @@
 ###
 
 (defn .fiber
-  "Get the current fiber being debugged."
+  "Gets the current fiber being debugged."
   []
   (dyn :fiber))
 
 (defn .signal
-  "Get the current signal being debugged."
+  "Gets the current signal being debugged."
   []
   (dyn :signal))
 
 (defn .stack
-  "Print the current fiber stack."
+  "Prints the current fiber stack."
   []
   (print)
   (with-dyns [*err-color* false] (debug/stacktrace (.fiber) (.signal) ""))
   (print))
 
 (defn .frame
-  "Show a stack frame"
+  "Shows a stack frame"
   [&opt n]
   (def stack (debug/stack (.fiber)))
   (in stack (or n 0)))
 
 (defn .locals
-  "Show local bindings"
+  "Shows local bindings"
   [&opt n]
   (get (.frame n) :locals))
 
 (defn .fn
-  "Get the current function."
+  "Gets the current function."
   [&opt n]
   (in (.frame n) :function))
 
 (defn .slots
-  "Get an array of slots in a stack frame."
+  "Gets an array of slots in a stack frame."
   [&opt n]
   (in (.frame n) :slots))
 
 (defn .slot
-  "Get the value of the nth slot."
+  "Gets the value of the nth slot."
   [&opt nth frame-idx]
   (in (.slots frame-idx) (or nth 0)))
 
@@ -3799,7 +3799,7 @@
     (eprint))
 
   (defn .breakall
-    "Set breakpoints on all instructions in the current function."
+    "Sets breakpoints on all instructions in the current function."
     [&opt n]
     (def fun (.fn n))
     (def bytecode (.bytecode n))
@@ -3808,7 +3808,7 @@
     (eprint "set " (length bytecode) " breakpoints in " fun))
 
   (defn .clearall
-    "Clear all breakpoints on the current function."
+    "Clears all breakpoints on the current function."
     [&opt n]
     (def fun (.fn n))
     (def bytecode (.bytecode n))
@@ -3817,7 +3817,7 @@
     (eprint "cleared " (length bytecode) " breakpoints in " fun)))
 
 (defn .source
-  "Show the source code for the function being debugged."
+  "Shows the source code for the function being debugged."
   [&opt n]
   (def frame (.frame n))
   (def s (frame :source))
@@ -3825,7 +3825,7 @@
   (eprint "\n" all-source "\n"))
 
 (defn .break
-  "Set breakpoint at the current pc."
+  "Sets breakpoint at the current pc."
   []
   (def frame (.frame))
   (def fun (frame :function))
@@ -3834,7 +3834,7 @@
   (eprint "set breakpoint in " fun " at pc=" pc))
 
 (defn .clear
-  "Clear the current breakpoint."
+  "Clears the current breakpoint."
   []
   (def frame (.frame))
   (def fun (frame :function))
@@ -3843,7 +3843,7 @@
   (eprint "cleared breakpoint in " fun " at pc=" pc))
 
 (defn .next
-  "Go to the next breakpoint."
+  "Goes to the next breakpoint."
   [&opt n]
   (var res nil)
   (forv i 0 (or n 1)
@@ -3851,13 +3851,13 @@
   res)
 
 (defn .nextc
-  "Go to the next breakpoint, clearing the current breakpoint."
+  "Goes to the next breakpoint, clearing the current breakpoint."
   [&opt n]
   (.clear)
   (.next n))
 
 (defn .step
-  "Execute the next n instructions."
+  "Executes the next n instructions."
   [&opt n]
   (var res nil)
   (forv i 0 (or n 1)
@@ -3874,7 +3874,7 @@
 ###
 
 (defn repl
-  ``Run a repl. The first parameter is an optional function to call to
+  ``Runs a repl. The first parameter is an optional function to call to
   get a chunk of source code that should return nil for end of file.
   The second parameter is a function that is called when a signal is
   caught. One can provide an optional environment table to run
@@ -3913,7 +3913,7 @@
 
   (defn ev/call
     ```
-    Call a function asynchronously.
+    Calls a function asynchronously.
     Returns a task fiber that is scheduled to run the function.
     ```
     [f & args]
@@ -3921,14 +3921,14 @@
 
   (defmacro ev/spawn
     ``
-    Run some code in a new task fiber. This is shorthand for
+    Runs some code in a new task fiber. This is shorthand for
     `(ev/go (fn [] ;body))`."
     ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
 
   (defmacro ev/do-thread
-    ``Run some code in a new thread. Suspends the current fiber until the thread is complete, and
+    ``Runs some code in a new thread. Suspends the current fiber until the thread is complete, and
     evaluates to nil.``
     [& body]
     ~(,ev/thread (fn :do-thread [&] ,;body)))
@@ -3943,29 +3943,29 @@
          ,;body)))
 
   (defmacro ev/with-lock
-    ``Run a body of code after acquiring a lock. Will automatically release the lock when done.``
+    ``Runs a body of code after acquiring a lock. Will automatically release the lock when done.``
     [lock & body]
     (acquire-release ev/acquire-lock ev/release-lock lock body))
 
   (defmacro ev/with-rlock
-    ``Run a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
+    ``Runs a body of code after acquiring read access to an rwlock. Will automatically release the lock when done.``
     [lock & body]
     (acquire-release ev/acquire-rlock ev/release-rlock lock body))
 
   (defmacro ev/with-wlock
-    ``Run a body of code after acquiring write access to an rwlock. Will automatically release the lock when done.``
+    ``Runs a body of code after acquiring write access to an rwlock. Will automatically release the lock when done.``
     [lock & body]
     (acquire-release ev/acquire-wlock ev/release-wlock lock body))
 
   (defmacro ev/spawn-thread
-    ``Run some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
+    ``Runs some code in a new thread. Like `ev/do-thread`, but returns nil immediately.``
     [& body]
     ~(,ev/thread (fn :spawn-thread [&] ,;body) nil :n))
 
   (defmacro ev/with-deadline
     ``
-    Create a fiber to execute `body`, schedule the event loop to cancel
-    the task (root fiber) associated with `body`'s fiber, and start
+    Creates a fiber to execute `body`, schedules the event loop to cancel
+    the task (root fiber) associated with `body`'s fiber, and starts
     `body`'s fiber by resuming it.
 
     The event loop will try to cancel the root fiber if `body`'s fiber
@@ -3998,7 +3998,7 @@
 
   (defn ev/go-gather
     ```
-    Run a dyanmic number of fibers in parallel and resume the current fiber after they complete. Takes
+    Runs a dyanmic number of fibers in parallel and resumes the current fiber after they complete. Takes
     an array of functions or fibers, `thunks`, that will be run via `ev/go` in another task.
     Returns the gathered results in an array.
     ```
@@ -4017,7 +4017,7 @@
 
   (defmacro ev/gather
     ``
-    Create and run a number of fibers in parallel (created from `bodies`) and resume the
+    Creates and runs a number of fibers in parallel (created from `bodies`) and resumes the
     current fiber after they complete. Shorthand for `ev/go-gather`. Returns the gathered results in an
     array.
     ``
@@ -4071,7 +4071,7 @@
     (string/replace-all "-" "_" name))
 
   (defn ffi/context
-    "Set the path of the dynamic library to implicitly bind, as well
+    "Sets the path of the dynamic library to implicitly bind, as well
      as other global state for ease of creating native bindings."
     [&opt native-path &named map-symbols lazy]
     (default map-symbols default-mangle)
@@ -4085,7 +4085,7 @@
               :map-symbols map-symbols}))
 
   (defmacro ffi/defbind-alias :flycheck
-    "Generate bindings for native functions in a convenient manner.
+    "Generates bindings for native functions in a convenient manner.
      Similar to defbind but allows for the janet function name to be
      different than the FFI function."
     [name alias ret-type & body]
@@ -4113,7 +4113,7 @@
          (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
   (defmacro ffi/defbind :flycheck
-    "Generate bindings for native functions in a convenient manner."
+    "Generates bindings for native functions in a convenient manner."
     [name ret-type & body]
     ~(as-macro ,ffi/defbind-alias ,name ,name ,ret-type ,;body)))
 
@@ -4147,7 +4147,7 @@
 
 (defn flycheck
   ```
-  Check a file for errors without running the file. Found errors
+  Checks a file for errors without running the file. Found errors
   will be printed to stderr in the usual format. Top level functions
   and macros that have the metadata `:flycheck` will also be evaluated
   during flychecking. For full control, the `:flycheck` metadata can
@@ -4168,7 +4168,7 @@
   nil)
 
 (defn- no-side-effects
-  `Check if form may have side effects. If returns true, then the src
+  `Checks if form may have side effects. If returns true, then the src
   must not have side effects, such as calling a C function.`
   [src]
   (cond
@@ -4306,7 +4306,7 @@
     (spit manifest-name b))
 
   (defn bundle/manifest
-    "Get the manifest for a given installed bundle."
+    "Gets the manifest for a given installed bundle."
     [bundle-name]
     (def name (get-manifest-filename bundle-name))
     (assertf (fexists name) "no bundle %v found" bundle-name)
@@ -4352,7 +4352,7 @@
       (hookf ;args)))
 
   (defn bundle/list
-    "Get a list of all installed bundles in lexical order."
+    "Gets a list of all installed bundles in lexical order."
     []
     (def d (bundle-dir))
     (if (os/stat d :mode)
@@ -4376,7 +4376,7 @@
     nil)
 
   (defn bundle/uninstall
-    ``Remove a bundle from the current syspath. There is 1 hook called during
+    ``Removes a bundle from the current syspath. There is 1 hook called during
     uninstallation (uninstall). A user can register a hook by defining a
     function with the same name in the bundle script.``
     [bundle-name]
@@ -4393,7 +4393,7 @@
     (bundle-uninstall-unchecked bundle-name))
 
   (defn bundle/topolist
-    "Get topological order of all bundles, such that each bundle is listed after its dependencies."
+    "Gets topological order of all bundles, such that each bundle is listed after its dependencies."
     []
     (def visited @{})
     (def cycle-detect @{})
@@ -4414,7 +4414,7 @@
     order)
 
   (defn bundle/prune
-    ``Remove all orphaned bundles from the current syspath. An orphaned bundle is a
+    ``Removes all orphaned bundles from the current syspath. An orphaned bundle is a
     bundle that is marked for :auto-remove and is not depended on by any other bundle.``
     []
     (def topo (bundle/topolist))
@@ -4439,12 +4439,12 @@
       (bundle-uninstall-unchecked b)))
 
   (defn bundle/installed?
-    "Check if a bundle is installed."
+    "Checks if a bundle is installed."
     [bundle-name]
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
   (defn bundle/install
-    ``Install a bundle from the local filesystem. The name of the bundle is
+    ``Installs a bundle from the local filesystem. The name of the bundle is
     the value mapped to :name in either `config` or the info file. There are
     5 hooks called during installation (postdeps, clean, build, install and
     check). A user can register a hook by defining a function with the same name
@@ -4525,7 +4525,7 @@
     bundle-name)
 
   (defn- bundle/pack
-    ``Take an installed bundle and create a bundle source directory that can be
+    ``Takes an installed bundle and creates a bundle source directory that can be
     used to reinstall the bundle on a compatible system. This is used to create
     backups for installed bundles without rebuilding, or make a prebuilt bundle
     for other systems.``
@@ -4558,7 +4558,7 @@
     dest-dir)
 
   (defn bundle/replace
-    ``Reinstall an existing bundle from a new directory. Similar to
+    ``Reinstalls an existing bundle from a new directory. Similar to
     bundle/reinstall, but installs the replacement bundle from any directory.
     This is necessary to replace a package without breaking any dependencies.``
     [bundle-name path &keys new-config]
@@ -4579,7 +4579,7 @@
     bundle-name)
 
   (defn bundle/reinstall
-    "Reinstall an existing bundle from the local source code."
+    "Reinstalls an existing bundle from the local source code."
     [bundle-name &keys new-config]
     (def manifest (bundle/manifest bundle-name))
     (def path (get manifest :local-source))
@@ -4587,7 +4587,7 @@
     bundle-name)
 
   (defn bundle/add-directory
-    "Add a directory during an install relative to `(dyn *syspath*)`."
+    "Adds a directory during an install relative to `(dyn *syspath*)`."
     [manifest dest &opt chmod-mode]
     (def files (get-files manifest))
     (def s (sep))
@@ -4602,7 +4602,7 @@
     absdest)
 
   (defn bundle/whois
-    "Given a file path, figure out which bundle installed it."
+    "Given a file path, figures out which bundle installed it."
     [path]
     (var ret nil)
     (def rpath (bundle-rpath path))
@@ -4615,7 +4615,7 @@
     ret)
 
   (defn bundle/add-file
-    "Add a file during an install relative to `(dyn *syspath*)`."
+    "Adds a file during an install relative to `(dyn *syspath*)`."
     [manifest src &opt dest chmod-mode]
     (default dest src)
     (def files (get-files manifest))
@@ -4632,7 +4632,7 @@
     absdest)
 
   (defn bundle/add
-    ``Add a file or directory during an install relative to `(dyn *syspath*)`.
+    ``Adds a file or directory during an install relative to `(dyn *syspath*)`.
     Added files and directories will be recorded in the bundle manifest such
     that they are properly tracked and removed during an upgrade or uninstall.``
     [manifest src &opt dest chmod-mode]
@@ -4649,7 +4649,7 @@
       (errorf "bad path %s - file is a %s" src mode)))
 
   (defn bundle/add-bin
-    ``Add a file to the "bin" subdirectory of the current syspath. By default,
+    ``Adds a file to the "bin" subdirectory of the current syspath. By default,
     files will be set to be executable.``
     [manifest src &opt filename chmod-mode]
     (def s (sep))
@@ -4661,7 +4661,7 @@
     (bundle/add-file manifest src (string "bin" s filename) chmod-mode))
 
   (defn bundle/add-manpage
-    ``Add a file to the man subdirectory of the current syspath. Files are
+    ``Adds a file to the man subdirectory of the current syspath. Files are
     copied inside a directory `mansec`. By default, `mansec` is "man1".``
     [manifest src &opt mansec]
     (def s (sep))
@@ -4673,7 +4673,7 @@
     (bundle/add-file manifest src (string "man" s mansec s filename)))
 
   (defn bundle/update-all
-    "Reinstall all bundles."
+    "Reinstalls all bundles."
     [&keys configs]
     (each bundle (bundle/topolist)
       (bundle/reinstall bundle ;(kvs configs)))))
