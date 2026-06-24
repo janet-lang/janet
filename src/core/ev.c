@@ -371,6 +371,15 @@ static void janet_stream_close_impl(JanetStream *stream) {
     }
 #else
     if (stream->handle != -1) {
+#ifdef JANET_EV_EPOLL
+        if ((stream->flags & JANET_STREAM_UNREGISTERED) == 0) {
+            int status;
+            do {
+                status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_DEL, stream->handle, NULL);
+            } while (status == -1 && errno == EINTR);
+            if (status == -1) janet_panicv(janet_ev_lasterr());
+        }
+#endif
         if (canclose) close(stream->handle);
         stream->handle = -1;
 #ifdef JANET_EV_POLL
