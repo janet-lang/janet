@@ -371,15 +371,33 @@ static void janet_stream_close_impl(JanetStream *stream) {
     }
 #else
     if (stream->handle != -1) {
-#ifdef JANET_EV_EPOLL
         if ((stream->flags & JANET_STREAM_UNREGISTERED) == 0) {
+#ifdef JANET_EV_EPOLL
             int status;
             do {
                 status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_DEL, stream->handle, NULL);
             } while (status == -1 && errno == EINTR);
-            if (status == -1) janet_panicv(janet_ev_lasterr());
-        }
+            if (status == -1) {
+                janet_panicv(janet_ev_lasterr());
+            }
+#elif defined(JANET_EV_KQUEUE)
+            struct kevent kevs[2];
+            int length = 0;
+            if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
+                EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_DELETE, 0, 0, stream);
+            }
+            if (stream->flags & JANET_STREAM_WRITABLE) {
+                EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_DELETE, 0, 0, stream);
+            }
+            int status;
+            do {
+                status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
+            } while (status == -1 && errno == EINTR);
+            if (status == -1) {
+                janet_panicv(janet_ev_lasterr());
+            }
 #endif
+        }
         if (canclose) close(stream->handle);
         stream->handle = -1;
 #ifdef JANET_EV_POLL
