@@ -336,6 +336,8 @@ static void janet_deinit_block(JanetGCObject *mem) {
             if (f->ev_state && !(f->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
                 janet_ev_dec_refcount();
                 janet_free(f->ev_state);
+            } else if (f->gc.flags & JANET_FIBER_EV_FLAG_SUSPENDED) {
+                janet_ev_dec_refcount();
             }
 #endif
             janet_free(f->data);
