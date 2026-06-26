@@ -326,6 +326,9 @@ static void janet_stream_checktoclose(JanetStream *stream) {
 
 /* Forward declaration */
 static void janet_register_stream(JanetStream *stream);
+#ifndef JANET_WINDOWS
+static void janet_unregister_stream(JanetStream *stream);
+#endif
 
 static const JanetMethod ev_default_stream_methods[] = {
     {"close", janet_cfun_stream_close},
@@ -357,6 +360,7 @@ JanetStream *janet_stream(JanetHandle handle, uint32_t flags, const JanetMethod 
 static void janet_stream_close_impl(JanetStream *stream) {
     stream->flags |= JANET_STREAM_CLOSED;
     int canclose = !(stream->flags & JANET_STREAM_NOT_CLOSEABLE);
+    int canunregister = !(stream->flags & JANET_STREAM_UNREGISTERED);
 #ifdef JANET_WINDOWS
     if (stream->handle != INVALID_HANDLE_VALUE) {
 #ifdef JANET_NET
@@ -371,45 +375,9 @@ static void janet_stream_close_impl(JanetStream *stream) {
     }
 #else
     if (stream->handle != -1) {
-        if ((stream->flags & JANET_STREAM_UNREGISTERED) == 0) {
-#ifdef JANET_EV_EPOLL
-            int status;
-            do {
-                status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_DEL, stream->handle, NULL);
-            } while (status == -1 && errno == EINTR);
-            if (status == -1) {
-                janet_panicv(janet_ev_lasterr());
-            }
-#elif defined(JANET_EV_KQUEUE)
-            struct kevent kevs[2];
-            int length = 0;
-            if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
-                EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_DELETE, 0, 0, stream);
-            }
-            if (stream->flags & JANET_STREAM_WRITABLE) {
-                EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_DELETE, 0, 0, stream);
-            }
-            int status;
-            do {
-                status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
-            } while (status == -1 && errno == EINTR);
-            if (status == -1) {
-                janet_panicv(janet_ev_lasterr());
-            }
-#endif
-        }
+        if (canunregister) janet_unregister_stream(stream);
         if (canclose) close(stream->handle);
         stream->handle = -1;
-#ifdef JANET_EV_POLL
-        uint32_t i = stream->index;
-        size_t j = janet_vm.stream_count - 1;
-        JanetStream *last = janet_vm.streams[j];
-        struct pollfd lastfd = janet_vm.fds[j + 1];
-        janet_vm.fds[i + 1] = lastfd;
-        janet_vm.streams[i] = last;
-        last->index = stream->index;
-        janet_vm.stream_count--;
-#endif
     }
 #endif
 }
@@ -1813,6 +1781,17 @@ void janet_stream_level_triggered(JanetStream *stream) {
     janet_register_stream_impl(stream, 1, 0);
 }
 
+void janet_unregister_stream(JanetStream *stream) {
+    int status;
+    do {
+        status = epoll_ctl(janet_vm.epoll, EPOLL_CTL_DEL, stream->handle, NULL);
+    } while (status == -1 && errno == EINTR);
+    if (status == -1) {
+        janet_panicv(janet_ev_lasterr());
+    }
+    stream->flags |= JANET_STREAM_UNREGISTERED;
+}
+
 #define JANET_EPOLL_MAX_EVENTS 64
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
     struct itimerspec its;
@@ -1989,6 +1968,25 @@ void janet_stream_level_triggered(JanetStream *stream) {
     janet_register_stream_impl(stream, 0);
 }
 
+void janet_unregister_stream(JanetStream *stream) {
+    struct kevent kevs[2];
+    int length = 0;
+    if (stream->flags & (JANET_STREAM_READABLE | JANET_STREAM_ACCEPTABLE)) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_READ, EV_DELETE, 0, 0, stream);
+    }
+    if (stream->flags & JANET_STREAM_WRITABLE) {
+        EV_SETx(&kevs[length++], stream->handle, EVFILT_WRITE, EV_DELETE, 0, 0, stream);
+    }
+    int status;
+    do {
+        status = kevent(janet_vm.kq, kevs, length, NULL, 0, NULL);
+    } while (status == -1 && errno == EINTR);
+    if (status == -1) {
+        janet_panicv(janet_ev_lasterr());
+    }
+    stream->flags |= JANET_STREAM_UNREGISTERED;
+}
+
 #define JANET_KQUEUE_MAX_EVENTS 512
 
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
@@ -2110,6 +2108,18 @@ void janet_register_stream(JanetStream *stream) {
     janet_vm.fds[janet_vm.stream_count + 1] = ev;
     janet_vm.streams[janet_vm.stream_count] = stream;
     janet_vm.stream_count = new_count;
+}
+
+void janet_unregister_stream(JanetStream *stream) {
+    uint32_t i = stream->index;
+    size_t j = janet_vm.stream_count - 1;
+    JanetStream *last = janet_vm.streams[j];
+    struct pollfd lastfd = janet_vm.fds[j + 1];
+    janet_vm.fds[i + 1] = lastfd;
+    janet_vm.streams[i] = last;
+    last->index = stream->index;
+    janet_vm.stream_count--;
+    stream->flags |= JANET_STREAM_UNREGISTERED;
 }
 
 void janet_stream_edge_triggered(JanetStream *stream) {
