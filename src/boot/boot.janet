@@ -96,25 +96,25 @@
   nil)
 
 # Basic predicates
-(defn nan? "Returns true if x is NaN, false otherwise." [x] (not= x x))
-(defn number? "Returns true if x is a number, false otherwise." [x] (= (type x) :number))
-(defn fiber? "Returns true if x is a fiber, false otherwise." [x] (= (type x) :fiber))
-(defn string? "Returns true if x is a string, false otherwise." [x] (= (type x) :string))
-(defn symbol? "Returns true if x is a symbol, false otherwise." [x] (= (type x) :symbol))
-(defn keyword? "Returns true if x is a keyword, false otherwise." [x] (= (type x) :keyword))
-(defn buffer? "Returns true if x is a buffer, false otherwise." [x] (= (type x) :buffer))
-(defn function? "Returns true if x is a function (not a cfunction), false otherwise." [x] (= (type x) :function))
-(defn cfunction? "Returns true if x is a cfunction, false otherwise." [x] (= (type x) :cfunction))
-(defn table? "Returns true if x is a table, false otherwise." [x] (= (type x) :table))
-(defn struct? "Returns true if x is a struct, false otherwise." [x] (= (type x) :struct))
-(defn array? "Returns true if x is an array, false otherwise." [x] (= (type x) :array))
-(defn tuple? "Returns true if x is a tuple, false otherwise." [x] (= (type x) :tuple))
-(defn boolean? "Returns true if x is a boolean, false otherwise." [x] (= (type x) :boolean))
-(defn truthy? "Returns true if x is truthy, false otherwise." [x] (if x true false))
-(defn true? "Returns true if x is true, false otherwise." [x] (= x true))
-(defn false? "Returns true if x is false, false otherwise." [x] (= x false))
-(defn nil? "Returns true if x is nil, false otherwise." [x] (= x nil))
-(defn empty? "Returns true if an iterable, `iter`, is empty, false otherwise." [iter] (= nil (next iter nil)))
+(defn nan? "Checks if x is NaN." [x] (not= x x))
+(defn number? "Checks if x is a number." [x] (= (type x) :number))
+(defn fiber? "Checks if x is a fiber." [x] (= (type x) :fiber))
+(defn string? "Checks if x is a string." [x] (= (type x) :string))
+(defn symbol? "Checks if x is a symbol." [x] (= (type x) :symbol))
+(defn keyword? "Checks if x is a keyword." [x] (= (type x) :keyword))
+(defn buffer? "Checks if x is a buffer." [x] (= (type x) :buffer))
+(defn function? "Checks if x is a function (not a cfunction)." [x] (= (type x) :function))
+(defn cfunction? "Checks if x is a cfunction." [x] (= (type x) :cfunction))
+(defn table? "Checks if x is a table." [x] (= (type x) :table))
+(defn struct? "Checks if x is a struct." [x] (= (type x) :struct))
+(defn array? "Checks if x is an array." [x] (= (type x) :array))
+(defn tuple? "Checks if x is a tuple." [x] (= (type x) :tuple))
+(defn boolean? "Checks if x is a boolean." [x] (= (type x) :boolean))
+(defn truthy? "Checks if x is truthy." [x] (if x true false))
+(defn true? "Checks if x is true." [x] (= x true))
+(defn false? "Checks if x is false." [x] (= x false))
+(defn nil? "Checks if x is nil." [x] (= x nil))
+(defn empty? "Checks if an iterable, `iter`, is empty." [iter] (= nil (next iter nil)))
 
 # For macros, we define an incomplete odd? function that will be overridden.
 (defn odd? [x] (= 1 (mod x 2)))
@@ -128,7 +128,7 @@
    :struct true})
 
 (defn idempotent?
-  "Returns true if x is a value that evaluates to itself when compiled, false otherwise."
+  "Checks if x is a value that evaluates to itself when compiled."
   [x]
   (not (in non-atomic-types (type x))))
 
@@ -916,32 +916,32 @@
   (compare-reduce >= xs))
 
 (defn zero?
-  "Returns true if x is zero, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is zero. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) 0))
 
 (defn pos?
-  "Returns true if x is greater than 0, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is greater than 0. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) 1))
 
 (defn neg?
-  "Returns true if x is less than 0, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is less than 0. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 0) -1))
 
 (defn one?
-  "Returns true if x is equal to 1, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is equal to 1. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= (compare x 1) 0))
 
 (defn even?
-  "Returns true if x is even, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is even. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= 0 (compare 0 (mod x 2))))
 
 (defn odd?
-  "Returns true if x is odd, false otherwise. If x is a table or struct, uses polymorphic `compare`."
+  "Checks if x is odd. If x is a table or struct, uses polymorphic `compare`."
   [x]
   (= 0 (compare 1 (mod x 2))))
 
@@ -1354,12 +1354,12 @@
   (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
 (defn has-key?
-  "Returns true if a data structure `ds` contains the key `key`, false otherwise."
+  "Checks if a data structure `ds` contains the key `key`."
   [ds key]
   (not= nil (get ds key)))
 
 (defn has-value?
-  "Returns true if a data structure `ds` contains the value `value`, false otherwise. Will run in time proportional to the size of `ds`."
+  "Checks if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
   [ds value]
   (not= nil (index-of value ds)))
 
@@ -4439,7 +4439,7 @@
       (bundle-uninstall-unchecked b)))
 
   (defn bundle/installed?
-    "Returns true if a bundle is installed, false otherwise."
+    "Checks if a bundle is installed."
     [bundle-name]
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
