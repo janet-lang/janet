@@ -937,8 +937,8 @@
 (defmacro- sort-partition-template
   [ind before? left right pivot]
   ~(do
-     (while (,before? (in ,ind ,left) ,pivot) (++ ,left))
-     (while (,before? ,pivot (in ,ind ,right)) (-- ,right))))
+     (while (and (,before? (in ,ind ,left) ,pivot) (< ,left (- (length ,ind) 1))) (++ ,left))
+     (while (and (,before? ,pivot (in ,ind ,right)) (> ,right 0)) (-- ,right))))
 
 (defn- sort-help [a lo hi before?]
   (when (< lo hi)

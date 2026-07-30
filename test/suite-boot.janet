@@ -357,6 +357,8 @@
 (assert (deep= @[1 2 3 4 5] (sorted [5 3 4 1 2])) "sort 3")
 (assert (deep= @[{:a 1} {:a 4} {:a 7}]
                (sorted-by |($ :a) [{:a 4} {:a 7} {:a 1}])) "sort 4")
+(assert (deep= @[1 3 2]
+               (sorted-by |@[$] [1 3 2])) "sort 5")
 
 # Sort function
 # 2ca9300bf
