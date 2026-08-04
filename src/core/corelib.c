@@ -1175,12 +1175,16 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "than x, and 0 otherwise. To return 0, x and y must be the exact same type."));
     janet_quick_asm(env, JANET_FUN_NEXT,
                     "next", 2, 1, 2, 2, next_asm, sizeof(next_asm),
-                    JDOC("(next ds &opt key)\n\n"
-                         "Gets the next key in a data structure. Can be used to iterate through "
-                         "the keys of a data structure in an unspecified order. Keys are guaranteed "
-                         "to be seen only once per iteration if the data structure is not mutated "
-                         "during iteration. If key is nil, next returns the first key. If next "
-                         "returns nil, there are no more keys to iterate through."));
+                    JDOC("(next x &opt key)\n\n"
+                         "Gets the next key in `x`. Can be used to iterate through "
+                         "the keys of `x` in an unspecified order. Keys are guaranteed "
+                         "to be seen only once per iteration if `x` is not mutated "
+                         "during iteration. If `key` is `nil`, returns the first key. "
+                         "If `nil` is returned, there are no more keys to iterate "
+                         "through.\n"
+                         "\n"
+                         "`x` can be a bytes, indexed, dictionary, fiber, or abstract "
+                         "type with a suitable `next` method."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
                     JDOC("(propagate x fiber)\n\n"
@@ -1221,18 +1225,26 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "the fiber's dispatch function, or the value from the next yield call in fiber."));
     janet_quick_asm(env, JANET_FUN_IN,
                     "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
-                    JDOC("(in ds key &opt dflt)\n\n"
-                         "Get value in ds at key, works on associative data structures. Arrays, tuples, tables, structs, "
-                         "strings, symbols, and buffers are all associative and can be used. Arrays, tuples, strings, buffers, "
-                         "and symbols must use integer keys that are in bounds or an error is raised. Structs and tables can "
-                         "take any value as a key except nil and will return nil or dflt if not found."));
+                    JDOC("(in x key &opt dflt)\n\n"
+                         "Get value in `x` at `key`. For bytes and indexed "
+                         "types, `key` must be a non-negative interger in "
+                         "bounds or an error is raised. For dictionaries "
+                         "`key` must be a non-nil value and if not found, "
+                         "will return `dflt` if provided or `nil` otherwise.\n"
+                         "\n"
+                         "`x` can be a bytes, indexed, dictionary, fiber, or "
+                         "abstract type with a suitable `get` method."));
     janet_quick_asm(env, JANET_FUN_GET,
                     "get", 3, 2, 3, 4, get_asm, sizeof(in_asm),
-                    JDOC("(get ds key &opt dflt)\n\n"
-                         "Get the value mapped to key in data structure ds, and return dflt or nil if not found. "
-                         "Similar to in, but will not throw an error if the key is invalid for the data structure "
-                         "unless the data structure is an abstract type. In that case, the abstract type getter may throw "
-                         "an error."));
+                    JDOC("(get x key &opt dflt)\n\n"
+                         "Get the value mapped to `key` in `x`. Returns `dflt` "
+                         "or `nil` if `key` is not found. Similar to `in`, but "
+                         "will not throw an error if `key` is invalid for `x`. "
+                         "However, if `x` is an abstract type, its getter may "
+                         "throw an error.\n"
+                         "\n"
+                         "`x` can be a bytes, indexed, dictionary, fiber, or "
+                         "abstract type with a suitable `get` method."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
                     JDOC("(put ds key value)\n\n"

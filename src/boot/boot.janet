@@ -1344,14 +1344,24 @@
   (tuple 'fn :juxt (tuple '& $args) (tuple/slice parts 0)))
 
 (defn has-key?
-  "Check if a data structure `ds` contains the key `key`."
-  [ds key]
-  (not= nil (get ds key)))
+  ``
+  Check if `x` maps `key` to a non-nil value.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with a suitable `get` method.
+  ``
+  [x key]
+  (not= nil (get x key)))
 
 (defn has-value?
-  "Check if a data structure `ds` contains the value `value`. Will run in time proportional to the size of `ds`."
-  [ds value]
-  (not= nil (index-of value ds)))
+  ``
+  Checks if `x` contains `value`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type with
+  suitable `get` and `next` methods.
+  ``
+  [x value]
+  (not= nil (index-of value x)))
 
 (defdyn *defdyn-prefix* ``Optional namespace prefix to add to keywords declared with `defdyn`.
   Use this to prevent keyword collisions between dynamic bindings.``)
