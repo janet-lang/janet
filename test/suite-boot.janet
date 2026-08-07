@@ -1032,4 +1032,12 @@
 # regression test for #1659
 (assert (= (try (error :error) ([_ _] :caught)) :caught))
 
+# frequencies
+(assert (deep= (frequencies :lol) @{108 2 111 1}))
+(assert (deep= (frequencies [:duck :duck :duck :goose]) @{:duck 3 :goose 1}))
+(assert (deep= (frequencies {1 :a 2 :x 3 :x 8 :a}) @{:a 2 :x 2}))
+(assert (deep= (frequencies @{}) @{}))
+(assert (deep= (frequencies (coro (yield 1) (yield 8) (yield 2) (yield 8)))
+               @{1 1 2 1 8 2}))
+
 (end-suite)
