@@ -1764,8 +1764,7 @@
   [ind]
   (def freqs @{})
   (each x ind
-    (def n (in freqs x))
-    (set (freqs x) (if n (+ 1 n) 1)))
+    (put freqs x (inc (in freqs x 0))))
   freqs)
 
 (defn group-by
