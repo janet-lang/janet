@@ -592,7 +592,9 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
-    janet_mark_fiber(janet_vm.root_fiber);
+    if (janet_vm.root_fiber != NULL) { /* Can be NULL if janet_collect called outside of interpreter loop */
+        janet_mark_fiber(janet_vm.root_fiber);
+    }
     for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm.roots[i]);
     while (orig_rootcount < janet_vm.root_count) {
