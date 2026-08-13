@@ -156,8 +156,8 @@ static LPFN_CONNECTEX lazy_get_connectex(JSock sock) {
     LPFN_CONNECTEX connect_ex_ptr = NULL;
     DWORD byte_len = 0;
     int success = WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
-                           (void*)&guid, sizeof(guid),
-                           (void*)&connect_ex_ptr, sizeof(connect_ex_ptr),
+                           (void *)&guid, sizeof(guid),
+                           (void *)&connect_ex_ptr, sizeof(connect_ex_ptr),
                            &byte_len, NULL, NULL);
     if (success) {
         janet_vm.connect_ex = connect_ex_ptr;
@@ -746,7 +746,7 @@ static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
         }
     }
     if (reuse_port) {
-#ifdef SO_REUSEPORT
+#if defined(SO_REUSEPORT) && !JANET_GNU_HURD
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
             return "setsockopt(SO_REUSEPORT) failed";
         }

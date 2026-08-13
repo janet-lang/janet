@@ -37,7 +37,7 @@
 /* Create new userdata */
 void *janet_abstract_begin(const JanetAbstractType *atype, size_t size) {
     JanetAbstractHead *header = janet_gcalloc(JANET_MEMORY_NONE,
-                                sizeof(JanetAbstractHead) + size);
+        sizeof(JanetAbstractHead) + size);
     header->size = size;
     header->type = atype;
     return (void *) & (header->data);

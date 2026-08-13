@@ -67,6 +67,11 @@ extern "C" {
 #define JANET_LINUX 1
 #endif
 
+/* Check for GNU Hurd */
+#ifdef __gnu_hurd__
+#define JANET_GNU_HURD 1
+#endif
+
 /* Check for Android */
 #ifdef __ANDROID__
 #define JANET_ANDROID 1
