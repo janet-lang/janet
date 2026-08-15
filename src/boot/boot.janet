@@ -1191,15 +1191,20 @@
   ret)
 
 (defn find
-  ``Find the first value in an indexed collection that satisfies a predicate. Returns
-  `dflt` if not found.``
-  [pred ind &opt dflt]
+  ``
+  Find the first value in `x` that satisfies `pred`. If not found,
+  returns `dflt` if given, or `nil` otherwise.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [pred x &opt dflt]
   (var k nil)
   (var ret dflt)
   (while true
-    (set k (next ind k))
+    (set k (next x k))
     (if (= k nil) (break))
-    (def item (in ind k))
+    (def item (in x k))
     (when (pred item)
       (set ret item)
       (break)))
@@ -1701,21 +1706,26 @@
   (put ds key (func old ;args)))
 
 (defn merge-into
-  ``Merges multiple tables/structs into table `tab`. If a key appears in more than one
-  collection in `colls`, then later values replace any previous ones. Returns `tab`.``
-  [tab & colls]
-  (loop [c :in colls
+  ``
+  Merges multiple dictionaries into table `tab`. If a key appears in
+  more than one dictionary in `dicts`, then later values replace any
+  previous ones. Returns `tab`.
+  ``
+  [tab & dicts]
+  (loop [c :in dicts
          key :keys c]
     (put tab key (in c key)))
   tab)
 
 (defn merge
-  ``Merges multiple tables/structs into one new table. If a key appears in more than one
-  collection in `colls`, then later values replace any previous ones.
-  Returns the new table.``
-  [& colls]
+  ``
+  Merges multiple dictionaries into one new table. If a key appears in
+  more than one dictionary in `dicts` then later values replace any
+  previous ones. Returns the new table.
+  ``
+  [& dicts]
   (def container @{})
-  (loop [c :in colls
+  (loop [c :in dicts
          key :keys c]
     (put container key (in c key)))
   container)
