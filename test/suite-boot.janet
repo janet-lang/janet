@@ -1040,4 +1040,10 @@
 (assert (deep= (frequencies (coro (yield 1) (yield 8) (yield 2) (yield 8)))
                @{1 1 2 1 8 2}))
 
+# distinct
+(assert (deep= (distinct :hello) @[104 101 108 111]))
+(assert (deep= (distinct [1 0 1 0 1 1 0 1 1 1]) @[1 0]))
+(assert (deep= (distinct @{0 :a 1 :b 2 :b 3 :a}) @[:a :b]))
+(assert (deep= (distinct (coro (yield 8) (yield 11) (yield 8))) @[8 11]))
+
 (end-suite)
