@@ -2467,7 +2467,7 @@
         :else
         (do
           (def num (scan-number (string/slice x 1)))
-          (if num 
+          (if num
             (do
               (assertf (nat? num) "expected indexed parameter, got %s" x)
               (assertf (<= num max-shortfn-params) "too many short-fn parameters (%s)" x)
