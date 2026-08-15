@@ -980,29 +980,44 @@
   a)
 
 (defn sort
-  ``Sorts `ind` in-place, and returns it. Uses quick-sort and is not a stable sort.
-  If a `before?` comparator function is provided, sorts elements using that,
-  otherwise uses `<`.``
-  [ind &opt before?]
+  ``
+  Sorts `x` in-place, and returns it. Uses quick-sort and is not a
+  stable sort. If a `before?` comparator function is provided, sorts
+  elements using that, otherwise uses `<`.
+
+  `x` can be a buffer, array, or abstract type with suitable `get`,
+  `put`, and `length` methods.
+  ``
+  [x &opt before?]
   (default before? <)
-  (sort-help ind 0 (- (length ind) 1) before?))
+  (sort-help x 0 (- (length x) 1) before?))
 
 (defn sort-by
-  ``Sorts `ind` in-place by calling a function `f` on each element and
-  comparing the result with `<`.``
-  [f ind]
-  (sort ind (fn :sort-by-comp [x y] (< (f x) (f y)))))
+  ``
+  Sorts `x` in-place by calling a function `f` on each element and
+  comparing the results with `<`.
+
+  `x` can be a buffer, array, or abstract type with suitable `get`,
+  `put`, and `length` methods.
+  ``
+  [f x]
+  (sort x (fn :sort-by-comp [i j] (< (f i) (f j)))))
 
 (defn sorted
-  ``Returns a new sorted array without modifying the old one.
-  If a `before?` comparator function is provided, sorts elements using that,
-  otherwise uses `<`.``
+  ``
+  Returns a new sorted array based on an indexed type `ind`. If a
+  `before?` comparator function is provided, sorts elements using
+  that, otherwise uses `<`.
+  ``
   [ind &opt before?]
   (sort (array/slice ind) before?))
 
 (defn sorted-by
-  ``Returns a new sorted array that compares elements by invoking
-  a function `f` on each element and comparing the result with `<`.``
+  ``
+  Returns a new sorted array based on an indexed type `ind`.
+  Comparison is done by invoking a function `f` on each element and
+  comparing the results with `<`.
+  ``
   [f ind]
   (sorted ind (fn :sorted-by-comp [x y] (< (f x) (f y)))))
 
