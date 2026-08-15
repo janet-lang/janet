@@ -1040,6 +1040,11 @@
 (assert (deep= (frequencies (coro (yield 1) (yield 8) (yield 2) (yield 8)))
                @{1 1 2 1 8 2}))
 
+# partition-by
+(assert (deep= (partition-by even? "hello")
+               @[@[104] @[101] @[108 108] @[111]]))
+(assert (deep= (partition-by keyword? [:a "b" 'c :d])
+               @[@[:a] @["b" 'c] @[:d]]))
 # update
 (assert (deep= (update @"hello" 0 (fn [old delta] (+ old delta)) 17)
                @"yello"))
