@@ -209,4 +209,13 @@
 
 (assert-error "no infinite step range" (range 3 3 math/inf))
 
+# Issue #1790
+(assert-no-error "limit short-fn parameters 1" (macex1 '|$9999))
+(assert-error "limit short-fn parameters 2" (macex1 '|$10000))
+(assert-error "limit short-fn parameters 3" (macex1 '|$10001))
+(assert-error "limit short-fn parameters 4" (macex1 '|$100010))
+(assert-error "limit short-fn parameters 5" (macex1 '|$800010))
+(assert-error "limit short-fn parameters 6" (macex1 '|$8888888888888888888888888888888888888888888888888888888888888888888888888888888))
+(assert-error "limit short-fn parameters 7" (macex1 '|$8.8))
+
 (end-suite)

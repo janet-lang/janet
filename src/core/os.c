@@ -50,6 +50,11 @@
 #include <sched.h>
 #endif
 
+#ifdef JANET_GNU_HURD
+/* Ideally we would try to dynamically allocate */
+#define PATH_MAX 8192
+#endif
+
 #ifdef JANET_WINDOWS
 #include <windows.h>
 #include <direct.h>
@@ -151,6 +156,7 @@ JANET_CORE_FN(os_which,
               "* :macos\n\n"
               "* :web - Web assembly (emscripten)\n\n"
               "* :linux\n\n"
+              "* :hurd\n\n"
               "* :freebsd\n\n"
               "* :openbsd\n\n"
               "* :netbsd\n\n"
@@ -177,6 +183,8 @@ JANET_CORE_FN(os_which,
     return janet_ckeywordv("web");
 #elif defined(JANET_LINUX)
     return janet_ckeywordv("linux");
+#elif defined(JANET_GNU_HURD)
+    return janet_ckeywordv("hurd");
 #elif defined(__FreeBSD__)
     return janet_ckeywordv("freebsd");
 #elif defined(__NetBSD__)
@@ -2250,7 +2258,7 @@ JANET_CORE_FN(os_readlink,
     (void) argv;
     janet_panic("not supported on Windows");
 #else
-    static char buffer[PATH_MAX];
+    char buffer[PATH_MAX];
     const char *path = janet_getcstring(argv, 0);
     ssize_t len = readlink(path, buffer, sizeof buffer);
     if (len < 0 || (size_t)len >= sizeof buffer)

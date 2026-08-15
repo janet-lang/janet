@@ -1047,5 +1047,10 @@
                @[:x :y :z]))
 (assert (deep= (update @{:a 1 :b -1 :c 3} :b + 3)
                @{:a 1 :b 2 :c 3}))
+# distinct
+(assert (deep= (distinct :hello) @[104 101 108 111]))
+(assert (deep= (distinct [1 0 1 0 1 1 0 1 1 1]) @[1 0]))
+(assert (deep= (distinct @{0 :a 1 :b 2 :b 3 :a}) @[:a :b]))
+(assert (deep= (distinct (coro (yield 8) (yield 11) (yield 8))) @[8 11]))
 
 (end-suite)

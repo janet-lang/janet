@@ -92,9 +92,9 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
         }
         JanetKeyword keyw = janet_unwrap_keyword(options[i]);
         const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_linux,
-                                           sizeof(watcher_flags_linux) / sizeof(JanetWatchFlagName),
-                                           sizeof(JanetWatchFlagName),
-                                           keyw);
+            sizeof(watcher_flags_linux) / sizeof(JanetWatchFlagName),
+            sizeof(JanetWatchFlagName),
+            keyw);
         if (!result) {
             janet_panicf("unknown linux flag %v", options[i]);
         }
@@ -316,9 +316,9 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
         }
         JanetKeyword keyw = janet_unwrap_keyword(options[i]);
         const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_windows,
-                                           sizeof(watcher_flags_windows) / sizeof(JanetWatchFlagName),
-                                           sizeof(JanetWatchFlagName),
-                                           keyw);
+            sizeof(watcher_flags_windows) / sizeof(JanetWatchFlagName),
+            sizeof(JanetWatchFlagName),
+            keyw);
         if (!result) {
             janet_panicf("unknown windows filewatch flag %v", options[i]);
         }
@@ -580,9 +580,9 @@ static uint32_t decode_watch_flags(const Janet *options, int32_t n) {
         }
         JanetKeyword keyw = janet_unwrap_keyword(options[i]);
         const JanetWatchFlagName *result = janet_strbinsearch(watcher_flags_kqueue,
-                                           sizeof(watcher_flags_kqueue) / sizeof(JanetWatchFlagName),
-                                           sizeof(JanetWatchFlagName),
-                                           keyw);
+            sizeof(watcher_flags_kqueue) / sizeof(JanetWatchFlagName),
+            sizeof(JanetWatchFlagName),
+            keyw);
         if (!result) {
             janet_panicf("unknown bsd flag %v", options[i]);
         }
