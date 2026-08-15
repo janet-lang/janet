@@ -2436,6 +2436,7 @@
 ###
 ###
 
+(def- max-shortfn-params 9999) # Less than 0xFFFF so we have enough registers for internal use
 (defmacro short-fn
   ```
   Shorthand for `fn`. Arguments are given as `$n`, where `n` is the
@@ -2466,8 +2467,10 @@
         :else
         (do
           (def num (scan-number (string/slice x 1)))
-          (if (nat? num)
+          (if num
             (do
+              (assertf (nat? num) "expected indexed parameter, got %s" x)
+              (assertf (<= num max-shortfn-params) "too many short-fn parameters (%s)" x)
               (saw-special-arg num)
               (symbol prefix x))
             x)))

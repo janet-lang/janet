@@ -1553,7 +1553,7 @@ JanetFiber *janet_loop1(void) {
         } else if (sig == JANET_SIGNAL_OK || (task.fiber->flags & (1 << sig))) {
             JanetChannel *chan = janet_channel_unwrap(sv);
             janet_channel_push(chan, make_supervisor_event(janet_signal_names[sig],
-                               task.fiber, chan->is_threaded), 2);
+                    task.fiber, chan->is_threaded), 2);
         } else if (!is_suspended) {
             janet_stacktrace_ext(task.fiber, res, "");
         }
