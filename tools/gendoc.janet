@@ -75,9 +75,6 @@
   []
   (string "<h1>Janet Core API</h1>"
           "<p>Version " janet/version "-" janet/build "</p>"
-          "<p>Generated "
-          (nice-date)
-          "</p>"
           "<hr>"))
 
 (defn- emit-item
