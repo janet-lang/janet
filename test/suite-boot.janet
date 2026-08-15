@@ -1045,6 +1045,13 @@
                @[@[104] @[101] @[108 108] @[111]]))
 (assert (deep= (partition-by keyword? [:a "b" 'c :d])
                @[@[:a] @["b" 'c] @[:d]]))
+# update
+(assert (deep= (update @"hello" 0 (fn [old delta] (+ old delta)) 17)
+               @"yello"))
+(assert (deep= (update @[:x :yy :z] 1 |(keyword (slice $ 0 1)))
+               @[:x :y :z]))
+(assert (deep= (update @{:a 1 :b -1 :c 3} :b + 3)
+               @{:a 1 :b 2 :c 3}))
 # distinct
 (assert (deep= (distinct :hello) @[104 101 108 111]))
 (assert (deep= (distinct [1 0 1 0 1 1 0 1 1 1]) @[1 0]))
