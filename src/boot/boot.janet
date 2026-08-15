@@ -1646,14 +1646,18 @@
     (reverse! (seq [v :in t] v))))
 
 (defn invert
-  ``Given an associative data structure `ds`, returns a new table where the
-  keys of `ds` are the values, and the values are the keys. If multiple keys
-  in `ds` are mapped to the same value, only one of those values will
-  become a key in the returned table.``
-  [ds]
+  ``
+  Returns a table where the keys of `x` are the values, and the values
+  are the keys. If multiple keys in `x` are mapped to the same value,
+  only one of those values will become a key in the returned table.
+
+  `x` can be a bytes, indexed, dictionary, or abstract type with a
+  `suitable next` method.
+  ``
+  [x]
   (def ret @{})
-  (loop [k :keys ds]
-    (put ret (in ds k) k))
+  (loop [k :keys x]
+    (put ret (in x k) k))
   ret)
 
 (defn zipcoll
@@ -1756,7 +1760,12 @@
   container)
 
 (defn keys
-  "Get the keys of an associative data structure."
+  ``
+  Get the keys of `x` as an array.
+
+  `x` can be a bytes, indexed, dictionary, or abstract type with a
+  suitable `next` method.
+  ``
   [x]
   (if (lengthable? x)
     (do
@@ -1769,7 +1778,12 @@
     (seq [k :keys x] k)))
 
 (defn values
-  "Get the values of an associative data structure."
+  ``
+  Get the values of `x` as an array.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
   [x]
   (if (lengthable? x)
     (do
@@ -1782,7 +1796,13 @@
     (seq [v :in x] v)))
 
 (defn pairs
-  "Get the key-value pairs of an associative data structure."
+  ``
+  Return an array of tuples of the key-value pairs of `x`. For bytes
+  and indexed types, the integer indices are considered the keys.
+
+  `x` can be a bytes, indexed, dictionary, or abstract type with
+  suitable `get` and `in` methods.
+  ``
   [x]
   (if (lengthable? x)
     (do

@@ -1247,13 +1247,18 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "abstract type with a suitable `get` method."));
     janet_quick_asm(env, JANET_FUN_PUT,
                     "put", 3, 3, 3, 3, put_asm, sizeof(put_asm),
-                    JDOC("(put ds key value)\n\n"
-                         "Associate a key with a value in any mutable associative data structure. Indexed data structures "
-                         "(arrays and buffers) only accept non-negative integer keys, and will expand if an out of bounds "
-                         "value is provided. In an array, extra space will be filled with nils, and in a buffer, extra "
-                         "space will be filled with 0 bytes. In a table, putting a key that is contained in the table prototype "
-                         "will hide the association defined by the prototype, but will not mutate the prototype table. Putting "
-                         "a value nil into a table will remove the key from the table. Returns the data structure ds."));
+                    JDOC("(put x key val)\n\n"
+                         "Associate `key` with `val` for mutable `x`. Arrays "
+                         "and buffers only accept non-negative integer keys, "
+                         "and will expand if an out of bounds value is "
+                         "provided. For an array, extra space will be filled "
+                         "with `nil`s, while for buffers, 0 bytes are used "
+                         "instead. For a table, putting a key that is in the "
+                         "table prototype will hide the association defined by "
+                         "the prototype, but will not mutate the prototype "
+                         "table. Putting a `nil` value into a table will "
+                         "remove the table's corresponding association. "
+                         "Returns `x`."));
     janet_quick_asm(env, JANET_FUN_LENGTH,
                     "length", 1, 1, 1, 1, length_asm, sizeof(length_asm),
                     JDOC("(length ds)\n\n"
