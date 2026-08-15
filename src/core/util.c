@@ -50,6 +50,7 @@
 #endif
 
 #include <inttypes.h>
+#include <float.h>
 
 /* Base 64 lookup table for digits */
 const char janet_base64[65] =
@@ -910,6 +911,27 @@ int janet_checkuint16(Janet x) {
         return 0;
     double dval = janet_unwrap_number(x);
     return janet_checkuint16range(dval);
+}
+
+int janet_checkint8(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkint8range(dval);
+}
+
+int janet_checkuint8(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkuint8range(dval);
+}
+
+int janet_checkfloat(Janet x) {
+    if (!janet_checktype(x, JANET_NUMBER))
+        return 0;
+    double dval = janet_unwrap_number(x);
+    return janet_checkfloatrange(dval);
 }
 
 int janet_checksize(Janet x) {
