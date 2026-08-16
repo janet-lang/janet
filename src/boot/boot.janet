@@ -1675,21 +1675,38 @@
     (put res (in ks kk) (in vs vk)))
   res)
 
-(defn get-in
-  ``Access a value in a nested data structure. Looks into the data structure via
-  a sequence of keys. If value is not found, and `dflt` is provided, returns `dflt`.``
-  [ds ks &opt dflt]
-  (var d ds)
-  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
+(defn get-in                                                            
+  ``
+  Use the keys `ks` to look up a nested value in `x`. If a value is
+  not found, will return `dflt` if provided, or `nil` otherwise.
+
+  `x` can be a suitable indexed, dictionary, or abstract type with a
+  `get` method.
+
+  `ks` can be an indexed or abstract type with `get` and `next`
+  methods.
+  ``
+  [x ks &opt dflt]                                                     
+  (var d x)                                                            
+  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))             
   (if (= nil d) dflt d))
 
 (defn update-in
-  ``Update a value in a nested data structure `ds`. Looks into `ds` via a sequence of keys,
-  and replaces the value found there with `f` applied to that value.
-  Missing data structures will be replaced with tables. Returns
-  the modified, original data structure.``
-  [ds ks f & args]
-  (var d ds)
+  ``
+  Update a value in `x`. Looks into a nested spot in `x` identified by
+  the keys `ks` and replaces the value found there with `f` applied to
+  that value and any values passed and available in `args`. Missing
+  spots will be replaced with tables and `f` is passed `nil` instead
+  of a found value. Returns `x` modified.
+
+  `x` can be a suitable array, table or abstract type with `get` and
+  `put` methods.
+
+  `ks` can be an indexed or abstract type with suitable `get` and
+  `length` methods.
+  ``
+  [x ks f & args]
+  (var d x)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
   (forv i 0 len-1
@@ -1703,14 +1720,22 @@
   (def last-key (get ks len-1))
   (def last-val (get d last-key))
   (put d last-key (f last-val ;args))
-  ds)
+  x)
 
 (defn put-in
-  ``Put a value into a nested data structure `ds`. Looks into `ds` via
-  a sequence of keys. Missing data structures will be replaced with tables. Returns
-  the modified, original data structure.``
-  [ds ks v]
-  (var d ds)
+  ``
+  Use the keys `ks` to put a value `v` into a nested spot in
+  `x`. Missing spots will be replaced with tables. Returns `x`
+  modified.
+
+  `x` can be a suitable array, table or abstract type with `get` and
+  `put` methods.
+
+  `ks` can be an indexed or abstract type with suitable `get` and
+  `length` methods.
+  ``
+  [x ks v]
+  (var d x)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
   (forv i 0 len-1
@@ -1724,7 +1749,7 @@
   (def last-key (get ks len-1))
   (def last-val (get d last-key))
   (put d last-key v)
-  ds)
+  x)
 
 (defn update
   ``For a given key in data structure `ds`, replace its corresponding value with the
