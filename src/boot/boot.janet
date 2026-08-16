@@ -1867,20 +1867,24 @@
   ret)
 
 (defn flatten-into
-  ``Takes a nested array (tree) `xs` and appends the depth first traversal of
-  `xs` to array `into`. Returns `into`.``
-  [into xs]
-  (each x xs
-    (if (indexed? x)
-      (flatten-into into x)
-      (array/push into x)))
+  ``
+  Appends the depth-first traversal of an indexed type `ind` into a
+  given array `into`. Returns `into`.
+  ``
+  [into ind]
+  (each elt ind
+    (if (indexed? elt)
+      (flatten-into into elt)
+      (array/push into elt)))
   into)
 
 (defn flatten
-  ``Takes a nested array (tree) `xs` and returns the depth first traversal of
-  it. Returns a new array.``
-  [xs]
-  (flatten-into @[] xs))
+  ``
+  Returns a depth-first traversal of an indexed type `ind` as a new
+  array.
+  ``
+  [ind]
+  (flatten-into @[] ind))
 
 (defn kvs
   ``Takes a table or struct and returns a new array of key value pairs
