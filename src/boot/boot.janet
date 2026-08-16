@@ -1815,25 +1815,36 @@
     (seq [p :pairs x] p)))
 
 (defn frequencies
-  "Get the number of occurrences of each value in an indexed data structure."
-  [ind]
+  ``
+  Returns a table of occurrences of each value in `x`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with `get` and `next` methods.
+  ``
+  [x]
   (def freqs @{})
-  (each x ind
-    (put freqs x (inc (in freqs x 0))))
+  (each v x
+    (put freqs v (inc (in freqs v 0))))
   freqs)
 
 (defn group-by
-  ``Group elements of `ind` by a function `f` and put the results into a new table. The keys of
-  the table are the distinct return values from calling `f` on the elements of `ind`. The values
-  of the table are arrays of all elements of `ind` for which `f` called on the element equals
-  that corresponding key.``
-  [f ind]
+  ``
+  Group values of `x` by a function `f` and put the results into a new
+  table. The keys of the table are the distinct return values from
+  calling `f` on the values of `x`. The values of the table are arrays
+  of all values of `x` for which `f` called on the value equals that
+  corresponding key.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [f x]
   (def ret @{})
-  (each x ind
-    (def y (f x))
+  (each v x
+    (def y (f v))
     (if-let [arr (get ret y)]
-      (array/push arr x)
-      (put ret y @[x])))
+      (array/push arr v)
+      (put ret y @[v])))
   ret)
 
 (defn partition-by
