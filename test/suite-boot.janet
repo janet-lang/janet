@@ -1064,4 +1064,14 @@
 (assert (= (find-index pos? @[-2 -1 0 -3] :surprise!) :surprise!))
 (assert (= (find-index zero? {:a 2 :b 1 :c 0}) :c))
 
+# find
+(assert (= (find |(= $ (chr "o")) "tomato") 111))
+(assert (= (find |(= $ (chr "m")) "potato") nil))
+(assert (= (find |(> $ (chr "y")) :ant :surprise) :surprise))
+(assert (= (find pos? [-1 0 11]) 11))
+(assert (= (find neg? @[0 1 2 3 5]) nil))
+(assert (= (find one? {:a 1 :b 2}) 1))
+(assert (= (find even? @{:x 11 :y 28 :z 33}) 28))
+(assert (= (find keyword? (coro (yield 'jump) (yield :wave))) :wave))
+
 (end-suite)
