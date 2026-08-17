@@ -621,7 +621,8 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     if (fiber->flags & JANET_FIBER_RESUME_SIGNAL) {
         JanetSignal sig = (fiber->gc.flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET;
         fiber->gc.flags &= ~JANET_FIBER_STATUS_MASK;
-        fiber->flags &= ~(JANET_FIBER_RESUME_SIGNAL | JANET_FIBER_FLAG_MASK);
+        fiber->flags &= JANET_FIBER_RESUME_NO_SKIP | JANET_FIBER_RESUME_NO_USEVAL | /* Leave these flags untouched */
+                        ~(JANET_FIBER_RESUME_SIGNAL | JANET_FIBER_FLAG_MASK);
         janet_vm.return_reg[0] = in;
         return sig;
     }

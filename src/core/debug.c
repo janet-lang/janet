@@ -422,8 +422,10 @@ JANET_CORE_FN(cfun_debug_argstack,
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(fiber->stacktop - fiber->stackstart);
-    memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
-    array->count = array->capacity;
+    if (array->capacity) {
+        memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
+        array->count = array->capacity;
+    }
     return janet_wrap_array(array);
 }
 

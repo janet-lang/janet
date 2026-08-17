@@ -158,4 +158,27 @@
 
 (check-lint-compile '(def [xxx [xxx yyy]] [1 [2 3]]) "shadow global-to-global one form")
 
+# Fuzz issue - odd keys
+(defn f [x &keys ks] [x ks])
+(check-lint-compile
+  '(f 1
+      = = = = = = = = = =
+      = = = = = = = = = =
+      = = = = = = = = = =
+      = = = = = = = = = =
+      = = =)
+  "odd keys")
+
+# Test for any issues with valgrind/asan
+(setdyn *lint-warn* :relaxed)
+(assert-no-error
+  "odd keys runtime"
+    (f 1
+       = = = = = = = = = =
+       = = = = = = = = = =
+       = = = = = = = = = =
+       = = = = = = = = = =
+       = = =))
+(setdyn *lint-warn* nil)
+
 (end-suite)

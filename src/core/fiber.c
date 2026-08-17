@@ -106,7 +106,7 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
         if (NULL == newData) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(newData, fiber->data, fiber->capacity * sizeof(Janet));
+        memcpy(newData, fiber->data, n * sizeof(Janet));
         janet_free(fiber->data);
         fiber->data = newData;
     }
@@ -180,7 +180,8 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
 /* Create a struct with n values. If n is odd, the last value is ignored. */
 static Janet make_struct_n(const Janet *args, int32_t n) {
     int32_t i = 0;
-    JanetKV *st = janet_struct_begin(n & (~1));
+    if (n & 1) n--;
+    JanetKV *st = janet_struct_begin(n);
     for (; i < n; i += 2) {
         janet_struct_put(st, args[i], args[i + 1]);
     }
@@ -228,6 +229,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         int32_t tuplehead = fiber->frame + func->def->arity;
+        janet_assert(tuplehead > 0, "fiber stack overflow");
         int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= oldtop) {
             fiber->data[tuplehead] = st
