@@ -1226,15 +1226,20 @@
   ret)
 
 (defn index-of
-  ``Find the first key associated with a value x in a data structure, acting like a reverse lookup.
-  Will not look at table prototypes.
-  Returns `dflt` if not found.``
-  [x ind &opt dflt]
-  (var k (next ind nil))
+  ``
+  Find the first key associated with a value `val` in `x`, acting like
+  a reverse lookup. Will not look at dictionary prototypes. If not
+  found, returns `dflt` if provided and `nil` otherwise.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [val x &opt dflt]
+  (var k (next x nil))
   (var ret dflt)
   (while (not= nil k)
-    (when (= (in ind k) x) (set ret k) (break))
-    (set k (next ind k)))
+    (when (= (in x k) val) (set ret k) (break))
+    (set k (next x k)))
   ret)
 
 (defn- take-n-slice
