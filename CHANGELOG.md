@@ -2,11 +2,12 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Numerous documentation improvements and fixes
+- Add support for GNU/Hurd
 - Improve pretty printing layout for %M and %m modifiers to be more code-like.
 - Add filewatch support to BSD and macos.
 - Add linting support for shadowed bindings.
 - Add nanboxing support for Linux on ARM64 and turn on nanboxing by default on macos on ARM64 (aarch64).
-- Documentation fixes
 - ev/thread-chan deadlock bug fixed
 - Re-add removed support for non-blocking net/connect on windows with bug fixes.
 
