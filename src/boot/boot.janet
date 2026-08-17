@@ -472,7 +472,7 @@
   nil without evaluating the body. Otherwise, the same as `with`.``
   [[binding ctor dtor] & body]
   ~(as-macro ,if-let [,binding ,ctor]
-     ,(defer-impl :when-with [(or dtor :close) binding] body)))
+             ,(defer-impl :when-with [(or dtor :close) binding] body)))
 
 (defmacro if-with
   ``Similar to `with`, but if binding is false or nil, evaluates
@@ -480,8 +480,8 @@
   `ctor` is bound to binding.``
   [[binding ctor dtor] truthy &opt falsey]
   ~(as-macro ,if-let [,binding ,ctor]
-     ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
-     ,falsey))
+             ,(defer-impl :if-with [(or dtor :close) binding] [truthy])
+             ,falsey))
 
 (defn- for-var-template
   [i start stop step comparison delta body]
@@ -1680,7 +1680,7 @@
     (put res (in ks kk) (in vs vk)))
   res)
 
-(defn get-in                                                            
+(defn get-in
   ``
   Use the keys `ks` to look up a nested value in `x`. If a value is
   not found, will return `dflt` if provided, or `nil` otherwise.
@@ -1691,9 +1691,9 @@
   `ks` can be an indexed or abstract type with `get` and `next`
   methods.
   ``
-  [x ks &opt dflt]                                                     
-  (var d x)                                                            
-  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))             
+  [x ks &opt dflt]
+  (var d x)
+  (loop [k :in ks :while (not (nil? d))] (set d (get d k)))
   (if (= nil d) dflt d))
 
 (defn update-in
@@ -2523,12 +2523,12 @@
       (error (string "invalid metadata " m))))
   (with-syms [entry old-entry f]
     ~(as-macro ,let [,old-entry (,dyn ',name)]
-       (def ,entry (as-macro ,or ,old-entry @{:ref @[nil]}))
-       (,setdyn ',name ,entry)
-       (def ,f ,fbody)
-       (,put-in ,entry [:ref 0] ,f)
-       (,merge-into ,entry ',metadata)
-       ,f)))
+               (def ,entry (as-macro ,or ,old-entry @{:ref @[nil]}))
+               (,setdyn ',name ,entry)
+               (def ,f ,fbody)
+               (,put-in ,entry [:ref 0] ,f)
+               (,merge-into ,entry ',metadata)
+               ,f)))
 
 ###
 ###
@@ -4068,8 +4068,8 @@
     [sec & body]
     (with-syms [f]
       ~(as-macro ,let [,f (as-macro ,coro ,;body)]
-         (,ev/deadline ,sec nil ,f)
-         (,resume ,f))))
+                 (,ev/deadline ,sec nil ,f)
+                 (,resume ,f))))
 
   (defn- cancel-all [chan fibers reason]
     (each f fibers (ev/cancel f reason))
@@ -4200,9 +4200,9 @@
       (assertf (ffi/lookup (if lazy (llib) lib) raw-symbol) "failed to find ffi symbol %v" raw-symbol))
     (if lazy
       ~(as-macro ,defn ,alias ,;meta [,;formal-args]
-         (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
+                 (,ffi/call (,(delay (make-ptr))) (,(delay (make-sig))) ,;formal-args))
       ~(as-macro ,defn ,alias ,;meta [,;formal-args]
-         (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
+                 (,ffi/call ,(make-ptr) ,(make-sig) ,;formal-args))))
 
   (defmacro ffi/defbind :flycheck
     "Generate bindings for native functions in a convenient manner."
@@ -4783,7 +4783,7 @@
   (if (= x "") nil x)) # empty string is coerced to nil
 
 (defn- run-main
-  [env subargs arg]
+  [env subargs]
   (when-let [main (module/value env 'main true)]
     (def guard (if (get env :debug) :ydt :y))
     (defn wrap-main [&]
@@ -4793,7 +4793,9 @@
     (while (fiber/can-resume? f)
       (set res (resume f res))
       (when (not= :dead (fiber/status f))
-        ((debugger-on-status env) f res)))))
+        ((debugger-on-status env) f res)))
+    (break true))
+  false)
 
 (defdyn *args*
   "Dynamic bindings that will contain command line arguments at program start.")
@@ -4827,6 +4829,7 @@
    "-nocolor" "n"
    "-color" "N"
    "-library" "l"
+   "-tool" "t"
    "-install" "b"
    "-reinstall" "B"
    "-uninstall" "u"
@@ -4905,6 +4908,7 @@
                --nocolor (-n)          : Disable ANSI color output in the REPL
                --color (-N)            : Enable ANSI color output in the REPL
                --library (-l) lib      : Use a module before processing more arguments
+               --tool (-t) lib args... : Use a module before processing more arguments, and then call it's `main` function
                --lint-warn (-w) level  : Set the lint warning level - default is "normal"
                --lint-error (-x) level : Set the lint error level - default is "none"
                --install (-b) dirpath  : Install a bundle from a directory
@@ -4927,7 +4931,7 @@
      "n" (fn [&] (apply-color false) 1)
      "N" (fn [&] (apply-color true) 1)
      "m" (fn [i &] (setdyn *syspath* (in args (+ i 1))) 2)
-     "c" (fn c-switch [i &]
+     "c" (fn :c-switch [i &]
            (def path (in args (+ i 1)))
            (def e (dofile path))
            (def output-path
@@ -4940,15 +4944,24 @@
            (set no-file false)
            3)
      "-" (fn [&] (set handleopts false) 1)
-     "l" (fn l-switch [i &]
+     "l" (fn :l-switch [i &]
            (import* (in args (+ i 1))
                     :prefix "" :exit exit-on-error)
            2)
-     "e" (fn e-switch [i &]
+     "t" (fn :t-switch [i &]
+           (set should-repl false)
+           (set no-file false)
+           (def lib (in args (+ i 1)))
+           (def tool-env (require lib :exit exit-on-error))
+           (def subargs (tuple/slice args (+ i 2)))
+           (put tool-env *args* subargs)
+           (assertf (run-main tool-env subargs) "no main found for module %s" lib)
+           math/inf)
+     "e" (fn :e-switch [i &]
            (set no-file false)
            (eval-string (in args (+ i 1)))
            2)
-     "E" (fn E-switch [i &]
+     "E" (fn :E-switch [i &]
            (set no-file false)
            (def subargs (array/slice args (+ i 2)))
            (def src ~(short-fn ,(parse (in args (+ i 1))) E-expression))
@@ -5004,7 +5017,7 @@
           (do
             (def env (load-image (slurp arg)))
             (put env *args* subargs)
-            (run-main env subargs arg))
+            (run-main env subargs))
           (do
             (def env (make-env))
             (put env *args* subargs)
@@ -5012,7 +5025,7 @@
               (flycheck arg :exit exit-on-error :env env)
               (do
                 (dofile arg :exit exit-on-error :env env)
-                (run-main env subargs arg)))))
+                (run-main env subargs)))))
         (set i lenargs))))
 
   (if (or should-repl no-file)
