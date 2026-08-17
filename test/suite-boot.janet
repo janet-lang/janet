@@ -1058,4 +1058,10 @@
 (assert (deep= (distinct @{0 :a 1 :b 2 :b 3 :a}) @[:a :b]))
 (assert (deep= (distinct (coro (yield 8) (yield 11) (yield 8))) @[8 11]))
 
+# find-index
+(assert (= (find-index |(= (chr "c") $) "abc") 2))
+(assert (= (find-index |(= $ :goose) [:duck :duck :goose]) 2))
+(assert (= (find-index pos? @[-2 -1 0 -3] :surprise!) :surprise!))
+(assert (= (find-index zero? {:a 2 :b 1 :c 0}) :c))
+
 (end-suite)
