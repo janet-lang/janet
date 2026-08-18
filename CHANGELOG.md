@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- Add `-t` (`--tool`) flag for using installed libraries as command line tools
 - Numerous documentation improvements and fixes
 - Add support for GNU/Hurd
 - Improve pretty printing layout for %M and %m modifiers to be more code-like.
