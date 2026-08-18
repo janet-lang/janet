@@ -1152,13 +1152,17 @@
   res)
 
 (defn filter
-  ``Given a predicate, take only elements from an array or tuple for
-  which `(pred element)` is truthy. Returns a new array.``
-  [pred ind]
+  ``
+  Given a predicate, take only elements from `x` for which `(pred
+  element)` is truthy. Returns a new array.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [pred x]
   (def res @[])
-  (each item ind
-    (if (pred item)
-      (array/push res item)))
+  (each v x
+    (if (pred v) (array/push res v)))
   res)
 
 (defn count
@@ -1877,20 +1881,25 @@
   ret)
 
 (defn partition-by
-  ``Partition elements of a sequential data structure by a representative function `f`. Partitions
-  split when `(f x)` changes values when iterating to the next element `x` of `ind`. Returns a new array
-  of arrays.``
-  [f ind]
+  ``
+  Partition values of `x` by a function `f`. Partitions split when `f`
+  applied to a value changes result when iterating to the next value
+  of `x`. Returns a new array of arrays.
+
+  `x` can be a bytes, indexed, fiber, or abstract type with suitable
+  `get` and `next` methods.
+  ``
+  [f x]
   (def ret @[])
   (var span nil)
-  (var category nil)
-  (var is-new true)
-  (each x ind
-    (def y (f x))
+  (var categ nil)
+  (var new? true)
+  (each v x
+    (def y (f v))
     (cond
-      is-new (do (set is-new false) (set category y) (set span @[x]) (array/push ret span))
-      (= y category) (array/push span x)
-      (do (set category y) (set span @[x]) (array/push ret span))))
+      new? (do (set new? false) (set categ y) (set span @[v]) (array/push ret span))
+      (= categ y) (array/push span v)
+      (do (set categ y) (set span @[v]) (array/push ret span))))
   ret)
 
 (defn interleave
@@ -1944,24 +1953,28 @@
   ret)
 
 (defn interpose
-  ``Returns a sequence of the elements of `ind` separated by
-  `sep`. Returns a new array.``
-  [sep ind]
-  (var k (next ind nil))
+  ``
+  Returns an array of the values of `x` separated by `sep`.
+
+  `x` can be a bytes, indexed, fiber or abstract type with suitable
+  `get` and `next` methods.
+  ``
+  [sep x]
+  (var k (next x nil))
   (if (not= nil k)
-    (if (lengthable? ind)
+    (if (lengthable? x)
       (do
-        (def ret (array/new-filled (- (* 2 (length ind)) 1) sep))
+        (def ret (array/new-filled (- (* 2 (length x)) 1) sep))
         (var i 0)
         (while (not= nil k)
-          (put ret i (in ind k))
-          (set k (next ind k))
+          (put ret i (in x k))
+          (set k (next x k))
           (+= i 2))
         ret)
       (do
-        (def ret @[(in ind k)])
-        (while (not= nil (set k (next ind k)))
-          (array/push ret sep (in ind k)))
+        (def ret @[(in x k)])
+        (while (not= nil (set k (next x k)))
+          (array/push ret sep (in x k)))
         ret))
     @[]))
 
@@ -1980,13 +1993,20 @@
   ret)
 
 (defn partition
-  ``Partition an indexed data structure `ind` into tuples
-  of size `n`. Returns a new array.``
-  [n ind]
+  ``
+  Partition the values of `x` into tuples of size `n`. Returns a new
+  array.
+
+  `n` should be a non-negative integer.
+
+  `x` can be a bytes, indexed, fiber, or abstract type with suitable
+  `get` and `next` methods.
+  ``
+  [n x]
   (cond
-    (indexed? ind) (partition-slice tuple/slice n ind)
-    (bytes? ind) (partition-slice string/slice n ind)
-    (partition-slice tuple/slice n (values ind))))
+    (indexed? x) (partition-slice tuple/slice n x)
+    (bytes? x) (partition-slice string/slice n x)
+    (partition-slice tuple/slice n (values x))))
 
 ###
 ###
