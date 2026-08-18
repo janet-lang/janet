@@ -618,11 +618,13 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     register uint32_t *pc;
     register JanetFunction *func;
 
+    /* NOTE: Flag smuggling! We "smuggle" the fiber sigal in the gc.flags field instead of the usual flags field */
     if (fiber->flags & JANET_FIBER_RESUME_SIGNAL) {
+        /* Get the signal */
         JanetSignal sig = (fiber->gc.flags & JANET_FIBER_STATUS_MASK) >> JANET_FIBER_STATUS_OFFSET;
+        /* Clear the signal */
         fiber->gc.flags &= ~JANET_FIBER_STATUS_MASK;
-        fiber->flags &= JANET_FIBER_RESUME_NO_SKIP | JANET_FIBER_RESUME_NO_USEVAL | /* Leave these flags untouched */
-                        ~(JANET_FIBER_RESUME_SIGNAL | JANET_FIBER_FLAG_MASK);
+        fiber->flags &= ~JANET_FIBER_RESUME_SIGNAL;
         janet_vm.return_reg[0] = in;
         return sig;
     }
@@ -1458,7 +1460,7 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
     }
     /* If a "task" fiber is trying to be used as a normal fiber, detect that. See bug #920.
      * Fibers must be marked as root fibers manually, or by the ev scheduler. */
-    if (janet_vm.fiber != NULL && (fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+    if (janet_vm.fiber != NULL && (fiber->gc.flags & JANET_FIBER_EV_GCFLAG_ROOT)) {
 #ifdef JANET_EV
         *out = janet_cstringv(is_cancel
                               ? "cannot cancel root fiber, use ev/cancel"
@@ -1612,6 +1614,8 @@ JanetSignal janet_continue_signal(JanetFiber *fiber, Janet in, Janet *out, Janet
     if (sig != JANET_SIGNAL_OK) {
         JanetFiber *child = fiber;
         while (child->child) child = child->child;
+        /* NOTE: We are "smuggling" flags in for later use in an unusal place. This is odd but intentional and
+         * saves a bit of memory per fiber rather than creating a new field. There is likely a better way to do this. */
         child->gc.flags &= ~JANET_FIBER_STATUS_MASK;
         child->gc.flags |= sig << JANET_FIBER_STATUS_OFFSET;
         child->flags |= JANET_FIBER_RESUME_SIGNAL;

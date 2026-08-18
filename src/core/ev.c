@@ -513,14 +513,14 @@ const JanetAbstractType janet_stream_type = {
 
 /* Register a fiber to resume with value */
 static void janet_schedule_general(JanetFiber *fiber, Janet value, JanetSignal sig, int soon) {
-    if (fiber->gc.flags & JANET_FIBER_EV_FLAG_CANCELED) return;
-    if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+    if (fiber->gc.flags & JANET_FIBER_EV_GCFLAG_CANCELED) return;
+    if (!(fiber->gc.flags & JANET_FIBER_EV_GCFLAG_ROOT)) {
+        fiber->gc.flags |= JANET_FIBER_EV_GCFLAG_ROOT;
         Janet task_element = janet_wrap_fiber(fiber);
         janet_table_put(&janet_vm.active_tasks, task_element, janet_wrap_true());
     }
     JanetTask t = { fiber, value, sig, ++fiber->sched_id };
-    fiber->gc.flags |= JANET_FIBER_FLAG_ROOT;
-    if (sig == JANET_SIGNAL_ERROR) fiber->gc.flags |= JANET_FIBER_EV_FLAG_CANCELED;
+    if (sig == JANET_SIGNAL_ERROR) fiber->gc.flags |= JANET_FIBER_EV_GCFLAG_CANCELED;
     if (soon) {
         janet_assert(!janet_q_push_head(&janet_vm.spawn, &t, sizeof(t)), "schedule queue overflow");
     } else {
@@ -537,7 +537,7 @@ void janet_schedule_soon(JanetFiber *fiber, Janet value, JanetSignal sig) {
 }
 
 void janet_cancel(JanetFiber *fiber, Janet value) {
-    if (!(fiber->gc.flags & JANET_FIBER_FLAG_ROOT)) {
+    if (!(fiber->gc.flags & JANET_FIBER_EV_GCFLAG_ROOT)) {
         janet_panic("cannot cancel non-task fiber");
     }
     janet_schedule_signal(fiber, value, JANET_SIGNAL_ERROR);
@@ -1532,8 +1532,8 @@ JanetFiber *janet_loop1(void) {
         if (janet_atomic_load_relaxed(&janet_vm.auto_suspend)) break;
         JanetTask task = {NULL, janet_wrap_nil(), JANET_SIGNAL_OK, 0};
         janet_q_pop(&janet_vm.spawn, &task, sizeof(task));
-        if (task.fiber->gc.flags & JANET_FIBER_EV_FLAG_SUSPENDED) janet_ev_dec_refcount();
-        task.fiber->gc.flags &= ~(JANET_FIBER_EV_FLAG_CANCELED | JANET_FIBER_EV_FLAG_SUSPENDED);
+        if (task.fiber->gc.flags & JANET_FIBER_EV_GCFLAG_SUSPENDED) janet_ev_dec_refcount();
+        task.fiber->gc.flags &= ~(JANET_FIBER_EV_GCFLAG_CANCELED | JANET_FIBER_EV_GCFLAG_SUSPENDED);
         if (task.expected_sched_id != task.fiber->sched_id) continue;
         Janet res;
         JanetSignal sig = janet_continue_signal(task.fiber, task.value, &res, task.sig);
@@ -1543,7 +1543,7 @@ JanetFiber *janet_loop1(void) {
         void *sv = task.fiber->supervisor_channel;
         int is_suspended = sig == JANET_SIGNAL_EVENT || sig == JANET_SIGNAL_YIELD || sig == JANET_SIGNAL_INTERRUPT;
         if (is_suspended) {
-            task.fiber->gc.flags |= JANET_FIBER_EV_FLAG_SUSPENDED;
+            task.fiber->gc.flags |= JANET_FIBER_EV_GCFLAG_SUSPENDED;
             janet_ev_inc_refcount();
         }
         if (NULL == sv) {

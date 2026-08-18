@@ -56,12 +56,14 @@
 #define JANET_FIBER_DID_LONGJUMP     0x8000000
 #define JANET_FIBER_FLAG_MASK        0xF000000
 
-#define JANET_FIBER_EV_FLAG_CANCELED 0x10000
-#define JANET_FIBER_EV_FLAG_SUSPENDED 0x20000
-#define JANET_FIBER_FLAG_ROOT 0x40000
-#define JANET_FIBER_EV_FLAG_IN_FLIGHT 0x1
+/* Flags on the gc header (don't confuse flags with gc.flags!) */
+/* Don't collide with JANET_FIBER_STATUS_MASK to enable flag smuggling in vm.c */
+#define JANET_FIBER_EV_GCFLAG_CANCELED 0x1000000
+#define JANET_FIBER_EV_GCFLAG_SUSPENDED 0x2000000
+#define JANET_FIBER_EV_GCFLAG_ROOT 0x4000000
 
-/* used only on windows, should otherwise be unset */
+/* Not on gc header */
+#define JANET_FIBER_EV_FLAG_IN_FLIGHT 0x1
 
 #define janet_fiber_set_status(f, s) do {\
     (f)->flags &= ~JANET_FIBER_STATUS_MASK;\
