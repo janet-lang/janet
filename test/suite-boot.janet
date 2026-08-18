@@ -1074,4 +1074,16 @@
 (assert (= (find even? @{:x 11 :y 28 :z 33}) 28))
 (assert (= (find keyword? (coro (yield 'jump) (yield :wave))) :wave))
 
+# partition
+(assert (deep= (partition 2 "hello!") @["he" "ll" "o!"]))
+(assert (deep= (partition 3 @"hello!") @["hel" "lo!"]))
+(assert (deep= (partition 4 'hello!) @["hell" "o!"]))
+(assert (deep= (partition 5 :hello!) @["hello" "!"]))
+(assert (deep= (partition 2 [:ant :bee :fox :elephant])
+               @[[:ant :bee] [:fox :elephant]]))
+(assert (deep= (partition 3 @['rock 'paper 'scissors 'spock])
+               @[['rock 'paper 'scissors] ['spock]]))
+(assert (deep= (partition 2 (coro (yield 0) (yield 1) (yield 2) (yield 3)))
+               @[[0 1] [2 3]]))
+
 (end-suite)
