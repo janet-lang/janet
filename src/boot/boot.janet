@@ -1192,44 +1192,43 @@
   res)
 
 (defn find-index
-  ``Find the index of indexed type for which `pred` is true. Returns `dflt` if not found.``
-  [pred ind &opt dflt]
-  (var k nil)
+  ``
+  Find the index of `x` for which `pred` is true. If not found, return
+  `dflt` if provided, or `nil` otherwise.
+
+  `x` can be a bytes, indexed, dictionary, or abstract type with
+  suitable `get` and `next` methods.
+  ``
+  [pred x &opt dflt]
+  (var k (next x nil))
   (var ret dflt)
-  (while true
-    (set k (next ind k))
-    (if (= k nil) (break))
-    (def item (in ind k))
-    (when (pred item)
-      (set ret k)
-      (break)))
+  (while (not= nil k)
+    (when (pred (in x k)) (set ret k) (break))
+    (set k (next x k)))
   ret)
 
 (defn find
   ``
   Find the first value in `x` that satisfies `pred`. If not found,
-  returns `dflt` if given, or `nil` otherwise.
+  return `dflt` if given, or `nil` otherwise.
 
   `x` can be a bytes, indexed, dictionary, fiber, or abstract type
   with suitable `get` and `next` methods.
   ``
   [pred x &opt dflt]
-  (var k nil)
+  (var k (next x nil))
   (var ret dflt)
-  (while true
-    (set k (next x k))
-    (if (= k nil) (break))
+  (while (not= nil k)
     (def item (in x k))
-    (when (pred item)
-      (set ret item)
-      (break)))
+    (when (pred item) (set ret item) (break))
+    (set k (next x k)))
   ret)
 
 (defn index-of
   ``
   Find the first key associated with a value `val` in `x`, acting like
   a reverse lookup. Will not look at dictionary prototypes. If not
-  found, returns `dflt` if provided and `nil` otherwise.
+  found, return `dflt` if given, or `nil` otherwise.
 
   `x` can be a bytes, indexed, dictionary, fiber, or abstract type
   with suitable `get` and `next` methods.
