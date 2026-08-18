@@ -1080,4 +1080,11 @@
 (assert (deep= (sort (filter int? {:a 1 :b 2.3 :c 3})) @[1 3]))
 (assert (deep= (filter even? (coro (yield 1) (yield 2) (yield 8))) @[2 8]))
 
+# interpose
+(assert (deep= (interpose ":" "hello")
+               @[104 ":" 101 ":" 108 ":" 108 ":" 111]))
+(assert (deep= (interpose 0 [1 2 3]) @[1 0 2 0 3]))
+(assert (deep= (interpose :goose (coro (yield :duck) (yield :duck)))
+               @[:duck :goose :duck]))
+
 (end-suite)
