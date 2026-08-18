@@ -1074,4 +1074,10 @@
 (assert (= (find even? @{:x 11 :y 28 :z 33}) 28))
 (assert (= (find keyword? (coro (yield 'jump) (yield :wave))) :wave))
 
+# filter
+(assert (deep= (filter |(< $ (chr "m")) "azbycw") @[97 98 99]))
+(assert (deep= (filter pos? @[-1 0 1]) @[1]))
+(assert (deep= (sort (filter int? {:a 1 :b 2.3 :c 3})) @[1 3]))
+(assert (deep= (filter even? (coro (yield 1) (yield 2) (yield 8))) @[2 8]))
+
 (end-suite)
