@@ -598,14 +598,37 @@
   (for-template i start stop 1 < + body))
 
 (defmacro eachk
-  "Loop over each key in `ds`. Returns nil."
-  [x ds & body]
-  (each-template x ds :keys body))
+  ``
+  Loop over each key in `x` with each key bound to `binding` with
+  destructuring support. Returns `nil`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with a suitable `next` method.
+  ``
+  [binding x & body]
+  (each-template binding x :keys body))
 
 (defmacro eachp
-  "Loop over each (key, value) pair in `ds`. Returns nil."
-  [x ds & body]
-  (each-template x ds :pairs body))
+  ``
+  Loop over each (key, value) pair in `x` with each pair bound to
+  `binding` with destructuring support. Returns `nil`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [binding x & body]
+  (each-template binding x :pairs body))
+
+(defmacro each
+  ``
+  Loop over each value in `x` with each value of `x` bound to
+  `binding` with destructuring support. Returns `nil`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [binding x & body]
+  (each-template binding x :each body))
 
 (defmacro repeat
   "Evaluate body n times. If n is negative, body will be evaluated 0 times. Evaluates to nil."
@@ -617,11 +640,6 @@
   "Evaluate body forever in a loop, or until a break statement."
   [& body]
   ~(while true ,;body))
-
-(defmacro each
-  "Loop over each value in `ds`. Returns nil."
-  [x ds & body]
-  (each-template x ds :each body))
 
 (defn- check-empty-body
   [body]
