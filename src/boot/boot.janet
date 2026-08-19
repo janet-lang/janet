@@ -1626,32 +1626,41 @@
   res)
 
 (defn reverse!
-  `Reverses the order of the elements in a given array or buffer and returns it
-  mutated.`
-  [t]
+  ``
+  Reverses the order of the values in `x` and returns it mutated.
+
+  `x` can be a buffer, array, or abstract type with suitable
+  `get`, `length`, and `put` methods.
+  ``
+  [x]
   (var i 0)
-  (var j (length t))
+  (var j (length x))
   (while (< i (-- j))
-    (def ti (in t i))
-    (put t i (in t j))
-    (put t j ti)
+    (def v (in x i))
+    (put x i (in x j))
+    (put x j v)
     (++ i))
-  t)
+  x)
 
 (defn reverse
-  `Reverses the order of the elements in a given array or tuple and returns
-  a new array. If a string or buffer is provided, returns a buffer instead.`
-  [t]
-  (if (lengthable? t)
+  ``
+  Reverses the order of the values in `x`. If `x` is a bytes type,
+  returns a buffer, otherwise returns an array.
+
+  `x` can be a bytes, indexed, fiber, or abstract type with suitable
+  `get` and `next` methods.
+  ``
+  [x]
+  (if (lengthable? x)
     (do
-      (var n (length t))
-      (def ret (if (bytes? t)
+      (var n (length x))
+      (def ret (if (bytes? x)
                  (buffer/new-filled n)
                  (array/new-filled n)))
-      (each v t
+      (each v x
         (put ret (-- n) v))
       ret)
-    (reverse! (seq [v :in t] v))))
+    (reverse! (seq [v :in x] v))))
 
 (defn invert
   ``
