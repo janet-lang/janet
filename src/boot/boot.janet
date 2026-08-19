@@ -1040,57 +1040,79 @@
   (sorted ind (fn :sorted-by-comp [x y] (< (f x) (f y)))))
 
 (defn reduce
-  ``Reduce, also know as fold-left in many languages, transforms
-  an indexed type (array, tuple) with a function to produce a value by applying `f` to
-  each element in order. `f` is a function of 2 arguments, `(f accum el)`, where
-  `accum` is the initial value and `el` is the next value in the indexed type `ind`.
-  `f` returns a value that will be used as `accum` in the next call to `f`. `reduce`
-  returns the value of the final call to `f`.``
-  [f init ind]
-  (var accum init)
-  (each el ind (set accum (f accum el)))
-  accum)
+  ``
+  Also know as fold-left in many languages, this function transforms
+  `x` by successively applying a function `f` to values from `x` and
+  an updating "accumulator" value. `f` is a function of 2 arguments,
+  `(f acc v)`, where `acc` starts as `init` and `v` is the next value
+  in `x`. `f` returns a value that will be used as `acc` in the next
+  call to `f`. The ultimate return value is that of the final call to
+  `f`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [f init x]
+  (var acc init)
+  (each v x (set acc (f acc v)))
+  acc)
 
 (defn reduce2
-  ``The 2-argument version of `reduce` that does not take an initialization value.
-  Instead, the first element of the array is used for initialization. If `ind` is empty, will evaluate to nil.``
-  [f ind]
-  (var k (next ind))
+  ``
+  The 2-argument version of `reduce`. Instead of taking an explicit
+  initial value, the first value of `x` is used instead. If `x` is
+  empty, returns `nil`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [f x]
+  (var k (next x))
   (if (= nil k) (break nil))
-  (var res (in ind k))
-  (set k (next ind k))
+  (var res (in x k))
+  (set k (next x k))
   (while (not= nil k)
-    (set res (f res (in ind k)))
-    (set k (next ind k)))
+    (set res (f res (in x k)))
+    (set k (next x k)))
   res)
 
 (defn accumulate
-  ``Similar to `reduce`, but accumulates intermediate values into an array.
-  The last element in the array is what would be the return value from `reduce`.
-  The `init` value is not added to the array (the return value will have the same
-  number of elements as `ind`).
-  Returns a new array.``
-  [f init ind]
+  ``
+  Similar to `reduce`, but accumulates successive results of applying
+  `f` into a new array. The last element in the array is what would be
+  the return value from `reduce`. The `init` value is not added
+  directly as the first value of the new array, i.e. the returned
+  array will have the same number of elements as `x`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [f init x]
   (var res init)
   (def ret @[])
-  (each x ind (array/push ret (set res (f res x))))
+  (each v x (array/push ret (set res (f res v))))
   ret)
 
 (defn accumulate2
-  ``The 2-argument version of `accumulate` that does not take an initialization value.
-  The first value in `ind` will be added to the array as is, so the length of the
-  return value will be `(length ind)`.``
-  [f ind]
-  (var k (next ind))
+  ``
+  The 2-argument version of `accumulate`. Instead of taking an
+  explicit initial value, the first value of `x` is used instead. If
+  `x` is empty, returns an empty array.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [f x]
+  (var k (next x))
   (def ret @[])
   (if (= nil k) (break ret))
-  (var res (in ind k))
+  (var res (in x k))
   (array/push ret res)
-  (set k (next ind k))
+  (set k (next x k))
   (while (not= nil k)
-    (set res (f res (in ind k)))
+    (set res (f res (in x k)))
     (array/push ret res)
-    (set k (next ind k)))
+    (set k (next x k)))
   ret)
 
 (defmacro- map-aggregator
