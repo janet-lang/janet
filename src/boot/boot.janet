@@ -1166,18 +1166,23 @@
   res)
 
 (defn count
-  ```
-  Count the number of values in a data structure `ind` for which
-  applying `pred` yields a truthy value, but only if no `inds` are
-  provided. Multiple data structures can be handled if each `inds`
-  is a data structure and `pred` is a function of arity one more
-  than the number of `inds`. Note that `pred` is only applied to
-  values at indices up to the largest index of the shortest of
-  `ind` and each of `inds`.
-  ```
-  [pred ind & inds]
+  ``
+  Count the number of values in `x` for which applying `pred` yields a
+  truthy value.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `pred`. `pred` is called with both
+  values from `x` and additional arguments, and only as many times as
+  the length of the shortest of `x` and each element of `xs`. If `x`
+  or any element of `xs` is empty, returns 0.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [pred x & xs]
   (var res 0)
-  (map-template :count res pred ind inds)
+  (map-template :count res pred x xs)
   res)
 
 (defn keep
@@ -2384,35 +2389,44 @@
   ret)
 
 (defn all
-  ```
-  Returns true if applying `pred` to every value in a data
-  structure `ind` results in only truthy values, but only if no
-  `inds` are provided. Multiple data structures can be handled
-  if each `inds` is a data structure and `pred` is a function
-  of arity one more than the number of `inds`. Returns the first
-  falsey result encountered. Note that `pred` is only called as
-  many times as the length of the shortest of `ind` and each of
-  `inds`. If `ind` or any of `inds` are empty, returns true.
-  ```
-  [pred ind & inds]
+  ``
+  Apply `pred` to values of `x`. Return true if all results are truthy;
+  if any result is falsey, stop applying `pred` and return the result.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `pred`. `pred` is called with both
+  values from `x` and additional arguments, and only as many times as
+  the length of the shortest of `x` and each element of `xs`. If `x`
+  or any element of `xs` is empty, returns true.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [pred x & xs]
   (var res true)
-  (map-template :all res pred ind inds)
+  (map-template :all res pred x xs)
   res)
 
 (defn some
-  ```
-  Returns nil if applying `pred` to every value in a data
-  structure `ind` results in only falsey values, but only if no
-  `inds` are provided. Multiple data structures can be handled
-  if each `inds` is a data structure and `pred` is a function
-  of arity one more than the number of `inds`. Returns the first
-  truthy result encountered. Note that `pred` is only called as
-  many times as the length of the shortest of `ind` and each of
-  `inds`. If `ind` or any of `inds` are empty, returns nil.
-  ```
-  [pred ind & inds]
+  ``
+  Returns `nil` if applying `pred` to every value in `x` results in
+  only falsey values, otherwise returns the first truthy result
+  encountered.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `f`. `f` is called with both values
+  from `x` and additional arguments, and only as many times as the
+  length of the shortest of `x` and each element of `xs`. If `x` or
+  any element of `xs` is empty, returns `nil`.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [pred x & xs]
   (var res nil)
-  (map-template :some res pred ind inds)
+  (map-template :some res pred x xs)
   res)
 
 (defn freeze
