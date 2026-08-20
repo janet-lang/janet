@@ -2507,9 +2507,9 @@
   res)
 
 (defn freeze
-  `Freeze an object (make it immutable) and do a deep copy, making
-  child values also immutable. Closures, fibers, and abstract types
-  will not be recursively frozen, but all other types will.`
+  ``Freeze an object (make it and any child values immutable) and do a deep
+  copy. Closures, fibers, and abstract types will not be recursively frozen,
+  but all other types will. `thaw` is the mutable version.``
   [x]
   (def tx (type x))
   (cond
@@ -2535,9 +2535,9 @@
 
 (defn thaw
   ```
-  Thaw an object (make it mutable) and do a deep copy, making
-  child values also mutable. Closures, fibers, and abstract
-  types will not be recursively thawed, but all other types will.
+  Thaw an object (make it and child values mutable) and do a deep copy. 
+  Closures, fibers, and abstract types will not be recursively thawed,
+  but all other types will. `freeze` is the mutable version.
   ```
   [ds]
   (case (type ds)
