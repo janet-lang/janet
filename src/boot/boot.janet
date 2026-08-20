@@ -1163,32 +1163,43 @@
            (map-aggregator ,maptype ,res (,f x ;call-buffer)))))))
 
 (defn map
-  ```
-  Map a function `f` over every value in a data structure `ind`
-  and return an array of results, but only if no `inds` are
-  provided. Multiple data structures can be handled if each
-  `inds` is a data structure and `f` is a function of arity
-  one more than the number of `inds`.  The resulting array has
-  a length that is the shortest of `ind` and each of `inds`.
-  ```
-  [f ind & inds]
+  ``
+  Map a function `f` over every value in `x` and return an array of
+  results.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `f`. `f` is called with both values
+  from `x` and additional arguments, and only as many times as the
+  length of the shortest of `x` and each element of `xs`. If `x` or
+  any element of `xs` is empty, returns an empty array.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [f x & xs]
   (def res @[])
-  (map-template :map res f ind inds)
+  (map-template :map res f x xs)
   res)
 
 (defn mapcat
-  ```
-  Map a function `f` over every value in a data structure `ind`
-  and use `array/concat` to concatenate the results, but only if
-  no `inds` are provided. Multiple data structures can be handled
-  if each `inds` is a data structure and `f` is a function of
-  arity one more than the number of `inds`. Note that `f` is only
-  applied to values at indices up to the largest index of the
-  shortest of `ind` and each of `inds`.
-  ```
-  [f ind & inds]
+  ``
+  Map a function `f` over every value in `x` and use `array/concat` to
+  concatenate the results.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `f`. `f` is called with both values
+  from `x` and additional arguments, and only as many times as the
+  length of the shortest of `x` and each element of `xs`. If `x` or
+  any element of `xs` is empty, returns an empty array.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [f x & xs]
   (def res @[])
-  (map-template :mapcat res f ind inds)
+  (map-template :mapcat res f x xs)
   res)
 
 (defn filter
@@ -1226,18 +1237,23 @@
   res)
 
 (defn keep
-  ```
-  Given a predicate `pred`, return a new array containing the
-  truthy results of applying `pred` to each value in the data
-  structure `ind`, but only if no `inds` are provided. Multiple
-  data structures can be handled if each `inds` is a data
-  structure and `pred` is a function of arity one more than the
-  number of `inds`. The resulting array has a length that is no
-  longer than the shortest of `ind` and each of `inds`.
-  ```
-  [pred ind & inds]
+  ``
+  Given a predicate `pred`, return a new array containing the truthy
+  results of applying `pred` to each value in `x`.
+
+  Also functions variadically, i.e. takes additional arguments, with
+  suitable changes to the arity of `pred`. `pred` is called with both
+  values from `x` and additional arguments, and only as many times as
+  the length of the shortest of `x` and each element of `xs`. If `x`
+  or any element of `xs` is empty, returns an empty array.
+
+  `x` and elements of `xs` can be values of type bytes, indexed,
+  dictionary, fiber, or abstract with suitable `get` and `next`
+  methods.
+  ``
+  [pred x & xs]
   (def res @[])
-  (map-template :keep res pred ind inds)
+  (map-template :keep res pred x xs)
   res)
 
 (defn find-index
