@@ -956,7 +956,7 @@ JANET_API int janet_checkint64(Janet x);
 JANET_API int janet_checkuint64(Janet x);
 JANET_API int janet_checksize(Janet x);
 JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at);
-#define janet_checkfloatrange(x) ((x) >= FLT_MIN && (x) <= FLT_MAX && (x) == (float)(x))
+#define janet_checkfloatrange(x) ((x) >= -FLT_MAX && (x) <= FLT_MAX)
 #define janet_checkint8range(x) ((x) >= INT8_MIN && (x) <= INT8_MAX && (x) == (int8_t)(x))
 #define janet_checkuint8range(x) ((x) >= 0 && (x) <= UINT8_MAX && (x) == (uint8_t)(x))
 #define janet_checkint16range(x) ((x) >= INT16_MIN && (x) <= INT16_MAX && (x) == (int16_t)(x))
