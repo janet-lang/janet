@@ -1648,21 +1648,33 @@
     (fn :partial [& r] (f ;more ;r))))
 
 (defn every?
-  ``Evaluates to the last element of `ind` if all preceding elements are truthy,
-  otherwise evaluates to the first falsey element.``
-  [ind]
+  ``
+  Evaluates to the last element of `x` if all preceding elements are
+  truthy, true if `x` is empty, or otherwise to the first falsey
+  element.
+
+  `x` can be a bytes, indexed. dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [x]
   (var res true)
-  (loop [x :in ind :while res]
-    (set res x))
+  (loop [v :in x :while res]
+    (set res v))
   res)
 
 (defn any?
-  ``Evaluates to the last element of `ind` if all preceding elements are falsey,
-  otherwise evaluates to the first truthy element.``
-  [ind]
+  ``
+  Evaluates to the last element of `x` if all preceding elements are
+  falsey, `nil` if `x` is empty, or otherwise to the first truthy
+  element.
+
+  `x` can be a bytes, indexed. dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [x]
   (var res nil)
-  (loop [x :in ind :until res]
-    (set res x))
+  (loop [v :in x :until res]
+    (set res v))
   res)
 
 (defn reverse!
