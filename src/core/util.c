@@ -927,13 +927,6 @@ int janet_checkuint8(Janet x) {
     return janet_checkuint8range(dval);
 }
 
-int janet_checkfloat(Janet x) {
-    if (!janet_checktype(x, JANET_NUMBER))
-        return 0;
-    double dval = janet_unwrap_number(x);
-    return janet_checkfloatrange(dval);
-}
-
 int janet_checksize(Janet x) {
     if (!janet_checktype(x, JANET_NUMBER))
         return 0;
