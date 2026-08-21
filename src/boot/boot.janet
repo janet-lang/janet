@@ -968,12 +968,35 @@
   [& xs]
   (compare-reduce >= xs))
 
-(defn zero? "Check if x is zero." [x] (= (compare x 0) 0))
-(defn pos? "Check if x is greater than 0." [x] (= (compare x 0) 1))
-(defn neg? "Check if x is less than 0." [x] (= (compare x 0) -1))
-(defn one? "Check if x is equal to 1." [x] (= (compare x 1) 0))
-(defn even? "Check if x is even." [x] (= 0 (compare 0 (mod x 2))))
-(defn odd? "Check if x is odd." [x] (= 0 (compare 1 (mod x 2))))
+(defn zero?
+  "Check if x is zero. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= (compare x 0) 0))
+
+(defn pos?
+  "Check if x is greater than 0. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= (compare x 0) 1))
+
+(defn neg?
+  "Check if x is less than 0. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= (compare x 0) -1))
+
+(defn one?
+  "Check if x is equal to 1. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= (compare x 1) 0))
+
+(defn even?
+  "Check if x is even. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= 0 (compare 0 (mod x 2))))
+
+(defn odd?
+  "Check if x is odd. If x is a table or struct, uses polymorphic `compare`."
+  [x]
+  (= 0 (compare 1 (mod x 2))))
 
 ###
 ###
