@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- JANET_PATH will now be searched strictly left-to-right for modules.
 - Add `-t` (`--tool`) flag for using installed libraries as command line tools
 - Numerous documentation improvements and fixes
 - Add support for GNU/Hurd
