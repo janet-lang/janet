@@ -512,7 +512,7 @@ static JanetBuffer *os_exec_escape(JanetView args) {
 #endif
 
 /* Process type for when running a subprocess and not immediately waiting */
-static const JanetAbstractType ProcAT;
+extern const JanetAbstractType ProcAT;
 #define JANET_PROC_CLOSED 1
 #define JANET_PROC_WAITED 2
 #define JANET_PROC_WAITING 4

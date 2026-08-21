@@ -170,7 +170,7 @@ static void janet_mark_array(JanetArray *array) {
 }
 
 static void janet_mark_table(JanetTable *table) {
-recur: /* Manual tail recursion */
+    while (1) {
     if (janet_gc_reachable(table))
         return;
     janet_gc_mark(table);
@@ -185,18 +185,22 @@ recur: /* Manual tail recursion */
     /* do nothing for JANET_MEMORY_TABLE_WEAKKV */
     if (table->proto) {
         table = table->proto;
-        goto recur;
+        // goto recur;
+        continue;
+    }
+    else break;
     }
 }
 
 static void janet_mark_struct(const JanetKV *st) {
-recur:
+    while (1) {
     if (janet_gc_reachable(janet_struct_head(st)))
         return;
     janet_gc_mark(janet_struct_head(st));
     janet_mark_kvs(st, janet_struct_capacity(st));
     st = janet_struct_proto(st);
-    if (st) goto recur;
+    if (st) continue; else break;
+    }
 }
 
 static void janet_mark_tuple(const Janet *tuple) {
@@ -264,7 +268,8 @@ static void janet_mark_function(JanetFunction *func) {
 static void janet_mark_fiber(JanetFiber *fiber) {
     int32_t i, j;
     JanetStackFrame *frame;
-recur:
+
+    while (1) {
     if (janet_gc_reachable(fiber))
         return;
     janet_gc_mark(fiber);
@@ -307,7 +312,10 @@ recur:
     /* Explicit tail recursion */
     if (fiber->child) {
         fiber = fiber->child;
-        goto recur;
+        // goto recur;
+        continue;
+    }
+    else break; 
     }
 }
 

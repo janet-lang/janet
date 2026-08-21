@@ -82,7 +82,10 @@ typedef enum {
 } JanetFFIPrimType;
 
 /* Custom alignof since alignof not in c99 standard */
-#define ALIGNOF(type) offsetof(struct { char c; type member; }, member)
+// #define ALIGNOF(type) offsetof(struct { char c; type member; }, member)
+
+// GCC/Clang
+#define ALIGNOF(type) __alignof__(type)
 
 typedef struct {
     size_t size;
@@ -266,8 +269,8 @@ static size_t janet_ffijit_length(void *p, size_t s) {
 const JanetAbstractType janet_type_ffijit = {
     .name = "ffi/jitfn",
     .gc = janet_ffijit_gc,
-    .bytes = janet_ffijit_getbytes,
-    .length = janet_ffijit_length
+    .length = janet_ffijit_length,
+    .bytes = janet_ffijit_getbytes
 };
 
 typedef struct {

@@ -75,6 +75,12 @@ static int32_t janetc_const(JanetCompiler *c, Janet x) {
 }
 
 /* Load a constant into a local register */
+#define GOTO_do_constant { \
+                int32_t cindex = janetc_const(c, k); \
+                janetc_emit(c, ((uint32_t) cindex << 16) | ((uint32_t) reg << 8) | JOP_LOAD_CONSTANT); \
+                break; \
+            };
+
 static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
     switch (janet_type(k)) {
         case JANET_NIL:
@@ -87,10 +93,10 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
         case JANET_NUMBER: {
             double dval = janet_unwrap_number(k);
             if (dval < INT16_MIN || dval > INT16_MAX)
-                goto do_constant;
+                GOTO_do_constant;
             int32_t i = (int32_t) dval;
             if (dval != i)
-                goto do_constant;
+                GOTO_do_constant;
             uint32_t iu = (uint32_t)i;
             janetc_emit(c,
                         ((uint32_t) iu << 16) |
@@ -98,17 +104,10 @@ static void janetc_loadconst(JanetCompiler *c, Janet k, int32_t reg) {
                         JOP_LOAD_INTEGER);
             break;
         }
-        default:
-        do_constant: {
-                int32_t cindex = janetc_const(c, k);
-                janetc_emit(c,
-                            ((uint32_t) cindex << 16) |
-                            ((uint32_t) reg << 8) |
-                            JOP_LOAD_CONSTANT);
-                break;
-            }
+        default: GOTO_do_constant;
     }
 }
+#undef GOTO_do_constant
 
 /* Move a slot to a near register */
 static void janetc_movenear(JanetCompiler *c,

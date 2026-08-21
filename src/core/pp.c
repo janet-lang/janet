@@ -396,18 +396,20 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
         case JANET_STRING:
             janet_description_b(S->buffer, x);
             break;
-        case JANET_NUMBER:
+        case JANET_NUMBER: {
             janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
             double num = janet_unwrap_number(x);
             if (isnan(num)) return 1;
             if (isinf(num)) return 1;
             janet_buffer_dtostr(S->buffer, num);
             break;
+        }
         case JANET_SYMBOL:
-        case JANET_KEYWORD:
+        case JANET_KEYWORD: {
             if (contains_bad_chars(janet_unwrap_keyword(x), janet_type(x) == JANET_SYMBOL)) return 1;
             janet_description_b(S->buffer, x);
             break;
+        }
         case JANET_TUPLE: {
             JanetTuple t = janet_unwrap_tuple(x);
             int isb = janet_tuple_flag(t) & JANET_TUPLE_FLAG_BRACKETCTOR;
@@ -417,8 +419,8 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
                 if (print_jdn_one(S, t[i], depth - 1)) return 1;
             }
             janet_buffer_push_u8(S->buffer, isb ? ']' : ')');
+            break;
         }
-        break;
         case JANET_ARRAY: {
             janet_table_put(&S->seen, x, janet_wrap_true());
             JanetArray *a = janet_unwrap_array(x);
@@ -428,8 +430,8 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
                 if (print_jdn_one(S, a->data[i], depth - 1)) return 1;
             }
             janet_buffer_push_u8(S->buffer, ']');
+            break;
         }
-        break;
         case JANET_TABLE: {
             janet_table_put(&S->seen, x, janet_wrap_true());
             JanetTable *tab = janet_unwrap_table(x);
@@ -445,8 +447,8 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
                 if (print_jdn_one(S, kv->value, depth - 1)) return 1;
             }
             janet_buffer_push_u8(S->buffer, '}');
+            break;
         }
-        break;
         case JANET_STRUCT: {
             JanetStruct st = janet_unwrap_struct(x);
             janet_buffer_push_u8(S->buffer, '{');

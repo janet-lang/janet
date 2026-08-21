@@ -2065,15 +2065,17 @@ typedef enum {
     JANET_BINDING_DYNAMIC_MACRO
 } JanetBindingType;
 
+typedef enum {
+    JANET_BINDING_DEP_NONE,
+    JANET_BINDING_DEP_RELAXED,
+    JANET_BINDING_DEP_NORMAL,
+    JANET_BINDING_DEP_STRICT,
+} JanetBindingDesc;
+
 typedef struct {
     JanetBindingType type;
     Janet value;
-    enum {
-        JANET_BINDING_DEP_NONE,
-        JANET_BINDING_DEP_RELAXED,
-        JANET_BINDING_DEP_NORMAL,
-        JANET_BINDING_DEP_STRICT,
-    } deprecation;
+    JanetBindingDesc deprecation;
 } JanetBinding;
 
 JANET_API void janet_def(JanetTable *env, const char *name, Janet val, const char *documentation);

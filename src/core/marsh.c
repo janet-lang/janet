@@ -42,7 +42,7 @@ typedef struct {
 } MarshalState;
 
 /* Lead bytes in marshaling protocol */
-enum {
+typedef enum {
     LB_REAL = 200,
     LB_NIL, /* 201 */
     LB_FALSE, /* 202 */
@@ -466,6 +466,7 @@ static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
     }
 }
 
+#define GOTO_no_registry janet_panicf("no registry value and cannot marshal %p", x);
 /* The main body of the marshaling function. Is the main
  * entry point for the mutually recursive functions. */
 static void marshal_one(MarshalState *st, Janet x, int flags) {
@@ -668,7 +669,7 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         }
         case JANET_CFUNCTION: {
-            if (!(flags & JANET_MARSHAL_UNSAFE)) goto no_registry;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) GOTO_no_registry;
             MARK_SEEN();
             pushbyte(st, LB_UNSAFE_CFUNCTION);
             JanetCFunction cfn = janet_unwrap_cfunction(x);
@@ -676,19 +677,21 @@ static void marshal_one(MarshalState *st, Janet x, int flags) {
             return;
         }
         case JANET_POINTER: {
-            if (!(flags & JANET_MARSHAL_UNSAFE)) goto no_registry;
+            if (!(flags & JANET_MARSHAL_UNSAFE)) GOTO_no_registry;
             MARK_SEEN();
             pushbyte(st, LB_UNSAFE_POINTER);
             pushpointer(st, janet_unwrap_pointer(x));
             return;
         }
-    no_registry:
+    // goto no_registry:
         default: {
-            janet_panicf("no registry value and cannot marshal %p", x);
+            GOTO_no_registry;
         }
     }
 #undef MARK_SEEN
 }
+
+#undef GOTO_no_registry;
 
 void janet_marshal(
     JanetBuffer *buf,
@@ -1351,7 +1354,7 @@ static const uint8_t *unmarshal_one(
         case LB_TRUE:
             *out = janet_wrap_true();
             return data + 1;
-        case LB_INTEGER:
+        case LB_INTEGER: {
             /* Long integer */
             MARSH_EOS(st, data + 4);
             uint32_t ui = ((uint32_t)(data[4])) |
@@ -1361,9 +1364,9 @@ static const uint8_t *unmarshal_one(
             int32_t si = (int32_t)ui;
             *out = janet_wrap_integer(si);
             return data + 5;
-        case LB_REAL:
+        }
+        case LB_REAL: {
             /* Real */
-        {
             union {
                 double d;
                 uint8_t bytes[8];
@@ -1464,9 +1467,8 @@ static const uint8_t *unmarshal_one(
         case LB_TABLE_WEAKKV:
         case LB_TABLE_WEAKK_PROTO:
         case LB_TABLE_WEAKV_PROTO:
-        case LB_TABLE_WEAKKV_PROTO:
+        case LB_TABLE_WEAKKV_PROTO: {
             /* Things that open with integers */
-        {
             data++;
             int32_t len = readnat(st, &data);
             /* DOS check */
