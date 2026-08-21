@@ -760,40 +760,62 @@
   (tuple fiber/new (tuple 'fn :fiber-fn '[] ;body) flags))
 
 (defn sum
-  "Returns the sum of xs. If xs is empty, returns 0."
-  [xs]
+  ``
+  Returns the sum of the values of `x`. If `x` is empty, returns 0.
+
+ `x` can be a bytes, indexed, dictionary, fiber, or abstract type with
+  suitable `get` and `next` methods.
+  ``
+  [x]
   (var accum 0)
-  (each x xs (+= accum x))
+  (each v x (+= accum v))
   accum)
 
 (defn mean
-  "Returns the mean of xs. If empty, returns NaN."
-  [xs]
-  (if (lengthable? xs)
-    (/ (sum xs) (length xs))
+  ``
+  Returns the mean of the values of `x`. If empty, returns `math/nan`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [x]
+  (if (lengthable? x)
+    (/ (sum x) (length x))
     (do
       (var [accum total] [0 0])
-      (each x xs (+= accum x) (++ total))
+      (each v x (+= accum v) (++ total))
       (/ accum total))))
 
 (defn geomean
-  "Returns the geometric mean of xs. If empty, returns NaN."
-  [xs]
-  (if (lengthable? xs)
+  ``
+  Returns the geometric mean of the values of `x`. If empty, returns
+  `math/nan`.
+
+  `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [x]
+  (if (lengthable? x)
     (do
       (var accum 0)
-      (each x xs (+= accum (math/log x)))
-      (math/exp (/ accum (length xs))))
+      (each v x (+= accum (math/log v)))
+      (math/exp (/ accum (length x))))
     (do
       (var [accum total] [0 0])
-      (each x xs (+= accum (math/log x)) (++ total))
+      (each v x (+= accum (math/log v)) (++ total))
       (math/exp (/ accum total)))))
 
 (defn product
-  "Returns the product of xs. If xs is empty, returns 1."
-  [xs]
+  ``
+  Returns the product of the values of `x`. If `x` is empty, returns
+  1.
+
+ `x` can be a bytes, indexed, dictionary, fiber, or abstract type
+  with suitable `get` and `next` methods.
+  ``
+  [x]
   (var accum 1)
-  (each x xs (*= accum x))
+  (each v x (*= accum v))
   accum)
 
 (defmacro when-let
