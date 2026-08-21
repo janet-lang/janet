@@ -3164,7 +3164,6 @@
   (array/insert mp 0 [":all:" loader (fn :check-ext [x] (string/has-suffix? ext x))])
   mp)
 
-# Don't expose this externally yet - could break if custom module/paths is setup.
 (defn module/add-syspath
   ```
   Add a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
@@ -4428,19 +4427,15 @@
   (def- seps {:windows "\\" :mingw "\\" :cygwin "\\"})
   (defn- sep [] (get seps (os/which) "/"))
 
-  (defn- bundle-rpath
-    [path]
-    (os/realpath path))
-
   (defn- bundle-dir
     [&opt bundle-name]
     (def s (sep))
-    (string (bundle-rpath (dyn *syspath*)) s "bundle" (if bundle-name s) bundle-name))
+    (string (os/realpath (dyn *syspath*)) s "bundle" (if bundle-name s) bundle-name))
 
   (defn- bundle-file
     [bundle-name filename]
     (def s (sep))
-    (string (bundle-rpath (dyn *syspath*)) s "bundle" s bundle-name s filename))
+    (string (os/realpath (dyn *syspath*)) s "bundle" s bundle-name s filename))
 
   (defn- get-manifest-filename
     [bundle-name]
@@ -4519,7 +4514,7 @@
     (def manifest (bundle/manifest bundle-name))
     (def dir (os/cwd))
     (def workdir (get manifest :local-source "."))
-    (def fixed-syspath (bundle-rpath (dyn *syspath*)))
+    (def fixed-syspath (os/realpath (dyn *syspath*)))
     (try
       (os/cd workdir)
       ([_] (print "cannot enter source directory " workdir " for bundle " bundle-name)))
@@ -4652,7 +4647,7 @@
     check). A user can register a hook by defining a function with the same name
     in the bundle script.``
     [path &keys config]
-    (def path (bundle-rpath path))
+    (def path (os/realpath path))
     (def s (sep))
     # Detect bundle name
     (def infofile-src1 (string path s "bundle" s "info.jdn"))
@@ -4741,7 +4736,7 @@
     (def install-hook (string dest-dir s "bundle" s "init.janet"))
     (edefer (rmrf dest-dir) # don't leave garbage on failure
       (def install-source @[])
-      (def syspath (bundle-rpath (dyn *syspath*)))
+      (def syspath (os/realpath (dyn *syspath*)))
       (when is-backup (copyrf (bundle-dir bundle-name) (string dest-dir s "old-bundle")))
       (each file files
         (def {:mode mode :permissions perm} (os/stat file))
@@ -4807,7 +4802,7 @@
     "Given a file path, figure out which bundle installed it."
     [path]
     (var ret nil)
-    (def rpath (bundle-rpath path))
+    (def rpath (os/realpath path))
     (each bundle-name (bundle/list)
       (def files (get (bundle/manifest bundle-name) :files []))
       (def has-file (index-of rpath files))
@@ -4978,8 +4973,8 @@
 
   (when-let [jp (getenv-alias "JANET_PATH")]
     (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
-    (def paths (reverse! (string/split path-sep jp)))
-    (for i 1 (length paths)
+    (def paths (string/split path-sep jp))
+    (loop [i :down-to [(- (length paths) 1) 1]]
       (module/add-syspath (get paths i)))
     (setdyn *syspath* (first paths)))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
