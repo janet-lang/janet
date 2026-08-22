@@ -405,8 +405,10 @@ JANET_CORE_FN(cfun_table_rawget,
 
 JANET_CORE_FN(cfun_table_clone,
               "(table/clone tab)",
-              "Create a copy of a table. Updates to the new table will not change the old table, "
-              "and vice versa.") {
+              "Create a shallow copy of table `tab`.\n"
+              "If the table's values are references to child data structures, updates to"
+              "those children structures will change them in the new and old tables alike."
+              "To make a deep copy, refer to `thaw` or `(unmarshal (marshal tab))`.") {
     janet_fixarity(argc, 1);
     JanetTable *table = janet_gettable(argv, 0);
     return janet_wrap_table(janet_table_clone(table));

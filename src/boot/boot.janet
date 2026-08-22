@@ -2542,9 +2542,13 @@
   res)
 
 (defn freeze
-  `Freeze an object (make it immutable) and do a deep copy, making
-  child values also immutable. Closures, fibers, and abstract types
-  will not be recursively frozen, but all other types will.`
+  ``Freeze an object (make it and any child values immutable) and do a deep
+  copy. Closures, fibers, and abstract types will not be recursively frozen,
+  but all other types will. `thaw` is the mutable version.
+   
+  If no closures, fibers and abstract types, you may preserve children's mutability,
+  using:
+  * (unmarshal (marshal ds))``
   [x]
   (def tx (type x))
   (cond
@@ -2570,9 +2574,7 @@
 
 (defn thaw
   ```
-  Thaw an object (make it mutable) and do a deep copy, making
-  child values also mutable. Closures, fibers, and abstract
-  types will not be recursively thawed, but all other types will.
+  Similar to `freeze`, but mutable. Also see `thaw-keep-keys`.
   ```
   [ds]
   (case (type ds)
@@ -2585,7 +2587,7 @@
 
 (defn thaw-keep-keys
   ```
-  Similar to `thaw`, but do not modify table or struct keys.
+  Similar to `freeze`, but mutable, leaving table and struct keys unmodified.
   ```
   [ds]
   (case (type ds)
