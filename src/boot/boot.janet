@@ -1864,12 +1864,17 @@
   x)
 
 (defn update
-  ``For a given key in data structure `ds`, replace its corresponding value with the
-  result of calling `func` on that value. If `args` are provided, they will be passed
-  along to `func` as well. Returns `ds`, updated.``
-  [ds key func & args]
-  (def old (get ds key))
-  (put ds key (func old ;args)))
+  ``
+  For a given key in `x`, replace its associated value with the result
+  of applying `f` to that value. If `args` are provided, they will be
+  passed along to `f` as well. Returns updated `x`.
+
+  `x` can be a buffer, array, table, or suitable abstract type with
+  `get` and `put` methods.
+  ``
+  [x key f & args]
+  (def old (get x key))
+  (put x key (f old ;args)))
 
 (defn merge-into
   ``
