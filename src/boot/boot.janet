@@ -2007,9 +2007,17 @@
   ret)
 
 (defn interleave
-  "Returns an array of the first elements of each col, then the second elements, etc."
-  [& cols]
-  (mapcat tuple ;cols))
+  ``
+  Returns an array of the values of each element of `xs`, interleaved.
+  If the elements of `xs` do not all have the same number of values,
+  the shortest element of `xs` determines the number of values from
+  each element of `xs` that are contained in the returned array.
+
+  Each element of `xs` can be a bytes, indexed, fiber, or abstract
+  type with suitable `get` and `next` methods.
+  ``
+  [& xs]
+  (mapcat tuple ;xs))
 
 (defn distinct
   "Returns an array of the deduplicated values in `xs`."
