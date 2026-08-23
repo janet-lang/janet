@@ -899,9 +899,14 @@
   (get x 0))
 
 (defn last
-  "Get the last element from an indexed data structure."
-  [xs]
-  (get xs (- (length xs) 1)))
+  ``
+  Get the final element from `x`.
+
+  `x` can be a bytes, indexed, or abstract type value with suitable
+  `get` and `length` methods.
+  ``
+  [x]
+  (get x (- (length x) 1)))
 
 ## Polymorphic comparisons
 
