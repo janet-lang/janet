@@ -1262,9 +1262,14 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "Returns `x`."));
     janet_quick_asm(env, JANET_FUN_LENGTH,
                     "length", 1, 1, 1, 1, length_asm, sizeof(length_asm),
-                    JDOC("(length ds)\n\n"
-                         "Returns the length or count of a data structure in constant time as an integer. For "
-                         "structs and tables, returns the number of key-value pairs in the data structure."));
+                    JDOC("(length x)\n\n"
+                         "Returns the length or count of `x` as an integer. "
+                         "Returns are guaranteed to be in constant time "
+                         "except for abstract types. For dictionaries, "
+                         "returns the number of key-value pairs.\n"
+                         "\n"
+                         "`x` can be a bytes, indexed, dictionary, or "
+                         "abstract type with a suitable `length` method."));
     janet_quick_asm(env, JANET_FUN_BNOT,
                     "bnot", 1, 1, 1, 1, bnot_asm, sizeof(bnot_asm),
                     JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
