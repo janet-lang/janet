@@ -384,7 +384,11 @@ JANET_CORE_FN(cfun_table_setproto,
 
 JANET_CORE_FN(cfun_table_tostruct,
               "(table/to-struct tab &opt proto)",
-              "Convert a table to a struct. Returns a new struct.") {
+              "Create and return a struct based on a table `tab`. "
+              "If given, the optional argument `proto` specifies "
+              "a struct to be used as the newly created struct's "
+              "prototype. Note that if `proto` is not specified, "
+              "the newly created struct will not have a prototype.") {
     janet_arity(argc, 1, 2);
     JanetTable *t = janet_gettable(argv, 0);
     JanetStruct proto = janet_optstruct(argv, argc, 1, NULL);
