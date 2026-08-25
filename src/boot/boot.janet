@@ -1898,9 +1898,9 @@
   previous ones. Returns `tab`.
   ``
   [tab & dicts]
-  (loop [c :in dicts
-         key :keys c]
-    (put tab key (in c key)))
+  (loop [d :in dicts
+         key :keys d]
+    (put tab key (in d key)))
   tab)
 
 (defn merge
@@ -1911,9 +1911,9 @@
   ``
   [& dicts]
   (def container @{})
-  (loop [c :in dicts
-         key :keys c]
-    (put container key (in c key)))
+  (loop [d :in dicts
+         key :keys d]
+    (put container key (in d key)))
   container)
 
 (defn keys
