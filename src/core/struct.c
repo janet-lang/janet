@@ -206,8 +206,8 @@ JanetTable *janet_struct_to_table(const JanetKV *st) {
 
 JANET_CORE_FN(cfun_struct_with_proto,
               "(struct/with-proto proto & kvs)",
-              "Create a structure, as with the usual struct constructor but set the "
-              "struct prototype as well.") {
+              "Create a struct using the `proto` argument as the struct's "
+              "prototype. `kvs` are as in the `struct` function.") {
     janet_arity(argc, 1, -1);
     JanetStruct proto = janet_optstruct(argv, argc, 0, NULL);
     if (!(argc & 1))
