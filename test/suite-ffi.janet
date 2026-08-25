@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -21,7 +21,7 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
-(def has-ffi (dyn 'ffi/native))
+(var has-ffi (dyn 'ffi/native))
 (def has-full-ffi
   (and has-ffi
        (when-let [entry (dyn 'ffi/calling-conventions)]

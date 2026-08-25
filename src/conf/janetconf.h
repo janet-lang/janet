@@ -4,10 +4,10 @@
 #define JANETCONF_H
 
 #define JANET_VERSION_MAJOR 1
-#define JANET_VERSION_MINOR 40
-#define JANET_VERSION_PATCH 0
-#define JANET_VERSION_EXTRA ""
-#define JANET_VERSION "1.40.0"
+#define JANET_VERSION_MINOR 41
+#define JANET_VERSION_PATCH 3
+#define JANET_VERSION_EXTRA "-dev"
+#define JANET_VERSION "1.41.3-dev"
 
 /* #define JANET_BUILD "local" */
 
@@ -16,6 +16,7 @@
 /* #define JANET_THREAD_LOCAL _Thread_local */
 /* #define JANET_NO_DYNAMIC_MODULES */
 /* #define JANET_NO_NANBOX */
+/* #define JANET_NANBOX_64_POINTER_SHIFT 0 */
 /* #define JANET_API __attribute__((visibility ("default"))) */
 
 /* These settings should be specified before amalgamation is

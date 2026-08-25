@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -29,6 +29,7 @@
 #include "fiber.h"
 #include "util.h"
 #endif
+
 
 typedef struct {
     JanetBuffer *buf;
@@ -276,6 +277,8 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     pushint(st, def->max_arity);
     pushint(st, def->constants_length);
     pushint(st, def->bytecode_length);
+    if (def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS)
+        pushint(st, def->named_args_count);
     if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
         pushint(st, def->environments_length);
     if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
@@ -429,6 +432,10 @@ void janet_marshal_abstract(JanetMarshalContext *ctx, void *abstract) {
     MarshalState *st = (MarshalState *)(ctx->m_state);
     Janet x = janet_wrap_abstract(abstract);
     MARK_SEEN();
+}
+
+int janet_marshal_flags(JanetMarshalContext *ctx) {
+    return ctx->flags;
 }
 
 static void marshal_one_abstract(MarshalState *st, Janet x, int flags) {
@@ -914,6 +921,7 @@ static const uint8_t *unmarshal_one_def(
         def->sourcemap = NULL;
         def->symbolmap = NULL;
         def->symbolmap_length = 0;
+        def->named_args_count = 0;
         janet_v_push(st->lookup_defs, def);
 
         /* Set default lengths to zero */
@@ -933,6 +941,8 @@ static const uint8_t *unmarshal_one_def(
         /* Read some lengths */
         constants_length = readnat(st, &data);
         bytecode_length = readnat(st, &data);
+        if (def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS)
+            def->named_args_count = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASENVS)
             environments_length = readnat(st, &data);
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS)
@@ -1106,7 +1116,12 @@ static const uint8_t *unmarshal_one_fiber(
     }
 
     /* Allocate stack memory */
-    fiber->capacity = fiber_stacktop + 10;
+    if (fiber_stacktop < INT32_MAX - 10) {
+        fiber->capacity = fiber_stacktop + 10;
+    } else {
+        /* Extra capacity is usually nice to avoid immediately reallocing on pushed arguments, but not needed */
+        fiber->capacity = INT32_MAX;
+    }
     fiber->data = janet_malloc(sizeof(Janet) * fiber->capacity);
     if (!fiber->data) {
         JANET_OUT_OF_MEMORY;
@@ -1291,6 +1306,10 @@ void *janet_unmarshal_abstract_threaded(JanetMarshalContext *ctx, size_t size) {
 #endif
 }
 
+int janet_unmarshal_flags(JanetMarshalContext *ctx) {
+    return ctx->flags;
+}
+
 static const uint8_t *unmarshal_one_abstract(UnmarshalState *st, const uint8_t *data, Janet *out, int flags) {
     Janet key;
     data = unmarshal_one(st, data, &key, flags + 1);
@@ -1467,7 +1486,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) |= flag << 16;
+                janet_tuple_flag(tup) |= (int32_t) (((uint32_t) flag) << 16); /* Avoid left shift of negative value */
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }
@@ -1693,6 +1712,7 @@ JANET_CORE_FN(cfun_unmarshal,
               "Unmarshal a value from a buffer. An optional lookup table "
               "can be provided to allow for aliases to be resolved. Returns the value "
               "unmarshalled from the buffer.") {
+    janet_sandbox_assert(JANET_SANDBOX_UNMARSHAL);
     janet_arity(argc, 1, 2);
     JanetByteView view = janet_getbytes(argv, 0);
     JanetTable *reg = NULL;

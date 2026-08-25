@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,6 +20,8 @@
 
 (import ./helper :prefix "" :exit true)
 (start-suite)
+
+(setdyn *lint-warn* :none)
 
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
 (def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))
@@ -602,5 +604,23 @@
 (def data (string/replace-all "\r" "" data))
 (assert (zero? exit-code) "subprocess ran")
 (assert (= data "hi\nthere\n") "output is correct")
+
+# Error handling
+(assert-error "bad thread" (ev/thread in))
+(assert-error "bad thread 2" (ev/thread (fn [x y] x) 1))
+
+# Exec-slurp correct error (os/spawn and the :x flag)
+(defn exec-slurp
+  [& args]
+  # Close the process pipes. If the process pipes are not closed, janet can run out of file descriptors.
+  (with [proc (os/spawn args :xp {:out :pipe})]
+    (let [[out] (ev/gather
+                  (ev/read (proc :out) :all)
+                  (os/proc-wait proc))]
+      (if out (string/trimr out) ""))))
+(def [ok msg] (protect (exec-slurp ;run janet "-e" "(os/exit 1)")))
+(assert (not ok) "os/spawn :x 1")
+(assert (not (string/has-prefix? "cannot cancel" msg)) "os/spawn :x 2")
+(assert (string/has-prefix? "command failed" msg) "os/spawn :x 3")
 
 (end-suite)

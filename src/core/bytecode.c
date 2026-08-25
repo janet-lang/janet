@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -29,7 +29,7 @@
 #endif
 
 /* Look up table for instructions */
-enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
+const enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_0, /* JOP_NOOP, */
     JINT_S, /* JOP_ERROR, */
     JINT_ST, /* JOP_TYPECHECK, */
@@ -139,6 +139,8 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
             case JOP_JUMP:
                 /* relative pc is in DS field of instruction */
                 old_jump_target = i + (((int32_t)instr) >> 8);
+                janet_assert(old_jump_target >= 0, "bounds");
+                janet_assert(old_jump_target < def->bytecode_length, "bounds");
                 new_jump_target = pc_map[old_jump_target];
                 instr += (uint32_t)(new_jump_target - old_jump_target + (i - j)) << 8;
                 break;
@@ -148,6 +150,8 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
             case JOP_JUMP_IF_NOT_NIL:
                 /* relative pc is in ES field of instruction */
                 old_jump_target = i + (((int32_t)instr) >> 16);
+                janet_assert(old_jump_target >= 0, "bounds");
+                janet_assert(old_jump_target < def->bytecode_length, "bounds");
                 new_jump_target = pc_map[old_jump_target];
                 instr += (uint32_t)(new_jump_target - old_jump_target + (i - j)) << 16;
                 break;
@@ -496,6 +500,30 @@ int janet_verify(JanetFuncDef *def) {
         }
     }
 
+    /* Verify debug info - slotmapping, etc. */
+    for (int32_t i = def->symbolmap_length - 1; i >= 0; i--) {
+        JanetSymbolMap jsm = def->symbolmap[i];
+        if (jsm.birth_pc == UINT32_MAX) {
+            if (jsm.death_pc >= (uint32_t) def->environments_length) {
+                return 10;
+                /* We should also check jsm.slot_index */
+            }
+        } else {
+            if (jsm.slot_index >= (uint32_t) def->slotcount) {
+                return 11;
+            }
+            if (jsm.birth_pc != UINT32_MAX && jsm.birth_pc >= (uint32_t) def->bytecode_length) {
+                return 12;
+            }
+            if (jsm.death_pc != UINT32_MAX && jsm.death_pc > (uint32_t) def->bytecode_length) {
+                return 13;
+            }
+        }
+        if (jsm.symbol == NULL) {
+            return 14;
+        }
+    }
+
     return 0;
 }
 
@@ -522,6 +550,7 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->bytecode_length = 0;
     def->environments_length = 0;
     def->symbolmap_length = 0;
+    def->named_args_count = 0;
     return def;
 }
 

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -28,6 +28,30 @@
 #include "vector.h"
 #include "emit.h"
 #endif
+
+static int bad_16bit_jump(int32_t lab1, int32_t lab2) {
+    if (lab2 - lab1 > INT16_MAX) return 1;
+    if (lab2 - lab1 < INT16_MIN) return 1;
+    return 0;
+}
+
+static void check_16bit_jump(JanetCompiler *c, int32_t lab1, int32_t lab2) {
+    if (bad_16bit_jump(lab1, lab2)) {
+        janetc_cerror(c, "bad 16-bit jump, too large");
+    }
+}
+
+static int bad_24bit_jump(int32_t lab1, int32_t lab2) {
+    if (lab2 - lab1 > 0xFFFFFF) return 1;
+    if (lab2 - lab1 < -0x1000000) return 1;
+    return 0;
+}
+
+static void check_24bit_jump(JanetCompiler *c, int32_t lab1, int32_t lab2) {
+    if (bad_24bit_jump(lab1, lab2)) {
+        janetc_cerror(c, "bad 24-bit jump, too large");
+    }
+}
 
 static JanetSlot janetc_quote(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (argn != 1) {
@@ -126,7 +150,7 @@ static JanetSlot janetc_quasiquote(JanetFopts opts, int32_t argn, const Janet *a
         janetc_cerror(opts.compiler, "expected 1 argument to quasiquote");
         return janetc_cslot(janet_wrap_nil());
     }
-    return quasiquote(opts, argv[0], JANET_RECURSION_GUARD, 0);
+    return quasiquote(opts, argv[0], opts.compiler->recursion_guard, 0);
 }
 
 static JanetSlot janetc_unquote(JanetFopts opts, int32_t argn, const Janet *argv) {
@@ -147,6 +171,10 @@ static int destructure(JanetCompiler *c,
                                    JanetSlot s,
                                    JanetTable *attr),
                        JanetTable *attr) {
+    if (c->recursion_guard <= 0) {
+        janetc_error(c, janet_cstring("C stack recursed too deeply"));
+        return 1;
+    }
     switch (janet_type(left)) {
         default:
             janetc_error(c, janet_formatc("unexpected type in destructuring, got %v", left));
@@ -209,6 +237,8 @@ static int destructure(JanetCompiler *c,
                     int32_t label_loop_exit = janet_v_count(c->buffer);
 
                     /* avoid shifting negative numbers */
+                    check_16bit_jump(c, label_loop_cond_jump, label_loop_exit);
+                    check_24bit_jump(c, label_loop_start, label_loop_loop);
                     c->buffer[label_loop_cond_jump] |= (uint32_t)(label_loop_exit - label_loop_cond_jump) << 16;
                     c->buffer[label_loop_loop] |= (uint32_t)(label_loop_start - label_loop_loop) << 8;
 
@@ -229,8 +259,10 @@ static int destructure(JanetCompiler *c,
                     JanetSlot k = janetc_cslot(janet_wrap_integer(i));
                     janetc_emit_sss(c, JOP_IN, nextright, right, k, 1);
                 }
+                c->recursion_guard--;
                 if (destructure(c, subval, nextright, leaf, attr))
                     janetc_freeslot(c, nextright);
+                c->recursion_guard++;
             }
         }
         return 1;
@@ -244,8 +276,10 @@ static int destructure(JanetCompiler *c,
                 JanetSlot nextright = janetc_farslot(c);
                 JanetSlot k = janetc_value(janetc_fopts_default(c), kvs[i].key);
                 janetc_emit_sss(c, JOP_IN, nextright, right, k, 1);
+                c->recursion_guard--;
                 if (destructure(c, kvs[i].value, nextright, leaf, attr))
                     janetc_freeslot(c, nextright);
+                c->recursion_guard++;
             }
         }
         return 1;
@@ -307,14 +341,14 @@ static JanetSlot janetc_varset(JanetFopts opts, int32_t argn, const Janet *argv)
 /* Add attributes to a global def or var table */
 static JanetTable *handleattr(JanetCompiler *c, const char *kind, int32_t argn, const Janet *argv) {
     int32_t i;
-    JanetTable *tab = janet_table(2);
-    const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
-                               ? ((const char *)janet_unwrap_symbol(argv[0]))
-                               : "<multiple bindings>";
     if (argn < 2) {
         janetc_error(c, janet_formatc("expected at least 2 arguments to %s", kind));
         return NULL;
     }
+    JanetTable *tab = janet_table(2);
+    const char *binding_name = janet_type(argv[0]) == JANET_SYMBOL
+                               ? ((const char *)janet_unwrap_symbol(argv[0]))
+                               : "<multiple bindings>";
     for (i = 1; i < argn - 1; i++) {
         Janet attr = argv[i];
         switch (janet_type(attr)) {
@@ -344,7 +378,10 @@ typedef struct SlotHeadPair {
 } SlotHeadPair;
 
 SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopts opts, Janet lhs, Janet rhs) {
-
+    if (c->recursion_guard <= 0) {
+        janetc_error(c, janet_cstring("C stack recursed too deeply"));
+        return NULL;
+    }
     /* Detect if we can do an optimization to avoid some allocations */
     int can_destructure_lhs = janet_checktype(lhs, JANET_TUPLE)
                               || janet_checktype(lhs, JANET_ARRAY);
@@ -362,6 +399,23 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
         janet_indexed_view(lhs, &view_lhs.items, &view_lhs.len);
         janet_indexed_view(rhs, &view_rhs.items, &view_rhs.len);
         int found_amp = 0;
+        int found_splice = 0;
+        /* Check for (def [x y z] [(splice [1 2 3]) 4 5 6]), bail out of optimization */
+        for (int32_t i = 0; i < view_rhs.len; i++) {
+            if (!janet_checktype(view_rhs.items[i], JANET_TUPLE)) {
+                continue;
+            }
+            JanetTuple tup = janet_unwrap_tuple(view_rhs.items[i]);
+            if (janet_tuple_length(tup) == 0) {
+                continue;
+            }
+            if (janet_symeq(tup[0], "splice")) {
+                found_splice = 1;
+                /* Good error will be generated later. */
+                break;
+            }
+        }
+        /* Check for (def [x & more] [1 2 3]), bail out of optimization */
         for (int32_t i = 0; i < view_lhs.len; i++) {
             if (janet_symeq(view_lhs.items[i], "&")) {
                 found_amp = 1;
@@ -369,10 +423,12 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
                 break;
             }
         }
-        if (!found_amp) {
+        if (!found_amp && !found_splice) {
             for (int32_t i = 0; i < view_lhs.len; i++) {
                 Janet sub_rhs = view_rhs.len <= i ? janet_wrap_nil() : view_rhs.items[i];
+                c->recursion_guard--;
                 into = dohead_destructure(c, into, subopts, view_lhs.items[i], sub_rhs);
+                c->recursion_guard++;
             }
             return into;
         }
@@ -387,7 +443,7 @@ SlotHeadPair *dohead_destructure(JanetCompiler *c, SlotHeadPair *into, JanetFopt
 }
 
 /* Def or var a symbol in a local scope */
-static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret) {
+static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, JanetSlot ret, uint32_t def_flags) {
     int isUnnamedRegister = !(ret.flags & JANET_SLOT_NAMED) &&
                             ret.index > 0 &&
                             ret.envindex >= 0;
@@ -408,7 +464,10 @@ static int namelocal(JanetCompiler *c, const uint8_t *head, int32_t flags, Janet
         ret = localslot;
     }
     ret.flags |= flags;
-    janetc_nameslot(c, head, ret);
+    if (c->scope->flags & JANET_SCOPE_TOP) {
+        def_flags |= JANET_DEFFLAG_NO_UNUSED;
+    }
+    janetc_nameslot(c, head, ret, def_flags);
     return !isUnnamedRegister;
 }
 
@@ -422,8 +481,7 @@ static int varleaf(
         JanetSlot refslot;
         JanetTable *entry = janet_table_clone(reftab);
 
-        Janet redef_kw = janet_ckeywordv("redef");
-        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
+        int is_redef = c->is_redef;
 
         JanetArray *ref;
         JanetBinding old_binding;
@@ -443,7 +501,21 @@ static int varleaf(
         janetc_emit_ssu(c, JOP_PUT_INDEX, refslot, s, 0, 0);
         return 1;
     } else {
-        return namelocal(c, sym, JANET_SLOT_MUTABLE, s);
+        int no_unused = reftab && reftab->count && janet_truthy(janet_table_get_keyword(reftab, "unused"));
+        int no_shadow = reftab && reftab->count && janet_truthy(janet_table_get_keyword(reftab, "shadow"));
+        uint32_t def_flags = 0;
+        if (no_unused) def_flags |= JANET_DEFFLAG_NO_UNUSED;
+        if (no_shadow) def_flags |= JANET_DEFFLAG_NO_SHADOWCHECK;
+        return namelocal(c, sym, JANET_SLOT_MUTABLE, s, def_flags);
+    }
+}
+
+static void check_metadata_lint(JanetCompiler *c, JanetTable *attr_table) {
+    if (!(c->scope->flags & JANET_SCOPE_TOP) && attr_table && attr_table->count) {
+        /* A macro is a normal lint, other metadata is a strict lint */
+        if (janet_truthy(janet_table_get_keyword(attr_table, "macro"))) {
+            janetc_lintf(c, JANET_C_LINT_NORMAL, "macro tag is ignored in inner scopes");
+        }
     }
 }
 
@@ -453,14 +525,14 @@ static JanetSlot janetc_var(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
     }
+    check_metadata_lint(c, attr_table);
     SlotHeadPair *into = NULL;
     into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
     if (c->result.status == JANET_COMPILE_ERROR) {
         janet_v_free(into);
         return janetc_cslot(janet_wrap_nil());
     }
-    JanetSlot ret;
-    janet_assert(janet_v_count(into) > 0, "bad destructure");
+    JanetSlot ret = janetc_cslot(janet_wrap_nil());
     for (int32_t i = 0; i < janet_v_count(into); i++) {
         destructure(c, into[i].lhs, into[i].rhs, varleaf, attr_table);
         ret = into[i].rhs;
@@ -474,14 +546,15 @@ static int defleaf(
     const uint8_t *sym,
     JanetSlot s,
     JanetTable *tab) {
+    JanetTable *entry = NULL;
+    int is_redef = 0;
     if (c->scope->flags & JANET_SCOPE_TOP) {
-        JanetTable *entry = janet_table_clone(tab);
+        entry = janet_table_clone(tab);
         janet_table_put(entry, janet_ckeywordv("source-map"),
                         janet_wrap_tuple(janetc_make_sourcemap(c)));
 
-        Janet redef_kw = janet_ckeywordv("redef");
-        int is_redef = janet_truthy(janet_table_get(c->env, redef_kw));
-        if (is_redef) janet_table_put(entry, redef_kw, janet_wrap_true());
+        is_redef = c->is_redef;
+        if (is_redef) janet_table_put(entry, janet_ckeywordv("redef"), janet_wrap_true());
 
         if (is_redef) {
             JanetBinding binding = janet_resolve_ext(c->env, sym);
@@ -500,11 +573,18 @@ static int defleaf(
             JanetSlot tabslot = janetc_cslot(janet_wrap_table(entry));
             janetc_emit_sss(c, JOP_PUT, tabslot, valsym, s, 0);
         }
-
-        /* Add env entry to env */
+    }
+    int no_unused = tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "unused"));
+    int no_shadow = is_redef || (tab && tab->count && janet_truthy(janet_table_get_keyword(tab, "shadow")));
+    uint32_t def_flags = 0;
+    if (no_unused) def_flags |= JANET_DEFFLAG_NO_UNUSED;
+    if (no_shadow) def_flags |= JANET_DEFFLAG_NO_SHADOWCHECK;
+    int result = namelocal(c, sym, 0, s, def_flags);
+    if (entry) {
+        /* Add env entry to env AFTER namelocal to avoid the shadowcheck false positive */
         janet_table_put(c->env, janet_wrap_symbol(sym), janet_wrap_table(entry));
     }
-    return namelocal(c, sym, 0, s);
+    return result;
 }
 
 static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
@@ -513,6 +593,7 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (c->result.status == JANET_COMPILE_ERROR) {
         return janetc_cslot(janet_wrap_nil());
     }
+    check_metadata_lint(c, attr_table);
     opts.flags &= ~JANET_FOPTS_HINT;
     SlotHeadPair *into = NULL;
     into = dohead_destructure(c, into, opts, argv[0], argv[argn - 1]);
@@ -520,8 +601,7 @@ static JanetSlot janetc_def(JanetFopts opts, int32_t argn, const Janet *argv) {
         janet_v_free(into);
         return janetc_cslot(janet_wrap_nil());
     }
-    JanetSlot ret;
-    janet_assert(janet_v_count(into) > 0, "bad destructure");
+    JanetSlot ret = janetc_cslot(janet_wrap_nil());
     for (int32_t i = 0; i < janet_v_count(into); i++) {
         destructure(c, into[i].lhs, into[i].rhs, defleaf, attr_table);
         ret = into[i].rhs;
@@ -652,8 +732,14 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Write jumps - only add jump lengths if jump actually emitted */
     labeld = janet_v_count(c->buffer);
-    c->buffer[labeljr] |= (labelr - labeljr) << 16;
-    if (!tail) c->buffer[labeljd] |= (labeld - labeljd) << 8;
+    if (labeljr < labeld) {
+        check_16bit_jump(c, labeljr, labelr);
+        c->buffer[labeljr] |= (uint32_t) (labelr - labeljr) << 16;
+        if (!tail && labeljd < labeld) {
+            check_24bit_jump(c, labeljd, labeld);
+            c->buffer[labeljd] |= (uint32_t) (labeld - labeljd) << 8;
+        }
+    }
 
     if (tail) target.flags |= JANET_SLOT_RETURNED;
     return target;
@@ -870,18 +956,18 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         }
         /* But now add tail recursion */
         int32_t tempself = janetc_regalloc_temp(&tempscope.ra, JANETC_REGTEMP_0);
-        janetc_emit(c, JOP_LOAD_SELF | (tempself << 8));
-        janetc_emit(c, JOP_TAILCALL | (tempself << 8));
+        janetc_emit(c, JOP_LOAD_SELF | ((uint32_t) tempself << 8));
+        janetc_emit(c, JOP_TAILCALL | ((uint32_t) tempself << 8));
         janetc_regalloc_freetemp(&c->scope->ra, tempself, JANETC_REGTEMP_0);
         /* Compile function */
         JanetFuncDef *def = janetc_pop_funcdef(c);
-        def->name = janet_cstring("_while");
+        def->name = janet_cstring("while");
         janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
         /* And then load the closure and call it. */
         int32_t cloreg = janetc_regalloc_temp(&c->scope->ra, JANETC_REGTEMP_0);
-        janetc_emit(c, JOP_CLOSURE | (cloreg << 8) | (defindex << 16));
-        janetc_emit(c, JOP_CALL | (cloreg << 8) | (cloreg << 16));
+        janetc_emit(c, JOP_CLOSURE | ((uint32_t) cloreg << 8) | ((uint32_t) defindex << 16));
+        janetc_emit(c, JOP_CALL | ((uint32_t) cloreg << 8) | ((uint32_t) cloreg << 16));
         janetc_regalloc_freetemp(&c->scope->ra, cloreg, JANETC_REGTEMP_0);
         c->scope->flags |= JANET_SCOPE_CLOSURE;
         return janetc_cslot(janet_wrap_nil());
@@ -893,13 +979,19 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
 
     /* Calculate jumps */
     labeld = janet_v_count(c->buffer);
-    if (!infinite) c->buffer[labelc] |= (uint32_t)(labeld - labelc) << 16;
+    if (!infinite) {
+        check_16bit_jump(c, labelc, labeld);
+        c->buffer[labelc] |= (uint32_t)(labeld - labelc) << 16;
+    }
+
+    check_24bit_jump(c, labeljt, labelwt);
     c->buffer[labeljt] |= (uint32_t)(labelwt - labeljt) << 8;
 
     /* Calculate breaks */
     for (int32_t i = labelwt; i < labeld; i++) {
         if (c->buffer[i] == (0x80 | JOP_JUMP)) {
-            c->buffer[i] = JOP_JUMP | ((labeld - i) << 8);
+            check_24bit_jump(c, i, labeld);
+            c->buffer[i] = JOP_JUMP | ((uint32_t) (labeld - i) << 8);
         }
     }
 
@@ -1032,14 +1124,22 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
                     named_table = janet_table(10);
                     named_slot = janetc_farslot(c);
                 } else {
-                    janetc_nameslot(c, sym, janetc_farslot(c));
+                    janetc_nameslot(c, sym, janetc_farslot(c), 0);
                 }
             } else {
-                janetc_nameslot(c, sym, janetc_farslot(c));
+                janetc_nameslot(c, sym, janetc_farslot(c), 0);
             }
         } else {
             janet_v_push(destructed_params, janetc_farslot(c));
         }
+    }
+
+    /* Compile named arguments */
+    if (namedargs) {
+        Janet param = janet_wrap_table(named_table);
+        destructure(c, param, named_slot, defleaf, NULL);
+        janetc_freeslot(c, named_slot);
+        janet_v_free(named_params);
     }
 
     /* Compile destructed params */
@@ -1054,14 +1154,6 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
         }
     }
     janet_v_free(destructed_params);
-
-    /* Compile named arguments */
-    if (namedargs) {
-        Janet param = janet_wrap_table(named_table);
-        destructure(c, param, named_slot, defleaf, NULL);
-        janetc_freeslot(c, named_slot);
-        janet_v_free(named_params);
-    }
 
     max_arity = (vararg || allow_extra) ? INT32_MAX : arity;
     if (!seenopt) min_arity = arity;
@@ -1084,7 +1176,9 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
             JanetSlot slot = janetc_farslot(c);
             slot.flags = JANET_SLOT_NAMED | JANET_FUNCTION;
             janetc_emit_s(c, JOP_LOAD_SELF, slot, 1);
-            janetc_nameslot(c, sym, slot);
+            /* We should figure out a better way to avoid `(def x 1) (def x :shadow (fn x [...] ...))` triggering a
+             * shadow lint for the last x */
+            janetc_nameslot(c, sym, slot, JANET_DEFFLAG_NO_UNUSED | JANET_DEFFLAG_NO_SHADOWCHECK);
         }
     }
 
@@ -1105,8 +1199,12 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     def->arity = arity;
     def->min_arity = min_arity;
     def->max_arity = max_arity;
+    if (named_table != NULL) {
+        def->named_args_count = named_table->count;
+    }
     if (vararg) def->flags |= JANET_FUNCDEF_FLAG_VARARG;
     if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
+    if (namedargs) def->flags |= JANET_FUNCDEF_FLAG_NAMEDARGS;
 
     if (hasname) def->name = janet_unwrap_symbol(head); /* Also correctly unwraps keyword */
     janet_def_addflags(def);

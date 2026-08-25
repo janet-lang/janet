@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose and contributors.
+* Copyright (c) 2026 Calvin Rose and contributors.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -120,7 +120,55 @@ static void janet_net_socknoblock(JSock s) {
 #endif
 }
 
+/* Allow specifying IPV6 vs. IPV4 (or unix domain socket) */
+static int net_get_address_family(Janet x) {
+    if (janet_checktype(x, JANET_NIL)) {
+        return AF_UNSPEC;
+    }
+    if (janet_keyeq(x, "ipv4")) {
+        return AF_INET;
+    }
+    if (janet_keyeq(x, "ipv6")) {
+        return AF_INET6;
+    }
+#ifndef JANET_WINDOWS
+    if (janet_keyeq(x, "unix")) {
+        return AF_UNIX;
+    }
+#endif
+    return AF_UNSPEC;
+}
+
 /* State machine for async connect */
+#ifdef JANET_WINDOWS
+
+typedef struct NetStateConnect {
+    /* Only used for ConnectEx */
+    JanetOverlapped overlapped;
+} NetStateConnect;
+
+static LPFN_CONNECTEX lazy_get_connectex(JSock sock) {
+    /* Get ConnectEx */
+    if (janet_vm.connect_ex_loaded) {
+        return janet_vm.connect_ex;
+    }
+    GUID guid = WSAID_CONNECTEX;
+    LPFN_CONNECTEX connect_ex_ptr = NULL;
+    DWORD byte_len = 0;
+    int success = WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
+                           (void *)&guid, sizeof(guid),
+                           (void *)&connect_ex_ptr, sizeof(connect_ex_ptr),
+                           &byte_len, NULL, NULL);
+    if (success) {
+        janet_vm.connect_ex = connect_ex_ptr;
+    } else {
+        janet_vm.connect_ex = NULL;
+    }
+    janet_vm.connect_ex_loaded = 1;
+    return janet_vm.connect_ex;
+}
+
+#endif
 
 void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     JanetStream *stream = fiber->ev_stream;
@@ -140,15 +188,21 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
             return;
     }
 #ifdef JANET_WINDOWS
+    /* We should be using ConnectEx here */
     int res = 0;
     int size = sizeof(res);
-    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_ERROR, (char *)&res, &size);
+    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_CONNECT_TIME, (char *)&res, &size);
+    if (r == NO_ERROR && res == (~0)) {
+        return; /* This apparently indicates we haven't yet gotten a connection */
+    }
+    const int no_error = NO_ERROR;
 #else
     int res = 0;
-    socklen_t size = sizeof res;
+    socklen_t size = sizeof(res);
     int r = getsockopt(stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+    const int no_error = 0;
 #endif
-    if (r == 0) {
+    if (r == no_error) {
         if (res == 0) {
             janet_schedule(fiber, janet_wrap_abstract(stream));
         } else {
@@ -162,8 +216,8 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     janet_async_end(fiber);
 }
 
-static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
-    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, NULL);
+static JANET_NO_RETURN void net_sched_connect(JanetStream *stream, void *state) {
+    janet_async_start(stream, JANET_ASYNC_LISTEN_WRITE, net_callback_connect, state);
 }
 
 /* State machine for accepting connections. */
@@ -171,7 +225,7 @@ static JANET_NO_RETURN void net_sched_connect(JanetStream *stream) {
 #ifdef JANET_WINDOWS
 
 typedef struct {
-    WSAOVERLAPPED overlapped;
+    JanetOverlapped overlapped;
     JanetFunction *function;
     JanetStream *lstream;
     JanetStream *astream;
@@ -234,7 +288,7 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
 JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunction *fun) {
     Janet err;
     NetStateAccept *state = janet_malloc(sizeof(NetStateAccept));
-    memset(&state->overlapped, 0, sizeof(WSAOVERLAPPED));
+    memset(&state->overlapped, 0, sizeof(JanetOverlapped));
     memset(&state->buf, 0, 1024);
     state->function = fun;
     state->lstream = stream;
@@ -255,7 +309,7 @@ static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet
     JanetStream *astream = make_stream(asock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE);
     state->astream = astream;
     int socksize = sizeof(SOCKADDR_STORAGE) + 16;
-    if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped)) {
+    if (FALSE == AcceptEx(lsock, asock, state->buf, 0, socksize, socksize, NULL, &state->overlapped.as.wsaoverlapped)) {
         int code = WSAGetLastError();
         if (code == WSA_IO_PENDING) {
             /* indicates io is happening async */
@@ -551,15 +605,44 @@ JANET_CORE_FN(cfun_net_connect,
     if (socktype == SOCK_DGRAM) udp_flag = JANET_STREAM_UDPSERVER;
     JanetStream *stream = make_stream(sock, JANET_STREAM_READABLE | JANET_STREAM_WRITABLE | udp_flag);
 
-    /* Set up the socket for non-blocking IO before connecting */
-    janet_net_socknoblock(sock);
-
     /* Connect to socket */
 #ifdef JANET_WINDOWS
-    int status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
-    int err = WSAGetLastError();
-    freeaddrinfo(ai);
+    int status = 0;
+    int err = 0;
+    LPFN_CONNECTEX connect_ex = NULL;
+    if (socktype == SOCK_STREAM && ((connect_ex = lazy_get_connectex(sock)))) {
+        /* Prefer ConnecEx as it works well with overlapped IO. */
+        janet_net_socknoblock(sock);
+        NetStateConnect *state = janet_malloc(sizeof(NetStateConnect));
+        memset(state, 0, sizeof(NetStateConnect));
+        BOOL success = connect_ex(sock, addr, addrlen, NULL, 0, NULL, &state->overlapped.as.overlapped);
+        freeaddrinfo(ai);
+        if (success) {
+            /* Did not fail */
+        } else {
+            int err = WSAGetLastError();
+            if (err == ERROR_IO_PENDING) {
+                /* Did not actually fail yet */
+            } else {
+                janet_free(state);
+                Janet lasterr = janet_ev_lasterr();
+                janet_panicf("could not connect socket (ConnectEx): %V", lasterr);
+            }
+        }
+
+        net_sched_connect(stream, state);
+    } else {
+        /* Default to blocking connect if ConnectEx not available */
+        status = WSAConnect(sock, addr, addrlen, NULL, NULL, NULL, NULL);
+        err = WSAGetLastError();
+        freeaddrinfo(ai);
+        /* Set up the socket for non-blocking IO after connecting on windows by default */
+        janet_net_socknoblock(sock);
+    }
+
 #else
+    /* Set up the socket for non-blocking IO before connecting */
+    janet_net_socknoblock(sock);
     int status;
     do {
         status = connect(sock, addr, addrlen);
@@ -572,10 +655,19 @@ JANET_CORE_FN(cfun_net_connect,
     }
 #endif
 
-    if (status) {
+    if (status == 0) {
+        /* Connect completed synchronously (common for unix domain sockets).
+         * Return the stream directly without scheduling an async wait,
+         * as edge-triggered kqueue may not signal EVFILT_WRITE if the socket
+         * is already connected when registered. */
+        return janet_wrap_abstract(stream);
+    }
+
 #ifdef JANET_WINDOWS
+    if (status == SOCKET_ERROR) {
         if (err != WSAEWOULDBLOCK) {
 #else
+    if (status == -1) {
         if (err != EINPROGRESS) {
 #endif
             JSOCKCLOSE(sock);
@@ -584,14 +676,15 @@ JANET_CORE_FN(cfun_net_connect,
         }
     }
 
-    net_sched_connect(stream);
+    net_sched_connect(stream, NULL);
 }
 
 JANET_CORE_FN(cfun_net_socket,
-              "(net/socket &opt type)",
+              "(net/socket &opt type address-family)",
               "Creates a new unbound socket. Type is an optional keyword, "
-              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream.") {
-    janet_arity(argc, 0, 1);
+              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream. "
+              "`address-family` should be one of :ipv4 or :ipv6.") {
+    janet_arity(argc, 0, 2);
 
     int socktype = janet_get_sockettype(argv, argc, 0);
 
@@ -602,7 +695,14 @@ JANET_CORE_FN(cfun_net_socket,
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = socktype;
+#ifdef AI_NUMERICSERV
+    hints.ai_flags = AI_NUMERICSERV; /* Explicitly prevent name resolution */
+#else
     hints.ai_flags = 0;
+#endif
+    if (argc >= 2) {
+        hints.ai_family = net_get_address_family(argv[1]);
+    }
     int status = getaddrinfo(NULL, "0", &hints, &ai);
     if (status) {
         janet_panicf("could not get address info: %s", gai_strerror(status));
@@ -646,7 +746,7 @@ static const char *serverify_socket(JSock sfd, int reuse_addr, int reuse_port) {
         }
     }
     if (reuse_port) {
-#ifdef SO_REUSEPORT
+#if defined(SO_REUSEPORT) && !JANET_GNU_HURD
         if (setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
             return "setsockopt(SO_REUSEPORT) failed";
         }
@@ -1031,6 +1131,8 @@ static const struct sockopt_type sockopt_type_list[] = {
 #ifndef JANET_NO_IPV6
     { "ipv6-join-group", IPPROTO_IPV6, IPV6_JOIN_GROUP, JANET_POINTER },
     { "ipv6-leave-group", IPPROTO_IPV6, IPV6_LEAVE_GROUP, JANET_POINTER },
+    { "ipv6-multicast-hops", IPPROTO_IPV6, IPV6_MULTICAST_HOPS, JANET_NUMBER },
+    { "ipv6-unicast-hops", IPPROTO_IPV6, IPV6_UNICAST_HOPS, JANET_NUMBER },
 #endif
     { NULL, 0, 0, JANET_POINTER }
 };
@@ -1048,7 +1150,10 @@ JANET_CORE_FN(cfun_net_setsockopt,
               "- :ip-add-membership string\n"
               "- :ip-drop-membership string\n"
               "- :ipv6-join-group string\n"
-              "- :ipv6-leave-group string\n") {
+              "- :ipv6-leave-group string\n"
+              "- :ipv6-multicast-hops number\n"
+              "- :ipv6-unicast-hops number\n"
+             ) {
     janet_arity(argc, 3, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_SOCKET);
@@ -1067,6 +1172,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
     }
 
     union {
+        unsigned char v_uchar;
         int v_int;
         struct ip_mreq v_mreq;
 #ifndef JANET_NO_IPV6
@@ -1081,8 +1187,19 @@ JANET_CORE_FN(cfun_net_setsockopt,
         val.v_int = janet_getboolean(argv, 2);
         optlen = sizeof(val.v_int);
     } else if (st->type == JANET_NUMBER) {
+#if defined(JANET_BSD) || defined(JANET_ILLUMOS)
+        int v_int = janet_getinteger(argv, 2);
+        if (st->optname == IP_MULTICAST_TTL) {
+            val.v_uchar = v_int;
+            optlen = sizeof(val.v_uchar);
+        } else {
+            val.v_int = v_int;
+            optlen = sizeof(val.v_int);
+        }
+#else
         val.v_int = janet_getinteger(argv, 2);
         optlen = sizeof(val.v_int);
+#endif
     } else if (st->optname == IP_ADD_MEMBERSHIP || st->optname == IP_DROP_MEMBERSHIP) {
         const char *addr = janet_getcstring(argv, 2);
         memset(&val.v_mreq, 0, sizeof val.v_mreq);
@@ -1130,7 +1247,7 @@ static const JanetMethod net_stream_methods[] = {
 };
 
 static JanetStream *make_stream(JSock handle, uint32_t flags) {
-    return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET, net_stream_methods);
+    return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET | JANET_STREAM_NODUPS, net_stream_methods);
 }
 
 void janet_lib_net(JanetTable *env) {
@@ -1161,6 +1278,8 @@ void janet_net_init(void) {
 #ifdef JANET_WINDOWS
     WSADATA wsaData;
     janet_assert(!WSAStartup(MAKEWORD(2, 2), &wsaData), "could not start winsock");
+    janet_vm.connect_ex_loaded = 0;
+    janet_vm.connect_ex = NULL;
 #endif
 }
 

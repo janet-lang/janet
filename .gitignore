@@ -12,6 +12,7 @@ janet
 /src/include/generated/*.h
 janet-*.tar.gz
 dist
+/tmp
 
 # jpm lockfile
 lockfile.janet

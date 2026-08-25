@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -60,7 +60,6 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     done = 1;
                 }
             } else {
-                ret = janet_wrap_string(cres.error);
                 int32_t line = (int32_t) parser->line;
                 int32_t col = (int32_t) parser->column;
                 if ((cres.error_mapping.line > 0) &&
@@ -68,13 +67,17 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                     line = cres.error_mapping.line;
                     col = cres.error_mapping.column;
                 }
+                JanetString ctx = janet_formatc("%s:%d:%d: compile error",
+                                                sourcePath, line, col);
+                JanetString errstr = janet_formatc("%s: %s",
+                                                   (const char *)ctx,
+                                                   (const char *)cres.error);
+                ret = janet_wrap_string(errstr);
                 if (cres.macrofiber) {
-                    janet_eprintf("%s:%d:%d: compile error", sourcePath,
-                                  line, col);
+                    janet_eprintf("%s", (const char *)ctx);
                     janet_stacktrace_ext(cres.macrofiber, ret, "");
                 } else {
-                    janet_eprintf("%s:%d:%d: compile error: %s\n", sourcePath,
-                                  line, col, (const char *)cres.error);
+                    janet_eprintf("%s\n", (const char *)errstr);
                 }
                 errflags |= JANET_DO_ERROR_COMPILE;
                 done = 1;
@@ -89,12 +92,14 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
                 done = 1;
                 break;
             case JANET_PARSE_ERROR: {
-                const char *e = janet_parser_error(parser);
                 errflags |= JANET_DO_ERROR_PARSE;
-                ret = janet_cstringv(e);
                 int32_t line = (int32_t) parser->line;
                 int32_t col = (int32_t) parser->column;
-                janet_eprintf("%s:%d:%d: parse error: %s\n", sourcePath, line, col, e);
+                JanetString errstr = janet_formatc("%s:%d:%d: parse error: %s",
+                                                   sourcePath, line, col,
+                                                   janet_parser_error(parser));
+                ret = janet_wrap_string(errstr);
+                janet_eprintf("%s\n", (const char *)errstr);
                 done = 1;
                 break;
             }
@@ -122,7 +127,8 @@ int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char
         janet_loop();
         if (fiber) {
             janet_gcunroot(janet_wrap_fiber(fiber));
-            ret = fiber->last_value;
+            if (!errflags)
+                ret = fiber->last_value;
         }
     }
 #endif

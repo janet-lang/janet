@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -84,10 +84,10 @@
 
 # Substitution test with peg
 # d7626f8c5
-(def grammar '(accumulate (any (+ (/ "dog" "purple panda") (<- 1)))))
+(def grammar1 '(accumulate (any (+ (/ "dog" "purple panda") (<- 1)))))
 (defn try-grammar [text]
   (assert (= (string/replace-all "dog" "purple panda" text)
-             (0 (peg/match grammar text))) text))
+             (0 (peg/match grammar1 text))) text))
 
 (try-grammar "i have a dog called doug the dog. he is good.")
 (try-grammar "i have a dog called doug the dog. he is a good boy.")
@@ -101,9 +101,9 @@
 # 798c88b4c
 (def csv
   '{:field (+
-            (* `"` (% (any (+ (<- (if-not `"` 1))
-                              (* (constant `"`) `""`)))) `"`)
-            (<- (any (if-not (set ",\n") 1))))
+             (* `"` (% (any (+ (<- (if-not `"` 1))
+                               (* (constant `"`) `""`)))) `"`)
+             (<- (any (if-not (set ",\n") 1))))
     :main (* :field (any (* "," :field)) (+ "\n" -1))})
 
 (defn check-csv
@@ -266,6 +266,12 @@
 (marshpeg '(sub "abcdf" "abc"))
 (marshpeg '(* (sub 1 1)))
 (marshpeg '(split "," (+ "a" "b" "c")))
+(marshpeg "")
+(marshpeg 1)
+(marshpeg 0)
+(marshpeg -1)
+(marshpeg '(drop 1))
+(marshpeg '(accumulate 1))
 
 # Peg swallowing errors
 # 159651117
@@ -330,7 +336,7 @@
 
 # unref
 # 96513665d
-(def grammar
+(def grammar2
   (peg/compile
     ~{:main (* :tagged -1)
       :tagged (unref (replace (* :open-tag :value :close-tag) ,struct))
@@ -338,23 +344,23 @@
       :value (* (constant :value) (group (any (+ :tagged :untagged))))
       :close-tag (* "</" (backmatch :tag-name) ">")
       :untagged (capture (any (if-not "<" 1)))}))
-(check-deep grammar "<p><em>foobar</em></p>"
+(check-deep grammar2 "<p><em>foobar</em></p>"
             @[{:tag "p" :value @[{:tag "em" :value @["foobar"]}]}])
-(check-deep grammar "<p>foobar</p>" @[{:tag "p" :value @["foobar"]}])
+(check-deep grammar2 "<p>foobar</p>" @[{:tag "p" :value @["foobar"]}])
 
 # Using a large test grammar
 # cf05ff610
 (def- specials {'fn true
-               'var true
-               'do true
-               'while true
-               'def true
-               'splice true
-               'set true
-               'unquote true
-               'quasiquote true
-               'quote true
-               'if true})
+                'var true
+                'do true
+                'while true
+                'def true
+                'splice true
+                'set true
+                'unquote true
+                'quasiquote true
+                'quote true
+                'if true})
 
 (defn- check-number [text] (and (scan-number text) text))
 
@@ -363,7 +369,7 @@
   (def sym (symbol text))
   [(if (or (root-env sym) (specials sym)) :coresym :symbol) text])
 
-(def grammar
+(def grammar3
   ~{:ws (set " \v\t\r\f\n\0")
     :readermac (set "';~,")
     :symchars (+ (range "09" "AZ" "az" "\x80\xFF")
@@ -399,16 +405,16 @@
     :struct (* '"{" :root2 (+ '"}" (error "")))
     :parray (* '"@" :ptuple)
     :barray (* '"@" :btuple)
-    :dict (* '"@"  :struct)
+    :dict (* '"@" :struct)
     :main (+ :root (error ""))})
 
-(def p (peg/compile grammar))
+(def porig (peg/compile grammar3))
 
 # Just make sure is valgrind clean.
-(def p (-> p make-image load-image))
+(def pprime (-> porig make-image load-image))
 
-(assert (peg/match p "abc") "complex peg grammar 1")
-(assert (peg/match p "[1 2 3 4]") "complex peg grammar 2")
+(assert (peg/match pprime "abc") "complex peg grammar 1")
+(assert (peg/match pprime "[1 2 3 4]") "complex peg grammar 2")
 
 ###
 ### Compiling brainfuck to Janet.
@@ -559,22 +565,22 @@
         "peg/replace-all function")
 
 # 9dc7e8ed3
-(defn peg-test [name f peg subst text expected]
-  (assert (= (string (f peg subst text)) expected) name))
+(defn peg-test [name f pegg subst text expected]
+  (assert (= (string (f pegg subst text)) expected) name))
 
 (peg-test "peg/replace has access to captures"
-  peg/replace
-  ~(sequence "." (capture (set "ab")))
-  (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
-  ".a.b.c"
-  ".a -> A, .b.c")
+          peg/replace
+          ~(sequence "." (capture (set "ab")))
+          (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
+          ".a.b.c"
+          ".a -> A, .b.c")
 
 (peg-test "peg/replace-all has access to captures"
-  peg/replace-all
-  ~(sequence "." (capture (set "ab")))
-  (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
-  ".a.b.c"
-  ".a -> A, .b -> B, .c")
+          peg/replace-all
+          ~(sequence "." (capture (set "ab")))
+          (fn [str char] (string/format "%s -> %s, " str (string/ascii-upper char)))
+          ".a.b.c"
+          ".a -> A, .b -> B, .c")
 
 # Peg bug
 # eab5f67c5
@@ -596,10 +602,10 @@
 
 # Marshal and unmarshal pegs
 # 446ab037b
-(def p (-> "abcd" peg/compile marshal unmarshal))
-(assert (peg/match p "abcd") "peg marshal 1")
-(assert (peg/match p "abcdefg") "peg marshal 2")
-(assert (not (peg/match p "zabcdefg")) "peg marshal 3")
+(def p3 (-> "abcd" peg/compile marshal unmarshal))
+(assert (peg/match p3 "abcd") "peg marshal 1")
+(assert (peg/match p3 "abcdefg") "peg marshal 2")
+(assert (not (peg/match p3 "zabcdefg")) "peg marshal 3")
 
 # to/thru bug
 # issue #971 - a895219d2
@@ -648,164 +654,164 @@
 
 # issue #1026 - 9341081a4
 (assert (deep=
-  (peg/match '(not (* (constant 7) "a")) "hello")
-  @[]) "peg not")
+          (peg/match '(not (* (constant 7) "a")) "hello")
+          @[]) "peg not")
 
 (assert (deep=
-  (peg/match '(if-not (* (constant 7) "a") "hello") "hello")
-  @[]) "peg if-not")
+          (peg/match '(if-not (* (constant 7) "a") "hello") "hello")
+          @[]) "peg if-not")
 
 (assert (deep=
-  (peg/match '(if-not (drop (* (constant 7) "a")) "hello") "hello")
-  @[]) "peg if-not drop")
+          (peg/match '(if-not (drop (* (constant 7) "a")) "hello") "hello")
+          @[]) "peg if-not drop")
 
 (assert (deep=
-  (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
-  @[]) "peg if not")
+          (peg/match '(if (not (* (constant 7) "a")) "hello") "hello")
+          @[]) "peg if not")
 
-(defn test [name peg input expected]
-  (assert-no-error "compile peg" (peg/compile peg))
-  (assert-no-error "marshal/unmarshal peg" (-> peg marshal unmarshal))
-  (assert (deep= (peg/match peg input) expected) name))
+(defn test [name pegg input expected]
+  (assert-no-error "compile peg" (peg/compile pegg))
+  (assert-no-error "marshal/unmarshal peg" (-> pegg marshal unmarshal))
+  (assert (deep= (peg/match pegg input) expected) name))
 
 (test "sub: matches the same input twice"
-  ~(sub "abcd" "abc")
-  "abcdef"
-  @[])
+      ~(sub "abcd" "abc")
+      "abcdef"
+      @[])
 
 (test "sub: second pattern cannot match more than the first pattern"
-  ~(sub "abcd" "abcde")
-  "abcdef"
-  nil)
+      ~(sub "abcd" "abcde")
+      "abcdef"
+      nil)
 
 (test "sub: fails if first pattern fails"
-  ~(sub "x" "abc")
-  "abcdef"
-  nil)
+      ~(sub "x" "abc")
+      "abcdef"
+      nil)
 
 (test "sub: fails if second pattern fails"
-  ~(sub "abc" "x")
-  "abcdef"
-  nil)
+      ~(sub "abc" "x")
+      "abcdef"
+      nil)
 
 (test "sub: keeps captures from both patterns"
-  ~(sub '"abcd" '"abc")
-  "abcdef"
-  @["abcd" "abc"])
+      ~(sub '"abcd" '"abc")
+      "abcdef"
+      @["abcd" "abc"])
 
 (test "sub: second pattern can reference captures from first"
-  ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
-  "abcdef"
-  @[5 "abc" "abc"])
+      ~(* (constant 5 :tag) (sub (capture "abc" :tag) (backref :tag)))
+      "abcdef"
+      @[5 "abc" "abc"])
 
 (test "sub: second pattern can't see past what the first pattern matches"
-  ~(sub "abc" (* "abc" -1))
-  "abcdef"
-  @[])
+      ~(sub "abc" (* "abc" -1))
+      "abcdef"
+      @[])
 
 (test "sub: positions inside second match are still relative to the entire input"
-  ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
-  "one\ntwo\nthree\n"
-  @[6 2 3])
+      ~(* "one\ntw" (sub "o" (* ($) (line) (column))))
+      "one\ntwo\nthree\n"
+      @[6 2 3])
 
 (test "sub: advances to the end of the first pattern's match"
-  ~(* (sub "abc" "ab") "d")
-  "abcdef"
-  @[])
+      ~(* (sub "abc" "ab") "d")
+      "abcdef"
+      @[])
 
 (test "til: basic matching"
-  ~(til "d" "abc")
-  "abcdef"
-  @[])
+      ~(til "d" "abc")
+      "abcdef"
+      @[])
 
 (test "til: second pattern can't see past the first occurrence of first pattern"
-  ~(til "d" (* "abc" -1))
-  "abcdef"
-  @[])
+      ~(til "d" (* "abc" -1))
+      "abcdef"
+      @[])
 
 (test "til: fails if first pattern fails"
-  ~(til "x" "abc")
-  "abcdef"
-  nil)
+      ~(til "x" "abc")
+      "abcdef"
+      nil)
 
 (test "til: fails if second pattern fails"
-  ~(til "abc" "x")
-  "abcdef"
-  nil)
+      ~(til "abc" "x")
+      "abcdef"
+      nil)
 
 (test "til: discards captures from initial pattern"
-  ~(til '"d" '"abc")
-  "abcdef"
-  @["abc"])
+      ~(til '"d" '"abc")
+      "abcdef"
+      @["abc"])
 
 (test "til: positions inside second match are still relative to the entire input"
-  ~(* "one\ntw" (til 0 (* ($) (line) (column))))
-  "one\ntwo\nthree\n"
-  @[6 2 3])
+      ~(* "one\ntw" (til 0 (* ($) (line) (column))))
+      "one\ntwo\nthree\n"
+      @[6 2 3])
 
 (test "til: advances to the end of the first pattern's first occurrence"
-  ~(* (til "d" "ab") "e")
-  "abcdef"
-  @[])
+      ~(* (til "d" "ab") "e")
+      "abcdef"
+      @[])
 
 (test "split: basic functionality"
-  ~(split "," '1)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(split "," '1)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "split: drops captures from separator pattern"
-  ~(split '"," '1)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(split '"," '1)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "split: can match empty subpatterns"
-  ~(split "," ':w*)
-  ",a,,bar,,,c,,"
-  @["" "a" "" "bar" "" "" "c" "" ""])
+      ~(split "," ':w*)
+      ",a,,bar,,,c,,"
+      @["" "a" "" "bar" "" "" "c" "" ""])
 
 (test "split: subpattern is limited to only text before the separator"
-  ~(split "," '(to -1))
-  "a,,bar,c"
-  @["a" "" "bar" "c"])
+      ~(split "," '(to -1))
+      "a,,bar,c"
+      @["a" "" "bar" "c"])
 
 (test "split: fails if any subpattern fails"
-  ~(split "," '"a")
-  "a,a,b"
-  nil)
+      ~(split "," '"a")
+      "a,a,b"
+      nil)
 
 (test "split: separator does not have to match anything"
-  ~(split "x" '(to -1))
-  "a,a,b"
-  @["a,a,b"])
+      ~(split "x" '(to -1))
+      "a,a,b"
+      @["a,a,b"])
 
 (test "split: always consumes entire input"
-  ~(split 1 '"")
-  "abc"
-  @["" "" "" ""])
+      ~(split 1 '"")
+      "abc"
+      @["" "" "" ""])
 
 (test "split: separator can be an arbitrary PEG"
-  ~(split :s+ '(to -1))
-  "a   b      c"
-  @["a" "b" "c"])
+      ~(split :s+ '(to -1))
+      "a   b      c"
+      @["a" "b" "c"])
 
 (test "split: does not advance past the end of the input"
-  ~(* (split "," ':w+) 0)
-  "a,b,c"
-  @["a" "b" "c"])
+      ~(* (split "," ':w+) 0)
+      "a,b,c"
+      @["a" "b" "c"])
 
 (test "nth 1"
-  ~{:prefix (number :d+ nil :n)
-    :word '(lenprefix (-> :n) :w)
-    :main (some (nth 1 (* :prefix ":" :word)))}
-  "5:apple6:banana6:cherry"
-  @["apple" "banana" "cherry"])
+      ~{:prefix (number :d+ nil :n)
+        :word '(lenprefix (-> :n) :w)
+        :main (some (nth 1 (* :prefix ":" :word)))}
+      "5:apple6:banana6:cherry"
+      @["apple" "banana" "cherry"])
 
 (test "only-tags 1"
-  ~{:prefix (number :d+ nil :n)
-    :word (capture (lenprefix (-> :n) :w) :W)
-    :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
-  "5:apple6:banana6:cherry"
-  @["apple" "banana" "cherry"])
+      ~{:prefix (number :d+ nil :n)
+        :word (capture (lenprefix (-> :n) :w) :W)
+        :main (some (* (only-tags (* :prefix ":" :word)) (-> :W)))}
+      "5:apple6:banana6:cherry"
+      @["apple" "banana" "cherry"])
 
 # Issue #1539 - make sure split with "" doesn't infinite loop/oom
 (test "issue 1539"
@@ -814,9 +820,9 @@
       nil)
 
 (test "issue 1539 pt. 2"
-  ~(split "," (capture 0))
-  "abc123,,,,"
-  @["" "" "" "" ""])
+      ~(split "," (capture 0))
+      "abc123,,,,"
+      @["" "" "" "" ""])
 
 # Issue #1549 - allow buffers as peg literals
 (test "issue 1549"
@@ -835,5 +841,116 @@
 (test "issue 1554 case 8" '(between 2 3 (? (> '1))) "abc" @["a" "a" "a"])
 (test "issue 1554 case 9" '(between 0 0 (> (? '1))) "abc" @[])
 
-(end-suite)
+# Capture Match Flatten
+(test "capture match splice 1"
+      ~(cms (* 1 '1 1) ,|[$ $ $])
+      "abc"
+      @["b" "b" "b"])
+(test "capture match no splice 1"
+      ~(cmt (* 1 '1 1) ,|[$ $ $])
+      "abc"
+      @[["b" "b" "b"]])
 
+# Debug and ?? tests.
+(defn test-stderr [name pegg input expected-matches expected-stderr]
+  (with-dyns [:err @""]
+    (test name pegg input expected-matches))
+  (def actual @"")
+  (with-dyns [:err actual *err-color* true]
+    (peg/match pegg input))
+  (assert (deep= (string actual) expected-stderr)))
+
+(defn test-stderr-no-color [name pegg input expected-matches expected-stderr]
+  (with-dyns [:err @""]
+    (test name pegg input expected-matches))
+  (def actual @"")
+  (with-dyns [:err actual *err-color* false]
+    (peg/match pegg input))
+  (assert (deep= (string actual) expected-stderr)))
+
+(test-stderr
+  "?? long form"
+  '(* (debug) "abc")
+  "abc"
+  @[]
+  "?? at [abc] (index 0)\n")
+
+(test-stderr
+  "?? short form"
+  '(* (??) "abc")
+  "abc"
+  @[]
+  "?? at [abc] (index 0)\n")
+
+(test-stderr
+  "?? end of text"
+  '(* "abc" (??))
+  "abc"
+  @[]
+  "?? at [] (index 3)\n")
+
+(test-stderr
+  "?? between rules"
+  '(* "a" (??) "bc")
+  "abc"
+  @[]
+  "?? at [bc] (index 1)\n")
+
+(test-stderr
+  "?? stack display, string"
+  '(* (<- "a") (??) "bc")
+  "abc"
+  @["a"]
+  (string/format "?? at [bc] (index 1)\nstack [1]:\n  [0]: %M\n" "a"))
+
+(test-stderr
+  "?? stack display, multiple types"
+  '(* (<- "a") (number :d) (constant true) (constant {}) (constant @[]) (??) "bc")
+  "a1bc"
+  @["a" 1 true {} @[]]
+  (string/format "?? at [bc] (index 2)\nstack [5]:\n  [0]: %M\n  [1]: %M\n  [2]: %M\n  [3]: %M\n  [4]: %M\n" "a" 1 true {} @[]))
+
+(marshpeg '(* (??) "abc"))
+(marshpeg '(* (some (debug)) (??) "abc"))
+
+(test-stderr
+  "?? displays when capture fails"
+  '(* '1 (??) "x")
+  "abc"
+  nil
+  (string/format "?? at [bc] (index 1)\nstack [1]:\n  [0]: %M\n" "a"))
+
+(test-stderr-no-color
+  "?? displays accumuate and tagged captures"
+  '(* '1 '2 (% (* '1 (??) (<- 2 :tag) '3 (backref :tag) (??))))
+  "aksjndkajsnd"
+  @["a" "ks" "jndkajnd"]
+  (string/replace-all
+    # In case on windows someone messes with line endings.
+    "\r" ""
+    ```
+    ?? at [ndkajsnd] (index 4)
+    accumulate buffer: @"j"
+    stack [2]:
+      [0]: "a"
+      [1]: "ks"
+    tag stack [3]:
+      [0] tag=0: "a"
+      [1] tag=0: "ks"
+      [2] tag=0: "j"
+    ?? at [snd] (index 9)
+    accumulate buffer: @"jndkajnd"
+    stack [2]:
+      [0]: "a"
+      [1]: "ks"
+    tag stack [6]:
+      [0] tag=0: "a"
+      [1] tag=0: "ks"
+      [2] tag=0: "j"
+      [3] tag=1: "nd"
+      [4] tag=0: "kaj"
+      [5] tag=0: "nd"
+
+    ```))
+
+(end-suite)

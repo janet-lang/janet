@@ -1,5 +1,8 @@
 # Helper code for running tests
 
+# Turn on strict linting by default in test suite.
+(put root-env *lint-warn* :strict)
+
 (var num-tests-passed 0)
 (var num-tests-run 0)
 (var suite-name 0)
@@ -7,7 +10,7 @@
 (var skip-count 0)
 (var skip-n 0)
 
-(def is-verbose (os/getenv "VERBOSE"))
+(var is-verbose (os/getenv "VERBOSE"))
 
 (defn- assert-no-tail
   "Override's the default assert with some nice error handling."
@@ -19,15 +22,16 @@
     (break x))
   (default e "assert error")
   (when x (++ num-tests-passed))
-  (def str (string e))
   (def stack (debug/stack (fiber/current)))
   (def frame (last stack))
   (def line-info (string/format "%s:%d"
                               (frame :source) (frame :source-line)))
   (if x
-    (when is-verbose (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x))
+    (when is-verbose
+      (eprintf "\e[32m✔\e[0m %s: %s: %v" line-info (describe e) x)
+      (eflush) (flush))
     (do
-      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (string e) x) (eflush)))
+      (eprintf "\e[31m✘\e[0m %s: %s: %v" line-info (describe e) x) (eflush) (flush)))
   x)
 
 (defn skip-asserts
@@ -36,7 +40,7 @@
   (+= skip-n n)
   nil)
 
-(defmacro assert
+(defmacro assert :shadow
   [x &opt e]
   (def xx (gensym))
   (default e (string/format "%j" x))
@@ -48,7 +52,12 @@
 (defmacro assert-error
   [msg & forms]
   (def errsym (keyword (gensym)))
-  ~(assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
+  ~(as-macro ,assert (= ,errsym (try (do ,;forms) ([_] ,errsym))) ,msg))
+
+(defmacro assert-error-value
+  [msg errval & forms]
+  (def e (gensym))
+  ~(as-macro ,assert (= ,errval (try (do ,;forms) ([,e] ,e))) ,msg))
 
 (defn check-compile-error
   [form]
@@ -60,8 +69,8 @@
   (def e (gensym))
   (def f (gensym))
   (if is-verbose
-  ~(try (do ,;forms (,assert true ,msg)) ([,e ,f] (,assert false ,msg) (,debug/stacktrace ,f ,e "\e[31m✘\e[0m ")))
-  ~(try (do ,;forms (,assert true ,msg)) ([_] (,assert false ,msg)))))
+  ~(try (do ,;forms (as-macro ,assert true ,msg)) ([,e ,f] (as-macro ,assert false ,msg) (,debug/stacktrace ,f ,e "\e[31m✘\e[0m ")))
+  ~(try (do ,;forms (as-macro ,assert true ,msg)) ([_] (as-macro ,assert false ,msg)))))
 
 (defn start-suite [&opt x]
   (default x (dyn :current-file))

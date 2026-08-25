@@ -7,7 +7,7 @@
   (ev/give chan (math/random))
   (ev/give chan (math/random))
   (ev/sleep 0.5)
-  (for i 0 10
+  (repeat 10
     (print "giving to channel...")
     (ev/give chan (math/random))
     (ev/sleep 1))

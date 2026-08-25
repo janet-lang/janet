@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -188,7 +188,7 @@ static JanetSlot do_get(JanetFopts opts, JanetSlot *args) {
         janetc_copy(c, t, dflt_slot);
         if (target_is_default) janetc_freeslot(c, dflt_slot);
         int32_t current = janet_v_count(c->buffer);
-        c->buffer[label] |= (current - label) << 16;
+        c->buffer[label] |= (uint32_t)(current - label) << 16;
         return t;
     } else {
         return opreduce(opts, args, JOP_GET, 0, janet_wrap_nil(), janet_wrap_nil());
@@ -201,14 +201,29 @@ static JanetSlot do_cmp(JanetFopts opts, JanetSlot *args) {
     return opreduce(opts, args, JOP_COMPARE, 0, janet_wrap_nil(), janet_wrap_nil());
 }
 static JanetSlot do_put(JanetFopts opts, JanetSlot *args) {
-    if (opts.flags & JANET_FOPTS_DROP) {
-        janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
-        return janetc_cslot(janet_wrap_nil());
+    int8_t inline_index = 0;
+    if (can_slot_be_imm(args[1], &inline_index)) {
+        /* Use JOP_PUT_INDEX */
+        if (opts.flags & JANET_FOPTS_DROP) {
+            janetc_emit_ssi(opts.compiler, JOP_PUT_INDEX, args[0], args[2], inline_index, 0);
+            return janetc_cslot(janet_wrap_nil());
+        } else {
+            JanetSlot t = janetc_gettarget(opts);
+            janetc_copy(opts.compiler, t, args[0]);
+            janetc_emit_ssi(opts.compiler, JOP_PUT_INDEX, t, args[2], inline_index, 0);
+            return t;
+        }
     } else {
-        JanetSlot t = janetc_gettarget(opts);
-        janetc_copy(opts.compiler, t, args[0]);
-        janetc_emit_sss(opts.compiler, JOP_PUT, t, args[1], args[2], 0);
-        return t;
+        /* Use JOP_PUT */
+        if (opts.flags & JANET_FOPTS_DROP) {
+            janetc_emit_sss(opts.compiler, JOP_PUT, args[0], args[1], args[2], 0);
+            return janetc_cslot(janet_wrap_nil());
+        } else {
+            JanetSlot t = janetc_gettarget(opts);
+            janetc_copy(opts.compiler, t, args[0]);
+            janetc_emit_sss(opts.compiler, JOP_PUT, t, args[1], args[2], 0);
+            return t;
+        }
     }
 }
 static JanetSlot do_length(JanetFopts opts, JanetSlot *args) {
@@ -330,7 +345,7 @@ static JanetSlot compreduce(
     int32_t end = janet_v_count(c->buffer);
     for (i = 0; i < janet_v_count(labels); i++) {
         int32_t label = labels[i];
-        c->buffer[label] |= ((end - label) << 16);
+        c->buffer[label] |= ((uint32_t)(end - label) << 16);
     }
     janet_v_free(labels);
     return t;

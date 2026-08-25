@@ -10,3 +10,9 @@ tasks:
     gmake test
     sudo gmake install
     sudo gmake uninstall
+- build-sanitizers: |
+    cd janet
+    CFLAGS="-g -O2 -fsanitize=address,undefined" gmake
+    gmake test
+    sudo gmake install
+    sudo gmake uninstall

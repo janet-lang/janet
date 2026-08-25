@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose and contributors
+# Copyright (c) 2026 Calvin Rose and contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,7 +20,7 @@
 
 project('janet', 'c',
   default_options : ['c_std=c99', 'build.c_std=c99', 'b_lundef=false', 'default_library=both'],
-  version : '1.40.0')
+  version : '1.41.3')
 
 # Global settings
 janet_path = join_paths(get_option('prefix'), get_option('libdir'), 'janet')
@@ -72,6 +72,9 @@ conf.set_quoted('JANET_VERSION', meson.project_version())
 # Use options
 conf.set_quoted('JANET_BUILD', get_option('git_hash'))
 conf.set('JANET_NO_NANBOX', not get_option('nanbox'))
+if get_option('nanbox_pointer_shift') != -1 # -1 is auto-detect
+  conf.set('JANET_NANBOX_64_POINTER_SHIFT', get_option('nanbox_pointer_shift'))
+endif
 conf.set('JANET_SINGLE_THREADED', get_option('single_threaded'))
 conf.set('JANET_NO_DYNAMIC_MODULES', not get_option('dynamic_modules'))
 conf.set('JANET_NO_DOCSTRINGS', not get_option('docstrings'))
@@ -292,6 +295,7 @@ test_files = [
   'test/suite-io.janet',
   'test/suite-marsh.janet',
   'test/suite-math.janet',
+  'test/suite-net.janet',
   'test/suite-os.janet',
   'test/suite-parse.janet',
   'test/suite-peg.janet',

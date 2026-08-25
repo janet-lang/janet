@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -48,8 +48,8 @@
 
 (assert (deep= (buffer/push @"AA" @"BB") @"AABB") "buffer/push buffer")
 (assert (deep= (buffer/push @"AA" 66 66) @"AABB") "buffer/push int")
-(def b @"AA")
-(assert (deep= (buffer/push b b) @"AAAA") "buffer/push buffer self")
+(def b1 @"AA")
+(assert (deep= (buffer/push b1 b1) @"AAAA") "buffer/push buffer self")
 
 # buffer/push-byte
 (assert (deep= (buffer/push-byte @"AA" 66) @"AAB") "buffer/push-byte")
@@ -145,8 +145,8 @@
 
 # Regression #301
 # a3d4ecddb
-(def b (buffer/new-filled 128 0x78))
-(assert (= 38 (length (buffer/blit @"" b -1 90))) "buffer/blit 1")
+(def b8 (buffer/new-filled 128 0x78))
+(assert (= 38 (length (buffer/blit @"" b8 -1 90))) "buffer/blit 1")
 
 (def a @"abcdefghijklm")
 (assert (deep= @"abcde" (buffer/blit @"" a -1 0 5)) "buffer/blit 2")
@@ -178,6 +178,11 @@
 (buffer/format-at buf -4 "xxx")
 (assert (= (string buf) "xxxxxx") "buffer/format-at negative index")
 (assert-error "expected index at to be in range [0, 0), got 1" (buffer/format-at @"" 1 "abc"))
+
+# Regression 1714
+(repeat 10
+  (assert (deep= (put @"" 100 10) (put (buffer (string/repeat "\0" 101)) 100 10)) "regression 1714")
+  (assert (deep= (put @"" 200 10) (put (buffer (string/repeat "\0" 201)) 200 10)) "regression 1714"))
 
 (end-suite)
 

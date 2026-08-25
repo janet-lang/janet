@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -343,14 +343,25 @@ static Janet doframe(JanetStackFrame *frame) {
                 Janet value = janet_wrap_nil();
                 uint32_t pc = (uint32_t)(frame->pc - def->bytecode);
                 if (jsm.birth_pc == UINT32_MAX) {
-                    JanetFuncEnv *env = frame->func->envs[jsm.death_pc];
-                    if (env->offset > 0) {
-                        value = env->as.fiber->data[env->offset + jsm.slot_index];
-                    } else {
-                        value = env->as.values[jsm.slot_index];
+                    /* death_pc has secondary meaning here, we use it to encode the environment index */
+                    if (jsm.death_pc < (uint32_t) def->environments_length) {
+                        /* death_pc is in valid range */
+                        JanetFuncEnv *env = frame->func->envs[jsm.death_pc];
+                        if (jsm.slot_index < (uint32_t) env->length) {
+                            /* slot_index range good */
+                            if (env->offset > 0) {
+                                /* On stack */
+                                value = env->as.fiber->data[env->offset + jsm.slot_index];
+                            } else {
+                                /* Off stack */
+                                value = env->as.values[jsm.slot_index];
+                            }
+                        }
                     }
                 } else if (pc >= jsm.birth_pc && pc < jsm.death_pc) {
-                    value = stack[jsm.slot_index];
+                    if (jsm.slot_index < (uint32_t) def->slotcount) {
+                        value = stack[jsm.slot_index];
+                    }
                 }
                 janet_table_put(local_bindings, janet_wrap_symbol(jsm.symbol), value);
             }
@@ -411,8 +422,10 @@ JANET_CORE_FN(cfun_debug_argstack,
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     JanetArray *array = janet_array(fiber->stacktop - fiber->stackstart);
-    memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
-    array->count = array->capacity;
+    if (array->capacity) {
+        memcpy(array->data, fiber->data + fiber->stackstart, array->capacity * sizeof(Janet));
+        array->count = array->capacity;
+    }
     return janet_wrap_array(array);
 }
 

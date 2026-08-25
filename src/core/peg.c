@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -192,6 +192,41 @@ tail:
             uint32_t len = rule[1];
             if (text + len > s->text_end) return NULL;
             return memcmp(text, rule + 2, len) ? NULL : text + len;
+        }
+
+        case RULE_DEBUG: {
+            char buffer[32] = {0};
+            size_t len = (size_t)(s->outer_text_end - text);
+            memcpy(buffer, text, (len > 31 ? 31 : len));
+            janet_eprintf("?? at [%s] (index %d)\n", buffer, (int32_t)(text - s->text_start));
+            int has_color = janet_truthy(janet_dyn("err-color"));
+            /* Accumulate buffer */
+            if (s->scratch->count) {
+                janet_eprintf("accumulate buffer: %v\n", janet_wrap_buffer(s->scratch));
+            }
+            /* Normal captures */
+            if (s->captures->count) {
+                janet_eprintf("stack [%d]:\n", s->captures->count);
+                for (int32_t i = 0; i < s->captures->count; i++) {
+                    if (has_color) {
+                        janet_eprintf("  [%d]: %M\n", i, s->captures->data[i]);
+                    } else {
+                        janet_eprintf("  [%d]: %m\n", i, s->captures->data[i]);
+                    }
+                }
+            }
+            /* Tagged captures */
+            if (s->tagged_captures->count) {
+                janet_eprintf("tag stack [%d]:\n", s->tagged_captures->count);
+                for (int32_t i = 0; i < s->tagged_captures->count; i++) {
+                    if (has_color) {
+                        janet_eprintf("  [%d] tag=%d: %M\n", i, (int32_t) s->tags->data[i], s->tagged_captures->data[i]);
+                    } else {
+                        janet_eprintf("  [%d] tag=%d: %m\n", i, (int32_t) s->tags->data[i], s->tagged_captures->data[i]);
+                    }
+                }
+            }
+            return text;
         }
 
         case RULE_NCHAR: {
@@ -622,6 +657,7 @@ tail:
         }
 
         case RULE_REPLACE:
+        case RULE_MATCHSPLICE:
         case RULE_MATCHTIME: {
             uint32_t tag = rule[3];
             int oldmode = s->mode;
@@ -662,8 +698,17 @@ tail:
                     break;
             }
             cap_load_keept(s, cs);
-            if (rule[0] == RULE_MATCHTIME && !janet_truthy(cap)) return NULL;
-            pushcap(s, cap, tag);
+            if (rule[0] != RULE_REPLACE && !janet_truthy(cap)) return NULL; /* matchtime or matchtime flatten */
+            const Janet *elements = NULL;
+            int32_t len = 0;
+            if ((rule[0] == RULE_MATCHSPLICE) && janet_indexed_view(cap, &elements, &len)) {
+                /* unpack and flatten capture */
+                for (int32_t i = 0; i < len; i++) {
+                    pushcap(s, elements[i], tag);
+                }
+            } else {
+                pushcap(s, cap, tag);
+            }
             return result;
         }
 
@@ -1235,6 +1280,14 @@ static void spec_constant(Builder *b, int32_t argc, const Janet *argv) {
     emit_2(r, RULE_CONSTANT, emit_constant(b, argv[0]), tag);
 }
 
+static void spec_debug(Builder *b, int32_t argc, const Janet *argv) {
+    peg_arity(b, argc, 0, 0);
+    Reserve r = reserve(b, 1);
+    uint32_t empty = 0;
+    (void) argv;
+    emit_rule(r, RULE_DEBUG, 0, &empty);
+}
+
 static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
@@ -1244,7 +1297,7 @@ static void spec_replace(Builder *b, int32_t argc, const Janet *argv) {
     emit_3(r, RULE_REPLACE, subrule, constant, tag);
 }
 
-static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+static void spec_matchtime_impl(Builder *b, int32_t argc, const Janet *argv, uint32_t op) {
     peg_arity(b, argc, 2, 3);
     Reserve r = reserve(b, 4);
     uint32_t subrule = peg_compile1(b, argv[0]);
@@ -1255,7 +1308,15 @@ static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
     }
     uint32_t tag = (argc == 3) ? emit_tag(b, argv[2]) : 0;
     uint32_t cindex = emit_constant(b, fun);
-    emit_3(r, RULE_MATCHTIME, subrule, cindex, tag);
+    emit_3(r, op, subrule, cindex, tag);
+}
+
+static void spec_matchtime(Builder *b, int32_t argc, const Janet *argv) {
+    spec_matchtime_impl(b, argc, argv, RULE_MATCHTIME);
+}
+
+static void spec_matchtime_splice(Builder *b, int32_t argc, const Janet *argv) {
+    spec_matchtime_impl(b, argc, argv, RULE_MATCHSPLICE);
 }
 
 static void spec_sub(Builder *b, int32_t argc, const Janet *argv) {
@@ -1331,6 +1392,7 @@ static const SpecialPair peg_specials[] = {
     {"<-", spec_capture},
     {">", spec_look},
     {"?", spec_opt},
+    {"??", spec_debug},
     {"accumulate", spec_accumulate},
     {"any", spec_any},
     {"argument", spec_argument},
@@ -1341,9 +1403,11 @@ static const SpecialPair peg_specials[] = {
     {"between", spec_between},
     {"capture", spec_capture},
     {"choice", spec_choice},
+    {"cms", spec_matchtime_splice},
     {"cmt", spec_matchtime},
     {"column", spec_column},
     {"constant", spec_constant},
+    {"debug", spec_debug},
     {"drop", spec_drop},
     {"error", spec_error},
     {"group", spec_group},
@@ -1566,6 +1630,8 @@ static size_t size_padded(size_t offset, size_t size) {
     return x - (x % size);
 }
 
+#define OVERFLOW_CHECK(n) do { if (i > blen - (n)) goto bad; } while (0) /* overflow */
+
 static void *peg_unmarshal(JanetMarshalContext *ctx) {
     size_t bytecode_len = janet_unmarshal_size(ctx);
     uint32_t num_constants = (uint32_t) janet_unmarshal_int(ctx);
@@ -1597,7 +1663,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
     /* After here, no panics except for the bad: label. */
 
     /* Keep track at each index if an instruction was
-     * reference (0x01) or is in a main bytecode position
+     * referenced (0x01) or is in a main bytecode position
      * (0x02). This lets us do a linear scan and not
      * need to a depth first traversal. It is stricter
      * than a dfs by not allowing certain kinds of unused
@@ -1618,7 +1684,12 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
         op_flags[i] |= 0x02;
         switch (instr) {
             case RULE_LITERAL:
+                OVERFLOW_CHECK(1); /* We only read rule[1] */
                 i += 2 + ((rule[1] + 3) >> 2);
+                break;
+            case RULE_DEBUG:
+                /* [0 words] */
+                i += 1;
                 break;
             case RULE_NCHAR:
             case RULE_NOTNCHAR:
@@ -1640,6 +1711,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 break;
             case RULE_LOOK:
                 /* [offset, rule] */
+                OVERFLOW_CHECK(3);
                 if (rule[2] >= blen) goto bad;
                 op_flags[rule[2]] |= 0x1;
                 i += 3;
@@ -1648,7 +1720,9 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_SEQUENCE:
                 /* [len, rules...] */
             {
+                OVERFLOW_CHECK(2);
                 uint32_t len = rule[1];
+                OVERFLOW_CHECK(2 + len);
                 for (uint32_t j = 0; j < len; j++) {
                     if (rule[2 + j] >= blen) goto bad;
                     op_flags[rule[2 + j]] |= 0x1;
@@ -1660,6 +1734,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_IFNOT:
             case RULE_LENPREFIX:
                 /* [rule_a, rule_b (b if not a)] */
+                OVERFLOW_CHECK(3);
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
@@ -1668,6 +1743,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 break;
             case RULE_BETWEEN:
                 /* [lo, hi, rule] */
+                OVERFLOW_CHECK(4);
                 if (rule[3] >= blen) goto bad;
                 op_flags[rule[3]] |= 0x01;
                 i += 4;
@@ -1683,11 +1759,13 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 break;
             case RULE_CONSTANT:
                 /* [constant, tag] */
+                OVERFLOW_CHECK(3);
                 if (rule[1] >= clen) goto bad;
                 i += 3;
                 break;
             case RULE_CAPTURE_NUM:
                 /* [rule, base, tag] */
+                OVERFLOW_CHECK(4);
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
                 i += 4;
@@ -1697,13 +1775,16 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_CAPTURE:
             case RULE_UNREF:
                 /* [rule, tag] */
+                OVERFLOW_CHECK(3);
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
                 i += 3;
                 break;
             case RULE_REPLACE:
             case RULE_MATCHTIME:
+            case RULE_MATCHSPLICE:
                 /* [rule, constant, tag] */
+                OVERFLOW_CHECK(4);
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= clen) goto bad;
                 op_flags[rule[1]] |= 0x01;
@@ -1713,6 +1794,7 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_TIL:
             case RULE_SPLIT:
                 /* [rule, rule] */
+                OVERFLOW_CHECK(3);
                 if (rule[1] >= blen) goto bad;
                 if (rule[2] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
@@ -1726,17 +1808,20 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_TO:
             case RULE_THRU:
                 /* [rule] */
+                OVERFLOW_CHECK(2);
                 if (rule[1] >= blen) goto bad;
                 op_flags[rule[1]] |= 0x01;
                 i += 2;
                 break;
             case RULE_READINT:
                 /* [ width | (endianness << 5) | (signedness << 6), tag ] */
+                OVERFLOW_CHECK(3);
                 if (rule[1] > JANET_MAX_READINT_WIDTH) goto bad;
                 i += 3;
                 break;
             case RULE_NTH:
                 /* [nth, rule, tag] */
+                OVERFLOW_CHECK(4);
                 if (rule[2] >= blen) goto bad;
                 op_flags[rule[2]] |= 0x01;
                 i += 4;
@@ -1765,6 +1850,8 @@ bad:
     janet_free(op_flags);
     janet_panic("invalid peg bytecode");
 }
+
+#undef OVERFLOW_CHECK
 
 static int cfun_peg_getter(JanetAbstract a, Janet key, Janet *out);
 static Janet peg_next(void *p, Janet key);
@@ -1834,8 +1921,8 @@ static JanetPeg *compile_peg(Janet x) {
 JANET_CORE_FN(cfun_peg_compile,
               "(peg/compile peg)",
               "Compiles a peg source data structure into a <core/peg>. This will speed up matching "
-              "if the same peg will be used multiple times. Will also use `(dyn :peg-grammar)` to supplement "
-              "the grammar of the peg for otherwise undefined peg keywords.") {
+              "if the same peg will be used multiple times. `(dyn :peg-grammar)` replaces "
+              "`default-peg-grammar` for the grammar of the peg.") {
     janet_fixarity(argc, 1);
     JanetPeg *peg = compile_peg(argv[0]);
     return janet_wrap_abstract(peg);

@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -57,7 +57,6 @@ CFLAGS?=-O0 -g
 LDFLAGS?=-rdynamic
 LIBJANET_LDFLAGS?=$(LDFLAGS)
 RUN:=$(RUN)
-
 
 COMMON_CFLAGS:=-std=c99 -Wall -Wextra -Isrc/include -Isrc/conf -fvisibility=hidden -fPIC
 BOOT_CFLAGS:=-DJANET_BOOTSTRAP -DJANET_BUILD=$(JANET_BUILD) -O0 $(COMMON_CFLAGS) -g
@@ -224,9 +223,9 @@ build/%.bin.o: src/%.c $(JANET_HEADERS) $(JANET_LOCAL_HEADERS) Makefile
 ########################
 
 ifeq ($(UNAME), Darwin)
-SONAME=libjanet.1.40.dylib
+SONAME=libjanet.1.41.dylib
 else
-SONAME=libjanet.so.1.40
+SONAME=libjanet.so.1.41
 endif
 
 ifeq ($(MINGW_COMPILER), clang)
@@ -265,6 +264,7 @@ $(JANET_STATIC_LIBRARY): $(JANET_TARGET_OBJECTS)
 # Testing assumes HOSTCC=CC
 
 TEST_SCRIPTS=$(wildcard test/suite*.janet)
+EXAMPLE_SCRIPTS=$(wildcard examples/*.janet)
 
 repl: $(JANET_TARGET)
 	$(RUN) ./$(JANET_TARGET)
@@ -272,21 +272,26 @@ repl: $(JANET_TARGET)
 debug: $(JANET_TARGET)
 	$(DEBUGGER) ./$(JANET_TARGET)
 
-VALGRIND_COMMAND=valgrind --leak-check=full --quiet
+VALGRIND_COMMAND=$(RUN) valgrind --leak-check=full --quiet
+CALLGRIND_COMMAND=$(RUN) valgrind --tool=callgrind
 
 valgrind: $(JANET_TARGET)
 	$(VALGRIND_COMMAND) ./$(JANET_TARGET)
 
-test: $(JANET_TARGET) $(TEST_PROGRAMS)
+test: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 	for f in test/suite*.janet; do $(RUN) ./$(JANET_TARGET) "$$f" || exit; done
 	for f in examples/*.janet; do $(RUN) ./$(JANET_TARGET) -k "$$f"; done
 
-valtest: $(JANET_TARGET) $(TEST_PROGRAMS)
+valtest: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
 	for f in test/suite*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
-	for f in examples/*.janet; do ./$(JANET_TARGET) -k "$$f"; done
+	for f in examples/*.janet; do $(VALGRIND_COMMAND) ./$(JANET_TARGET) -k "$$f"; done
 
 callgrind: $(JANET_TARGET)
-	for f in test/suite*.janet; do valgrind --tool=callgrind ./$(JANET_TARGET) "$$f" || exit; done
+	$(CALLGRIND_COMMAND) ./$(JANET_TARGET)
+
+calltest: $(JANET_TARGET) $(TEST_SCRIPTS) $(EXAMPLE_SCRIPTS)
+	for f in test/suite*.janet; do $(CALLGRIND_COMMAND) ./$(JANET_TARGET) "$$f" || exit; done
+	for f in examples/*.janet; do $(CALLGRIND_COMMAND) ./$(JANET_TARGET) -k "$$f"; done
 
 ########################
 ##### Distribution #####
@@ -345,6 +350,7 @@ build/janet.pc: $(JANET_TARGET)
 	echo 'Libs.private: $(CLIBS)' >> $@
 
 install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc build/janet.h
+	$(eval JANET_VERSION := $(shell $(JANET_TARGET) -e '(print janet/version)'))
 	mkdir -p '$(DESTDIR)$(BINDIR)'
 	cp $(JANET_TARGET) '$(DESTDIR)$(BINDIR)/janet'
 	strip $(STRIPFLAGS) '$(DESTDIR)$(BINDIR)/janet'
@@ -354,13 +360,13 @@ install: $(JANET_TARGET) $(JANET_LIBRARY) $(JANET_STATIC_LIBRARY) build/janet.pc
 	mkdir -p '$(DESTDIR)$(JANET_PATH)'
 	mkdir -p '$(DESTDIR)$(LIBDIR)'
 	if test $(UNAME) = Darwin ; then \
-		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib' ; \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.$(JANET_VERSION).dylib' ; \
 		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.dylib' ; \
-		ln -sf libjanet.$(shell $(JANET_TARGET) -e '(print janet/version)').dylib $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+		ln -sf libjanet.$(JANET_VERSION).dylib $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
 	else \
-		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)')' ; \
+		cp $(JANET_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.so.$(JANET_VERSION)' ; \
 		ln -sf $(SONAME) '$(DESTDIR)$(LIBDIR)/libjanet.so' ; \
-		ln -sf libjanet.so.$(shell $(JANET_TARGET) -e '(print janet/version)') $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
+		ln -sf libjanet.so.$(JANET_VERSION) $(DESTDIR)$(LIBDIR)/$(SONAME) ; \
 	fi
 	cp $(JANET_STATIC_LIBRARY) '$(DESTDIR)$(LIBDIR)/libjanet.a'
 	mkdir -p '$(DESTDIR)$(JANET_MANPATH)'
@@ -417,9 +423,6 @@ clean:
 	-rm -rf build vgcore.* callgrind.*
 	-rm -rf test/install/build test/install/modpath
 
-test-install:
-	echo "JPM has been removed from default install."
-
 help:
 	@echo
 	@echo 'Janet: A Dynamic Language & Bytecode VM'
@@ -431,7 +434,8 @@ help:
 	@echo '   make test       Test a built Janet'
 	@echo '   make valgrind   Assess Janet with Valgrind'
 	@echo '   make callgrind  Assess Janet with Valgrind, using Callgrind'
-	@echo '   make valtest    Run the test suite with Valgrind to check for memory leaks'
+	@echo '   make valtest    Run the test suite and examples with Valgrind to check for memory leaks'
+	@echo '   make calltest   Run the test suite and examples with Callgrind'
 	@echo '   make dist       Create a distribution tarball'
 	@echo '   make docs       Generate documentation'
 	@echo '   make debug      Run janet with GDB or LLDB'
@@ -441,6 +445,9 @@ help:
 	@echo "   make format     Format Janet's own source files"
 	@echo '   make grammar    Generate a TextMate language grammar'
 	@echo
+	@echo '   make install-jpm-git   Install jpm into the current filesystem'
+	@echo '   make install-spork-git Install spork into the current filesystem'
+	@echo
 
-.PHONY: clean install repl debug valgrind test \
-	valtest dist uninstall docs grammar format help compile-commands
+.PHONY: clean install install-jpm-git install-spork-git repl debug valgrind test \
+	valtest callgrind callgrind-test dist uninstall docs grammar format help compile-commands

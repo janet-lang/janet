@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -476,13 +476,13 @@ JANET_CORE_FN(cfun_string_checkset,
     /* Populate set */
     for (int32_t i = 0; i < set.len; i++) {
         int index = set.bytes[i] >> 5;
-        uint32_t mask = 1 << (set.bytes[i] & 0x1F);
+        uint32_t mask = (uint32_t) 1 << (set.bytes[i] & 0x1F);
         bitset[index] |= mask;
     }
     /* Check set */
     for (int32_t i = 0; i < str.len; i++) {
         int index = str.bytes[i] >> 5;
-        uint32_t mask = 1 << (str.bytes[i] & 0x1F);
+        uint32_t mask = (uint32_t) 1 << (str.bytes[i] & 0x1F);
         if (!(bitset[index] & mask)) {
             return janet_wrap_false();
         }
@@ -555,7 +555,9 @@ JANET_CORE_FN(cfun_string_format,
               "\n"
               "The following conversion specifiers are used for \"pretty-printing\", where the upper-case "
               "variants generate colored output. These specifiers can take a precision "
-              "argument to specify the maximum nesting depth to print.\n"
+              "argument to specify the maximum nesting depth to print. "
+              "The multiline specifiers can also take a width argument, "
+              "which defaults to 80 columns.\n"
               "- `p`, `P`: pretty format, truncating if necessary\n"
               "- `m`, `M`: pretty format without truncating.\n"
               "- `q`, `Q`: pretty format on one line, truncating if necessary.\n"

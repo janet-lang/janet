@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,6 +20,9 @@
 
 (import ./helper :prefix "" :exit true)
 (start-suite)
+
+# Disable linting warnings
+(setdyn *lint-warn* :none)
 
 # Regression Test #137
 # affcb5b45

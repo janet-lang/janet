@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -106,7 +106,7 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
         if (NULL == newData) {
             JANET_OUT_OF_MEMORY;
         }
-        memcpy(newData, fiber->data, fiber->capacity * sizeof(Janet));
+        memcpy(newData, fiber->data, n * sizeof(Janet));
         janet_free(fiber->data);
         fiber->data = newData;
     }
@@ -180,7 +180,8 @@ void janet_fiber_pushn(JanetFiber *fiber, const Janet *arr, int32_t n) {
 /* Create a struct with n values. If n is odd, the last value is ignored. */
 static Janet make_struct_n(const Janet *args, int32_t n) {
     int32_t i = 0;
-    JanetKV *st = janet_struct_begin(n & (~1));
+    if (n & 1) n--;
+    JanetKV *st = janet_struct_begin(n);
     for (; i < n; i += 2) {
         janet_struct_put(st, args[i], args[i + 1]);
     }
@@ -228,6 +229,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     /* Check varargs */
     if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
         int32_t tuplehead = fiber->frame + func->def->arity;
+        janet_assert(tuplehead > 0, "fiber stack overflow");
         int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= oldtop) {
             fiber->data[tuplehead] = st
@@ -346,9 +348,6 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 #endif
     }
 
-    Janet *stack = fiber->data + fiber->frame;
-    Janet *args = fiber->data + fiber->stackstart;
-
     /* Detach old function */
     if (NULL != janet_fiber_frame(fiber)->func)
         janet_env_detach(janet_fiber_frame(fiber)->env);
@@ -378,7 +377,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
         stacksize = fiber->stacktop - fiber->stackstart;
     }
 
-    if (stacksize) memmove(stack, args, stacksize * sizeof(Janet));
+    if (stacksize) memmove(fiber->data + fiber->frame, fiber->data + fiber->stackstart, stacksize * sizeof(Janet));
 
     /* Nil unset locals (Needed for functional correctness) */
     for (i = fiber->frame + stacksize; i < nextframetop; ++i)
@@ -592,8 +591,8 @@ JANET_CORE_FN(cfun_fiber_status,
               "* :user(0-7) - the fiber is suspended by a user signal\n"
               "* :interrupted - the fiber was interrupted\n"
               "* :suspended - the fiber is waiting to be resumed by the scheduler\n"
-              "* :alive - the fiber is currently running and cannot be resumed\n"
-              "* :new - the fiber has just been created and not yet run") {
+              "* :new - the fiber has just been created and not yet run\n"
+              "* :alive - the fiber is currently running and cannot be resumed") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     uint32_t s = janet_fiber_status(fiber);
@@ -610,8 +609,9 @@ JANET_CORE_FN(cfun_fiber_current,
 
 JANET_CORE_FN(cfun_fiber_root,
               "(fiber/root)",
-              "Returns the current root fiber. The root fiber is the oldest ancestor "
-              "that does not have a parent.") {
+              "Returns the current root fiber. The root fiber is the oldest "
+              "ancestor that does not have a parent. Note that a root fiber "
+              "is also a task fiber.") {
     (void) argv;
     janet_fixarity(argc, 0);
     return janet_wrap_fiber(janet_vm.root_fiber);

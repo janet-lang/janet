@@ -2,6 +2,53 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased - ???
+- JANET_PATH will now be searched strictly left-to-right for modules.
+- Add `-t` (`--tool`) flag for using installed libraries as command line tools
+- Numerous documentation improvements and fixes
+- Add support for GNU/Hurd
+- Improve pretty printing layout for %M and %m modifiers to be more code-like.
+- Add filewatch support to BSD and macos.
+- Add linting support for shadowed bindings.
+- Add nanboxing support for Linux on ARM64 and turn on nanboxing by default on macos on ARM64 (aarch64).
+- ev/thread-chan deadlock bug fixed
+- Re-add removed support for non-blocking net/connect on windows with bug fixes.
+
+## 1.41.2 - 2026-02-18
+- Fix regressions in `put` for arrays and buffers.
+- Add `module/add-file-extension`
+- Add `module/add-syspath`
+- Fix issue with possible stack corrpution with abstract types that modify the current fiber.
+- Allow use of the interpreter and garbage collection inside module entry for native modules.
+
+## 1.41.1 - 2026-02-15
+- Revert to blocking behaior of `net/connect` on windows to fix spurious errors.
+- Allow overriding the loader when doing imports with the `:loader` argument.
+- Allow importing modules with a path extension to do what one would expect.
+- Add `find-all` argument to `module/find`
+- Add :threads, :unmarshal, :compiler, and :asm sandbox flags.
+- Add support for persistent REPL history with the environment variable `JANET_HISTFILE`
+- Fix a number of fuzzer-found compiler bugs
+- Fix windows processes launching bug with empty environment table that caused process-launch failures.
+- Add `:I`, `:V`, and `:N` flags to `os/open` for more control when creating streams.
+- Add `ev/go-gather` for a dynamic `ev/gather`.
+- Use color in script output if color is being used in REPL output.
+- Fix `varfn` macros handling of extra metadata.
+- Disallow certain degenerate uses of fibers with the ev/ module.
+- Add linting for unused bindings.
+- Add linting for extra or wrong parameters to &named functions.
+- Add `janet_optuinteger` and `janet_optuinteger64` to the C API.
+- Add `cms` combinator to PEGs.
+- Add `thaw-keep-keys` as a variant of thaw
+- The `repl` function now respects the `*repl-prompt*` dynamic binding by default.
+- Allow matching exact lengths of datastructures with the `match` macro using a dollar suffix.
+- Add initial support for Plan 9. Some modules (e.g. ev) are not yet enabled.
+- Allow specifying `:flycheck` for individual defines to annotate that they are safe to evaluate for flychecking.
+
+## 1.40.1 - 2025-11-16
+- Fix `JANET_REDUCED_OS` build regression caused by `os/posix-chroot`.
+- Code formatting
+
+## 1.40.0 - 2025-11-15
 - Add `os/posix-chroot`
 - Fix `ev/deadline` with interrupt race condition bug on Windows.
 - Improve `flycheck` by allowing functions and macros to define their own flycheck behavior via the metadata `:flycheck`.

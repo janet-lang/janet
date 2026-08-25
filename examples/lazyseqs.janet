@@ -4,7 +4,7 @@
 # that must be called (realizing it), and the memoized.
 # Use with (import "./path/to/this/file" :prefix "seq.")
 
-(defmacro delay
+(defmacro dolazy
   "Lazily evaluate a series of expressions. Returns a function that
   returns the result of the last expression. Will only evaluate the
   body once, and then memoizes the result."
@@ -35,7 +35,7 @@
   (def x (tuple h t))
   (fn [] x))
 
-(defn empty?
+(defn lazy-empty?
   "Check if a sequence is empty."
   [s]
   (not (s)))
@@ -55,14 +55,14 @@
   [start end &]
   (if end
     (if (< start end)
-      (delay (tuple start (lazy-range (+ 1 start) end)))
+      (dolazy (tuple start (lazy-range (+ 1 start) end)))
       empty-seq)
     (lazy-range 0 start)))
 
 (defn lazy-map
   "Return a sequence that is the result of applying f to each value in s."
   [f s]
-  (delay
+  (dolazy
     (def x (s))
     (if x (tuple (f (get x HEAD)) (map f (get x TAIL))))))
 
@@ -76,31 +76,31 @@
   [f s]
   (when (s) (f (head s)) (realize-map f (tail s))))
 
-(defn drop
+(defn lazy-drop
   "Ignores the first n values of the sequence and returns the rest."
   [n s]
-  (delay
+  (dolazy
     (def x (s))
-    (if (and x (pos? n)) ((drop (- n 1) (get x TAIL))))))
+    (if (and x (pos? n)) ((lazy-drop (- n 1) (get x TAIL))))))
 
-(defn take
+(defn lazy-take
   "Returns at most the first n values of s."
   [n s]
-  (delay
+  (dolazy
     (def x (s))
     (if (and x (pos? n))
-      (tuple (get x HEAD) (take (- n 1) (get x TAIL))))))
+      (tuple (get x HEAD) (lazy-take (- n 1) (get x TAIL))))))
 
 (defn randseq
   "Return a sequence of random numbers."
   []
-  (delay (tuple (math/random) (randseq))))
+  (dolazy (tuple (math/random) (randseq))))
 
-(defn take-while
+(defn lazy-take-while
   "Returns a sequence of values until the predicate is false."
   [pred s]
-  (delay
+  (dolazy
     (def x (s))
     (when x
       (def thehead (get HEAD x))
-      (if thehead (tuple thehead (take-while pred (get TAIL x)))))))
+      (if thehead (tuple thehead (lazy-take-while pred (get TAIL x)))))))

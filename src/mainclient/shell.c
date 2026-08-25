@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -26,6 +26,7 @@
 
 #include <janet.h>
 #include <errno.h>
+#include <assert.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -79,9 +80,11 @@ static void simpleline(JanetBuffer *buffer) {
     int c;
     for (;;) {
         c = fgetc(in);
+#ifndef JANET_PLAN9
         if (c < 0 && !feof(in) && errno == EINTR) {
             continue;
         }
+#endif
         if (feof(in) || c < 0) {
             break;
         }
@@ -110,6 +113,8 @@ static JANET_THREAD_LOCAL int gbl_historyi = 0;
 static JANET_THREAD_LOCAL JanetByteView gbl_matches[JANET_MATCH_MAX];
 static JANET_THREAD_LOCAL int gbl_match_count = 0;
 static JANET_THREAD_LOCAL int gbl_lines_below = 0;
+static JANET_THREAD_LOCAL int gbl_history_loaded = 0;
+static JANET_THREAD_LOCAL char *gbl_history_file = NULL;
 #endif
 
 /* Fallback */
@@ -307,7 +312,9 @@ static int curpos(void) {
     char buf[32];
     int cols, rows;
     unsigned int i = 0;
+#ifndef JANET_PLAN9
     if (write_console("\x1b[6n", 4) != 4) return -1;
+#endif
     while (i < sizeof(buf) - 1) {
         if (read_console(buf + i, 1) != 1) break;
         if (buf[i] == 'R') break;
@@ -356,33 +363,52 @@ static void clear(void) {
     }
 }
 
+static int getplen(void) {
+    int _plen = gbl_plen;
+    /* Ensure at least 16 characters of data entry; */
+    while (_plen && (_plen + 16 > gbl_cols)) {
+        _plen--;
+    }
+    return _plen;
+}
+
 static void refresh(void) {
     char seq[64];
     JanetBuffer b;
+
+    /* If prompt is too long, truncate */
+    int _plen = getplen();
 
     /* Keep cursor position on screen */
     char *_buf = gbl_buf;
     int _len = gbl_len;
     int _pos = gbl_pos;
-    while ((gbl_plen + _pos) >= gbl_cols) {
+
+    while ((_plen + _pos) >= gbl_cols) {
         _buf++;
         _len--;
         _pos--;
     }
-    while ((gbl_plen + _len) > gbl_cols) {
+
+    while ((_plen + _len) > gbl_cols) {
         _len--;
     }
+
 
     janet_buffer_init(&b, 0);
     /* Cursor to left edge, gbl_prompt and buffer */
     janet_buffer_push_u8(&b, '\r');
-    janet_buffer_push_cstring(&b, gbl_prompt);
-    janet_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
+    janet_buffer_push_bytes(&b, (const uint8_t *) gbl_prompt, _plen);
+    if (_len > 0) {
+        janet_buffer_push_bytes(&b, (uint8_t *) _buf, _len);
+    }
     /* Erase to right */
-    janet_buffer_push_cstring(&b, "\x1b[0K");
+    janet_buffer_push_cstring(&b, "\x1b[0K\r");
     /* Move cursor to original position. */
-    snprintf(seq, 64, "\r\x1b[%dC", (int)(_pos + gbl_plen));
-    janet_buffer_push_cstring(&b, seq);
+    if (_pos + _plen) {
+        snprintf(seq, 64, "\x1b[%dC", (int)(_pos + _plen));
+        janet_buffer_push_cstring(&b, seq);
+    }
     if (write_console((char *) b.data, b.count) == -1) {
         exit(1);
     }
@@ -406,7 +432,8 @@ static int insert(char c, int draw) {
             gbl_buf[gbl_pos++] = c;
             gbl_buf[++gbl_len] = '\0';
             if (draw) {
-                if (gbl_plen + gbl_len < gbl_cols) {
+                int _plen = getplen();
+                if (_plen + gbl_len < gbl_cols) {
                     /* Avoid a full update of the line in the
                      * trivial case. */
                     if (write_console(&c, 1) == -1) return -1;
@@ -424,6 +451,63 @@ static int insert(char c, int draw) {
     return 0;
 }
 
+static void calc_history_file(void) {
+    char *hist = getenv("JANET_HISTFILE");
+    if (hist != NULL) {
+        gbl_history_file = sdup(hist);
+    } else {
+        gbl_history_file = NULL;
+    }
+}
+
+static void loadhistory(void) {
+    if (gbl_history_loaded) return;
+    calc_history_file();
+    gbl_history_loaded = 1;
+    if (NULL == gbl_history_file) return;
+    FILE *history_file = fopen(gbl_history_file, "rb");
+    if (NULL == history_file) return;
+    JanetParser p;
+    janet_parser_init(&p);
+    int c = 0;
+    while ((c = fgetc(history_file))) {
+        if (c == EOF) {
+            janet_parser_eof(&p);
+        } else {
+            janet_parser_consume(&p, c);
+        }
+
+        while (janet_parser_has_more(&p) && gbl_history_count < JANET_HISTORY_MAX) {
+            if (janet_parser_status(&p) == JANET_PARSE_ERROR) {
+                janet_eprintf("bad history file: %s\n", janet_parser_error(&p));
+                goto parsing_done;
+            }
+            Janet x = janet_parser_produce(&p);
+            const char *cstr = (const char *) janet_to_string(x);
+            if (cstr[0]) { /* Drop empty strings */
+                gbl_history[gbl_history_count++] = sdup(cstr);
+            }
+        }
+
+        if (c == EOF) break;
+    }
+parsing_done:
+    janet_parser_deinit(&p);
+    gbl_historyi = 0;
+    fclose(history_file);
+}
+
+static void savehistory(void) {
+    if (gbl_history_count < 1 || (gbl_history_file == NULL)) return;
+    FILE *history_file = fopen(gbl_history_file, "wb");
+    for (int i = 0; i < gbl_history_count; i++) {
+        if (gbl_history[i][0]) { /* Drop empty strings */
+            janet_dynprintf(NULL, history_file, "%j\n", janet_cstringv(gbl_history[i]));
+        }
+    }
+    fclose(history_file);
+}
+
 static void historymove(int delta) {
     if (gbl_history_count > 1) {
         janet_free(gbl_history[gbl_historyi]);
@@ -435,8 +519,13 @@ static void historymove(int delta) {
         } else if (gbl_historyi >= gbl_history_count) {
             gbl_historyi = gbl_history_count - 1;
         }
+        gbl_len = (int) strlen(gbl_history[gbl_historyi]);
+        /* If history element is longer the JANET_LINE_MAX - 1, truncate */
+        if (gbl_len > JANET_LINE_MAX - 1) {
+            gbl_len = JANET_LINE_MAX - 1;
+        }
+        gbl_pos = gbl_len;
         strncpy(gbl_buf, gbl_history[gbl_historyi], JANET_LINE_MAX - 1);
-        gbl_pos = gbl_len = (int) strlen(gbl_buf);
         gbl_buf[gbl_len] = '\0';
 
         refresh();
@@ -860,11 +949,12 @@ static int line() {
     gbl_len = 0;
     gbl_pos = 0;
     while (gbl_prompt[gbl_plen]) gbl_plen++;
+    int _plen = getplen();
     gbl_buf[0] = '\0';
 
     addhistory();
 
-    if (write_console((char *) gbl_prompt, gbl_plen) == -1) return -1;
+    if (write_console((char *) gbl_prompt, _plen) == -1) return -1;
     for (;;) {
         char c;
         char seq[5];
@@ -890,6 +980,7 @@ static int line() {
             case 3:     /* ctrl-c */
                 clearlines();
                 norawmode();
+                savehistory();
 #ifdef _WIN32
                 ExitProcess(1);
 #else
@@ -1083,17 +1174,21 @@ void janet_line_init() {
 }
 
 void janet_line_deinit() {
-    int i;
     norawmode();
-    for (i = 0; i < gbl_history_count; i++)
+    for (int i = 0; i < gbl_history_count; i++)
         janet_free(gbl_history[i]);
     gbl_historyi = 0;
+    if (gbl_history_file) {
+        janet_free(gbl_history_file);
+        gbl_history_file = NULL;
+    }
 }
 
 void janet_line_get(const char *p, JanetBuffer *buffer) {
     gbl_prompt = p;
     buffer->count = 0;
     gbl_historyi = 0;
+    loadhistory();
     if (check_simpleline(buffer)) return;
     FILE *out = janet_dynfile("err", stderr);
     if (line()) {
@@ -1129,6 +1224,10 @@ int main(int argc, char **argv) {
     JanetArray *args;
     JanetTable *env;
 
+#ifdef JANET_PLAN9
+    setfcr(0);
+#endif
+
 #ifdef _WIN32
     setup_console_output();
 #endif
@@ -1138,7 +1237,7 @@ int main(int argc, char **argv) {
 #endif
 
 #if defined(JANET_PRF)
-    uint8_t hash_key[JANET_HASH_KEY_SIZE + 1];
+    uint8_t hash_key[JANET_HASH_KEY_SIZE + 1] = {0};
 #ifdef JANET_REDUCED_OS
     char *envvar = NULL;
 #else
@@ -1146,6 +1245,7 @@ int main(int argc, char **argv) {
 #endif
     if (NULL != envvar) {
         strncpy((char *) hash_key, envvar, sizeof(hash_key) - 1);
+        hash_key[JANET_HASH_KEY_SIZE] = '\0'; /* in case copy didn't get null byte */
     } else if (janet_cryptorand(hash_key, JANET_HASH_KEY_SIZE) != 0) {
         fputs("unable to initialize janet PRF hash function.\n", stderr);
         return 1;
@@ -1184,6 +1284,10 @@ int main(int argc, char **argv) {
     status = janet_loop_fiber(fiber);
 
     /* Deinitialize vm */
+
+#if !defined(JANET_SIMPLE_GETLINE)
+    savehistory();
+#endif
     janet_deinit();
     janet_line_deinit();
 

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -182,6 +182,8 @@ struct JanetVM {
     JanetTable signal_handlers;
 #ifdef JANET_WINDOWS
     void **iocp;
+    void *connect_ex; /* MSWsock extension if available */
+    int connect_ex_loaded;
 #elif defined(JANET_EV_EPOLL)
     pthread_attr_t new_thread_attr;
     JanetHandle selfpipe[2];

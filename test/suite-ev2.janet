@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -43,9 +43,9 @@
 (assert (deep= '(:error "deadline expired" nil) (ev/take super)) "deadline expirataion")
 
 # Another variant
-(def thread-channel (ev/thread-chan 100))
-(def super (ev/thread-chan 10))
-(defn worker []
+(def thread-channel :shadow (ev/thread-chan 100))
+(def super :shadow (ev/thread-chan 10))
+(defn worker :shadow []
   (while true
     (def item (ev/take thread-channel))
     (when (= item :deadline)
@@ -54,5 +54,51 @@
 (ev/give thread-channel :deadline)
 (ev/sleep 0.2)
 (assert (deep= '(:error "deadline expired" nil) (ev/take super)) "deadline expirataion")
+
+# Issue #1705 - ev select
+(def supervisor (ev/chan 10))
+
+(def ch (ev/chan))
+(def ch2 (ev/chan))
+
+(ev/go |(do
+          (ev/select ch ch2)
+          (:close ch)
+          "close ch...")
+       nil supervisor)
+
+(ev/go |(do
+          (ev/sleep 0.05)
+          (:close ch2)
+          "close ch2...")
+       nil supervisor)
+
+(assert (let [[status] (ev/take supervisor)] (= status :ok)) "status 1 ev/select")
+(assert (let [[status] (ev/take supervisor)] (= status :ok)) "status 2 ev/select")
+(ev/sleep 0.1) # can we do better?
+(assert (= 0 (ev/count supervisor)) "empty supervisor")
+
+# Issue #1707
+(def f (coro (repeat 10 (yield 1))))
+(resume f)
+(assert-error "cannot schedule non-new fiber"
+              (ev/go f))
+
+# IO file copying
+(os/mkdir "tmp")
+(def f-original (file/open "tmp/out.txt" :wb))
+(xprin f-original "hello\n")
+(file/flush f-original)
+(ev/do-thread
+  # Closes a COPY of the original file, otherwise we get a user-after-close file descriptor
+  (:close f-original))
+(def g-original (file/open "tmp/out2.txt" :wb))
+(xprin g-original "world1\n")
+(xprin f-original "world2\n")
+(:close f-original)
+(xprin g-original "abc\n")
+(:close g-original)
+(assert (deep= @"hello\nworld2\n" (slurp "tmp/out.txt")) "file threading 1")
+(assert (deep= @"world1\nabc\n" (slurp "tmp/out2.txt")) "file threading 2")
 
 (end-suite)

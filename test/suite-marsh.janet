@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -81,10 +81,12 @@
              "marshal nested fibers")
 
 # issue #53 - f4908ebc4
+(setdyn *lint-warn* :none)
 (def issue-53-x
   (fiber/new
     (fn []
       (var y (fiber/new (fn [] (print "1") (yield) (print "2")))))))
+(setdyn *lint-warn* nil)
 
 (check-image issue-53-x "issue 53 regression")
 
@@ -93,11 +95,11 @@
 (do
   (defn f1
     [a]
-    (defn f1 [] (++ (a 0)))
+    (defn f1 :shadow [] (++ (a 0)))
     (defn f2 [] (++ (a 0)))
     (error [f1 f2]))
   (def [_ tup] (protect (f1 @[0])))
-  (def [f1 f2] (unmarshal (marshal tup make-image-dict) load-image-dict))
+  (def [f1 f2] :shadow (unmarshal (marshal tup make-image-dict) load-image-dict))
   (assert (= 1 (f1)) "marshal-non-resumable-closure 1")
   (assert (= 2 (f2)) "marshal-non-resumable-closure 2"))
 
@@ -106,10 +108,10 @@
 (do
   (defn f1
     [a]
-    (defn f1 [] (++ (a 0)))
-    (defn f2 [] (++ (a 0)))
+    (defn f1 :shadow [] (++ (a 0)))
+    (defn f2 :shadow [] (++ (a 0)))
     (marshal [f1 f2] make-image-dict))
-  (def [f1 f2] (unmarshal (f1 @[0]) load-image-dict))
+  (def [f1 f2] :shadow (unmarshal (f1 @[0]) load-image-dict))
   (assert (= 1 (f1)) "marshal-live-closure 1")
   (assert (= 2 (f2)) "marshal-live-closure 2"))
 
@@ -187,11 +189,11 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= t tclone) "table/weak marsh 7")
 
 # table weak keys
-(def t (table/weak-keys 1))
+(def t :shadow (table/weak-keys 1))
 (put t @"" keep-value)
 (put t :key @"")
 (assert (= 2 (length t)) "table/weak-keys marsh 1")
-(def tclone (-> t marshal unmarshal))
+(def tclone :shadow (-> t marshal unmarshal))
 (assert (= 2 (length tclone)) "table/weak-keys marsh 2")
 (gccollect)
 (assert (= 1 (length tclone)) "table/weak-keys marsh 3")
@@ -199,23 +201,23 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= t tclone) "table/weak-keys marsh 5")
 
 # table weak values
-(def t (table/weak-values 1))
+(def t :shadow (table/weak-values 1))
 (put t @"" keep-value)
 (put t :key @"")
 (assert (= 2 (length t)) "table/weak-values marsh 1")
-(def tclone (-> t marshal unmarshal))
+(def tclone :shadow (-> t marshal unmarshal))
 (assert (= 2 (length tclone)) "table/weak-values marsh 2")
 (gccollect)
 (assert (= 1 (length t)) "table/weak-value marsh 3")
 (assert (deep= (freeze t) (freeze tclone)) "table/weak-values marsh 4")
 
 # tables with prototypes
-(def t (table/weak-values 1))
+(def t :shadow (table/weak-values 1))
 (table/setproto t @{:abc 123})
 (put t @"" keep-value)
 (put t :key @"")
 (assert (= 2 (length t)) "marsh weak tables with prototypes 1")
-(def tclone (-> t marshal unmarshal))
+(def tclone :shadow (-> t marshal unmarshal))
 (assert (= 2 (length tclone)) "marsh weak tables with prototypes 2")
 (gccollect)
 (assert (= 1 (length t)) "marsh weak tables with prototypes 3")

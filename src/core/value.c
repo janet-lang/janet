@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -322,7 +322,8 @@ int32_t janet_hash(Janet x) {
             break;
         case JANET_TUPLE:
             hash = janet_tuple_hash(janet_unwrap_tuple(x));
-            hash += (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
+            uint32_t inc = (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
+            hash = (int32_t)((uint32_t)hash + inc); /* avoid overflow undefined behavior */
             break;
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
@@ -334,10 +335,9 @@ int32_t janet_hash(Janet x) {
             } as;
             as.d = janet_unwrap_number(x);
             as.d += 0.0; /* normalize negative 0 */
-            uint32_t lo = (uint32_t)(as.u & 0xFFFFFFFF);
+            as.u = murmur64(as.u);
             uint32_t hi = (uint32_t)(as.u >> 32);
-            uint32_t hilo = (hi ^ lo) * 2654435769u;
-            hash = (int32_t)((hilo << 16) | (hilo >> 16));
+            hash = (int32_t)hi;
             break;
         }
         case JANET_ABSTRACT: {
@@ -495,7 +495,7 @@ Janet janet_in(Janet ds, Janet key) {
                 if (!(type->get)(janet_unwrap_abstract(ds), key, &value))
                     janet_panicf("key %v not found in %v ", key, ds);
             } else {
-                janet_panicf("no getter for %v ", ds);
+                janet_panicf("no getter for %v", ds);
             }
             break;
         }
@@ -622,7 +622,7 @@ Janet janet_getindex(Janet ds, int32_t index) {
                 if (!(type->get)(janet_unwrap_abstract(ds), janet_wrap_integer(index), &value))
                     value = janet_wrap_nil();
             } else {
-                janet_panicf("no getter for %v ", ds);
+                janet_panicf("no getter for %v", ds);
             }
             break;
         }
@@ -724,6 +724,9 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
             JanetArray *array = janet_unwrap_array(ds);
             if (index >= array->count) {
                 janet_array_ensure(array, index + 1, 2);
+                for (int32_t i = array->count; i < index + 1; i++) {
+                    array->data[i] = janet_wrap_nil();
+                }
                 array->count = index + 1;
             }
             array->data[index] = value;
@@ -735,6 +738,7 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
                 janet_panicf("can only put integers in buffers, got %v", value);
             if (index >= buffer->count) {
                 janet_buffer_ensure(buffer, index + 1, 2);
+                memset(buffer->data + buffer->count, 0, index + 1 - buffer->count);
                 buffer->count = index + 1;
             }
             buffer->data[index] = (uint8_t)(janet_unwrap_integer(value) & 0xFF);
@@ -767,7 +771,11 @@ void janet_put(Janet ds, Janet key, Janet value) {
             JanetArray *array = janet_unwrap_array(ds);
             int32_t index = getter_checkint(type, key, INT32_MAX - 1);
             if (index >= array->count) {
-                janet_array_setcount(array, index + 1);
+                janet_array_ensure(array, index + 1, 2);
+                for (int32_t i = array->count; i < index + 1; i++) {
+                    array->data[i] = janet_wrap_nil();
+                }
+                array->count = index + 1;
             }
             array->data[index] = value;
             break;
@@ -778,7 +786,9 @@ void janet_put(Janet ds, Janet key, Janet value) {
             if (!janet_checkint(value))
                 janet_panicf("can only put integers in buffers, got %v", value);
             if (index >= buffer->count) {
-                janet_buffer_setcount(buffer, index + 1);
+                janet_buffer_ensure(buffer, index + 1, 2);
+                memset(buffer->data + buffer->count, 0, index + 1 - buffer->count);
+                buffer->count = index + 1;
             }
             buffer->data[index] = (uint8_t)(janet_unwrap_integer(value) & 0xFF);
             break;

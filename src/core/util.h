@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -50,9 +50,9 @@
 #ifndef JANET_EXIT
 #include <stdio.h>
 #define JANET_EXIT(m) do { \
-    fprintf(stderr, "janet internal error at line %d in file %s: %s\n",\
-        __LINE__,\
+    fprintf(stderr, "janet abort at %s:%d: %s\n",\
         __FILE__,\
+        __LINE__,\
         (m));\
     abort();\
 } while (0)
@@ -66,41 +66,71 @@
 
 /* Utils */
 uint32_t janet_hash_mix(uint32_t input, uint32_t more);
+
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
+
 int janet_valid_utf8(const uint8_t *str, int32_t len);
+
 int janet_is_symbol_char(uint8_t c);
+
 extern const char janet_base64[65];
+
 int32_t janet_array_calchash(const Janet *array, int32_t len);
+
 int32_t janet_kv_calchash(const JanetKV *kvs, int32_t len);
+
 int32_t janet_string_calchash(const uint8_t *str, int32_t len);
+
 int32_t janet_tablen(int32_t n);
+
 void safe_memcpy(void *dest, const void *src, size_t len);
+
 void janet_buffer_push_types(JanetBuffer *buffer, int types);
+
 const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key);
+
 void janet_memempty(JanetKV *mem, int32_t count);
+
 void *janet_memalloc_empty(int32_t count);
+
 JanetTable *janet_get_core_table(const char *name);
+
 void janet_def_addflags(JanetFuncDef *def);
+
 void janet_buffer_dtostr(JanetBuffer *buffer, double x);
+
 const char *janet_strerror(int e);
+
 const void *janet_strbinsearch(
     const void *tab,
     size_t tabcount,
     size_t itemsize,
     const uint8_t *key);
+
 void janet_buffer_format(
     JanetBuffer *b,
     const char *strfrmt,
     int32_t argstart,
     int32_t argc,
     Janet *argv);
+
 Janet janet_next_impl(Janet ds, Janet key, int is_interpreter);
+
 JanetBinding janet_binding_from_entry(Janet entry);
+
 JanetByteView janet_text_substitution(
     Janet *subst,
     const uint8_t *bytes,
     uint32_t len,
     JanetArray *extra_args);
+
+const JanetKV *janet_dict_find_keyword(
+    const JanetKV *buckets,
+    int32_t cap,
+    const uint8_t *cstr,
+    int32_t cstr_len);
+
+Janet janet_table_get_keyword(JanetTable *t, const char *keyword);
 
 /* Registry functions */
 void janet_registry_put(
@@ -167,7 +197,26 @@ typedef void *Clib;
 #endif
 char *get_processed_name(const char *name);
 
+#ifdef JANET_PLAN9
+#define RETRY_EINTR(RC, CALL) (RC) = CALL;
+#else
 #define RETRY_EINTR(RC, CALL) do { (RC) = CALL; } while((RC) < 0 && errno == EINTR)
+#endif
+
+#ifdef JANET_EV
+#ifdef JANET_WINDOWS
+#include <winsock2.h>
+#include <windows.h>
+#include <io.h>
+typedef struct {
+    union {
+        OVERLAPPED overlapped;
+        WSAOVERLAPPED wsaoverlapped;
+    } as;
+    uint32_t bytes_transfered;
+} JanetOverlapped;
+#endif
+#endif
 
 /* Initialize builtin libraries */
 void janet_lib_io(JanetTable *env);

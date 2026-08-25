@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose & contributors
+# Copyright (c) 2026 Calvin Rose & contributors
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -37,7 +37,7 @@
 
 # Printing to functions
 # 4e263b8c3
-(def out-buf @"")
+(def out-buf :shadow @"")
 (defn prepend [x]
   (with-dyns [:out out-buf]
     (prin "> " x)))
@@ -59,8 +59,8 @@
 
 # issue #1055 - 2c927ea76
 (let [b @""]
-  (defn dummy [a b c]
-    (+ a b c))
+  (defn dummy [a bb c]
+    (+ a bb c))
   (trace dummy)
   (defn errout [arg]
     (buffer/push b arg))

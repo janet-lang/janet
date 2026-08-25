@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -50,11 +50,18 @@ JANET_NO_RETURN static void janet_top_level_signal(const char *msg) {
     JANET_TOP_LEVEL_SIGNAL(msg);
 #else
     fputs(msg, stdout);
+    if (!(janet_vm.sandbox_flags & JANET_SANDBOX_EXIT)) {
+        /* Exit is not forbidden */
+        exit(EXIT_FAILURE);
+    }
+    /* If not able to signal, then select good default behavior - for single threaded programs, we have no
+     * choice but to exit. */
 # ifdef JANET_SINGLE_THREADED
-    exit(-1);
+    exit(EXIT_FAILURE);
 # elif defined(JANET_WINDOWS)
     ExitThread(-1);
 # else
+    /* Other threads will continue as usual */
     pthread_exit(NULL);
 # endif
 #endif
@@ -339,6 +346,21 @@ uint16_t janet_getuinteger16(const Janet *argv, int32_t n) {
     return (uint16_t) janet_unwrap_number(x);
 }
 
+int8_t janet_getinteger8(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkint8(x)) {
+        janet_panicf("bad slot #%d, expected 8 bit signed integer, got %v", n, x);
+    }
+    return (int16_t) janet_unwrap_number(x);
+}
+
+uint8_t janet_getuinteger8(const Janet *argv, int32_t n) {
+    Janet x = argv[n];
+    if (!janet_checkuint8(x)) {
+        janet_panicf("bad slot #%d, expected 8 bit unsigned integer, got %v", n, x);
+    }
+    return (uint16_t) janet_unwrap_number(x);
+}
 
 int64_t janet_getinteger64(const Janet *argv, int32_t n) {
 #ifdef JANET_INT_TYPES
@@ -460,7 +482,7 @@ Janet janet_dyn(const char *name) {
         return janet_table_get(janet_vm.top_dyns, janet_ckeywordv(name));
     }
     if (janet_vm.fiber->env) {
-        return janet_table_get(janet_vm.fiber->env, janet_ckeywordv(name));
+        return janet_table_get_keyword(janet_vm.fiber->env, name);
     } else {
         return janet_wrap_nil();
     }
@@ -557,6 +579,18 @@ void *janet_optabstract(const Janet *argv, int32_t argc, int32_t n, const JanetA
     return janet_getabstract(argv, n, at);
 }
 
+uint32_t janet_optuinteger(const Janet *argv, int32_t argc, int32_t n, uint32_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger(argv, n);
+}
+
+uint64_t janet_optuinteger64(const Janet *argv, int32_t argc, int32_t n, uint64_t dflt) {
+    if (argc <= n) return dflt;
+    if (janet_checktype(argv[n], JANET_NIL)) return dflt;
+    return janet_getuinteger64(argv, n);
+}
+
 /* Atomic refcounts */
 
 JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
@@ -564,6 +598,8 @@ JanetAtomicInt janet_atomic_inc(JanetAtomicInt volatile *x) {
     return _InterlockedIncrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, 1, memory_order_relaxed) + 1;
+#elif defined(JANET_PLAN9)
+    return aincl((void *)x, 1);
 #else
     return __atomic_add_fetch(x, 1, __ATOMIC_RELAXED);
 #endif
@@ -574,6 +610,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
     return _InterlockedDecrement(x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_fetch_add_explicit(x, -1, memory_order_acq_rel) - 1;
+#elif defined(JANET_PLAN9)
+    return aincl((void *)x, -1);
 #else
     return __atomic_add_fetch(x, -1, __ATOMIC_ACQ_REL);
 #endif
@@ -582,6 +620,8 @@ JanetAtomicInt janet_atomic_dec(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
+#elif defined(JANET_PLAN9)
+    return agetl((void *)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_acquire);
 #else
@@ -592,6 +632,8 @@ JanetAtomicInt janet_atomic_load(JanetAtomicInt volatile *x) {
 JanetAtomicInt janet_atomic_load_relaxed(JanetAtomicInt volatile *x) {
 #ifdef _MSC_VER
     return _InterlockedOr(x, 0);
+#elif defined(JANET_PLAN9)
+    return agetl((void *)x);
 #elif defined(JANET_USE_STDATOMIC)
     return atomic_load_explicit(x, memory_order_relaxed);
 #else

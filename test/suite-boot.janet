@@ -1,4 +1,4 @@
-# Copyright (c) 2025 Calvin Rose
+# Copyright (c) 2026 Calvin Rose
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to
@@ -20,6 +20,8 @@
 
 (import ./helper :prefix "" :exit true)
 (start-suite)
+
+(setdyn *lint-warn* :none)
 
 # Let
 # 807f981
@@ -1033,5 +1035,78 @@
                    @{:key1 "value1" @"key2" "value2"}) "deep= mutable keys")
 (assert (deep-not= @{:key1 "value1" [@"key2"] @"value2"}
                    @{:key1 "value1" [@"key2"] @"value2"}) "deep= mutable keys")
+
+# different try overloads
+(assert (= (try (error :error) ([] :caught)) :caught))
+(assert (= (try (error :error) ([e] e)) :error))
+(assert (= (try (error :error) ([e fib] [e (fiber? fib)])) [:error true]))
+# regression test for #1659
+(assert (= (try (error :error) ([_ _] :caught)) :caught))
+
+# frequencies
+(assert (deep= (frequencies :lol) @{108 2 111 1}))
+(assert (deep= (frequencies [:duck :duck :duck :goose]) @{:duck 3 :goose 1}))
+(assert (deep= (frequencies {1 :a 2 :x 3 :x 8 :a}) @{:a 2 :x 2}))
+(assert (deep= (frequencies @{}) @{}))
+(assert (deep= (frequencies (coro (yield 1) (yield 8) (yield 2) (yield 8)))
+               @{1 1 2 1 8 2}))
+
+# partition-by
+(assert (deep= (partition-by even? "hello")
+               @[@[104] @[101] @[108 108] @[111]]))
+(assert (deep= (partition-by keyword? [:a "b" 'c :d])
+               @[@[:a] @["b" 'c] @[:d]]))
+# update
+(assert (deep= (update @"hello" 0 (fn [old delta] (+ old delta)) 17)
+               @"yello"))
+(assert (deep= (update @[:x :yy :z] 1 |(keyword (slice $ 0 1)))
+               @[:x :y :z]))
+(assert (deep= (update @{:a 1 :b -1 :c 3} :b + 3)
+               @{:a 1 :b 2 :c 3}))
+# distinct
+(assert (deep= (distinct :hello) @[104 101 108 111]))
+(assert (deep= (distinct [1 0 1 0 1 1 0 1 1 1]) @[1 0]))
+(assert (deep= (distinct @{0 :a 1 :b 2 :b 3 :a}) @[:a :b]))
+(assert (deep= (distinct (coro (yield 8) (yield 11) (yield 8))) @[8 11]))
+
+# find-index
+(assert (= (find-index |(= (chr "c") $) "abc") 2))
+(assert (= (find-index |(= $ :goose) [:duck :duck :goose]) 2))
+(assert (= (find-index pos? @[-2 -1 0 -3] :surprise!) :surprise!))
+(assert (= (find-index zero? {:a 2 :b 1 :c 0}) :c))
+
+# find
+(assert (= (find |(= $ (chr "o")) "tomato") 111))
+(assert (= (find |(= $ (chr "m")) "potato") nil))
+(assert (= (find |(> $ (chr "y")) :ant :surprise) :surprise))
+(assert (= (find pos? [-1 0 11]) 11))
+(assert (= (find neg? @[0 1 2 3 5]) nil))
+(assert (= (find one? {:a 1 :b 2}) 1))
+(assert (= (find even? @{:x 11 :y 28 :z 33}) 28))
+(assert (= (find keyword? (coro (yield 'jump) (yield :wave))) :wave))
+
+# partition
+(assert (deep= (partition 2 "hello!") @["he" "ll" "o!"]))
+(assert (deep= (partition 3 @"hello!") @["hel" "lo!"]))
+(assert (deep= (partition 4 'hello!) @["hell" "o!"]))
+(assert (deep= (partition 5 :hello!) @["hello" "!"]))
+(assert (deep= (partition 2 [:ant :bee :fox :elephant])
+               @[[:ant :bee] [:fox :elephant]]))
+(assert (deep= (partition 3 @['rock 'paper 'scissors 'spock])
+               @[['rock 'paper 'scissors] ['spock]]))
+(assert (deep= (partition 2 (coro (yield 0) (yield 1) (yield 2) (yield 3)))
+               @[[0 1] [2 3]]))
+# filter
+(assert (deep= (filter |(< $ (chr "m")) "azbycw") @[97 98 99]))
+(assert (deep= (filter pos? @[-1 0 1]) @[1]))
+(assert (deep= (sort (filter int? {:a 1 :b 2.3 :c 3})) @[1 3]))
+(assert (deep= (filter even? (coro (yield 1) (yield 2) (yield 8))) @[2 8]))
+
+# interpose
+(assert (deep= (interpose ":" "hello")
+               @[104 ":" 101 ":" 108 ":" 108 ":" 111]))
+(assert (deep= (interpose 0 [1 2 3]) @[1 0 2 0 3]))
+(assert (deep= (interpose :goose (coro (yield :duck) (yield :duck)))
+               @[:duck :goose :duck]))
 
 (end-suite)

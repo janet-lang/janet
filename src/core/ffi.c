@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -1344,6 +1344,15 @@ typedef double (win64_variant_f_ffif)(double, double, uint64_t, double);
 typedef double (win64_variant_f_fffi)(double, double, double, uint64_t);
 typedef double (win64_variant_f_ffff)(double, double, double, double);
 
+/* MSVC stack frame runtime error checking (/RTCs) prepends alloca() allocations with an _RTC_ALLOCA_NODE
+ * header; misalligning stack-based FFI arguments and causing the memmove() (by stack_shift) to corrupt
+ * the _RTC_ALLOCA_NODE header.
+ *
+ * We turn off the RTC-instrumented alloca() and adding of _RTC_CheckStackVars to function prologue just
+ * for janet_ffi_win64() */
+#ifdef __MSVC_RUNTIME_CHECKS
+#pragma runtime_checks( "s", off )
+#endif
 static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointer, const Janet *argv) {
     union {
         uint64_t integer;
@@ -1493,6 +1502,10 @@ static Janet janet_ffi_win64(JanetFFISignature *signature, void *function_pointe
 
     return janet_ffi_read_one(ret_mem, signature->ret.type, JANET_FFI_MAX_RECUR);
 }
+#ifdef __MSVC_RUNTIME_CHECKS
+// Restore stack frame runtime error checking (/RTCs) if it was enabled.
+#pragma runtime_checks ( "s", restore )
+#endif
 
 #endif
 
@@ -1615,7 +1628,11 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     fn->size = 0;
 #ifdef JANET_WINDOWS
     void *ptr = VirtualAlloc(NULL, alloc_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#elif defined(MAP_ANONYMOUS)
+    if (!ptr) {
+        janet_panic("failed to allocate writable memory");
+    }
+#else
+#ifdef MAP_ANONYMOUS
     void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #elif defined(MAP_ANON)
     /* macos doesn't have MAP_ANONYMOUS */
@@ -1625,9 +1642,10 @@ JANET_CORE_FN(cfun_ffi_jitfn,
     /* #define MAP_ANONYMOUS 0x20 should work, though. */
     void *ptr = mmap(0, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, -1, 0);
 #endif
-    if (!ptr) {
+    if (ptr == MAP_FAILED) {
         janet_panic("failed to memory map writable memory");
     }
+#endif
     memcpy(ptr, bytes.bytes, bytes.len);
 #ifdef JANET_WINDOWS
     DWORD old = 0;

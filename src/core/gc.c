@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2025 Calvin Rose
+* Copyright (c) 2026 Calvin Rose
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to
@@ -336,6 +336,8 @@ static void janet_deinit_block(JanetGCObject *mem) {
             if (f->ev_state && !(f->flags & JANET_FIBER_EV_FLAG_IN_FLIGHT)) {
                 janet_ev_dec_refcount();
                 janet_free(f->ev_state);
+            } else if (f->gc.flags & JANET_FIBER_EV_GCFLAG_SUSPENDED) {
+                janet_ev_dec_refcount();
             }
 #endif
             janet_free(f->data);
@@ -504,14 +506,7 @@ void janet_sweep() {
                 if (head->type->gcperthread) {
                     janet_assert(!head->type->gcperthread(head->data, head->size), "per-thread finalizer failed");
                 }
-                if (0 == janet_abstract_decref(abst)) {
-                    /* Run finalizer */
-                    if (head->type->gc) {
-                        janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
-                    }
-                    /* Free memory */
-                    janet_free(janet_abstract_head(abst));
-                }
+                janet_abstract_decref_maybe_free(abst);
 
                 /* Mark as tombstone in place */
                 items[i].key = janet_wrap_nil();
@@ -597,7 +592,9 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
-    janet_mark_fiber(janet_vm.root_fiber);
+    if (janet_vm.root_fiber != NULL) { /* Can be NULL if janet_collect called outside of interpreter loop */
+        janet_mark_fiber(janet_vm.root_fiber);
+    }
     for (i = 0; i < orig_rootcount; i++)
         janet_mark(janet_vm.roots[i]);
     while (orig_rootcount < janet_vm.root_count) {
@@ -682,12 +679,7 @@ void janet_clear_memory(void) {
             if (head->type->gcperthread) {
                 janet_assert(!head->type->gcperthread(head->data, head->size), "per-thread finalizer failed");
             }
-            if (0 == janet_abstract_decref(abst)) {
-                if (head->type->gc) {
-                    janet_assert(!head->type->gc(head->data, head->size), "finalizer failed");
-                }
-                janet_free(janet_abstract_head(abst));
-            }
+            janet_abstract_decref_maybe_free(abst);
         }
     }
 #endif

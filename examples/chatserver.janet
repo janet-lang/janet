@@ -26,7 +26,7 @@
           (broadcast name (string msg)))
         (print name " disconnected")))))
 
-(defn main [& args]
+(defn main [&]
   (printf "STARTING SERVER...")
   (flush)
   (def my-server (net/listen "127.0.0.1" "8000"))
