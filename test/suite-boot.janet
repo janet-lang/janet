@@ -141,6 +141,10 @@
 (assert (= (if-let [[a b] my-array] a) 1) "if-let 5")
 (assert (= (if-let [{:a a :b b} {:a 1 :b 2}] b) 2) "if-let 6")
 (assert (= (if-let [[a b] nil] :t :f) :f) "if-let 7")
+(assert (= (if-let [[a b] ["a" "b"]] a a) "a"))
+(assert (= (if-let [[a b] ["a" "b"]] b b) "b"))
+(assert (= (if-let [[a b] ["a" nil]] a a) "a"))
+(assert (= (if-let [[a b] ["a" nil]] b b) nil))
 
 # #1191
 (var cnt 0)

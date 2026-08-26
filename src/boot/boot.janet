@@ -450,22 +450,38 @@
   evaluate the `tru` form. If any are false or nil, evaluate
   the `fal` form. Bindings have the same syntax as the `let` macro.``
   [bindings tru &opt fal]
-  (def len (length bindings))
+  (def len (/ (length bindings) 2))
   (if (= 0 len) (error "expected at least 1 binding"))
-  (if (odd? len) (error "expected an even number of bindings"))
+  (if-not (int? len) (error "expected an even number of bindings"))
   (def fal2 (if macexvar (macexvar fal) fal))
+  (def syms (array/new len))
+  (defn fill-syms [i]
+    (when (< i len)
+      (let [bl (in bindings (* i 2))
+            sym (if (symbol? bl) bl (gensym))]
+        (put syms i sym))
+      (fill-syms (+ 1 i))))
   (defn aux [i]
     (if (>= i len)
       tru
       (do
-        (def bl (in bindings i))
-        (def br (in bindings (+ 1 i)))
+        (def bl (in bindings (* 2 i)))
+        (def br (in bindings (+ 1 (* 2 i))))
         (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(aux (+ 2 i)) ,fal2)
-          ~(if (def ,(def sym (gensym)) ,br)
-             (do (def ,bl ,sym) ,(aux (+ 2 i)))
-             ,fal2)))))
-  (aux 0))
+          ~(if (def ,bl ,br) ,(aux (+ 1 i)) ,fal2)
+          (do
+            (def sym (in syms i))
+            ~(do (def ,sym ,br) (if (def ,bl ,sym) ,(aux (+ 1 i)) ,fal2)))))))
+  
+  (defn wrap [i]
+    (if (>= i len)
+      (aux 0)
+      ~(do
+         (def ,(in syms i) ,nil)
+         ,(wrap (+ 1 i)))))
+
+  (fill-syms 0)
+  (wrap 0))
 
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
