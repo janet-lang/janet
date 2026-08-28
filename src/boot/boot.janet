@@ -448,7 +448,8 @@
 (defmacro if-let
   ``Make multiple bindings, and if all are truthy,
   evaluate the `tru` form. If any are false or nil, evaluate
-  the `fal` form. Bindings have the same syntax as the `let` macro.``
+  the `fal` form. Bindings have the same syntax as the `let` macro,
+  are initially bound to `nil`, and are in scope in both branches.``
   [bindings tru &opt fal]
   (def len (/ (length bindings) 2))
   (if (= 0 len) (error "expected at least 1 binding"))
