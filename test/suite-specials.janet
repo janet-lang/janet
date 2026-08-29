@@ -206,4 +206,43 @@
 (def x (if (= nil x) "B" x))
 (assert (= x "A"))
 
+# Nested declarations
+(do
+  (def a (def b 500))
+  (assert (= a b 500))
+
+  (var a (var b 280))
+  (assert (= a b 280)))
+
+# Declarations inside conditions
+(do
+  # Bindings can be done in the if condition
+  (if (def x 1)
+    (assert (= x 1)))
+
+  # Bindings can be acessed in either branch
+  (if (def x nil)
+    (assert false "unreachable")
+    (assert (nil? x)))
+
+  # Bindings can be introduced with both def and var
+  (if (var x "hi")
+    (assert (= x "hi")))
+
+  # Works since it expands to a nested if
+  (cond
+    (def a false) (assert false)
+    (def b nil) (assert false)
+    (assert (= [a b] [false nil])))
+
+  (var c 0)
+  (defn func "helper function" []
+    (when (< c 3) (++ c) c))
+
+  # Bindings can be done in the while condition as well
+  (var arr [])
+  (while (def x (func))
+    (set arr [;arr x]))
+  (assert (= arr [1 2 3])))
+
 (end-suite)
