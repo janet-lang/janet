@@ -2677,7 +2677,7 @@ JANET_CORE_FN(os_realpath,
         janet_panicf("path does not exist: %v", ret);
     }
 #else
-    janet_free(dest);
+    free(dest);
 #endif
     return ret;
 #endif
