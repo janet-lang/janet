@@ -1623,6 +1623,7 @@ JANET_CORE_FN(os_posix_chroot,
 static JanetEVGenericMessage os_shell_subr(JanetEVGenericMessage args) {
     int stat = system((const char *) args.argp);
     janet_free(args.argp);
+    args.argp = NULL;
     if (args.argi) {
         args.tag = JANET_EV_TCTAG_INTEGER;
     } else {

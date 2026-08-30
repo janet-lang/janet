@@ -2369,6 +2369,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
         /* Clean up */
         switch (return_value.tag) {
             default:
+                break;
             case JANET_EV_TCTAG_STRINGF:
             case JANET_EV_TCTAG_ERR_STRINGF:
                 janet_free(return_value.argp);
@@ -2379,6 +2380,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
     if (janet_fiber_can_resume(return_value.fiber)) {
         switch (return_value.tag) {
             default:
+                break;
             case JANET_EV_TCTAG_NIL:
                 janet_schedule(return_value.fiber, janet_wrap_nil());
                 break;
@@ -2407,6 +2409,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
     /* Clean up */
     switch (return_value.tag) {
         default:
+            break;
         case JANET_EV_TCTAG_STRINGF:
         case JANET_EV_TCTAG_ERR_STRINGF:
             janet_free(return_value.argp);
