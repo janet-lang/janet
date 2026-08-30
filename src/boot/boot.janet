@@ -448,36 +448,37 @@
 (defmacro if-let
   ``Make multiple bindings, and if all are truthy,
   evaluate the `tru` form. If any are false or nil, evaluate
-  the `fal` form. Bindings have the same syntax as the `let` macro,
-  are initially bound to `nil`, and are in scope in both branches.``
+  the `fal` form. Bindings have the same syntax as the `let` macro.
+  Bare symbol bindings are also in scope in the `fal` branch, as if they were
+  initially bound to nil.``
   [bindings tru &opt fal]
   (def len (length bindings))
   (if (= 0 len) (error "expected at least 1 binding"))
   (if (odd? len) (error "expected an even number of bindings"))
   (def fal2 (if macexvar (macexvar fal) fal))
-  (def syms (array/new (/ len 2)))
-  (defn make-ifs [i]
+  (defn bind-nills [i]
+    (if (>= i len)
+      fal2
+      (do
+        (def bl (in bindings i))
+        (if (symbol? bl)
+          ~(do (def ,bl nil) ,(bind-nills (+ 2 i)))
+          (bind-nills (+ 2 i))))))
+  (defn aux [i]
     (if (>= i len)
       tru
       (do
         (def bl (in bindings i))
         (def br (in bindings (+ 1 i)))
         (if (symbol? bl)
-          ~(if (def ,bl ,br) ,(make-ifs (+ 2 i)) ,fal2)
-          ~(if (def ,(def sym (in syms (/ i 2))) ,br)
-             (do (def ,bl ,sym) ,(make-ifs (+ 2 i)))
-             ,fal2)))))
+          ~(do
+             (def ,bl ,br)
+             (if ,bl ,(aux (+ 2 i)) ,(bind-nills (+ 2 i))))
+          ~(if (def ,(def sym (gensym)) ,br)
+             (do (def ,bl ,sym) ,(aux (+ 2 i)))
+             ,(bind-nills (+ 2 i)))))))
 
-  (defn make-defs [i]
-    (if (>= i len)
-      (make-ifs 0)
-      ~(do
-         ,(let [bl (in bindings i) sym (if (symbol? bl) bl (gensym))]
-            (put syms (/ i 2) sym)
-            ~(def ,sym ,nil))
-         ,(make-defs (+ 2 i)))))
-
-  (make-defs 0))
+  (aux 0))
 
 (defmacro when-with
   ``Similar to with, but if binding is false or nil, returns
