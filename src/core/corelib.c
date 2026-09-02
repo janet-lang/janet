@@ -1232,7 +1232,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                     "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
                     JDOC("(in x key &opt dflt)\n\n"
                          "Get value in `x` at `key`. For bytes and indexed "
-                         "types, `key` must be a non-negative interger in "
+                         "types, `key` must be a non-negative integer in "
                          "bounds or an error is raised. For dictionaries "
                          "`key` must be a non-nil value and if not found, "
                          "will return `dflt` if provided or `nil` otherwise.\n"
