@@ -6,24 +6,24 @@ _janet() {
     local cur prev words cword
     _init_completion || return
 
-    local flags="-h -v -s -e -E -d -n -N -r -R -p -q -k -m -c -i -l -w -x --"
+    local flags="-h --help -v --version -s --stdin -e --eval -E --expression -d --debug -n --nocolor -N --color -r --repl -R --noprofile -p --persistent -q --quiet -k --flycheck -m --syspath -c --compile -i --image -l --library -w --lint-warn -x --lint-error --"
 
     case "$prev" in
-        -e|-E)
+        -e|--eval|-E|--expression)
             # Argument is Janet source code — no file completion
             return
             ;;
-        -m)
+        -m|--syspath)
             # syspath: complete directories
             _filedir -d
             return
             ;;
-        -c|-l)
+        -c|--compile|-l|--library)
             # source file: complete .janet files
             _filedir janet
             return
             ;;
-        -w|-x)
+        -w|--lint-warn|-x|--lint-error)
             # linting level
             COMPREPLY=($(compgen -W ":none :relaxed :normal :strict" -- "$cur"))
             return
