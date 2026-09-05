@@ -522,6 +522,7 @@ tail:
             if (!result) return NULL;
             int32_t num_sub_captures = s->captures->count - cs.cap;
             JanetArray *sub_captures = janet_array(num_sub_captures);
+            sub_captures->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
             safe_memcpy(sub_captures->data,
                         s->captures->data + cs.cap,
                         sizeof(Janet) * num_sub_captures);

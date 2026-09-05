@@ -1474,6 +1474,7 @@ static const uint8_t *unmarshal_one(
             if (lead == LB_ARRAY || lead == LB_ARRAY_WEAK) {
                 /* Array */
                 JanetArray *array = (lead == LB_ARRAY_WEAK) ? janet_array_weak(len) : janet_array(len);
+                array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
                 array->count = len;
                 *out = janet_wrap_array(array);
                 janet_v_push(st->lookup, *out);
@@ -1484,7 +1485,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) |= (int32_t) (((uint32_t) flag) << 16); /* Avoid left shift of negative value */
+                janet_tuple_flag(tup) |= (int32_t)(((uint32_t) flag) << 16);  /* Avoid left shift of negative value */
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }

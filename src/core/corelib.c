@@ -407,9 +407,7 @@ JANET_CORE_FN(janet_core_tuple,
 JANET_CORE_FN(janet_core_array,
               "(array & items)",
               "Create a new array that contains items. Returns the new array.") {
-    JanetArray *array = janet_array(argc);
-    array->count = argc;
-    safe_memcpy(array->data, argv, argc * sizeof(Janet));
+    JanetArray *array = janet_array_n(argv, argc);
     return janet_wrap_array(array);
 }
 
@@ -470,6 +468,8 @@ JANET_CORE_FN(janet_core_range,
         }
     }
     JanetArray *array = janet_array(int_count);
+    /* array will have primitive flag set, and we are only adding numbers, so we can
+     * insert elements directly */
     for (int32_t i = 0; i < int_count; i++) {
         array->data[i] = janet_wrap_number((double) start + (double) i * step);
     }

@@ -30,6 +30,25 @@
 
 #include <string.h>
 
+/* Maintain primitive flag invariant */
+static void array_elem_primcheck(JanetArray *array, Janet x) {
+    if (array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) {
+        if (!janet_is_gc_simple(x)) {
+            array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
+        }
+    }
+}
+
+/* check multiple args for array/push and similar */
+static int primcheck_argv(const Janet *argv, int32_t n) {
+    for (int32_t i = 0; i < n; i++) {
+        if (!janet_is_gc_simple(argv[i])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static void janet_array_impl(JanetArray *array, int32_t capacity) {
     Janet *data = NULL;
     if (capacity > 0) {
@@ -111,6 +130,7 @@ void janet_array_push(JanetArray *array, Janet x) {
     janet_array_ensure(array, newcount, 2);
     array->data[array->count] = x;
     array->count = newcount;
+    array_elem_primcheck(array, x);
 }
 
 /* Pop a value from the top of the array */
@@ -140,6 +160,7 @@ JANET_CORE_FN(cfun_array_new,
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     JanetArray *array = janet_array(cap);
+    array->gc.flags |= JANET_ARRAY_FLAG_PRIMITIVES; /* Empty array is primitive */
     return janet_wrap_array(array);
 }
 
@@ -149,6 +170,7 @@ JANET_CORE_FN(cfun_array_weak,
     janet_fixarity(argc, 1);
     int32_t cap = janet_getinteger(argv, 0);
     JanetArray *array = janet_array_weak(cap);
+    array->gc.flags |= JANET_ARRAY_FLAG_PRIMITIVES; /* Empty array is primitive */
     return janet_wrap_array(array);
 }
 
@@ -163,6 +185,11 @@ JANET_CORE_FN(cfun_array_new_filled,
         array->data[i] = x;
     }
     array->count = count;
+    if (janet_is_gc_simple(x)) {
+        array->gc.flags |= JANET_ARRAY_FLAG_PRIMITIVES;
+    } else {
+        array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
+    }
     return janet_wrap_array(array);
 }
 
@@ -175,6 +202,11 @@ JANET_CORE_FN(cfun_array_fill,
     Janet x = (argc == 2) ? argv[1] : janet_wrap_nil();
     for (int32_t i = 0; i < array->count; i++) {
         array->data[i] = x;
+    }
+    if (janet_is_gc_simple(x)) {
+        array->gc.flags |= JANET_ARRAY_FLAG_PRIMITIVES;
+    } else {
+        array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
     }
     return argv[0];
 }
@@ -206,7 +238,14 @@ JANET_CORE_FN(cfun_array_push,
     }
     int32_t newcount = array->count - 1 + argc;
     janet_array_ensure(array, newcount, 2);
-    if (argc > 1) memcpy(array->data + array->count, argv + 1, (size_t)(argc - 1) * sizeof(Janet));
+    if (argc > 1) {
+        memcpy(array->data + array->count, argv + 1, (size_t)(argc - 1) * sizeof(Janet));
+        if (array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) {
+            if (!primcheck_argv(argv + 1, argc - 1)) {
+                array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
+            }
+        }
+    }
     array->count = newcount;
     return argv[0];
 }
@@ -239,6 +278,7 @@ JANET_CORE_FN(cfun_array_slice,
     if (array->data)
         memcpy(array->data, view.items + range.start, sizeof(Janet) * (range.end - range.start));
     array->count = range.end - range.start;
+    /* TODO - inherit primitive flag if arrtup is array. Tuples could also have a primitive flag for better GC */
     return janet_wrap_array(array);
 }
 
@@ -326,6 +366,13 @@ JANET_CORE_FN(cfun_array_insert,
                 array->data + at,
                 restsize);
     }
+    if (argc > 2) {
+        if (array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) {
+            if (!primcheck_argv(argv + 2, argc - 2)) {
+                array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
+            }
+        }
+    }
     safe_memcpy(array->data + at, argv + 2, chunksize);
     array->count += (argc - 2);
     return argv[0];
@@ -390,6 +437,7 @@ JANET_CORE_FN(cfun_array_clear,
     janet_fixarity(argc, 1);
     JanetArray *array = janet_getarray(argv, 0);
     array->count = 0;
+    /* We could reset the primitive flag here, but chances are if the array was not primitive before, it won't be again */
     return argv[0];
 }
 

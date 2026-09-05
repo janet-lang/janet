@@ -729,6 +729,10 @@ void janet_putindex(Janet ds, int32_t index, Janet value) {
                 }
                 array->count = index + 1;
             }
+            /* array_elem_primcheck */
+            if ((array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) & !janet_is_gc_simple(value)) {
+                array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
+            }
             array->data[index] = value;
             break;
         }
@@ -776,6 +780,10 @@ void janet_put(Janet ds, Janet key, Janet value) {
                     array->data[i] = janet_wrap_nil();
                 }
                 array->count = index + 1;
+            }
+            /* array_elem_primcheck */
+            if ((array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) & !janet_is_gc_simple(value)) {
+                array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
             }
             array->data[index] = value;
             break;

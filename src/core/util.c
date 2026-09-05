@@ -584,7 +584,7 @@ static void janet_check_pointer_align(void *p) {
         uintptr_t u;
     } un;
     un.p = p;
-    janet_assert(!(un.u & (uintptr_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
+    janet_assert(!(un.u & (uintptr_t)((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
                  "unaligned pointer wrap - cfunction pointers and abstract types must be aligned with this nanboxing configuration.");
 #endif
 }
@@ -1220,3 +1220,12 @@ void *array_allocate(size_t element_size, int32_t count) {
     if ((size_t) count > (SIZE_MAX / element_size)) return NULL;
     return janet_malloc(element_size * count);
 }
+
+/* Quickly check for types that can be safely skipped by the garbage collector */
+int janet_is_gc_simple(Janet x) {
+    if (janet_checktypes(x, JANET_TFLAG_NIL | JANET_TFLAG_BOOLEAN | JANET_TFLAG_NUMBER | JANET_TFLAG_POINTER | JANET_TFLAG_CFUNCTION)) {
+        return 1;
+    }
+    return 0;
+}
+

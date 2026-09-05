@@ -956,18 +956,16 @@ static Janet janet_disasm_symbolslots(JanetFuncDef *def) {
         t[1] = janet_wrap_integer(ss.death_pc);
         t[2] = janet_wrap_integer(ss.slot_index);
         t[3] = janet_wrap_symbol(ss.symbol);
-        symbolslots->data[i] = janet_wrap_tuple(janet_tuple_end(t));
+        janet_array_push(symbolslots, janet_wrap_tuple(janet_tuple_end(t)));
     }
-    symbolslots->count = def->symbolmap_length;
     return janet_wrap_array(symbolslots);
 }
 
 static Janet janet_disasm_bytecode(JanetFuncDef *def) {
     JanetArray *bcode = janet_array(def->bytecode_length);
     for (int32_t i = 0; i < def->bytecode_length; i++) {
-        bcode->data[i] = janet_asm_decode_instruction(def->bytecode[i]);
+        janet_array_push(bcode, janet_asm_decode_instruction(def->bytecode[i]));
     }
-    bcode->count = def->bytecode_length;
     return janet_wrap_array(bcode);
 }
 
@@ -1000,9 +998,8 @@ static Janet janet_disasm_namedargs(JanetFuncDef *def) {
 static Janet janet_disasm_constants(JanetFuncDef *def) {
     JanetArray *constants = janet_array(def->constants_length);
     for (int32_t i = 0; i < def->constants_length; i++) {
-        constants->data[i] = def->constants[i];
+        janet_array_push(constants, def->constants[i]);
     }
-    constants->count = def->constants_length;
     return janet_wrap_array(constants);
 }
 
@@ -1014,27 +1011,24 @@ static Janet janet_disasm_sourcemap(JanetFuncDef *def) {
         JanetSourceMapping mapping = def->sourcemap[i];
         t[0] = janet_wrap_integer(mapping.line);
         t[1] = janet_wrap_integer(mapping.column);
-        sourcemap->data[i] = janet_wrap_tuple(janet_tuple_end(t));
+        janet_array_push(sourcemap, janet_wrap_tuple(janet_tuple_end(t)));
     }
-    sourcemap->count = def->bytecode_length;
     return janet_wrap_array(sourcemap);
 }
 
 static Janet janet_disasm_environments(JanetFuncDef *def) {
     JanetArray *envs = janet_array(def->environments_length);
     for (int32_t i = 0; i < def->environments_length; i++) {
-        envs->data[i] = janet_wrap_integer(def->environments[i]);
+        janet_array_push(envs, janet_wrap_integer(def->environments[i]));
     }
-    envs->count = def->environments_length;
     return janet_wrap_array(envs);
 }
 
 static Janet janet_disasm_defs(JanetFuncDef *def) {
     JanetArray *defs = janet_array(def->defs_length);
     for (int32_t i = 0; i < def->defs_length; i++) {
-        defs->data[i] = janet_disasm(def->defs[i]);
+        janet_array_push(defs, janet_disasm(def->defs[i]));
     }
-    defs->count = def->defs_length;
     return janet_wrap_array(defs);
 }
 

@@ -512,6 +512,7 @@ static Janet close_tuple(JanetParser *p, JanetParseState *state, int32_t flag) {
 
 static Janet close_array(JanetParser *p, JanetParseState *state) {
     JanetArray *array = janet_array(state->argn);
+    array->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
     for (int32_t i = state->argn - 1; i >= 0; i--)
         array->data[i] = p->args[--p->argcount];
     array->count = state->argn;
@@ -1208,6 +1209,7 @@ static Janet parser_state_delimiters(const JanetParser *_p) {
 static Janet parser_state_frames(const JanetParser *p) {
     int32_t count = (int32_t) p->statecount;
     JanetArray *states = janet_array(count);
+    states->gc.flags &= ~JANET_ARRAY_FLAG_PRIMITIVES;
     states->count = count;
     uint8_t *buf = p->buf;
     /* Iterate arg stack backwards */

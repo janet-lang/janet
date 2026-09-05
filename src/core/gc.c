@@ -121,15 +121,22 @@ static void janet_mark_abstract(void *adata) {
     }
 }
 
-/* Mark a bunch of items in memory */
-static void janet_mark_many(const Janet *values, int32_t n) {
+/* Mark a bunch of items in memory. Return 1 if all primitives */
+static int janet_mark_many(const Janet *values, int32_t n) {
     if (values == NULL)
-        return;
+        return 1;
     const Janet *end = values + n;
+    while (values < end && janet_is_gc_simple(*values)) {
+        values += 1;
+    }
+    if (values == end) {
+        return 1;
+    }
     while (values < end) {
         janet_mark(*values);
         values += 1;
     }
+    return 0;
 }
 
 /* Mark a bunch of key values items in memory */
@@ -164,8 +171,16 @@ static void janet_mark_array(JanetArray *array) {
     if (janet_gc_reachable(array))
         return;
     janet_gc_mark(array);
+    /* Early exit for primitive arrays */
+    if (array->gc.flags & JANET_ARRAY_FLAG_PRIMITIVES) {
+        /* TODO - debug routine to check array for non-primitives. If we find any, assert */
+        return;
+    }
     if (janet_gc_type((JanetGCObject *) array) == JANET_MEMORY_ARRAY) {
-        janet_mark_many(array->data, array->count);
+        if (janet_mark_many(array->data, array->count)) {
+            /* Mark as primitive array for next collection */
+            array->gc.flags |= JANET_ARRAY_FLAG_PRIMITIVES;
+        }
     }
 }
 

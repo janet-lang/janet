@@ -101,6 +101,8 @@ void janet_buffer_dtostr(JanetBuffer *buffer, double x);
 
 const char *janet_strerror(int e);
 
+int janet_is_gc_simple(Janet x);
+
 const void *janet_strbinsearch(
     const void *tab,
     size_t tabcount,

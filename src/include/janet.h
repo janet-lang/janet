@@ -968,14 +968,18 @@ JANET_API JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at
 
 #define janet_checktypes(x, tps) ((1 << janet_type(x)) & (tps))
 
-/* GC Object type pun. The lower 16 bits of flags are reserved for the garbage collector,
- * but the upper 16 can be used per type for custom flags. The current collector is a linked
- * list of blocks, which is naive but works. */
+/* GC Object type pun. The lower 16 bits of flags are reserved for the garbage
+ * collector, but the upper 16 can be used per type for custom flags. The
+ * current collector is a linked list of blocks, which is naive but works. For
+ * tri-color GC, use global Bags (dynamic, contiguous arrays) of pointers to
+ * these memory blocks. Each block contains it's own index into the bag for
+ * fast removal / replacement. */
 struct JanetGCObject {
     int32_t flags;
     union {
-        JanetGCObject *next;
-        volatile JanetAtomicInt refcount; /* For threaded abstract types */
+        JanetGCObject *next; /* Next block in the linked-list representation */
+        size_t bucket_index; /* For tri-color GC, use index into current color bucket instead of linked list */
+        volatile JanetAtomicInt refcount; /* For threaded abstract types - these are not in the GC logical heap */
     } data;
 };
 
@@ -1106,6 +1110,9 @@ struct JanetAbstractHead {
 #define JANET_FUNCDEF_FLAG_HASCLOBITSET 0x2000000
 #define JANET_FUNCDEF_FLAG_NAMEDARGS 0x4000000
 #define JANET_FUNCDEF_FLAG_TAG 0xFFFF
+
+/* Mark an array as containing only primitive types. Hint for the garbage collector */
+#define JANET_ARRAY_FLAG_PRIMITIVES ((int32_t)0x10000)
 
 /* Source mapping structure for a bytecode instruction */
 struct JanetSourceMapping {
