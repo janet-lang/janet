@@ -671,6 +671,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     VM_OP(JOP_ERROR)
     vm_return(JANET_SIGNAL_ERROR, stack[A]);
 
+    /* Currently unused by the compiler, but could be used for JIT type inference */
     VM_OP(JOP_TYPECHECK)
     vm_assert_types(stack[A], E);
     vm_pcnext();

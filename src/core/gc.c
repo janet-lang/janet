@@ -242,7 +242,6 @@ static void janet_mark_funcdef(JanetFuncDef *def) {
             janet_mark_string(def->symbolmap[i].symbol);
         }
     }
-
 }
 
 static void janet_mark_function(JanetFunction *func) {

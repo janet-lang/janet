@@ -33,13 +33,16 @@
 
 #define JANET_MEM_TYPEBITS 0xFF
 #define JANET_MEM_REACHABLE 0x100
-#define JANET_MEM_DISABLED 0x200
+#define JANET_MEM_FRONTIER 0x200 /* The "gray" bit in a tri-color gc */
+#define JANET_MEM_DISABLED 0x400
 
 #define janet_gc_settype(m, t) ((janet_gc_header(m)->flags |= (0xFF & (t))))
 #define janet_gc_type(m) (janet_gc_header(m)->flags & 0xFF)
 
 #define janet_gc_mark(m) (janet_gc_header(m)->flags |= JANET_MEM_REACHABLE)
 #define janet_gc_reachable(m) (janet_gc_header(m)->flags & JANET_MEM_REACHABLE)
+#define janet_gc_markgray(m) (janet_gc_header(m)->flags |= JANET_MEM_FRONTIER)
+#define janet_gc_isgray(m) (janet_gc_header(m)->flags & JANET_MEM_FRONTIER)
 
 /* Memory types for the GC. Different from JanetType to include funcenv and funcdef. */
 enum JanetMemoryType {
