@@ -1113,6 +1113,7 @@ struct JanetAbstractHead {
 
 /* Mark an array as containing only primitive types. Hint for the garbage collector */
 #define JANET_ARRAY_FLAG_PRIMITIVES ((int32_t)0x10000)
+#define JANET_TUPLE_FLAG_PRIMITIVES ((int32_t)0x20000) /* Don't collide with JANET_TUPLE_FLAG_BRACKETCTOR */
 
 /* Source mapping structure for a bytecode instruction */
 struct JanetSourceMapping {
@@ -1781,6 +1782,8 @@ JANET_API void janet_array_setcount(JanetArray *array, int32_t count);
 JANET_API void janet_array_push(JanetArray *array, Janet x);
 JANET_API Janet janet_array_pop(JanetArray *array);
 JANET_API Janet janet_array_peek(JanetArray *array);
+JANET_API void janet_array_set(JanetArray *array, int32_t index, Janet x);
+JANET_API Janet janet_array_get(JanetArray *array, int32_t index);
 
 /* Buffer functions */
 #define JANET_BUFFER_FLAG_NO_REALLOC 0x10000

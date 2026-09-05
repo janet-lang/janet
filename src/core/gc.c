@@ -217,8 +217,15 @@ recur:
 static void janet_mark_tuple(const Janet *tuple) {
     if (janet_gc_reachable(janet_tuple_head(tuple)))
         return;
-    janet_gc_mark(janet_tuple_head(tuple));
-    janet_mark_many(tuple, janet_tuple_length(tuple));
+    JanetTupleHead *head = janet_tuple_head(tuple);
+    janet_gc_mark((JanetGCObject *) head);
+    if (head->gc.flags & JANET_TUPLE_FLAG_PRIMITIVES) {
+        /* TODO - debug routine to check array for non-primitives. If we find any, assert */
+        return;
+    }
+    if (janet_mark_many(tuple, janet_tuple_length(tuple))) {
+        head->gc.flags |= JANET_TUPLE_FLAG_PRIMITIVES;
+    }
 }
 
 /* Helper to mark function environments */

@@ -121,6 +121,19 @@ void janet_array_setcount(JanetArray *array, int32_t count) {
     array->count = count;
 }
 
+/* Set an element in the array with assert bounds check. */
+void janet_array_set(JanetArray *array, int32_t index, Janet x) {
+    janet_assert(index >= 0 && index < array->count, "bad array index");
+    array->data[index] = x;
+    array_elem_primcheck(array, x);
+}
+
+/* For symmetry with janet_array_set with assert bounds check. Direct indexing is prefered for perf. */
+Janet janet_array_get(JanetArray *array, int32_t index) {
+    janet_assert(index >= 0 && index < array->count, "bad array index");
+    return array->data[index];
+}
+
 /* Push a value to the top of the array */
 void janet_array_push(JanetArray *array, Janet x) {
     if (array->count == INT32_MAX) {
