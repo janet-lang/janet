@@ -2877,41 +2877,48 @@
    :all math/inf})
 
 (defn run-context
-  ```
-  Run a context. This evaluates expressions in an environment,
-  and encapsulates the parsing, compilation, and evaluation.
-  Returns `(in environment :exit-value environment)` when complete.
-  `opts` is a table or struct of options. The options are as follows:
+  ``
+  Run a context. This evaluates expressions in an environment, and
+  encapsulates parsing, compilation, and evaluation. Takes a
+  dictionary `opts` with the following options:
 
-    * `:chunks` -- callback to read into a buffer - default is getline
+  * `:env` -- environment to compile against; default is the current
+    environment.
 
-    * `:on-parse-error` -- callback when parsing fails - default is bad-parse
+  * `:chunks` -- callback to read into a buffer; default is `getline`.
 
-    * `:env` -- the environment to compile against - default is the current env
+  * `:on-status` -- callback when a value is evaluated; default is
+    `debug/stacktrace`.
 
-    * `:source` -- source path for better errors (use keywords for non-paths) - default
-      is `:<anonymous>`
+  * `:on-compile-error` -- callback when compilation fails; default
+    is `bad-compile`.
 
-    * `:on-compile-error` -- callback when compilation fails - default is bad-compile
+  * `:on-compile-warning` -- callback for any linting error; default
+    is `warn-compile`.
 
-    * `:on-compile-warning` -- callback for any linting error - default is warn-compile
+  * `:on-parse-error` -- callback when parsing fails; default is
+    `bad-parse`.
 
-    * `:evaluator` -- callback that executes thunks. Signature is (evaluator thunk source
-      env where)
+  * `:fiber-flags` -- flags to wrap the compilation fiber with;
+    default is `:ia`.
 
-    * `:on-status` -- callback when a value is evaluated - default is debug/stacktrace.
+  * `:evaluator` -- callback that executes thunks; signature is
+    `(evaluator thunk source env where)`.
 
-    * `:fiber-flags` -- what flags to wrap the compilation fiber with. Default is :ia.
+  * `:source` -- source path for better errors (use keywords for
+    non-paths); default is `:<anonymous>`.
 
-    * `:expander` -- an optional function that is called on each top level form before
-      being compiled.
+  * `:parser` -- custom parser that implements the same interface as
+    Janet's built-in parser.
 
-    * `:parser` -- provide a custom parser that implements the same interface as Janet's
-      built-in parser.
+  * `:read` -- function to get the next form; signature is `(read env
+    source)`; overrides all parsing.
 
-    * `:read` -- optional function to get the next form, called like `(read env source)`.
-      Overrides all parsing.
-  ```
+  * `:expander` -- function that is called on each top-level form
+    before being compiled.
+
+  Returns `(in env :exit-value env)` when complete.
+  ``
   [opts]
 
   (def {:env env
