@@ -1129,6 +1129,7 @@ struct JanetFuncDef {
     JanetFuncDef **defs;
     uint32_t *bytecode;
     uint32_t *closure_bitset; /* Bit set indicating which slots can be referenced by closures. */
+    uint32_t *ovm_bytecode;
 
     /* Various debug information */
     JanetSourceMapping *sourcemap;
@@ -1147,6 +1148,7 @@ struct JanetFuncDef {
     int32_t defs_length;
     int32_t symbolmap_length;
     int32_t named_args_count;
+    size_t ovm_bytecode_size;
 };
 
 /* A function environment */

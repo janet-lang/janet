@@ -5291,6 +5291,7 @@
      "src/core/math.c"
      "src/core/net.c"
      "src/core/os.c"
+     "src/core/ovm.c"
      "src/core/parse.c"
      "src/core/peg.c"
      "src/core/pp.c"
