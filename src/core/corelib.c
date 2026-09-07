@@ -494,8 +494,9 @@ JANET_CORE_FN(janet_core_table,
 }
 
 JANET_CORE_FN(janet_core_getproto,
-              "(getproto x)",
-              "Get the prototype of a table or struct. Will return nil if `x` has no prototype.") {
+              "(getproto dict)",
+              "Get the prototype of a dictionary `dict`. Returns `nil` if "
+              "`dict` has no prototype.") {
     janet_fixarity(argc, 1);
     if (janet_checktype(argv[0], JANET_TABLE)) {
         JanetTable *t = janet_unwrap_table(argv[0]);
