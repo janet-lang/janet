@@ -244,6 +244,7 @@ const char *janet_getcstring(const Janet *argv, int32_t n) {
     return janet_getcbytes(argv, n);
 }
 
+#define GOTO_badzeros { janet_panic("bytes contain embedded 0s"); return; }
 const char *janet_getcbytes(const Janet *argv, int32_t n) {
     /* Ensure buffer 0-padded */
     if (janet_checktype(argv[n], JANET_BUFFER)) {
@@ -254,24 +255,22 @@ const char *janet_getcbytes(const Janet *argv, int32_t n) {
             char *new_string = janet_smalloc(b->count + 1);
             memcpy(new_string, b->data, b->count);
             new_string[b->count] = 0;
-            if (strlen(new_string) != (size_t) b->count) goto badzeros;
+            if (strlen(new_string) != (size_t) b->count) GOTO_badzeros;
             return new_string;
         } else {
             /* Ensure trailing 0 */
             janet_buffer_push_u8(b, 0);
             b->count--;
-            if (strlen((char *)b->data) != (size_t) b->count) goto badzeros;
+            if (strlen((char *)b->data) != (size_t) b->count) GOTO_badzeros;
             return (const char *) b->data;
         }
     }
     JanetByteView view = janet_getbytes(argv, n);
     const char *cstr = (const char *)view.bytes;
-    if (strlen(cstr) != (size_t) view.len) goto badzeros;
+    if (strlen(cstr) != (size_t) view.len) GOTO_badzeros;
     return cstr;
-
-badzeros:
-    janet_panic("bytes contain embedded 0s");
 }
+#undef GOTO_badzeros
 
 const char *janet_optcbytes(const Janet *argv, int32_t argc, int32_t n, const char *dflt) {
     if (n >= argc || janet_checktype(argv[n], JANET_NIL)) {
@@ -280,15 +279,16 @@ const char *janet_optcbytes(const Janet *argv, int32_t argc, int32_t n, const ch
     return janet_getcbytes(argv, n);
 }
 
+#define GOTO_bad janet_panicf("bad slot #%d, expected non-negative 32 bit signed integer, got %v", n, x);
 int32_t janet_getnat(const Janet *argv, int32_t n) {
     Janet x = argv[n];
-    if (!janet_checkint(x)) goto bad;
+    if (!janet_checkint(x)) GOTO_bad;
     int32_t ret = janet_unwrap_integer(x);
-    if (ret < 0) goto bad;
+    if (ret < 0) GOTO_bad;
     return ret;
-bad:
-    janet_panicf("bad slot #%d, expected non-negative 32 bit signed integer, got %v", n, x);
 }
+#undef GOTO_bad;
+
 
 JanetAbstract janet_checkabstract(Janet x, const JanetAbstractType *at) {
     if (!janet_checktype(x, JANET_ABSTRACT)) return NULL;
@@ -536,15 +536,17 @@ uint64_t janet_getflags(const Janet *argv, int32_t n, const char *flags) {
         flen = 64;
     }
     for (int32_t j = 0; j < klen; j++) {
+        bool found = false;
         for (int32_t i = 0; i < flen; i++) {
             if (((uint8_t) flags[i]) == keyw[j]) {
                 ret |= 1ULL << i;
-                goto found;
+                found = true;
+                break;
             }
         }
-        janet_panicf("unexpected flag %c, expected one of \"%s\"", (char) keyw[j], flags);
-    found:
-        ;
+        if (!found) {
+            janet_panicf("unexpected flag %c, expected one of \"%s\"", (char) keyw[j], flags);
+        }
     }
     return ret;
 }
