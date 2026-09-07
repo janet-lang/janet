@@ -70,7 +70,7 @@
 
 static JanetString save_typeflow_state(int32_t pc, uint16_t *types) {
     int32_t slotcount = janet_v_count(types);
-    uint8_t *buf = janet_string_begin(4 + sizeof(uint16_t) * 2);
+    uint8_t *buf = janet_string_begin(4 + sizeof(uint16_t) * slotcount);
     ((int32_t *)buf)[0] = pc;
     safe_memcpy(buf + 4, types, sizeof(uint16_t) * (size_t) slotcount);
     return janet_string_end(buf);
@@ -163,7 +163,10 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
     /* Setup initial state */
     /* TODO - allow priming this */
     for (int32_t i = 0; i < def->slotcount; i++) {
-        janet_v_push(types, (uint16_t) 0xFFFF);
+        janet_v_push(types, JANET_TFLAG_NIL);
+    }
+    for (int32_t i = 0; i < def->max_arity && i < def->slotcount; i++) {
+        types[i] = (uint16_t) 0xFFFF;//JANET_TFLAG_NUMBER;//0xFFFF;
     }
     janet_v_push(state_stack, save_typeflow_state(0, types));
     /* While we have more states to visit, traverse them */
@@ -438,9 +441,9 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                     pc++;
                     continue;
                 case JOP_LOAD_INTEGER:
-                    flow[pc].flags |= TYPEFLOW_OUTPUT_D;
-                    types[Id] = JANET_TFLAG_NUMBER;
-                    flow[pc].d_types |= types[Id];
+                    flow[pc].flags |= TYPEFLOW_OUTPUT_A;
+                    types[Ia] = JANET_TFLAG_NUMBER;
+                    flow[pc].a_types |= types[Ia];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
                     pc++;
                     continue;
@@ -692,6 +695,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                     continue;
                 case JOP_MAKE_ARRAY:
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_ARRAY;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -700,6 +704,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                 case JOP_MAKE_BUFFER:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_BUFFER;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -708,6 +713,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                 case JOP_MAKE_STRING:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_STRING;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -716,6 +722,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                 case JOP_MAKE_STRUCT:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_STRUCT;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -724,6 +731,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                 case JOP_MAKE_TABLE:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_TABLE;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -733,6 +741,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                 case JOP_MAKE_BRACKET_TUPLE:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
+                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_TUPLE;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -775,337 +784,79 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
     return flow;
 }
 
-typedef enum {
-    JOVM_CHECK_RESULT_OK,
-    JOVM_CHECK_RESULT_DEOPT
-} JanetOVMCheckResult;
-
-typedef enum {
-    JOVM_RUN_RESULT_RETURNED,
-    JOVM_RUN_RESULT_ERRORED
-} JanetOVMRunResult;
-
-/* Verify input and state before committing to optimization, or do any calculations that can be done
- * without committing to the optimization. */
-typedef enum {
-    JOVM_CHECK_NUMBERS, /* Assert bitset of input slots have numbers */
-    JOVM_CHECK_BOOLS, /* Assert bitset of input slots have booleans */
-    JOVM_CHECK_ARRAYS,
-    JOVM_CHECK_TABLES,
-    JOVM_CHECK_STRINGS,
-    JOVM_CHECK_BUFFERS,
-    JOVM_COMMIT, /* Deoptimization after here is an error instead of a deoptimization */
-} JanetOVMSetupOpcode;
-
-/* Opcodes for committed optimistic interpretation. Invariants that fail here are panics (or potentially janet_assert) */
-typedef enum {
-    JOVM_NOOP,
-    JOVM_LOAD_TRUE,
-    JOVM_LOAD_FALSE,
-    JOVM_LOAD_NIL,
-    JOVM_LOAD_INTEGER,
-    JOVM_LOAD_CONSTANT,
-    JOVM_PUSH,
-    JOVM_PUSH_2,
-    JOVM_PUSH_3,
-    JOVM_CALLK,
-    JOVM_TCALLK,
-    JOVM_CFUN_CALLK,
-    JOVM_CFUN_TCALLK,
-    JOVM_RET,
-    JOVM_RETN,
-    JOVM_RETI, /* Return integer */
-    JOVM_RETK, /* Return true/false/constant? */
-    JOVM_MOVE,
-
-    /* Operations */
-    JOVM_ADD,
-    JOVM_ADD_IMM,
-    JOVM_SUB,
-    JOVM_MUL,
-    JOVM_MUL_IMM,
-
-    /* TODO shifts, bitops, other math ops, etc, inline functions in math/ and core, etc. */
-
-    /* Comparison w/o branching */
-    JOVM_IF_LT,
-    JOVM_IF_LT_IMM,
-    JOVM_IF_LTE,
-    JOVM_IF_LTE_IMM,
-    JOVM_IF_EQ,
-    JOVM_IF_EQ_IMM,
-    JOVM_IF_NEQ,
-    JOVM_IF_NEQ_IMM,
-    JOVM_IF_GT,
-    JOVM_IF_GT_IMM,
-    JOVM_IF_GTE,
-    JOVM_IF_GTE_IMM,
-    JOVM_IF_NIL,
-    JOVM_IF_NNIL,
-    JOVM_IF,
-    JOVM_IF_NOT,
-
-    /* Conditional branching (keep exact order with above comparisons) */
-    JOVM_BLT,
-    JOVM_BLT_IMM,
-    JOVM_BLTE,
-    JOVM_BLTE_IMM,
-    JOVM_BEQ,
-    JOVM_BEQ_IMM,
-    JOVM_BNEQ,
-    JOVM_BNEQ_IMM,
-    JOVM_BGT,
-    JOVM_BGT_IMM,
-    JOVM_BGTE,
-    JOVM_BGTE_IMM,
-    JOVM_BNIL,
-    JOVM_BNNIL,
-    JOVM_BIF,
-    JOVM_BIFN,
-
-    /* Load/store */
-    JOVM_PUT,
-    JOVM_PUTK,
-    JOVM_GET,
-    JOVM_GETK,
-    JOVM_IN,
-    JOVM_INK,
-
-    /* Other */
-    JOVM_JUMP,
-    JOVM_ERROR
-} JanetOVMOpcode;
-
-#if 0
-
-static void janet_ovm_dump(JanetFunction *func) {
-    for (size_t i = 0; i < func->ovm_bytecode_size; i++) {
-        janet_eprintf("%.4u %X\n", i, func->ovm_bytecode[i]); /* TODO - better debug print */
+static Janet debug_mask(uint16_t mask) {
+    if (mask == 0xFFFF) {
+        return janet_ckeywordv("any");
     }
+    /* Maybe a bit more succinct will be clearer */
+    JanetString x = janet_formatc("%T", (int32_t) mask);
+    return janet_wrap_string(x);
 }
 
-/* Virtual registers
- *
- * One instruction word
- * CC | BB | AA | OP
- * DD | DD | DD | OP
- * EE | EE | AA | OP
- */
-/* Function versions of the macros in vm.c for extracting instruction parameters */
-static uint8_t xA(uint32_t instr) { return (uint8_t) ((instr >> 8) & 0xFF); }
-static uint8_t xB(uint32_t instr) { return (uint8_t) ((instr >> 16) & 0xFF); }
-static uint8_t xC(uint32_t instr) { return (uint8_t) (instr >> 24); }
-static uint32_t xD(uint32_t instr) { return instr >> 8; }
-static uint16_t xE(uint32_t instr) { return (uint16_t) (instr >> 16); }
-static int8_t xCS(uint32_t instr) { return (int8_t)(instr >> 24); }
-static int32_t xDS(uint32_t instr) { return (int32_t)(instr >> 8); }
-static int16_t xES(uint32_t instr) { return (int16_t)(instr >> 16); }
-
-/* Build instructions more easily */
-static uint32_t makeir_abc(JanetOVMOpcode opcode, uint8_t a, uint8_t b, uint8_t c) {
-    uint32_t op = (uint32_t) opcode;
-    uint32_t A = (uint32_t) a;
-    uint32_t B = (uint32_t) b;
-    uint32_t C = (uint32_t) c;
-    return op | (A << 8) | (B << 16) | (C << 24);
-}
-static uint32_t makeir_d(JanetOVMOpcode opcode, uint32_t d) {
-    uint32_t op = (uint32_t) opcode;
-    uint32_t D = (uint32_t) d;
-    return op | (D << 8);
-}
-static uint32_t makeir_ae(JanetOVMOpcode opcode, uint8_t a, uint16_t e) {
-    uint32_t op = (uint32_t) opcode;
-    uint32_t A = (uint32_t) a;
-    uint32_t E = (uint32_t) e;
-    return op | (A << 8) | (E << 16);
-}
-
-/* Generate OVM Bytecode if possible. If we return DEOPT, nothing was done, otherwise
- * we generated ovm bytecode. */
-JanetOVMCheckResult janet_ovm_optimize(JanetFunction *func) {
-
-    JanetFuncDef *def = func->def;
-    if (def->environments_length > 0) return JOVM_CHECK_RESULT_DEOPT;
-    if (def->named_args_count > 0) return JOVM_CHECK_RESULT_DEOPT; /* Probably not totally needed but will make it easier to start */
-    if (def->slotcount > 256) return JOVM_CHECK_RESULT_DEOPT; /* Also could be improved later */
-
-    uint32_t *instructions = NULL;
-    const uint32_t *instr_end = def->bytecode + def->bytecode_length;
-
-    /* Keep track of last load for fusion during initial lowering */
-    int32_t last_load_slot = -1;
-    int32_t last_load_payload = 0;
-    int32_t last_load_index = 0;
-    enum {
-        LAST_LOAD_NONE
-        LAST_LOAD_CONSTANT,
-        LAST_LOAD_INTEGER
-    } last_load = LAST_LOAD_NONE;
-
-    /* Keep track of last comparison as well */
-    int32_t last_compare_slot = -1;
-    int32_t last_compare_index = 0;
-
-    /* Initial lowering of Janet abstract machine code to OVM code */
-    for (uint32_t *instr = def->bytecode; instr < instr_end; instr++) {
-        uint32_t opcode = *instr & 0x7F;
-        switch (opcode) {
-            default:
-                /* Clean up and return deopt - TODO - scan once before allocations to avoid allocation in deopt case */
-                janet_v_free(instructions);
-                return JOVM_CHECK_RESULT_DEOPT;
-            case JOP_NOOP:
-                janet_v_push(instructions, JOVM_NOOP);
-                break;
-            case JOP_LOAD_NIL:
-                last_load = LAST_LOAD_NONE;
-                janet_v_push(instructions, JOVM_LOAD_NIL);
-                break;
-            case JOP_LOAD_TRUE:
-                last_load = LAST_LOAD_NONE;
-                janet_v_push(instructions, JOVM_LOAD_TRUE);
-                break;
-            case JOP_LOAD_FALSE:
-                last_load = LAST_LOAD_NONE;
-                janet_v_push(instructions, JOVM_LOAD_FALSE);
-                break;
-            case JOP_LOAD_INTEGER:
-                last_load = LAST_LOAD_INTEGER;
-                last_load_slot = xA(*instr);
-                last_load_index = janet_v_count(instructions);
-                last_load_payload = xES(*instr);
-                janet_v_push(instructions, JOVM_LOAD_INTEGER | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_RETURN:
-                /* TODO - emit JOVM_RETK and JOVM_RETI when possible */
-                janet_v_push(instructions, JOVM_RET | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_RETURN_NIL:
-                last_load = LAST_LOAD_NONE;
-                janet_v_push(instructions, JOVM_RETN);
-                break;
-            case JOP_LOAD_CONSTANT:
-                last_load = LAST_LOAD_CONSTANT;
-                last_load_slot = xA(*instr);
-                last_load_index = janet_v_count(instructions);
-                last_load_payload = xES(*instr);
-                janet_v_push(instructions, JOVM_LOAD_CONSTANT | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_PUSH:
-                janet_v_push(instructions, JOVM_PUSH | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_PUSH_2:
-                janet_v_push(instructions, JOVM_PUSH_2 | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_PUSH_3:
-                janet_v_push(instructions, JOVM_PUSH_3 | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_MOVE_NEAR:
-                /* We currently disallow slots over 256 */
-                janet_v_push(instructions, JOVM_MOVE | (*instr & 0xFFFFFF00U));
-                break;
-            case JOP_MOVE_FAR:
-                {
-                    /* We currently disallow slots over 256, so the order swap is safe */
-                    uint8_t to = (uint8_t) xA(*instr);
-                    uint16_t from = (uint16_t) xE(*instr);
-                    janet_v_push(instructions, makeir_ae(JOVM_MOVE, to, from));
-                }
-                break;
-#define BINOP(NAME, NAME2) \
-            case NAME: \
-                { \
-                    uint8_t a = xA(*instr); \
-                    uint8_t b = xB(*instr); \
-                    uint8_t c = xC(*instr); \
-                    if (a == last_load_slot) last_load = LAST_LOAD_NONE; \
-                    if (a == last_compare_index) last_compare_index = -1; \
-                    janet_v_push(instructions, makeir_abc(NAME2, a, b, c)); \
-                } \
-                break;
-            BINOP(JOP_ADD, JOVM_ADD);
-            BINOP(JOP_ADD_IMMEDIATE, JOVM_ADD_IMM);
-            BINOP(JOP_SUBTRACT, JOVM_SUB);
-            BINOP(JOP_MULTIPLY, JOVM_MUL);
-            BINOP(JOP_MULTIPLY_IMMEDIATE, JOVM_MUL_IMM);
-            case JOP_CALL:
-                {
-                    /* Only support optimization when callee is obviously statically known.
-                     * The current compiler tends to generate code like this so we take advantage. */
-                    if (LAST_LOAD_CONSTANT != last_load) {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                    uint16_t actual_callee_slot = xE(*instr);
-                    if (actual_callee_slot != last_load_slot) {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                    uint8_t ret_reg = xA(*instr);
-                    Janet callee = def->constants[last_load_payload];
-                    if (janet_checktype(callee, JANET_FUNCTION)) {
-                        instructions[last_load_index] = JOVM_NOOP;
-                        janet_v_push(instructions, makeir_ae(JOVM_CALLK, ret_reg, last_load_payload));
-                        break;
-                    } else if (janet_checktype(callee, JANET_CFUNCTION)) {
-                        instructions[last_load_index] = JOVM_NOOP;
-                        janet_v_push(instructions, makeir_ae(JOVM_CFUN_CALLK, ret_reg, last_load_payload));
-                        break;
-                    } else {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                }
-            case JOP_TCALL:
-                {
-                    /* Only support optimization when callee is obviously statically known.
-                     * The current compiler tends to generate code like this so we take advantage. */
-                    if (LAST_LOAD_CONSTANT != last_load) {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                    uint32_t actual_callee_slot = xD(*instr);
-                    if (actual_callee_slot != last_load_slot) {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                    Janet callee = def->constants[last_load_payload];
-                    if (janet_checktype(callee, JANET_FUNCTION)) {
-                        instructions[last_load_index] = JOVM_NOOP;
-                        janet_v_push(instructions, makeir_c(JOVM_TCALLK, last_load_payload));
-                        break;
-                    } else if (janet_checktype(callee, JANET_CFUNCTION)) {
-                        instructions[last_load_index] = JOVM_NOOP;
-                        janet_v_push(instructions, makeir_c(JOVM_CFUN_TCALLK, last_load_payload));
-                        break;
-                    } else {
-                        janet_v_free(instructions);
-                        return JOVM_CHECK_RESULT_DEOPT;
-                    }
-                }
-        }
+/* Convert to Janet values for debugging */
+static Janet debug_typeflow_instruction(JanetTypeflowInstruction i) {
+    char buf[128] = { 0 };
+    Janet tbuf[20];
+    char *c = buf;
+    Janet *t = tbuf;
+    if (i.flags & TYPEFLOW_OUTPUT_A) { *c++ = 'A'; *t++ = debug_mask(i.a_types); }
+    if (i.flags & TYPEFLOW_OUTPUT_B) { *c++ = 'B'; *t++ = debug_mask(i.b_types); }
+    if (i.flags & TYPEFLOW_OUTPUT_C) { *c++ = 'C'; *t++ = debug_mask(i.c_types); }
+    if (i.flags & TYPEFLOW_OUTPUT_D) { *c++ = 'D'; *t++ = debug_mask(i.d_types); }
+    if (i.flags & TYPEFLOW_OUTPUT_E) { *c++ = 'E'; *t++ = debug_mask(i.e_types); }
+    if (i.flags & TYPEFLOW_OUTPUT_STACK) { *c++ = 'S'; }
+    if (c > buf) *c++ = ':';
+    char *cc = c;
+    if (i.flags & TYPEFLOW_INPUT_A) { *c++ = 'a'; *t++ = debug_mask(i.a_types); }
+    if (i.flags & TYPEFLOW_INPUT_B) { *c++ = 'b'; *t++ = debug_mask(i.b_types); }
+    if (i.flags & TYPEFLOW_INPUT_C) { *c++ = 'c'; *t++ = debug_mask(i.c_types); }
+    if (i.flags & TYPEFLOW_INPUT_D) { *c++ = 'd'; *t++ = debug_mask(i.d_types); }
+    if (i.flags & TYPEFLOW_INPUT_E) { *c++ = 'e'; *t++ = debug_mask(i.e_types); }
+    if (i.flags & TYPEFLOW_INPUT_STACK) { *c++ = 's'; }
+    if (c > cc) *c++ = ':';
+    if (i.flags & TYPEFLOW_LIVE_CODE) {
+        *c++ = 'l';
+    } else {
+        /* No other flags, should be clear an unambiguous */
+        *c++ = 'd';
+        *c++ = 'e';
+        *c++ = 'a';
+        *c++ = 'd';
     }
-
-    /* Debug */
-    janet_ovm_dump(func);
-    return JOVM_CHECK_RESULT_DEOPT;
+    if (i.flags & TYPEFLOW_DID_PROCEED) *c++ = 'p';
+    if (i.flags & TYPEFLOW_DID_EXIT) *c++ = 'x';
+    if (i.flags & TYPEFLOW_MAY_SIGNAL) *c++ = '?';
+    Janet *tup = janet_tuple_begin(1 + (t - tbuf));
+    tup[(t - tbuf)] = janet_ckeywordv(buf);
+    for (int i = 0; i < (t - tbuf); i++) {
+        tup[i] = tbuf[i];
+    }
+    return janet_wrap_tuple(janet_tuple_end(tup));
 }
 
-/* Check if we can attempt ovm interpretation */
-JanetOVMCheckResult janet_check_ovm(JanetFiber *fiber, JanetFunction *func) {
-    JanetFuncDef *def = func->def;
-
-    /* TODO - handle setting and removing breakpoints */
-    if (func->gc.flags & JANET_FUNCFLAG_TRACE) return JOVM_CHECK_RESULT_DEOPT;
-    if (!def->ovm_bytecode) return JOVM_CHECK_RESULT_DEOPT;
-
-    return JOVM_CHECK_RESULT_OK;
+/* Test type flow analysis */
+JANET_CORE_FN(cfun_ovm_analyze,
+              "(ovm/analyze func &opt parameters)",
+              "Do some static analysis on a function.") {
+    janet_fixarity(argc, 1);
+    JanetFunction *func = janet_getfunction(argv, 0);
+    uint16_t rettypes = 0;
+    JanetTypeflowInstruction *instrs = janet_bytecode_typeflow(func->def, &rettypes);
+    JanetArray *ret = janet_array(func->def->bytecode_length + 1);
+    for (int32_t i = 0; i < func->def->bytecode_length; i++) {
+        Janet x = debug_typeflow_instruction(instrs[i]);
+        janet_array_push(ret, x);
+    }
+    janet_array_push(ret, debug_mask(rettypes));
+    janet_free(instrs);
+    return janet_wrap_array(ret);
 }
 
-/* Attempt ovm interpretation */
-JanetOVMRunResult janet_run_ovm(JanetFiber *fiber, JanetFunction *func, Janet *output) {
-
+/* Module entry point */
+void janet_lib_ovm(JanetTable *env) {
+    JanetRegExt cfuns[] = {
+        JANET_CORE_REG("ovm/analyze", cfun_ovm_analyze),
+        JANET_REG_END
+    };
+    janet_core_cfuns_ext(env, NULL, cfuns);
 }
-
-#endif

@@ -262,4 +262,6 @@ void janet_lib_filewatch(JanetTable *env);
 void janet_lib_ffi(JanetTable *env);
 #endif
 
+void janet_lib_ovm(JanetTable *env);
+
 #endif
