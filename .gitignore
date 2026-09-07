@@ -13,6 +13,7 @@ janet
 janet-*.tar.gz
 dist
 /tmp
+history.jdn
 
 # jpm lockfile
 lockfile.janet

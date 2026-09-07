@@ -169,8 +169,10 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
         types[i] = (uint16_t) 0xFFFF;//JANET_TFLAG_NUMBER;//0xFFFF;
     }
     janet_v_push(state_stack, save_typeflow_state(0, types));
+    int32_t iterations = 0; /* debug counter */
     /* While we have more states to visit, traverse them */
     while (janet_v_count(state_stack)) {
+        iterations += 1;
         JanetString state = janet_v_last(state_stack);
         janet_v_pop(state_stack);
         load_typeflow_state(state, &pc, types);
@@ -336,10 +338,9 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                     pc++;
                     continue;
                 case JOP_JUMP:
-                    flow[pc].flags |= TYPEFLOW_DID_PROCEED;
                     if (Ids <= 0) {
                         /* backwards jump */
-                        Janet state = janet_wrap_string(save_typeflow_state(pc, types));
+                        Janet state = janet_wrap_string(save_typeflow_state(pc + Ids, types));
                         if (!janet_checktype(janet_table_get(states, state), JANET_STRING)) {
                             janet_table_put(states, state, state);
                             janet_v_push(state_stack, janet_unwrap_string(state));
@@ -347,6 +348,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                         break;
                     } else {
                         /* forward jump */
+                        flow[pc].flags |= TYPEFLOW_DID_PROCEED;
                         pc += Ids;
                     }
                     continue;
@@ -375,6 +377,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                             }
                         }
                         if (not_taken == 0) { /* not_taken == 0 means we always take the branch */
+                            /*flow[pc].flags |= TYPEFLOW_DID_EXIT;*/
                             break;
                         }
                     }
@@ -625,8 +628,9 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                         if (types[Ib] & JANET_TFLAG_FIBER) {
                             aType = 0xFFFF; /* We could narrow this in some cases but probably not worth it */
                         }
-                        if (types[Ib] & (JANET_TFLAG_NIL | JANET_TFLAG_BOOLEAN | JANET_TFLAG_FUNCTION |
-                                    JANET_TFLAG_CFUNCTION | JANET_TFLAG_NUMBER | JANET_TFLAG_POINTER)) {
+                        if (types[Ib] == (types[Ib] & (JANET_TFLAG_NIL | JANET_TFLAG_BOOLEAN | JANET_TFLAG_FUNCTION |
+                                        JANET_TFLAG_CFUNCTION | JANET_TFLAG_NUMBER | JANET_TFLAG_POINTER))) {
+                            /* B is definitely not a container type (types[Ib] is subset of non-container types) */
                             /* nil or error - non container types */
                             definitely_odd = 1;
                         }
@@ -690,6 +694,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                         /* An abstract type _could_ return a weird type for length. */
                         types[Ia] = out_type;
                     }
+                    flow[pc].a_types |= types[Ia];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
                     pc++;
                     continue;
@@ -780,6 +785,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
     }
     janet_v_free(types);
     janet_v_free(state_stack);
+    janet_eprintf("iterations: %d\n", iterations);
     *ret_types = rettype;
     return flow;
 }
@@ -834,9 +840,252 @@ static Janet debug_typeflow_instruction(JanetTypeflowInstruction i) {
     return janet_wrap_tuple(janet_tuple_end(tup));
 }
 
+/* Basic Block extraction
+ *
+ * From arbitrary bytecode, extract basic-blocks for CFG analysis.
+ *
+ * Each basic block includes a start (inclusive) index and end (exclusive)
+ * index, Up to two successor blocks, and up to two predecessor blocks. In the
+ * case where a block has more than these limits, generate empty blocks (start
+ * == end) with multiple predecessors and one successor to funnel the flow into
+ * the final successor block that contains instructions. Use -1 in the pred and
+ * succ arrays to represent no predecessor or successor.
+ *
+ * A basic block has one entrance and one (normal) exit. The last instruction therefor will always
+ * be a branch, jump, or return instruction, except in the degenerate case of an empty block.
+ *
+ * Basic block with no successors where start != 0 is dead code. Instructions not in any
+ * basic block are also dead.
+ *
+ * Conditional errors or resumable instructions (yield) are ignored and considered
+ * as normal operators with side-effects in most cases. Some unconditional errors
+ * are treated as block terminators, while others may be missed by the analysis.
+ *
+ * Used for subsequent optimization, coarse-grained DCE, local value numbering,
+ * lowering to SSA, etc.
+ */
+
+typedef struct {
+    int32_t start;
+    int32_t end;
+    int32_t pred[2]; /* Compute later? Simplifies a lot if we ignore this */
+    int32_t succ[2];
+} JanetBB;
+
+/* Embed bitset into array of uint32_ts */
+static uint32_t bs_mask(int32_t index) { return ((uint32_t)1) << (index & 0x1F); }
+static uint32_t bs_indx(int32_t index) { return index >> 5; }
+
+/* Find a successor given a branch target */
+static int32_t janet_find_bb_with_entry(JanetBB *bbs, int32_t n, int32_t entry_idx) {
+    for (int32_t i = 0; i < n; i++) {
+        if (bbs[i].start == entry_idx) {
+            return i;
+        }
+    }
+    janet_assert(0, "did not find block");
+}
+
+/* Add a successor, handling case when the successor already has two predecessors.
+ * If it does, add a new degenerate successor to allow another logical predecessor. */
+static JanetBB *janet_bb_add_succ(JanetBB *bbs, int32_t index, int32_t succ) {
+    /* Check if succ already has two preds */
+    if (bbs[succ].pred[0] >= 0 && bbs[succ].pred[1] >= 0) {
+        /* Degenerate case: add a new empty basic block */
+        int32_t old_succpred = bbs[succ].pred[1];
+        int32_t new_index = janet_v_count(bbs);
+        JanetBB empty;
+        empty.start = empty.end = -1;
+        empty.pred[0] = old_succpred;
+        empty.pred[1] = -1;
+        empty.succ[0] = succ;
+        empty.succ[1] = -1;
+        /* Rewrite old */
+        if (bbs[old_succpred].succ[0] == succ) {
+            bbs[old_succpred].succ[0] = new_index;
+        } else {
+            bbs[old_succpred].succ[1] = new_index;
+        }
+        janet_v_push(bbs, empty);
+        succ = new_index;
+    }
+    /* We know succ has at most 1 existing pred at this point */
+    if (bbs[index].succ[0] == -1) {
+        bbs[index].succ[0] = succ;
+    } else if (bbs[index].succ[1] == -1) {
+        bbs[index].succ[1] = succ;
+    } else {
+        janet_assert(0, "index has too many successors");
+    }
+    if (bbs[succ].pred[0] == -1) {
+        bbs[succ].pred[0] = index;
+    } else if (bbs[succ].pred[1] == -1) {
+        bbs[succ].pred[1] = index;
+    } else {
+        janet_assert(0, "succ has too many predecessors");
+    }
+    return bbs; /* May have been reallocated */
+}
+
+JanetBB *janet_basic_blocks(JanetFuncDef *def) {
+    uint32_t *bytecode = def->bytecode;
+    int32_t blen = def->bytecode_length;
+
+    /* Mark branch target locs with bitset (leaders) Add a fake leader at the end. */
+    size_t bitset_len = ((size_t) blen + 64) / 32;
+    uint32_t *bitset = janet_malloc(bitset_len * sizeof(uint32_t));
+    if (NULL == bitset) {
+        JANET_OUT_OF_MEMORY;
+    }
+    memset(bitset, 0, bitset_len * sizeof(uint32_t));
+    bitset[0] = 1; /* Mark first bit */
+    int did_jump = 0;
+    for (int32_t i = 0; i <= blen; i++) {
+        int32_t target = -1;
+        if (did_jump) bitset[bs_indx(i)] |= bs_mask(i);
+        if (i == blen) break;
+        switch (bytecode[i] & 0x7F) {
+            default:
+                did_jump = 0;
+                continue;
+            case JOP_RETURN:
+            case JOP_RETURN_NIL:
+            case JOP_ERROR:
+            case JOP_TAILCALL:
+                did_jump = 1;
+                continue;
+            case JOP_JUMP:
+                target = i + (((int32_t)(bytecode[i])) >> 8);
+                break;
+            case JOP_JUMP_IF:
+            case JOP_JUMP_IF_NOT:
+            case JOP_JUMP_IF_NIL:
+            case JOP_JUMP_IF_NOT_NIL:
+                target = i + (((int32_t)(bytecode[i])) >> 16);
+                break;
+        }
+        bitset[bs_indx(target)] |= bs_mask(target);
+        did_jump = 1;
+    }
+
+    /* Initially allocate basic blocks */
+    JanetBB *bbs = NULL;
+    int32_t start = 0;
+    for (int32_t i = 0; i <= blen; i++) {
+        int is_leader = (bitset[bs_indx(i)] & bs_mask(i));
+        if (!is_leader) continue;
+        if (i > 0) {
+            /* End current BB */
+            JanetBB bb;
+            bb.start = start;
+            bb.end = i;
+            bb.pred[0] = bb.pred[1] = bb.succ[0] = bb.succ[1] = -1;
+            janet_v_push(bbs, bb);
+        }
+        start = i;
+    }
+
+    /* Set successors and predecessors */
+    int32_t origcount = janet_v_count(bbs);
+    for (int32_t i = 0; i < origcount; i++) {
+        janet_assert(bbs[i].start < bbs[i].end, "no degenerate basic blocks");
+        int32_t endi = bbs[i].end;
+        uint32_t lasti = bytecode[endi - 1];
+        int32_t target = -1;
+        switch (lasti & 0x7F) {
+            default:
+                /* 1 successor is next instruction */
+                bbs = janet_bb_add_succ(bbs, i, janet_find_bb_with_entry(bbs, origcount, endi));
+                break;
+            case JOP_JUMP:
+                /* 1 successor */
+                target = endi - 1 + (((int32_t)(lasti)) >> 8);
+                bbs = janet_bb_add_succ(bbs, i, janet_find_bb_with_entry(bbs, origcount, target));
+                break;
+            case JOP_JUMP_IF:
+            case JOP_JUMP_IF_NOT:
+            case JOP_JUMP_IF_NIL:
+            case JOP_JUMP_IF_NOT_NIL:
+                /* 2 successors */
+                target = endi - 1 + (((int32_t)(lasti)) >> 16);
+                if (endi == target) {
+                    /* Degenerate branch */
+                    bbs = janet_bb_add_succ(bbs, i, janet_find_bb_with_entry(bbs, origcount, target));
+                } else {
+                    bbs = janet_bb_add_succ(bbs, i, janet_find_bb_with_entry(bbs, origcount, endi));
+                    bbs = janet_bb_add_succ(bbs, i, janet_find_bb_with_entry(bbs, origcount, target));
+                }
+                break;
+            case JOP_RETURN:
+            case JOP_RETURN_NIL:
+            case JOP_ERROR:
+            case JOP_TAILCALL:
+                /* No successors */
+                break;
+        }
+    }
+
+    janet_free(bitset);
+    /* TODO - janet_v_flatten */
+    return bbs;
+}
+
+/* Create a debug structure for basic blocks */
+static Janet debug_basic_blocks(JanetBB *bbs) {
+    Janet startkw = janet_ckeywordv("start");
+    Janet endkw = janet_ckeywordv("end");
+    Janet preds = janet_ckeywordv("preds");
+    Janet succs = janet_ckeywordv("succs");
+    JanetArray *array = janet_array(janet_v_count(bbs));
+    for (int32_t i = 0; i < janet_v_count(bbs); i++) {
+        JanetBB *bb = bbs + i;
+        JanetKV *st = janet_struct_begin(4);
+        janet_struct_put(st, startkw, janet_wrap_number(bb->start));
+        janet_struct_put(st, endkw, janet_wrap_number(bb->end));
+        JanetArray *succarray = janet_array(2);
+        JanetArray *predarray = janet_array(2);
+        if (bb->succ[0] != -1) janet_array_push(succarray, janet_wrap_number(bb->succ[0]));
+        if (bb->succ[1] != -1) janet_array_push(succarray, janet_wrap_number(bb->succ[1]));
+        if (bb->pred[0] != -1) janet_array_push(predarray, janet_wrap_number(bb->pred[0]));
+        if (bb->pred[1] != -1) janet_array_push(predarray, janet_wrap_number(bb->pred[1]));
+        janet_struct_put(st, preds, janet_wrap_array(predarray));
+        janet_struct_put(st, succs, janet_wrap_array(succarray));
+        janet_array_push(array, janet_wrap_struct(janet_struct_end(st)));
+    }
+    return janet_wrap_array(array);
+}
+
+/* Idea: optimization pipeline
+ *
+ * - basic-blocks 1
+ * - coarse DCE 1
+ * - local value numbering
+ * - coarse DCE 2
+ * - ? loop analysis
+ * - typeflow 1
+ * - fine dead code elimination
+ * - to bytecode
+ *   - strength reduce
+ *   - jump thread
+ *   - remove noops
+ * - to machine code
+ *   - ssa
+ *   - global value numbering
+ *   - dead code elimination 3
+ *   - typeflow 2
+ *   - strength reduce
+ *   - jump thread
+ *   - peephole
+ *   - test/branch fusion (maybe in isel?)
+ *   - remove noops (compaction)
+ *   - isel
+ */
+
+/* C Functions */
+
 /* Test type flow analysis */
-JANET_CORE_FN(cfun_ovm_analyze,
-              "(ovm/analyze func &opt parameters)",
+JANET_CORE_FN(cfun_ovm_typeflow,
+              "(ovm/type-flow func)",
               "Do some static analysis on a function.") {
     janet_fixarity(argc, 1);
     JanetFunction *func = janet_getfunction(argv, 0);
@@ -852,10 +1101,23 @@ JANET_CORE_FN(cfun_ovm_analyze,
     return janet_wrap_array(ret);
 }
 
+/* Test type flow analysis */
+JANET_CORE_FN(cfun_ovm_basic_blocks,
+              "(ovm/basic-blocks func)",
+              "Do some static analysis on a function.") {
+    janet_fixarity(argc, 1);
+    JanetFunction *func = janet_getfunction(argv, 0);
+    JanetBB *bbs = janet_basic_blocks(func->def);
+    Janet debug_rep = debug_basic_blocks(bbs);
+    janet_v_free(bbs);
+    return debug_rep;
+}
+
 /* Module entry point */
 void janet_lib_ovm(JanetTable *env) {
     JanetRegExt cfuns[] = {
-        JANET_CORE_REG("ovm/analyze", cfun_ovm_analyze),
+        JANET_CORE_REG("ovm/type-flow", cfun_ovm_typeflow),
+        JANET_CORE_REG("ovm/basic-blocks", cfun_ovm_basic_blocks),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);
