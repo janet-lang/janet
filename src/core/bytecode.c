@@ -301,7 +301,7 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                     janetc_regalloc_touch(&ra, EE);
                     break;
 
-                /* Read B, C */
+                /* Write A, Read B, C */
                 case JOP_PROPAGATE:
                 /* Write A, Read B and C */
                 case JOP_BAND:
@@ -553,6 +553,38 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     def->symbolmap_length = 0;
     def->named_args_count = 0;
     return def;
+}
+
+/* Create a duplicate that can be freely modified as no internal state
+ * has a reference to it. */
+JanetFuncDef *janet_funcdef_duplicate(JanetFuncDef *original) {
+    JanetFuncDef *def = janet_gcalloc(JANET_MEMORY_FUNCDEF, sizeof(JanetFuncDef));
+    *def = *original;
+    def->environments = array_duplicate(original->environments, sizeof(int32_t), def->environments_length);
+    def->constants = array_duplicate(original->constants, sizeof(Janet), def->constants_length);
+    def->bytecode = array_duplicate(original->bytecode, sizeof(uint32_t), def->bytecode_length);
+    size_t bitset_len = (def->slotcount + 31) / 32;
+    def->closure_bitset = array_duplicate(original->closure_bitset, sizeof(uint32_t), bitset_len);
+    def->symbolmap = array_duplicate(original->symbolmap, sizeof(JanetSymbolMap), def->symbolmap_length);
+    if (original->sourcemap) {
+        def->sourcemap = array_duplicate(original->sourcemap, sizeof(JanetSourceMapping), def->bytecode_length);
+    }
+    return def;
+}
+
+/* Duplicate a function (and optionally it's def) for modifications */
+JanetFunction *janet_func_duplicate(JanetFunction *func, int duplicate_def) {
+    JanetFuncDef *def = func->def;
+    if (duplicate_def) {
+        def = janet_funcdef_duplicate(def);
+    }
+    JanetFunction *newfunc = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + def->environments_length * sizeof(JanetFuncEnv *));
+    newfunc->def = def;
+
+    for (int32_t i = 0; i < def->environments_length; i++) {
+        newfunc->envs[i] = func->envs[i];
+    }
+    return newfunc;
 }
 
 /* Create a simple closure from a funcdef */

@@ -261,9 +261,6 @@ JanetTable *janet_table_clone(JanetTable *table) {
     newTable->deleted = table->deleted;
     newTable->proto = table->proto;
     newTable->data = array_allocate(sizeof(JanetKV), newTable->capacity);
-    if (NULL == newTable->data) {
-        JANET_OUT_OF_MEMORY;
-    }
     memcpy(newTable->data, table->data, (size_t) table->capacity * sizeof(JanetKV));
     return newTable;
 }

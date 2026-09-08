@@ -56,9 +56,6 @@ static JanetFiber *fiber_alloc(int32_t capacity) {
     }
     fiber->capacity = capacity;
     data = array_allocate(sizeof(Janet), capacity);
-    if (NULL == data) {
-        JANET_OUT_OF_MEMORY;
-    }
     janet_vm.next_collection += sizeof(Janet) * capacity;
     fiber->data = data;
     return fiber;
@@ -103,9 +100,6 @@ static void janet_fiber_refresh_memory(JanetFiber *fiber) {
     int32_t n = fiber->capacity;
     if (n) {
         Janet *newData = array_allocate(sizeof(Janet), n);
-        if (NULL == newData) {
-            JANET_OUT_OF_MEMORY;
-        }
         memcpy(newData, fiber->data, n * sizeof(Janet));
         janet_free(fiber->data);
         fiber->data = newData;

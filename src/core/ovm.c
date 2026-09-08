@@ -29,21 +29,11 @@
 #include "symcache.h"
 #include "util.h"
 #include "vector.h"
+#include "compile.h"
 #endif
 
-/* The OVM (optimistic virtual machine) is an internal interpreter for an
- * overlapping set of the base VM bytecode (in vm.c), focusing on the fast
- * path. At any point, instructions the ovm may deoptimize and fall back to the
- * default vm.c. The focus for performance will be tight loops, numerical code,
- * and hints for JIT compilation.
- *
- * The OVM bytecode is an optimized version of the interpreter bytecode, so
- * will not have a 1-1 instruction correspondence. For deopt, we will need to
- * revert PC back to where it would be in original bytecode as well as preserve
- * slot mappings. We can make some trade-offs here to allow for better
- * optimization, where VM bytecode behavior is not perfectly preserved in the
- * OVM in the case of errors. This also let's us optimize the interpreter while
- * preserving the bytecode format.
+/* The OVM (optimistic virtual machine) is a module to help optimize and compile
+ * bytecode. It is a collection tools rather than a single-purpose JIT or AOT compiler.
  *
  * Intended optimization features:
  *
@@ -59,8 +49,33 @@
  * - Strength reduction
  * - Limited LICM
  * - Inlining
- * - Disable software breakpointing
  */
+
+/* Utility functions */
+
+/* Embed bitset into array of uint32_ts */
+static uint32_t bs_mask(int32_t index) {
+    return ((uint32_t)1) << (index & 0x1F);
+}
+static uint32_t bs_indx(int32_t index) {
+    return index >> 5;
+}
+static uint32_t *make_bitset(size_t nbits) {
+    size_t bitset_len = (nbits + 31) / 32;
+    if (bitset_len == 0) return NULL;
+    uint32_t *bitset = janet_malloc(bitset_len * sizeof(uint32_t));
+    if (NULL == bitset) {
+        JANET_OUT_OF_MEMORY;
+    }
+    memset(bitset, 0, bitset_len * sizeof(uint32_t));
+    return bitset;
+}
+static void clear_bitset(uint32_t *bitset, size_t nbits) {
+    size_t bitset_len = (nbits + 31) / 32;
+    if (bitset_len) {
+        memset(bitset, 0, bitset_len * sizeof(uint32_t));
+    }
+}
 
 /* Type-checking and static analysis */
 
@@ -122,6 +137,8 @@ typedef struct {
 /* Generate conservative static typing and flow analysis with the primitive types. Turns
  * the untyped VM bytecode into typed bytecode with annotations.
  *
+ * For compiler nerds, this does lattice analysis using bitsets for primitive types.
+ *
  * We produce auxiliary data for each bytecode instruction:
  *
  * 1. 16-wide bitset of possible primitive types for parameter A (or D for D instructions)
@@ -149,7 +166,8 @@ typedef struct {
  * not emitted to the target.
  *
  * Return a newly-allocated array of JanetTypeflowInstruction that contains
- * def->bytecode_length elements. The caller must free the returned pointer with janet_free. */
+ * def->bytecode_length elements. The caller must free the returned pointer with janet_free.
+ */
 
 JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *ret_types) {
     JanetTable *states = janet_table(0);
@@ -581,26 +599,25 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
                     pc++;
                     continue;
-                case JOP_SIGNAL:
-                    {
-                        if (Ic <= 4) {
-                            /* terminal */
-                            flow[pc].flags |= TYPEFLOW_INPUT_B;
-                            flow[pc].b_types |= types[Ib];
-                            flow[pc].flags |= TYPEFLOW_DID_EXIT;
-                            if (Ic == 0) {
-                                rettype |= types[Ib];
-                            }
-                            break;
-                        }
-                        /* non terminal */
-                        flow[pc].flags |= TYPEFLOW_OUTPUT_A | TYPEFLOW_INPUT_B;
-                        flow[pc].flags |= TYPEFLOW_MAY_SIGNAL | TYPEFLOW_DID_PROCEED;
+                case JOP_SIGNAL: {
+                    if (Ic <= 4) {
+                        /* terminal */
+                        flow[pc].flags |= TYPEFLOW_INPUT_B;
                         flow[pc].b_types |= types[Ib];
-                        flow[pc].a_types |= 0xFFFF; /* Maybe can do better? The yield could be anything. */
+                        flow[pc].flags |= TYPEFLOW_DID_EXIT;
+                        if (Ic == 0) {
+                            rettype |= types[Ib];
+                        }
+                        break;
                     }
-                    pc++;
-                    continue;
+                    /* non terminal */
+                    flow[pc].flags |= TYPEFLOW_OUTPUT_A | TYPEFLOW_INPUT_B;
+                    flow[pc].flags |= TYPEFLOW_MAY_SIGNAL | TYPEFLOW_DID_PROCEED;
+                    flow[pc].b_types |= types[Ib];
+                    flow[pc].a_types |= 0xFFFF; /* Maybe can do better? The yield could be anything. */
+                }
+                pc++;
+                continue;
                 case JOP_PROPAGATE:
                     flow[pc].flags |= TYPEFLOW_OUTPUT_A | TYPEFLOW_INPUT_B | TYPEFLOW_INPUT_C;
                     flow[pc].flags |= TYPEFLOW_MAY_SIGNAL | TYPEFLOW_DID_PROCEED;
@@ -629,7 +646,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
                             aType = 0xFFFF; /* We could narrow this in some cases but probably not worth it */
                         }
                         if (types[Ib] == (types[Ib] & (JANET_TFLAG_NIL | JANET_TFLAG_BOOLEAN | JANET_TFLAG_FUNCTION |
-                                        JANET_TFLAG_CFUNCTION | JANET_TFLAG_NUMBER | JANET_TFLAG_POINTER))) {
+                                                       JANET_TFLAG_CFUNCTION | JANET_TFLAG_NUMBER | JANET_TFLAG_POINTER))) {
                             /* B is definitely not a container type (types[Ib] is subset of non-container types) */
                             /* nil or error - non container types */
                             definitely_odd = 1;
@@ -785,6 +802,7 @@ JanetTypeflowInstruction *janet_bytecode_typeflow(JanetFuncDef *def, uint16_t *r
     }
     janet_v_free(types);
     janet_v_free(state_stack);
+    /* TODO - limit fixpoint for compile time? */
     janet_eprintf("iterations: %d\n", iterations);
     *ret_types = rettype;
     return flow;
@@ -805,20 +823,54 @@ static Janet debug_typeflow_instruction(JanetTypeflowInstruction i) {
     Janet tbuf[20];
     char *c = buf;
     Janet *t = tbuf;
-    if (i.flags & TYPEFLOW_OUTPUT_A) { *c++ = 'A'; *t++ = debug_mask(i.a_types); }
-    if (i.flags & TYPEFLOW_OUTPUT_B) { *c++ = 'B'; *t++ = debug_mask(i.b_types); }
-    if (i.flags & TYPEFLOW_OUTPUT_C) { *c++ = 'C'; *t++ = debug_mask(i.c_types); }
-    if (i.flags & TYPEFLOW_OUTPUT_D) { *c++ = 'D'; *t++ = debug_mask(i.d_types); }
-    if (i.flags & TYPEFLOW_OUTPUT_E) { *c++ = 'E'; *t++ = debug_mask(i.e_types); }
-    if (i.flags & TYPEFLOW_OUTPUT_STACK) { *c++ = 'S'; }
+    if (i.flags & TYPEFLOW_OUTPUT_A) {
+        *c++ = 'A';
+        *t++ = debug_mask(i.a_types);
+    }
+    if (i.flags & TYPEFLOW_OUTPUT_B) {
+        *c++ = 'B';
+        *t++ = debug_mask(i.b_types);
+    }
+    if (i.flags & TYPEFLOW_OUTPUT_C) {
+        *c++ = 'C';
+        *t++ = debug_mask(i.c_types);
+    }
+    if (i.flags & TYPEFLOW_OUTPUT_D) {
+        *c++ = 'D';
+        *t++ = debug_mask(i.d_types);
+    }
+    if (i.flags & TYPEFLOW_OUTPUT_E) {
+        *c++ = 'E';
+        *t++ = debug_mask(i.e_types);
+    }
+    if (i.flags & TYPEFLOW_OUTPUT_STACK) {
+        *c++ = 'S';
+    }
     if (c > buf) *c++ = ':';
     char *cc = c;
-    if (i.flags & TYPEFLOW_INPUT_A) { *c++ = 'a'; *t++ = debug_mask(i.a_types); }
-    if (i.flags & TYPEFLOW_INPUT_B) { *c++ = 'b'; *t++ = debug_mask(i.b_types); }
-    if (i.flags & TYPEFLOW_INPUT_C) { *c++ = 'c'; *t++ = debug_mask(i.c_types); }
-    if (i.flags & TYPEFLOW_INPUT_D) { *c++ = 'd'; *t++ = debug_mask(i.d_types); }
-    if (i.flags & TYPEFLOW_INPUT_E) { *c++ = 'e'; *t++ = debug_mask(i.e_types); }
-    if (i.flags & TYPEFLOW_INPUT_STACK) { *c++ = 's'; }
+    if (i.flags & TYPEFLOW_INPUT_A) {
+        *c++ = 'a';
+        *t++ = debug_mask(i.a_types);
+    }
+    if (i.flags & TYPEFLOW_INPUT_B) {
+        *c++ = 'b';
+        *t++ = debug_mask(i.b_types);
+    }
+    if (i.flags & TYPEFLOW_INPUT_C) {
+        *c++ = 'c';
+        *t++ = debug_mask(i.c_types);
+    }
+    if (i.flags & TYPEFLOW_INPUT_D) {
+        *c++ = 'd';
+        *t++ = debug_mask(i.d_types);
+    }
+    if (i.flags & TYPEFLOW_INPUT_E) {
+        *c++ = 'e';
+        *t++ = debug_mask(i.e_types);
+    }
+    if (i.flags & TYPEFLOW_INPUT_STACK) {
+        *c++ = 's';
+    }
     if (c > cc) *c++ = ':';
     if (i.flags & TYPEFLOW_LIVE_CODE) {
         *c++ = 'l';
@@ -868,13 +920,9 @@ static Janet debug_typeflow_instruction(JanetTypeflowInstruction i) {
 typedef struct {
     int32_t start;
     int32_t end;
-    int32_t pred[2]; /* Compute later? Simplifies a lot if we ignore this */
+    int32_t pred[2];
     int32_t succ[2];
 } JanetBB;
-
-/* Embed bitset into array of uint32_ts */
-static uint32_t bs_mask(int32_t index) { return ((uint32_t)1) << (index & 0x1F); }
-static uint32_t bs_indx(int32_t index) { return index >> 5; }
 
 /* Find a successor given a branch target */
 static int32_t janet_find_bb_with_entry(JanetBB *bbs, int32_t n, int32_t entry_idx) {
@@ -932,13 +980,8 @@ JanetBB *janet_basic_blocks(JanetFuncDef *def) {
     int32_t blen = def->bytecode_length;
 
     /* Mark branch target locs with bitset (leaders) Add a fake leader at the end. */
-    size_t bitset_len = ((size_t) blen + 64) / 32;
-    uint32_t *bitset = janet_malloc(bitset_len * sizeof(uint32_t));
-    if (NULL == bitset) {
-        JANET_OUT_OF_MEMORY;
-    }
-    memset(bitset, 0, bitset_len * sizeof(uint32_t));
-    bitset[0] = 1; /* Mark first bit */
+    uint32_t *bitset = make_bitset(blen + 1);
+    bitset[0] = 1; /* Mark first bit as instruction 0 is a leader */
     int did_jump = 0;
     for (int32_t i = 0; i <= blen; i++) {
         int32_t target = -1;
@@ -1055,18 +1098,462 @@ static Janet debug_basic_blocks(JanetBB *bbs) {
     return janet_wrap_array(array);
 }
 
+/* Local value numbering
+ *
+ * Mutate local code such that blocks only use the first
+ * available instance of a value.
+ *
+ * Will not directly try to eliminate any dead code or unused variables, but
+ * this should help make such eliminations easier.
+ *
+ * Example:
+ *
+ * (ldi 0 10)
+ * (ldi 1 20)
+ * (add 2 0 1)
+ * (ldi 3 10) # slot 3 is the same as slot 0
+ * (add 4 3 2)
+ *
+ * Goal conversion:
+ *
+ * (ldi 0 10)
+ * (ldi 1 20)
+ * (add 2 0 1)
+ * (ldi 3 10) # or (movn 3 0)
+ * (add 4 1 2) # use slot 0 instead slot 3
+ *
+ */
+
+typedef struct {
+    int32_t slot;
+    int32_t num;
+} NumberedSlot;
+
+typedef struct {
+    Janet value;
+    int32_t num;
+} NumberedValue;
+
+/* Once we are making the replacement, generate
+ * a load that is more suitable for
+ * setting the target slot.
+ *
+ * Also consider adding support for new constants by appending
+ * to the constant buffer. This would allow us to fully generalize to
+ * constant propagation.
+ *
+ * TODO - some duplication of janetc_loadconst in emit.c */
+static uint32_t lvn_bytecode_loadconst(JanetFuncDef *def, Janet k, int32_t reg) {
+    switch (janet_type(k)) {
+        case JANET_NIL:
+            return ((uint32_t) reg << 8) | JOP_LOAD_NIL;
+        case JANET_BOOLEAN:
+            return ((uint32_t) reg << 8) |
+                   (janet_unwrap_boolean(k) ? JOP_LOAD_TRUE : JOP_LOAD_FALSE);
+        case JANET_NUMBER: {
+            double dval = janet_unwrap_number(k);
+            if (dval < INT16_MIN || dval > INT16_MAX)
+                goto do_constant;
+            int32_t i = (int32_t) dval;
+            if (dval != i)
+                goto do_constant;
+            uint32_t iu = (uint32_t)i;
+            return
+                ((uint32_t) iu << 16) |
+                ((uint32_t) reg << 8) |
+                JOP_LOAD_INTEGER;
+            break;
+        }
+        default:
+        do_constant: {
+                int32_t cindex = def->constants_length;
+                for (int32_t i = 0; i < def->constants_length; i++) {
+                    if (janet_equals(def->constants[i], k)) {
+                        cindex = i;
+                        break;
+                    }
+                }
+                janet_assert(cindex < def->constants_length, "adding new constants NYI");
+                return
+                    ((uint32_t) cindex << 16) |
+                    ((uint32_t) reg << 8) |
+                    JOP_LOAD_CONSTANT;
+                break;
+            }
+    }
+}
+
+static uint32_t lvn_bytecode_domove(uint32_t dest, uint32_t src) {
+    janet_assert((dest < 256) || (src < 256), "target too large");
+    if (dest < 256) {
+        return JOP_MOVE_NEAR | ((dest & 0xFF) << 8) | (src << 16);
+    } else {
+        return JOP_MOVE_FAR | ((src & 0xFF) << 8) | (dest << 16);
+    }
+}
+
+/* Find needle with the lowest number */
+static int32_t find_slot_for_constant(int32_t n, const NumberedValue *constants, Janet needle) {
+    int32_t best = -1;
+    int32_t lowest = INT32_MAX;
+    for (int32_t i = 0; i < n; i++) {
+        if (janet_equals(needle, constants[i].value)) {
+            if (lowest > constants[i].num) {
+                best = i;
+                lowest = constants[i].num;
+            }
+        }
+    }
+    return best;
+}
+
+/* Value numbering (local for now) */
+static void janet_ovm_value_numbering(JanetFuncDef *def, JanetBB bb) {
+
+    if (bb.start >= bb.end) return;
+
+    /* Initial data structures */
+    /* Replacements: map slot -> slot. replacements[i] is the earliest (best) slot to use as an operand for slot i. If num=-1, don't replace.
+     * Constants: map -> value. constants[i] is an optional constant known to be bound to slot i. */
+    int32_t num = 0;
+    NumberedSlot *replacements = janet_malloc(sizeof(NumberedSlot) * def->slotcount);
+    if (replacements == NULL) {
+        JANET_OUT_OF_MEMORY;
+    }
+    NumberedValue *constants = janet_malloc(sizeof(NumberedValue) * def->slotcount);
+    if (constants == NULL) {
+        JANET_OUT_OF_MEMORY;
+    }
+    for (int32_t i = 0; i < def->slotcount; i++) {
+        replacements[i].slot = -1;
+        replacements[i].num = -1;
+        constants[i].value = janet_wrap_nil();
+        constants[i].num = -1;
+    }
+
+    for (int32_t i = bb.start; i < bb.end; i++) {
+        uint32_t I = def->bytecode[i];
+        uint32_t Iop = I & 0x7F;
+        uint32_t Ia = (I >> 8) & 0xFF;
+        uint32_t Ib = (I >> 16) & 0xFF;
+        uint32_t Ic = (I >> 24) & 0xFF;
+        uint32_t Id = (I >> 8);
+        uint32_t Ie = (I >> 16);
+        int32_t Ies = ((int32_t) I >> 16);
+        switch (Iop) {
+            default:
+                continue;
+            case JOP_PUSH:
+            case JOP_PUSH_2:
+            case JOP_PUSH_3: {
+                int32_t a = (Iop == JOP_PUSH) ? Id : Ia;
+                int32_t b = (Iop == JOP_PUSH) ? -1 : (Iop == JOP_PUSH_2) ? Ie : Ib;
+                int32_t c = (Iop == JOP_PUSH_3) ? Ic : -1;
+                NumberedSlot arep = replacements[a];
+                if (arep.num >= 0) {
+                    def->bytecode[i] = def->bytecode[i] & 0xFFFF00FFU;
+                    def->bytecode[i] = def->bytecode[i] | (((uint32_t)arep.slot & 0xFF) << 8);
+                }
+                if (b >= 0) {
+                    NumberedSlot brep = replacements[b];
+                    if (brep.num >= 0) {
+                        def->bytecode[i] = def->bytecode[i] & 0xFF00FFFFU;
+                        def->bytecode[i] = def->bytecode[i] | (((uint32_t)brep.slot & 0xFF) << 16);
+                    }
+                }
+                if (c >= 0) {
+                    NumberedSlot crep = replacements[c];
+                    if (crep.num >= 0) {
+                        def->bytecode[i] = def->bytecode[i] & 0x00FFFFFFU;
+                        def->bytecode[i] = def->bytecode[i] | (((uint32_t)crep.slot) << 24);
+                    }
+                }
+            }
+            continue;
+            case JOP_MOVE_NEAR:
+            case JOP_MOVE_FAR: {
+                int32_t src = (Iop == JOP_MOVE_NEAR) ? Ie : Ia;
+                int32_t dest = (Iop == JOP_MOVE_NEAR) ? Ia : Ie;
+                if (src == dest) {
+                    def->bytecode[i] = JOP_NOOP;
+                    continue;
+                }
+                if (constants[src].num >= 0) { /* Propagate constants */
+                    constants[dest].value = constants[src].value;
+                    constants[dest].num = num++;
+                }
+                NumberedSlot src_rep = replacements[src];
+                if (src_rep.num >= 0) src = src_rep.slot;
+                if (constants[src].num >= 0) {
+                    def->bytecode[i] = lvn_bytecode_loadconst(def, constants[src].value, dest);
+                }
+                if (constants[src].num >= 0) { /* Propagate constants */
+                    constants[dest].value = constants[src].value;
+                    constants[dest].num = num++;
+                }
+                if (src == dest) {
+                    def->bytecode[i] = JOP_NOOP;
+                    continue;
+                }
+            }
+            continue;
+            case JOP_LOAD_NIL:
+            case JOP_LOAD_TRUE:
+            case JOP_LOAD_FALSE:
+            case JOP_LOAD_INTEGER: {
+                Janet x =
+                    (Iop == JOP_LOAD_NIL) ? janet_wrap_nil() :
+                    (Iop == JOP_LOAD_TRUE) ? janet_wrap_true() :
+                    (Iop == JOP_LOAD_FALSE) ? janet_wrap_false() :
+                    janet_wrap_integer(Ies);
+                uint32_t dest = (Iop == JOP_LOAD_INTEGER) ? Ia : Id;
+                constants[dest].num = num++;
+                constants[dest].value = x;
+                replacements[dest].num = num++;
+                replacements[dest].slot = find_slot_for_constant(def->slotcount, constants, x);
+            }
+            continue;
+        }
+    }
+
+    janet_free(replacements);
+    janet_free(constants);
+}
+
+/* Traverse backwards and remove writes that are never read.
+ * Algorithm:
+ * 1. Keep a bitset for all slots
+ * 2. For every instruction, extract touched slots.
+ *    if slot is written to, check bit. If bit is already 1, remove instruction. Otherwise, mark bit to 1
+ *    if slot is read from, mark bit to 0
+ * 3. If we encounter a function call, set all bits to 0 for now. We can probably use the closure_bitset
+ *    for more fine-grained tracking.
+ */
+static void bb_remove_redundant_writes(JanetFuncDef *def, JanetBB bb) {
+    if (bb.start >= bb.end) return; /* Degenerate block */
+    uint32_t *bitset = make_bitset(def->slotcount);
+    /* Quick hack - if no successors, clean up writes even more - all final writes are redundant. */
+    if (bb.succ[0] == -1 && bb.succ[1] == -1) {
+        memset(bitset, 0xFF, (def->slotcount + 7) / 8);
+    }
+    for (int32_t i = bb.end - 1; i >= bb.start; i--) {
+        int32_t ins[3];
+        int32_t out = -1;
+        int nins = 0;
+        int pin = 0; /* side effects, don't remove */
+        uint32_t I = def->bytecode[i];
+        uint32_t Iop = I & 0x7F;
+        uint32_t Ia = (I >> 8) & 0xFF;
+        uint32_t Ib = (I >> 16) & 0xFF;
+        uint32_t Ic = (I >> 24) & 0xFF;
+        uint32_t Id = (I >> 8);
+        uint32_t Ie = (I >> 16);
+        /*int32_t Ies = ((int32_t) I >> 16);*/
+        /* Whenever we execute an instruction that can yield or await, clear the bitset.
+         * Closures could read some slots that seem to be unused, and then control could
+         * return to our function. */
+        switch (Iop) {
+            default:
+                fprintf(stderr, "opcode = %u\n", Iop);
+                janet_assert(0, "unhandled instruction");
+                continue;
+            case JOP_JUMP:
+            case JOP_NOOP:
+            case JOP_RETURN_NIL:
+                continue;
+            /* Write A, Read E */
+            case JOP_CALL:
+                /* Similar logic applies to tail calls, but they are always at the end of blocks anyway */
+                out = Ia;
+                pin = 1;
+                nins = 1;
+                ins[0] = Ie;
+                clear_bitset(bitset, def->slotcount);
+                break;
+            /* Write A, Read B */
+            case JOP_SIGNAL:
+                out = Ia;
+                nins = 1;
+                ins[0] = Ib;
+                pin = 1;
+                clear_bitset(bitset, def->slotcount);
+                break;
+            /* Read A */
+            case JOP_ERROR:
+            case JOP_TYPECHECK:
+            case JOP_JUMP_IF:
+            case JOP_JUMP_IF_NOT:
+            case JOP_JUMP_IF_NIL:
+            case JOP_JUMP_IF_NOT_NIL:
+            case JOP_SET_UPVALUE:
+                nins = 1;
+                ins[0] = Ia;
+                break;
+            /* Write A, Read B */
+            case JOP_ADD_IMMEDIATE:
+            case JOP_SUBTRACT_IMMEDIATE:
+            case JOP_MULTIPLY_IMMEDIATE:
+            case JOP_DIVIDE_IMMEDIATE:
+            case JOP_SHIFT_LEFT_IMMEDIATE:
+            case JOP_SHIFT_RIGHT_IMMEDIATE:
+            case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
+            case JOP_GREATER_THAN_IMMEDIATE:
+            case JOP_LESS_THAN_IMMEDIATE:
+            case JOP_EQUALS_IMMEDIATE:
+            case JOP_NOT_EQUALS_IMMEDIATE:
+            case JOP_GET_INDEX:
+                out = Ia;
+                nins = 1;
+                ins[0] = Ib;
+                break;
+            /* Read D */
+            case JOP_RETURN:
+            case JOP_PUSH:
+            case JOP_PUSH_ARRAY:
+            case JOP_TAILCALL:
+                nins = 1;
+                ins[0] = Id;
+                break;
+            case JOP_PUT:
+            case JOP_PUSH_3:
+                nins = 3;
+                ins[0] = Ia;
+                ins[1] = Ib;
+                ins[2] = Ic;
+                break;
+            /* Write D */
+            case JOP_LOAD_NIL:
+            case JOP_LOAD_TRUE:
+            case JOP_LOAD_FALSE:
+            case JOP_LOAD_SELF:
+                out = Id;
+                break;
+            /* Write A */
+            case JOP_MAKE_ARRAY:
+            case JOP_MAKE_BUFFER:
+            case JOP_MAKE_STRING:
+            case JOP_MAKE_STRUCT:
+            case JOP_MAKE_TABLE:
+            case JOP_MAKE_TUPLE:
+            case JOP_MAKE_BRACKET_TUPLE:
+                out = Ia;
+                pin = 1; /* TODO - we need an instruction (or psuedo instruction) that can clear the stack but do nothing */
+                break;
+            case JOP_LOAD_INTEGER:
+            case JOP_LOAD_CONSTANT:
+            case JOP_LOAD_UPVALUE:
+            case JOP_CLOSURE:
+                out = Ia;
+                break;
+            case JOP_MOVE_FAR:
+                out = Ie;
+                nins = 1;
+                ins[0] = Ia;
+                break;
+            /* Write A, Read E */
+            case JOP_MOVE_NEAR:
+            case JOP_LENGTH:
+            case JOP_BNOT:
+                out = Ia;
+                nins = 1;
+                ins[0] = Ie;
+                break;
+            /* Read A, B */
+            case JOP_PUT_INDEX:
+                nins = 2;
+                ins[0] = Ia;
+                ins[1] = Ib;
+                break;
+            /* Read A, E */
+            case JOP_PUSH_2:
+                nins = 2;
+                ins[0] = Ia;
+                ins[1] = Ie;
+                break;
+            /* A = B op C */
+            case JOP_PROPAGATE:
+            case JOP_RESUME:
+                out = Ia;
+                nins = 2;
+                ins[0] = Ib;
+                ins[1] = Ic;
+                clear_bitset(bitset, def->slotcount);
+                pin = 1;
+                break;
+            /* A = B op C */
+            case JOP_BAND:
+            case JOP_BOR:
+            case JOP_BXOR:
+            case JOP_ADD:
+            case JOP_SUBTRACT:
+            case JOP_MULTIPLY:
+            case JOP_DIVIDE:
+            case JOP_DIVIDE_FLOOR:
+            case JOP_MODULO:
+            case JOP_REMAINDER:
+            case JOP_SHIFT_LEFT:
+            case JOP_SHIFT_RIGHT:
+            case JOP_SHIFT_RIGHT_UNSIGNED:
+            case JOP_GREATER_THAN:
+            case JOP_LESS_THAN:
+            case JOP_EQUALS:
+            case JOP_COMPARE:
+            case JOP_IN:
+            case JOP_GET:
+            case JOP_GREATER_THAN_EQUAL:
+            case JOP_LESS_THAN_EQUAL:
+            case JOP_NOT_EQUALS:
+                out = Ia;
+                nins = 2;
+                ins[0] = Ib;
+                ins[1] = Ic;
+                break;
+            case JOP_CANCEL:
+            case JOP_NEXT:
+                pin = 1;
+                out = Ia;
+                nins = 2;
+                ins[0] = Ib;
+                ins[1] = Ic;
+                break;
+        }
+        /* Test and set output bit in bitmap. If already set, change to noop. */
+        if (out != -1) {
+            /*fprintf(stdout, "out = %d\n", out);*/
+            uint32_t mask = bs_mask(out);
+            uint32_t index = bs_indx(out);
+            if (!pin && (bitset[index] & mask)) {
+                /*fprintf(stdout, "clearing\n");*/
+                def->bytecode[i] = JOP_NOOP;
+            }
+            bitset[index] |= mask;
+        }
+        /* Clear input slots from bitmap */
+        for (int j = 0; j < nins; j++) {
+            /*fprintf(stdout, "input[%d] = %d\n", j, ins[j]);*/
+            uint32_t mask = bs_mask(ins[j]);
+            uint32_t index = bs_indx(ins[j]);
+            bitset[index] &= ~mask;
+        }
+    }
+    janet_free(bitset);
+}
+
+
 /* Idea: optimization pipeline
  *
  * - basic-blocks 1
  * - coarse DCE 1
+ * - stack-flow analysis
  * - local value numbering
  * - coarse DCE 2
- * - ? loop analysis
+ * - remove noops (invalidate existing analysis)
+ * - basic-block 2
+ * - stack-flow 2
  * - typeflow 1
  * - fine dead code elimination
  * - to bytecode
  *   - strength reduce
- *   - jump thread
  *   - remove noops
  * - to machine code
  *   - ssa
@@ -1113,11 +1600,30 @@ JANET_CORE_FN(cfun_ovm_basic_blocks,
     return debug_rep;
 }
 
+JANET_CORE_FN(cfun_ovm_remove_redundant_writes,
+              "(ovm/remove-redundant-writes func)",
+              "Remove extra writes from a function. Modifies it inline.") {
+    janet_fixarity(argc, 1);
+    JanetFunction *func = janet_func_duplicate(janet_getfunction(argv, 0), 1);
+    JanetBB *bbs = janet_basic_blocks(func->def);
+    for (int32_t i = 0; i < janet_v_count(bbs); i++) {
+        janet_ovm_value_numbering(func->def, bbs[i]);
+    }
+    for (int32_t i = 0; i < janet_v_count(bbs); i++) {
+        bb_remove_redundant_writes(func->def, bbs[i]);
+    }
+    janet_v_free(bbs);
+    janet_bytecode_remove_noops(func->def);
+    janet_verify(func->def);
+    return argv[0];
+}
+
 /* Module entry point */
 void janet_lib_ovm(JanetTable *env) {
     JanetRegExt cfuns[] = {
         JANET_CORE_REG("ovm/type-flow", cfun_ovm_typeflow),
         JANET_CORE_REG("ovm/basic-blocks", cfun_ovm_basic_blocks),
+        JANET_CORE_REG("ovm/remove-redundant-writes", cfun_ovm_remove_redundant_writes),
         JANET_REG_END
     };
     janet_core_cfuns_ext(env, NULL, cfuns);

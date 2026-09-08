@@ -164,9 +164,6 @@ void *janet_memalloc_empty(int32_t count) {
     int32_t i;
     void *mem = array_allocate(sizeof(JanetKV), count);
     janet_vm.next_collection += (size_t) count * sizeof(JanetKV);
-    if (NULL == mem) {
-        JANET_OUT_OF_MEMORY;
-    }
     JanetKV *mmem = (JanetKV *)mem;
     for (i = 0; i < count; i++) {
         JanetKV *kv = mmem + i;

@@ -862,9 +862,6 @@ static const uint8_t *unmarshal_one_env(
                 janet_panic("invalid funcenv length");
             }
             env->as.values = array_allocate(sizeof(Janet), length);
-            if (!env->as.values) {
-                JANET_OUT_OF_MEMORY;
-            }
             env->offset = 0;
             for (int32_t i = 0; i < length; i++)
                 data = unmarshal_one(st, data, env->as.values + i, flags);
@@ -966,9 +963,6 @@ static const uint8_t *unmarshal_one_def(
         /* Unmarshal constants */
         if (constants_length) {
             def->constants = array_allocate(sizeof(Janet), constants_length);
-            if (!def->constants) {
-                JANET_OUT_OF_MEMORY;
-            }
             for (int32_t i = 0; i < constants_length; i++)
                 data = unmarshal_one(st, data, def->constants + i, flags + 1);
         } else {
@@ -979,9 +973,6 @@ static const uint8_t *unmarshal_one_def(
         /* Unmarshal symbol map, if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSYMBOLMAP) {
             def->symbolmap = array_allocate(sizeof(JanetSymbolMap), symbolmap_length);
-            if (def->symbolmap == NULL) {
-                JANET_OUT_OF_MEMORY;
-            }
             for (int32_t i = 0; i < symbolmap_length; i++) {
                 def->symbolmap[i].birth_pc = (uint32_t) readint(st, &data);
                 def->symbolmap[i].death_pc = (uint32_t) readint(st, &data);
@@ -998,9 +989,6 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal bytecode */
         def->bytecode = array_allocate(sizeof(uint32_t), bytecode_length);
-        if (!def->bytecode) {
-            JANET_OUT_OF_MEMORY;
-        }
         data = janet_unmarshal_u32s(st, data, def->bytecode, bytecode_length);
         def->bytecode_length = bytecode_length;
 
@@ -1121,9 +1109,6 @@ static const uint8_t *unmarshal_one_fiber(
         fiber->capacity = INT32_MAX;
     }
     fiber->data = array_allocate(sizeof(Janet), fiber->capacity);
-    if (!fiber->data) {
-        JANET_OUT_OF_MEMORY;
-    }
     for (int32_t i = 0; i < fiber->capacity; i++) {
         fiber->data[i] = janet_wrap_nil();
     }
@@ -1484,7 +1469,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) |= (int32_t) (((uint32_t) flag) << 16); /* Avoid left shift of negative value */
+                janet_tuple_flag(tup) |= (int32_t)(((uint32_t) flag) << 16);  /* Avoid left shift of negative value */
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }

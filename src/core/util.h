@@ -174,6 +174,7 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source);
 
 /* Safely allocate arrays */
 void *array_allocate(size_t element_size, int32_t count);
+void *array_duplicate(void *arr, size_t element_size, int32_t count);
 
 /* Use LoadLibrary on windows or dlopen on posix to load dynamic libraries
  * with native code. */

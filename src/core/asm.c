@@ -604,9 +604,6 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     if (janet_indexed_view(x, &arr, &count)) {
         def->constants_length = count;
         def->constants = array_allocate(sizeof(Janet), count);
-        if (NULL == def->constants) {
-            JANET_OUT_OF_MEMORY;
-        }
         for (i = 0; i < count; i++) {
             Janet ct = arr[i];
             def->constants[i] = ct;
@@ -639,9 +636,6 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
             if (a.defs_capacity < newlen) {
                 int32_t newcap = newlen;
                 def->defs = janet_realloc(def->defs, newcap * sizeof(JanetFuncDef *));
-                if (NULL == def->defs) {
-                    JANET_OUT_OF_MEMORY;
-                }
                 a.defs_capacity = newcap;
             }
             def->defs[def->defs_length] = subres.funcdef;

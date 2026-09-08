@@ -584,7 +584,7 @@ static void janet_check_pointer_align(void *p) {
         uintptr_t u;
     } un;
     un.p = p;
-    janet_assert(!(un.u & (uintptr_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
+    janet_assert(!(un.u & (uintptr_t)((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
                  "unaligned pointer wrap - cfunction pointers and abstract types must be aligned with this nanboxing configuration.");
 #endif
 }
@@ -1216,7 +1216,22 @@ void *(janet_realloc)(void *ptr, size_t size) {
 
 /* Avoid overflow and underflow, especially on 32-bit systems */
 void *array_allocate(size_t element_size, int32_t count) {
-    if (count < 0) return NULL;
+    janet_assert(element_size > 0, "bad element size");
+    if (count <= 0) return NULL;
     if ((size_t) count > (SIZE_MAX / element_size)) return NULL;
-    return janet_malloc(element_size * count);
+    void *ret = janet_malloc(element_size * count);
+    if (NULL == ret) {
+        JANET_OUT_OF_MEMORY;
+    }
+    return ret;
+}
+
+void *array_duplicate(void *arr, size_t element_size, int32_t count) {
+    janet_assert(element_size > 0, "bad element size");
+    if (arr == NULL) return NULL;
+    void *ret = array_allocate(element_size, count);
+    if (ret) {
+        memcpy(ret, arr, element_size * count);
+    }
+    return ret;
 }

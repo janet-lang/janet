@@ -64,9 +64,6 @@ JanetArray *janet_array_n(const Janet *elements, int32_t n) {
     array->capacity = n;
     array->count = n;
     array->data = array_allocate(sizeof(Janet), (size_t) n);
-    if (!array->data) {
-        JANET_OUT_OF_MEMORY;
-    }
     safe_memcpy(array->data, elements, sizeof(Janet) * n);
     return array;
 }

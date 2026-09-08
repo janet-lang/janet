@@ -416,7 +416,7 @@ typedef struct JanetChannel JanetChannel;
 
 /* What to do when out of memory */
 #ifndef JANET_OUT_OF_MEMORY
-#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "%s:%d - janet out of memory\n", __FILE__, __LINE__); exit(1); } while (0)
+#define JANET_OUT_OF_MEMORY do { fprintf(stderr, "%s:%d - out of memory\n", __FILE__, __LINE__); exit(1); } while (0)
 #endif
 
 #ifdef JANET_BSD
@@ -1129,7 +1129,6 @@ struct JanetFuncDef {
     JanetFuncDef **defs;
     uint32_t *bytecode;
     uint32_t *closure_bitset; /* Bit set indicating which slots can be referenced by closures. */
-    uint32_t *ovm_bytecode;
 
     /* Various debug information */
     JanetSourceMapping *sourcemap;
@@ -1148,7 +1147,6 @@ struct JanetFuncDef {
     int32_t defs_length;
     int32_t symbolmap_length;
     int32_t named_args_count;
-    size_t ovm_bytecode_size;
 };
 
 /* A function environment */
@@ -1956,6 +1954,8 @@ JANET_API void janet_gcpressure(size_t s);
 
 /* Functions */
 JANET_API JanetFuncDef *janet_funcdef_alloc(void);
+JANET_API JanetFuncDef *janet_funcdef_duplicate(JanetFuncDef *original);
+JANET_API JanetFunction *janet_func_duplicate(JanetFunction *func, int duplicate_def);
 JANET_API JanetFunction *janet_thunk(JanetFuncDef *def);
 
 /* Get a function that when called with no args, will return x. */

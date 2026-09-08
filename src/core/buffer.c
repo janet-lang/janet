@@ -41,9 +41,6 @@ static JanetBuffer *janet_buffer_init_impl(JanetBuffer *buffer, int32_t capacity
     if (capacity < 4) capacity = 4;
     janet_gcpressure(capacity);
     data = array_allocate(sizeof(uint8_t), capacity);
-    if (NULL == data) {
-        JANET_OUT_OF_MEMORY;
-    }
     buffer->count = 0;
     buffer->capacity = capacity;
     buffer->data = data;
