@@ -23,8 +23,18 @@
 
 (setdyn *lint-warn* :none)
 
+(defn decide-test-host [port]
+  (if-let [host (os/getenv "JANET_TEST_HOST")]
+    host
+    (try
+      (let [s (net/listen "localhost." port)
+            [host _] (net/localname s)]
+        (net/close s)
+        host)
+      ([] "127.0.0.1"))))
+
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
-(def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))
+(def test-host (decide-test-host test-port))
 
 # Subprocess
 # 5e1a8c86f
