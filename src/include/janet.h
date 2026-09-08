@@ -1306,6 +1306,7 @@ struct JanetRange {
 struct JanetRNG {
     uint32_t a, b, c, d;
     uint32_t counter;
+	uint32_t seed;
 };
 
 typedef struct JanetFile JanetFile;

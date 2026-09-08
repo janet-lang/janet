@@ -40,6 +40,17 @@
 (for _ 0 75
   (test-rng (math/rng (:int seedrng))))
 
+(assert (let [rng (math/rng)
+              seed (math/get-seed rng)
+              n1 (math/rng-int rng)
+              replay (math/rng seed)
+              n2 (math/rng-int replay)]
+          (= n1 n2))
+        "math/get-seed test")
+
+(assert (= 12345 (math/get-seed (math/rng 12345)))
+        "math/get-seed pre-seeded test")
+
 # 70328437f
 (assert (deep-not= (-> 123 math/rng (:buffer 16))
                    (-> 456 math/rng (:buffer 16))) "math/rng-buffer 1")

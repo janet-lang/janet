@@ -40,6 +40,7 @@ static void janet_rng_marshal(void *p, JanetMarshalContext *ctx) {
     janet_marshal_int(ctx, (int32_t) rng->c);
     janet_marshal_int(ctx, (int32_t) rng->d);
     janet_marshal_int(ctx, (int32_t) rng->counter);
+	janet_marshal_int(ctx, (int32_t) rng->seed);
 }
 
 static void *janet_rng_unmarshal(JanetMarshalContext *ctx) {
@@ -49,6 +50,7 @@ static void *janet_rng_unmarshal(JanetMarshalContext *ctx) {
     rng->c = (uint32_t) janet_unmarshal_int(ctx);
     rng->d = (uint32_t) janet_unmarshal_int(ctx);
     rng->counter = (uint32_t) janet_unmarshal_int(ctx);
+	rng->seed = (uint32_t) janet_unmarshal_int(ctx);
     return rng;
 }
 
@@ -77,6 +79,7 @@ void janet_rng_seed(JanetRNG *rng, uint32_t seed) {
     rng->c = 123871873u;
     rng->d = 0xf23f56c8u;
     rng->counter = 0u;
+	rng->seed = seed;
     /* First several numbers aren't that random. */
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
 }
@@ -90,6 +93,7 @@ void janet_rng_longseed(JanetRNG *rng, const uint8_t *bytes, int32_t len) {
     rng->c = state[8] + ((uint32_t) state[9] << 8) + ((uint32_t) state[10] << 16) + ((uint32_t) state[11] << 24);
     rng->d = state[12] + ((uint32_t) state[13] << 8) + ((uint32_t) state[14] << 16) + ((uint32_t) state[15] << 24);
     rng->counter = 0u;
+	rng->seed = rng->a;
     /* a, b, c, d can't all be 0 */
     if (rng->a == 0) rng->a = 1u;
     for (int i = 0; i < 16; i++) janet_rng_u32(rng);
@@ -137,6 +141,16 @@ JANET_CORE_FN(cfun_rng_make,
         janet_rng_seed(rng, 0);
     }
     return janet_wrap_abstract(rng);
+}
+
+JANET_CORE_FN(cfun_rng_get,
+              "(math/get-seed rng)",
+              "Extracts the seed from a core/rng object"
+             ) {
+    janet_arity(argc, 1, 1);
+    JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
+
+    return janet_wrap_integer(rng->seed);
 }
 
 JANET_CORE_FN(cfun_rng_uniform,
@@ -411,6 +425,7 @@ void janet_lib_math(JanetTable *env) {
         JANET_CORE_REG("math/acosh", janet_acosh),
         JANET_CORE_REG("math/atan2", janet_atan2),
         JANET_CORE_REG("math/rng", cfun_rng_make),
+        JANET_CORE_REG("math/get-seed", cfun_rng_get),
         JANET_CORE_REG("math/rng-uniform", cfun_rng_uniform),
         JANET_CORE_REG("math/rng-int", cfun_rng_int),
         JANET_CORE_REG("math/rng-buffer", cfun_rng_buffer),
