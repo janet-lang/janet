@@ -356,20 +356,18 @@ JANET_CORE_FN(cfun_io_fseek,
         janet_panic("file is closed");
     int64_t offset = 0;
     int whence = SEEK_CUR;
-    if (argc >= 2) {
-        const uint8_t *whence_sym = janet_getkeyword(argv, 1);
-        if (!janet_cstrcmp(whence_sym, "cur")) {
-            whence = SEEK_CUR;
-        } else if (!janet_cstrcmp(whence_sym, "set")) {
-            whence = SEEK_SET;
-        } else if (!janet_cstrcmp(whence_sym, "end")) {
-            whence = SEEK_END;
-        } else {
-            janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
-        }
-        if (argc == 3) {
-            offset = (int64_t) janet_getinteger64(argv, 2);
-        }
+    const uint8_t *whence_sym = janet_getkeyword(argv, 1);
+    if (!janet_cstrcmp(whence_sym, "cur")) {
+        whence = SEEK_CUR;
+    } else if (!janet_cstrcmp(whence_sym, "set")) {
+        whence = SEEK_SET;
+    } else if (!janet_cstrcmp(whence_sym, "end")) {
+        whence = SEEK_END;
+    } else {
+        janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
+    }
+    if (argc == 3) {
+        offset = (int64_t) janet_getinteger64(argv, 2);
     }
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");
     return argv[0];
