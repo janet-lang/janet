@@ -555,42 +555,126 @@ JanetFuncDef *janet_funcdef_alloc(void) {
     return def;
 }
 
+/* FuncDef duplication. Use with caution. */
+
+static JanetFuncEnv *copy_env(JanetFuncEnv *env, JanetFuncDef *newdef) {
+    int32_t len = env->length; /* Maximum is 256 */
+    size_t s = sizeof(Janet) * (size_t) len;
+    Janet *vmem = janet_malloc(s);
+    janet_vm.next_collection += (uint32_t) s;
+    if (NULL == vmem) {
+        JANET_OUT_OF_MEMORY;
+    }
+    Janet *values = env->offset <= 0
+        ? env->as.values
+        : env->as.fiber->data + env->offset;
+    safe_memcpy(vmem, values, s);
+    /* Clear unneeded references in closure environment */
+    if (env->offset <= 0) {
+        uint32_t *bitset = newdef->closure_bitset;
+        if (bitset) {
+            for (int32_t i = 0; i < len; i += 32) {
+                uint32_t mask = ~(bitset[i >> 5]);
+                int32_t maxj = i + 32 > len ? len : i + 32;
+                for (int32_t j = i; j < maxj; j++) {
+                    if (mask & 1) vmem[j] = janet_wrap_nil();
+                    mask >>= 1;
+                }
+            }
+        }
+    }
+    JanetFuncEnv *newenv = janet_gcalloc(JANET_MEMORY_FUNCENV, sizeof(JanetFuncEnv));
+    newenv->offset = 0;
+    newenv->length = len;
+    newenv->as.values = vmem;
+    return newenv;
+}
+
 /* Create a duplicate that can be freely modified as no internal state
  * has a reference to it. */
 JanetFuncDef *janet_funcdef_duplicate(JanetFuncDef *original) {
-    JanetFuncDef *def = janet_gcalloc(JANET_MEMORY_FUNCDEF, sizeof(JanetFuncDef));
-    *def = *original;
-    def->environments = array_duplicate(original->environments, sizeof(int32_t), def->environments_length);
-    def->constants = array_duplicate(original->constants, sizeof(Janet), def->constants_length);
+    JanetFuncDef *def = janet_funcdef_alloc();
+
+    /* Basic properties */
+    def->slotcount = original->slotcount;
+    def->arity = original->arity;
+    def->min_arity = original->min_arity;
+    def->max_arity = original->max_arity;
+    def->named_args_count = original->named_args_count;
+    def->flags = original->flags & ~(JANET_FUNCDEF_FLAG_TAG); /* Remove tags as this is a new function */
+
+    /* Basic execution */
+    def->bytecode_length = original->bytecode_length;
     def->bytecode = array_duplicate(original->bytecode, sizeof(uint32_t), def->bytecode_length);
-    size_t bitset_len = (def->slotcount + 31) / 32;
-    def->closure_bitset = array_duplicate(original->closure_bitset, sizeof(uint32_t), bitset_len);
+    def->constants_length = original->constants_length;
+    def->constants = array_duplicate(original->constants, sizeof(Janet), def->constants_length);
+
+    /* Source mapping */
+    def->source = original->source;
+    def->name = original->name;
+    def->symbolmap_length = original->symbolmap_length;
     def->symbolmap = array_duplicate(original->symbolmap, sizeof(JanetSymbolMap), def->symbolmap_length);
-    if (original->sourcemap) {
-        def->sourcemap = array_duplicate(original->sourcemap, sizeof(JanetSourceMapping), def->bytecode_length);
+    def->sourcemap = array_duplicate(original->sourcemap, sizeof(JanetSourceMapping), def->bytecode_length);
+
+    /* Parent closures */
+    def->environments_length = original->environments_length;
+    def->environments = array_duplicate(original->environments, sizeof(int32_t), def->environments_length);
+
+    /* Child closures */
+    if (original->closure_bitset) {
+        int32_t chunks = (def->slotcount + 31) >> 5;
+        def->closure_bitset = array_duplicate(original->closure_bitset, sizeof(uint32_t), chunks);
     }
+    def->defs_length = 0;
+    def->defs = NULL;
+    if (original->defs_length) {
+        int32_t len = original->defs_length;
+        def->defs = janet_malloc(sizeof(JanetFuncDef *) * len);
+        if (NULL == def->defs) {
+            JANET_OUT_OF_MEMORY;
+        }
+        for (int32_t i = 0; i < len; i++) {
+            def->defs[i] = NULL;
+        }
+        for (int32_t i = 0; i < len; i++) {
+            /* Can this recur into self? */
+            def->defs[i] = janet_funcdef_duplicate(original->defs[i]);
+            def->defs_length++;
+        }
+        janet_assert(def->defs_length == len, "bad len");
+    }
+
+    /* Ensure flags are consistent */
+    janet_def_addflags(def);
     return def;
 }
 
 /* Duplicate a function (and optionally it's def) for modifications */
 JanetFunction *janet_func_duplicate(JanetFunction *func, int duplicate_def) {
     JanetFuncDef *def = func->def;
+    JanetFuncDef *newdef;
     if (duplicate_def) {
-        def = janet_funcdef_duplicate(def);
+        newdef = janet_funcdef_duplicate(def);
+    } else {
+        newdef = def;
     }
-    JanetFunction *newfunc = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + def->environments_length * sizeof(JanetFuncEnv *));
-    newfunc->def = def;
-
-    for (int32_t i = 0; i < def->environments_length; i++) {
-        newfunc->envs[i] = func->envs[i];
+    int32_t elen = def->environments_length;
+    JanetFunction *newfunc = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction) + ((size_t) elen * sizeof(JanetFuncEnv *)));
+    newfunc->def = newdef;
+    for (int32_t i = 0; i < elen; i++) {
+        newfunc->envs[i] = NULL;
+    }
+    for (int32_t i = 0; i < elen; i++) {
+        janet_assert(func->envs[i], "NULL funcenv");
+        newfunc->envs[i] = copy_env(func->envs[i], newdef);
     }
     return newfunc;
 }
 
 /* Create a simple closure from a funcdef */
 JanetFunction *janet_thunk(JanetFuncDef *def) {
+    janet_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
     JanetFunction *func = janet_gcalloc(JANET_MEMORY_FUNCTION, sizeof(JanetFunction));
     func->def = def;
-    janet_assert(def->environments_length == 0, "tried to create thunk that needs upvalues");
     return func;
 }

@@ -185,17 +185,18 @@ static Janet make_struct_n(const Janet *args, int32_t n) {
 /* Push a stack frame to a fiber */
 int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     JanetStackFrame *newframe;
+    JanetFuncDef *def = func->def;
 
     int32_t i;
     int32_t oldtop = fiber->stacktop;
     int32_t oldframe = fiber->frame;
     int32_t nextframe = fiber->stackstart;
-    int32_t nextstacktop = nextframe + func->def->slotcount + JANET_FRAME_SIZE;
+    int32_t nextstacktop = nextframe + def->slotcount + JANET_FRAME_SIZE;
     int32_t next_arity = fiber->stacktop - fiber->stackstart;
 
     /* Check strict arity before messing with state */
-    if (next_arity < func->def->min_arity) return 1;
-    if (next_arity > func->def->max_arity) return 1;
+    if (next_arity < def->min_arity) return 1;
+    if (next_arity > def->max_arity) return 1;
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -215,16 +216,16 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     fiber->stacktop = fiber->stackstart = nextstacktop;
     newframe = janet_fiber_frame(fiber);
     newframe->prevframe = oldframe;
-    newframe->pc = func->def->bytecode;
+    newframe->pc = def->bytecode;
     newframe->func = func;
     newframe->env = NULL;
     newframe->flags = 0;
 
     /* Check varargs */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
-        int32_t tuplehead = fiber->frame + func->def->arity;
+    if (def->flags & JANET_FUNCDEF_FLAG_VARARG) {
+        int32_t tuplehead = fiber->frame + def->arity;
         janet_assert(tuplehead > 0, "fiber stack overflow");
-        int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
+        int st = def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= oldtop) {
             fiber->data[tuplehead] = st
                                      ? make_struct_n(NULL, 0)
@@ -259,10 +260,11 @@ static void janet_env_detach(JanetFuncEnv *env) {
         }
         Janet *values = env->as.fiber->data + env->offset;
         safe_memcpy(vmem, values, s);
-        uint32_t *bitset = janet_stack_frame(values)->func->def->closure_bitset;
+        JanetFuncDef *def = janet_stack_frame(values)->func->def;
+        uint32_t *bitset = def->closure_bitset;
         if (bitset) {
             /* Clear unneeded references in closure environment */
-            for (int32_t i = 0; i < len; i += 32) {
+            for (int32_t i = 0; i < len && i < def->slotcount; i += 32) {
                 uint32_t mask = ~(bitset[i >> 5]);
                 int32_t maxj = i + 32 > len ? len : i + 32;
                 for (int32_t j = i; j < maxj; j++) {
@@ -325,14 +327,15 @@ void janet_env_maybe_detach(JanetFuncEnv *env) {
 /* Create a tail frame for a function */
 int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     int32_t i;
-    int32_t nextframetop = fiber->frame + func->def->slotcount;
+    JanetFuncDef *def = func->def;
+    int32_t nextframetop = fiber->frame + def->slotcount;
     int32_t nextstacktop = nextframetop + JANET_FRAME_SIZE;
     int32_t next_arity = fiber->stacktop - fiber->stackstart;
     int32_t stacksize;
 
     /* Check strict arity before messing with state */
-    if (next_arity < func->def->min_arity) return 1;
-    if (next_arity > func->def->max_arity) return 1;
+    if (next_arity < def->min_arity) return 1;
+    if (next_arity > def->max_arity) return 1;
 
     if (fiber->capacity < nextstacktop) {
         janet_fiber_setcapacity(fiber, 2 * nextstacktop);
@@ -348,9 +351,9 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     janet_fiber_frame(fiber)->env = NULL;
 
     /* Check varargs */
-    if (func->def->flags & JANET_FUNCDEF_FLAG_VARARG) {
-        int32_t tuplehead = fiber->stackstart + func->def->arity;
-        int st = func->def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
+    if (def->flags & JANET_FUNCDEF_FLAG_VARARG) {
+        int32_t tuplehead = fiber->stackstart + def->arity;
+        int st = def->flags & JANET_FUNCDEF_FLAG_STRUCTARG;
         if (tuplehead >= fiber->stacktop) {
             if (tuplehead >= fiber->capacity) janet_fiber_setcapacity(fiber, 2 * (tuplehead + 1));
             for (i = fiber->stacktop; i < tuplehead; ++i) fiber->data[i] = janet_wrap_nil();
@@ -382,7 +385,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
 
     /* Set frame stuff */
     janet_fiber_frame(fiber)->func = func;
-    janet_fiber_frame(fiber)->pc = func->def->bytecode;
+    janet_fiber_frame(fiber)->pc = def->bytecode;
     janet_fiber_frame(fiber)->flags |= JANET_STACKFRAME_TAILCALL;
 
     /* Good return */

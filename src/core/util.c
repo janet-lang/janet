@@ -1228,10 +1228,11 @@ void *array_allocate(size_t element_size, int32_t count) {
 
 void *array_duplicate(void *arr, size_t element_size, int32_t count) {
     janet_assert(element_size > 0, "bad element size");
+    if (count <= 0) return NULL;
     if (arr == NULL) return NULL;
     void *ret = array_allocate(element_size, count);
     if (ret) {
-        memcpy(ret, arr, element_size * count);
+        safe_memcpy(ret, arr, element_size * count);
     }
     return ret;
 }
