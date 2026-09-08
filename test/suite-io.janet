@@ -53,10 +53,12 @@
   (file/write f "foo\n")
   (assert (= 4 (file/tell f)) "after written string")
   (file/flush f)
-  (each arg [[:set 0] [:set]]
-    (file/seek f ;arg)
-    (assertf (= 0 (file/tell f)) "start of file again - args: %j" arg)
-    (assertf (= (string (file/read f :all)) "foo\n") "temp files work - args: %j" arg)))
+  (file/seek f :set 0)
+  (assert (= 0 (file/tell f)) "start of file again")
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work")  
+  (file/seek f :set)
+  (assert (= 0 (file/tell f)) "start of file again")
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work"))
 
 # issue #1055 - 2c927ea76
 (let [b @""]
