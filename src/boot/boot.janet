@@ -3920,12 +3920,15 @@
     (print-index identity)))
 
 (defmacro doc
-  ``Shows documentation for the given symbol, or can show a list of available bindings.
-  If `sym` is a symbol, will look for documentation for that symbol. If `sym` is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment
-  containing that string (all bindings will be shown if no string is given).``
-  [&opt sym]
-  ~(,doc* ',sym))
+  ``
+  Shows documentation for `what` or lists binding names. If `what` is
+  a symbol, shows documentation for that symbol. If `what` is a
+  string, shows all lexical and dynamic binding names in the current
+  environment containing the string. If `what` is not provided, shows
+  all binding names.
+  ``
+  [&opt what]
+  ~(,doc* ',what))
 
 (defn doc-of
   `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
