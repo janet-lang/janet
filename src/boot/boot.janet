@@ -4344,8 +4344,8 @@
 
   (defmacro ffi/defbind-alias :flycheck
     "Generate bindings for native functions in a convenient manner.
-     Similar to defbind but allows for the janet function name to be
-     different than the FFI function."
+     Similar to `ffi/defbind` but allows for the janet function name
+     to be different than the FFI function."
     [name alias ret-type & body]
     (def real-ret-type (eval ret-type))
     (def meta (slice body 0 -2))
