@@ -290,5 +290,6 @@ Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 /* Bytecode optimization */
 void janet_bytecode_movopt(JanetFuncDef *def);
 void janet_bytecode_remove_noops(JanetFuncDef *def);
+void janet_bytecode_ovm_optimize(JanetFuncDef *def);
 
 #endif

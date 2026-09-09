@@ -166,14 +166,21 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
     }
 
     /* Rewrite symbolmap */
+    int32_t smout = 0;
     for (int32_t i = 0; i < def->symbolmap_length; i++) {
         JanetSymbolMap *sm = def->symbolmap + i;
+        int keep = 1;
         /* Don't rewrite upvalue mappings */
         if (sm->birth_pc < UINT32_MAX) {
             sm->birth_pc = pc_map[sm->birth_pc];
             sm->death_pc = pc_map[sm->death_pc];
+            /* entirely dead symbols can be removed from the symbol map. This can happen if a symbol is in dead code. */
+            if (sm->birth_pc >= sm->death_pc) keep = 0;
         }
+        /* Now shift if needed */
+        if (keep) def->symbolmap[smout++] = *sm;
     }
+    def->symbolmap_length = smout;
 
     def->bytecode_length = new_bytecode_length;
     def->bytecode = janet_realloc(def->bytecode, def->bytecode_length * sizeof(uint32_t));
@@ -488,7 +495,8 @@ int janet_verify(JanetFuncDef *def) {
      * prevent running over the end of bytecode. However, valid functions with dead code will
      * be rejected. */
     {
-        uint32_t lastop = def->bytecode[def->bytecode_length - 1] & 0xFF;
+        uint32_t lasti = def->bytecode[def->bytecode_length - 1];
+        uint32_t lastop = lasti & 0xFF;
         switch (lastop) {
             default:
                 return 9;
@@ -498,6 +506,11 @@ int janet_verify(JanetFuncDef *def) {
             case JOP_ERROR:
             case JOP_TAILCALL:
                 break;
+            case JOP_SIGNAL: {
+                int32_t s = (int32_t) lasti >> 24;
+                if (s > 4) return 9; /* non-terminal signal */
+            }
+            break;
         }
     }
 
@@ -566,8 +579,8 @@ static JanetFuncEnv *copy_env(JanetFuncEnv *env, JanetFuncDef *newdef) {
         JANET_OUT_OF_MEMORY;
     }
     Janet *values = env->offset <= 0
-        ? env->as.values
-        : env->as.fiber->data + env->offset;
+                    ? env->as.values
+                    : env->as.fiber->data + env->offset;
     safe_memcpy(vmem, values, s);
     /* Clear unneeded references in closure environment */
     if (env->offset <= 0) {

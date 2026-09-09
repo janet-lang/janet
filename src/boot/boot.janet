@@ -41,10 +41,7 @@
     (array/push modifiers (string buf ")\n\n" docstr))
     (if (dyn :debug) (array/push modifiers {:source-form (dyn :macro-form)}))
     # Build return value
-    ~(def ,name ,;modifiers (do (def __x__ (,ovm/optimize (fn ,name ,;(tuple/slice more start))))
-                              #(eprint "collecting...")
-                              (gccollect)
-                              __x__))))
+    ~(def ,name ,;modifiers (fn ,name ,;(tuple/slice more start)))))
 
 (defn defmacro :macro :flycheck
   "Define a macro."

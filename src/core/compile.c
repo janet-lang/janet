@@ -1130,10 +1130,6 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
-    /* Do basic optimization */
-    janet_bytecode_movopt(def);
-    janet_bytecode_remove_noops(def);
-
     return def;
 }
 
@@ -1189,6 +1185,7 @@ JanetCompileResult janet_compile_lint(Janet source,
         JanetFuncDef *def = janetc_pop_funcdef(&c);
         def->name = janet_cstring("thunk");
         janet_def_addflags(def);
+        janet_bytecode_ovm_optimize(def);
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;
