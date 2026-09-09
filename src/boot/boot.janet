@@ -49,10 +49,12 @@
   (apply defn name :macro more))
 
 (defmacro as-macro
-  ``Use a function or macro literal `f` as a macro. This lets
-  any function be used as a macro. Inside a quasiquote, the
-  idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
-  to avoid unwanted variable capture of `my-custom-macro`.``
+  ``
+  Use a function or macro literal `f` as a macro. This allows any
+  function to be used as a macro. Inside a quasiquote, the idiom
+  `(as-macro ,my-custom-macro arg1 arg2...)` can be used to avoid
+  unwanted variable capture of `my-custom-macro`.
+  ``
   [f & args]
   (f ;args))
 
@@ -177,7 +179,7 @@
   "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
 
 (defdyn *lint-warn*
-  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+  "The current lint warning level. The warning level is the lint level at which an error will be printed but compilation will continue as normal.")
 
 (defdyn *lint-levels*
   "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
@@ -4180,7 +4182,7 @@
   (defmacro ev/spawn
     ``
     Run some code in a new task fiber. This is shorthand for
-    `(ev/go (fn [] ;body))`."
+    `(ev/go (fn [] ;body))`.
     ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
@@ -4322,7 +4324,7 @@
 
 (compwhen (dyn 'ffi/native)
 
-  (defdyn *ffi-context* " Current native library for ffi/bind and other settings")
+  (defdyn *ffi-context* " Current native library for ffi/defbind and other settings")
 
   (defn- default-mangle
     [name &]
