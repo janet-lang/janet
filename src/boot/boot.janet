@@ -4330,7 +4330,7 @@
 
 (compwhen (dyn 'ffi/native)
 
-  (defdyn *ffi-context* " Current native library for ffi/defbind and other settings")
+  (defdyn *ffi-context* "Current native library for `ffi/defbind` and other settings")
 
   (defn- default-mangle
     [name &]

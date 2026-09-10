@@ -1358,7 +1358,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_def(env, "janet/build", janet_cstringv(JANET_BUILD),
               JDOC("The build identifier of the running janet program."));
     janet_def(env, "janet/config-bits", janet_wrap_integer(JANET_CURRENT_CONFIG_BITS),
-              JDOC("The flag set of config options from janetconf.h which is used to check "
+              JDOC("The flag set of config options from `janetconf.h` which is used to check "
                    "if native modules are compatible with the host program."));
 
     /* Allow references to the environment */

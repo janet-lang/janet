@@ -141,18 +141,23 @@ JANET_CORE_FN(cfun_io_temp,
 JANET_CORE_FN(cfun_io_fopen,
               "(file/open path &opt mode buffer-size)",
               "Open a file. `path` is an absolute or relative path, and "
-              "`mode` is a set of flags indicating the mode to open the file in. "
-              "`mode` is a keyword where each character represents a flag. If the file "
-              "cannot be opened, returns nil, otherwise returns the new file handle. "
-              "Mode flags:\n\n"
-              "* r - allow reading from the file\n\n"
-              "* w - allow writing to the file\n\n"
-              "* a - append to the file\n\n"
-              "Following one of the initial flags, 0 or more of the following flags can be appended:\n\n"
-              "* b - open the file in binary mode (rather than text mode)\n\n"
-              "* + - open the file for both reading and writing\n\n"
-              "* n - error if the file cannot be opened instead of returning nil\n\n"
-              "See fopen (<stdio.h>, C99) for further details.") {
+              "`mode` is a set of flags indicating the mode to open the "
+              "file in. `mode` is a keyword where each character represents "
+              "a flag. If the file cannot be opened, returns nil, otherwise "
+              "returns the new file handle. Mode flags:\n"
+              "\n"
+              "* `r` - allow reading from file\n"
+              "* `w` - allow writing to file\n"
+              "* `a` - append to file\n"
+              "\n"
+              "After one of the initial flags, 0 or more of the following "
+              "flags can be appended:\n"
+              "\n"
+              "* `b` - open file in binary mode (rather than text mode)\n"
+              "* `+` - open file for both reading and writing\n"
+              "* `n` - error if file cannot be opened instead of returning nil\n"
+              "\n"
+              "See `fopen()` (`<stdio.h>`, C99) for further details.") {
     janet_arity(argc, 1, 3);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
