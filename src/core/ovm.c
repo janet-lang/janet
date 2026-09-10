@@ -296,33 +296,57 @@ static void bb_dead_to_noop(JanetFuncDef *def, JanetBB *bbs) {
 /* Simple Jump threading. Traverse basic blocks instead?
  * jump instructions are always last instruction in basic block. */
 static void janet_jump_threading(JanetFuncDef *def) {
-    int limit = 100;
     int32_t blen = def->bytecode_length;
     uint32_t *code = def->bytecode;
     int32_t *codes = (int32_t *)code;
-    while (limit--) {
-        int recur = 0;
+    int recur = 1;
+    while (recur) {
+        recur = 0;
         for (int32_t i = 0; i < blen; i++) {
-            if ((code[i] & 0x7F) != JOP_JUMP) continue;
-            if (code[i] == JOP_JUMP) continue; /* 0-jump, infinite loop */
-            int32_t target = i + (codes[i] >> 8);
+            int32_t target;
+            int is_branch = 0;
+            switch (code[i] & 0x7F) {
+                default:
+                    continue;
+                case JOP_JUMP:
+                    target = i + (codes[i] >> 8);
+                    break;
+                case JOP_JUMP_IF:
+                case JOP_JUMP_IF_NOT:
+                case JOP_JUMP_IF_NIL:
+                case JOP_JUMP_IF_NOT_NIL:
+                    is_branch = 1;
+                    target = i + (codes[i] >> 16);
+                    break;
+            }
+            if (target == i) continue; /* infinite loop */
             if (target == i + 1) {
+                code[i] = JOP_NOOP;
+                recur = 1;
+                continue;
+            }
+            int32_t original_target = target;
+            while ((code[target] & 0x7F) == JOP_NOOP) { /* Skip noops */
+                target++;
+            }
+            if ((code[target] & 0x7F) == JOP_RETURN_NIL && !is_branch) {
                 code[i] = JOP_RETURN_NIL;
                 recur = 1;
                 continue;
             }
-            while ((code[target] & 0x7F) == JOP_NOOP) { /* Skip noops */
-                target++;
+            /* update target */
+            if ((code[target] & 0x7F) == JOP_JUMP) {
+                target += (codes[target] >> 8);
             }
-            if ((code[target] & 0x7F) == JOP_RETURN_NIL) {
-                code[i] = JOP_RETURN_NIL;
-                recur = 1;
-            } else if ((code[target] & 0x7F) == JOP_JUMP) {
-                code[i] = JOP_JUMP | (uint32_t)((target - i) << 8);
-                recur = 1;
+            uint32_t newcode;
+            if (is_branch) {
+                newcode = (code[i] & 0xFFFF) | (uint32_t)((target - i) << 16);
+            } else {
+                newcode = (code[i] & 0xFF) | (uint32_t)((target - i) << 8);
             }
+            if (newcode != code[i]) recur = 1;
+            code[i] = newcode;
         }
-        if (!recur) break;
     }
 }
 
@@ -415,27 +439,6 @@ static StackInfo *stack_deltas(JanetFuncDef *def, JanetBB *bbs) {
     return infos;
 }
 
-/* Allow easily saving states in hashtable by packing them to a Janet string */
-/* TODO - use a representation that doesn't require touching GC and we can more easily cleanup.
- * Both the table and the strings will work fine not being on the heap and cleaned up immediately. */
-
-static JanetString save_lattice_types_state(int32_t pc, uint16_t *types) {
-    int32_t slotcount = janet_v_count(types);
-    uint8_t *buf = janet_string_begin(4 + sizeof(uint16_t) * slotcount);
-    ((int32_t *)buf)[0] = pc;
-    safe_memcpy(buf + 4, types, sizeof(uint16_t) * (size_t) slotcount);
-    return janet_string_end(buf);
-}
-
-static void load_lattice_types_state(JanetString saved_state, int32_t *pc, uint16_t *types) {
-    int32_t slot_count = (janet_string_length(saved_state) - 4) / 2;
-    /* We know this work only in this case. If we have seen a state before such that we are loading it, types
-     * has enough backing capacity already since we never decrease the backing store. */
-    janet_v__cnt(types) = slot_count;
-    safe_memcpy(types, saved_state + 4, sizeof(uint16_t) * (size_t) slot_count);
-    *pc = ((int32_t *)saved_state)[0];
-}
-
 typedef struct {
     union {
         uint16_t a_types;
@@ -473,8 +476,6 @@ typedef struct {
 /* Generate conservative static typing and flow analysis with the primitive types. Turns
  * the untyped VM bytecode into typed bytecode with annotations.
  *
- * For compiler nerds, this does lattice analysis using bitsets for primitive types.
- *
  * We produce auxiliary data for each bytecode instruction:
  *
  * 1. 16-wide bitset of possible primitive types for parameter A (or D for D instructions)
@@ -507,44 +508,46 @@ typedef struct {
  * May return NULL if we decide the function is too complicated, so users should allow
  * for this optimization not to happen.
  *
- * TODO - this is very slow and uses the naive "dense" analysis. Convert to a sparse algorithm (requires SSA).
- * Search the google for "lattice analysis pi nodes compilers"
+ * TODO - this is very slow and uses the naive "dense" analysis. However, Janet functions
+ * tend to be small and the overhead of creating and dealing with many extra nodes might
+ * not be all that helpful for our ISA. Sparse is probably better though.
  */
 
 JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16_t *ret_types) {
-    JanetTable *states = janet_table(0);
-    JanetString *state_stack = NULL;
-    uint16_t *types = NULL;
+    JanetTable *states = janet_table(0); /* PC -> register set */
+    int32_t *state_stack = NULL;
     uint16_t rettype = 0;
-    int pc = 0;
+
     /* Setup return buffer */
     JanetTypeflowInstruction *flow = array_allocate(sizeof(JanetTypeflowInstruction), def->bytecode_length);
     memset(flow, 0, sizeof(JanetTypeflowInstruction) * def->bytecode_length);
+
     /* Setup initial state */
-    /* TODO - allow priming this */
+    uint16_t *types = array_allocate(sizeof(uint16_t), def->slotcount);
     for (int32_t i = 0; i < def->slotcount; i++) {
-        janet_v_push(types, JANET_TFLAG_NIL);
+        types[i] = JANET_TFLAG_NIL;
     }
     for (int32_t i = 0; i < def->max_arity && i < def->slotcount; i++) {
         types[i] = (uint16_t) 0xFFFF;
     }
-    janet_v_push(state_stack, save_lattice_types_state(0, types));
-    const int32_t MAX_ITERATIONS = 20000000;
-    int32_t iterations = 0; /* debug counter */
+    {
+        uint16_t *next_types = array_allocate(sizeof(uint16_t), def->slotcount);
+        memcpy(next_types, types, sizeof(uint16_t) * def->slotcount);
+        janet_table_put(states, janet_wrap_integer(0), janet_wrap_pointer(next_types));
+        janet_v_push(state_stack, 0);
+    }
+
+    int32_t num_blocks = def->bytecode_length;
+    const size_t MAX_ITERATIONS = ((size_t) def->slotcount * 16 * num_blocks); /* The absolute worst possible case */
+    size_t iterations = 0; /* debug counter */
     /* While we have more states to visit, traverse them */
     while (janet_v_count(state_stack)) {
-        if (iterations >= MAX_ITERATIONS) {
-            /* Clean up and bail. Too much work to salvage anything right now. Also
-             * we may want to look into improving this algorithm. */
-            janet_free(flow);
-            janet_v_free(types);
-            janet_v_free(state_stack);
-            return NULL;
-        }
+        janet_assert(iterations < MAX_ITERATIONS, "too many iterations. Check the code.");
         iterations += 1;
-        JanetString state = janet_v_last(state_stack);
+        int32_t pc = janet_v_last(state_stack);
         janet_v_pop(state_stack);
-        load_lattice_types_state(state, &pc, types);
+        uint16_t *work_types = janet_unwrap_pointer(janet_table_get(states, janet_wrap_integer(pc)));
+        memcpy(types, work_types, sizeof(uint16_t) * def->slotcount);
         /* Iterate over bytecode */
         while (pc < def->bytecode_length) { /* Just in case prevent overrun */
             uint32_t I = def->bytecode[pc];
@@ -555,7 +558,7 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
             uint32_t Id = (I >> 8);
             int32_t Ids = ((int32_t) I >> 8);
             uint32_t Ie = (I >> 16);
-            int32_t Ies = ((int32_t) I >> 16);
+            uint32_t Ies = ((int32_t) I >> 16);
             flow[pc].flags |= TYPEFLOW_LIVE_CODE;
             switch (Iop) {
                 case JOP_NOOP:
@@ -708,55 +711,65 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                     pc++;
                     continue;
                 case JOP_JUMP:
-                    if (Ids <= 0) {
-                        /* backwards jump */
-                        Janet state = janet_wrap_string(save_lattice_types_state(pc + Ids, types));
-                        if (!janet_checktype(janet_table_get(states, state), JANET_STRING)) {
-                            janet_table_put(states, state, state);
-                            janet_v_push(state_stack, janet_unwrap_string(state));
-                        }
-                        break;
+                    flow[pc].flags |= TYPEFLOW_DID_PROCEED;
+                    int32_t target = pc + Ids;
+                    /* Merge with existing state */
+                    int changed = 0;
+                    Janet oldwrapper = janet_table_get(states, janet_wrap_integer(target));
+                    if (janet_checktype(oldwrapper, JANET_NIL)) {
+                        changed = 1;
+                        uint16_t *new_types = array_allocate(sizeof(uint16_t), def->slotcount);
+                        memcpy(new_types, types, sizeof(uint16_t) * def->slotcount);
+                        janet_table_put(states, janet_wrap_integer(target), janet_wrap_pointer(new_types));
                     } else {
-                        /* forward jump */
-                        flow[pc].flags |= TYPEFLOW_DID_PROCEED;
-                        pc += Ids;
+                        uint16_t *old_types = janet_unwrap_pointer(oldwrapper);
+                        for (int32_t sloti = 0; sloti < def->slotcount; sloti++) {
+                            if (old_types[sloti] != types[sloti]) changed = 1;
+                            old_types[sloti] |= types[sloti];
+                        }
                     }
-                    continue;
+                    if (changed) janet_v_push(state_stack, target);
+                    break;
                 case JOP_JUMP_IF:
                 case JOP_JUMP_IF_NOT:
                 case JOP_JUMP_IF_NIL:
                 case JOP_JUMP_IF_NOT_NIL:
                     /* Traverse both branches. Use type-info for dead code elimination. */
-                    flow[pc].flags |= TYPEFLOW_INPUT_A;
+                    flow[pc].flags |= TYPEFLOW_INPUT_A | TYPEFLOW_DID_PROCEED;
                     flow[pc].a_types |= types[Ia];
                     {
+                        int changed = 0;
                         int nilcheck = (Iop == JOP_JUMP_IF_NIL) || (Iop == JOP_JUMP_IF_NOT_NIL);
                         int invert = (Iop == JOP_JUMP_IF_NOT) || (Iop == JOP_JUMP_IF_NOT_NIL);
                         uint16_t oldt = types[Ia];
                         uint16_t true_t = oldt & ~JANET_TFLAG_NIL; /* truthy can't be nil */
                         uint16_t false_t = oldt & (nilcheck ? JANET_TFLAG_NIL : (JANET_TFLAG_BOOLEAN | JANET_TFLAG_NIL)); /* falsey is either false or nil */
-                        janet_assert(true_t | false_t, "branch is both always and never taken");
+                        /*janet_assert(true_t | false_t, "branch is both always and never taken");*/
                         uint16_t taken = invert ? false_t : true_t;
                         uint16_t not_taken = invert ? true_t : false_t;
-                        if (taken != 0) { /* taken == 0 means we will never take the branch */
-                            int32_t target = pc + Ies;
-                            /* We know condition is true here */
-                            types[Ia] = invert ? false_t : true_t;
-                            Janet state = janet_wrap_string(save_lattice_types_state(target, types));
-                            if (!janet_checktype(janet_table_get(states, state), JANET_STRING)) {
-                                janet_table_put(states, state, state);
-                                janet_v_push(state_stack, janet_unwrap_string(state));
+                        uint16_t branches[2] = { taken, not_taken };
+                        int32_t targets[2] = { pc + 1, pc + Ies };
+                        for (int j = 0; j < 2; j++) {
+                            target = targets[j];
+                            types[Ia] = branches[j];
+                            /* Merge with existing state */
+                            Janet oldwrapper = janet_table_get(states, janet_wrap_integer(target));
+                            if (janet_checktype(oldwrapper, JANET_NIL)) {
+                                changed = 1;
+                                uint16_t *new_types = array_allocate(sizeof(uint16_t), def->slotcount);
+                                memcpy(new_types, types, sizeof(uint16_t) * def->slotcount);
+                                janet_table_put(states, janet_wrap_integer(target), janet_wrap_pointer(new_types));
+                            } else {
+                                uint16_t *old_types = janet_unwrap_pointer(oldwrapper);
+                                for (int32_t sloti = 0; sloti < def->slotcount; sloti++) {
+                                    if (old_types[sloti] != types[sloti]) changed = 1;
+                                    old_types[sloti] |= types[sloti];
+                                }
                             }
-                            types[Ia] = oldt; /* Reset in-case we continue */
+                            if (changed) janet_v_push(state_stack, target);
                         }
-                        if (not_taken == 0) { /* not_taken == 0 means we always take the branch */
-                            /*flow[pc].flags |= TYPEFLOW_DID_EXIT;*/
-                            break;
-                        }
+                        break;
                     }
-                    flow[pc].flags |= TYPEFLOW_DID_PROCEED;
-                    pc++;
-                    continue;
                 case JOP_GREATER_THAN:
                 case JOP_LESS_THAN:
                 case JOP_EQUALS:
@@ -913,8 +926,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                             flow[pc].flags |= TYPEFLOW_ERR;
                             break;
                         }
-                        // TODO - track push counts
-                        janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                         flow[pc].flags |= TYPEFLOW_MAY_SIGNAL | TYPEFLOW_DID_PROCEED;
                         /* This can be determined recursively. Ignore stack overflows for now. Exit flag
                          * can also be eventually inferred. */
@@ -935,10 +946,8 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                             flow[pc].flags |= TYPEFLOW_ERR;
                             break;
                         }
-                        // TODO - see JOP_CALL above
-                        janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
-                        //types[Ia] = 0xFFFF; /* TODO Type infer across functions */
                         flow[pc].flags |= TYPEFLOW_MAY_SIGNAL | TYPEFLOW_DID_EXIT;
+                        rettype |= 0xFFFF; /* TODO - get tailcall type */
                     }
                     break;
                 case JOP_RESUME:
@@ -1073,7 +1082,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                     continue;
                 case JOP_MAKE_ARRAY:
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_ARRAY;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1082,7 +1090,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                 case JOP_MAKE_BUFFER:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_BUFFER;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1091,7 +1098,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                 case JOP_MAKE_STRING:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_STRING;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1100,7 +1106,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                 case JOP_MAKE_STRUCT:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_STRUCT;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1109,7 +1114,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                 case JOP_MAKE_TABLE:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_TABLE;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1119,7 +1123,6 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                 case JOP_MAKE_BRACKET_TUPLE:
                     // TODO - calculate static params
                     flow[pc].flags |= TYPEFLOW_OUTPUT_D | TYPEFLOW_INPUT_STACK;
-                    janet_v__cnt(types) = def->slotcount; /* Reset pushed arg counts */
                     types[Id] = JANET_TFLAG_TUPLE;
                     flow[pc].d_types |= types[Id];
                     flow[pc].flags |= TYPEFLOW_DID_PROCEED;
@@ -1156,7 +1159,8 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
             break;
         }
     }
-    janet_v_free(types);
+    // TODO - free all of the type bitsets in the states table */
+    janet_free(types);
     janet_v_free(state_stack);
     *ret_types = rettype;
     return flow;
@@ -1629,9 +1633,9 @@ static void bb_remove_redundant_writes(JanetFuncDef *def, JanetBB bb) {
 /* Debug */
 
 static Janet debug_mask(uint16_t mask) {
-    if (mask == 0xFFFF) {
-        return janet_ckeywordv("any");
-    }
+    if (mask == 0xFFFF) return janet_ckeywordv("any");
+    if (mask == (0xFFFF ^ JANET_TFLAG_NIL)) return janet_ckeywordv("not-nil");
+    if (mask == (0xFFFF ^ JANET_TFLAG_NIL ^ JANET_TFLAG_BOOLEAN)) return janet_ckeywordv("any-truthy");
     /* Maybe a bit more succinct will be clearer */
     JanetString x = janet_formatc("%T", (int32_t) mask);
     return janet_wrap_string(x);
@@ -1776,6 +1780,7 @@ void janet_bytecode_ovm_optimize(JanetFuncDef *def) {
         bb_dead_to_noop(def, bbs);
         janet_v_free(bbs);
     }
+    janet_jump_threading(def);
     janet_bytecode_remove_noops(def);
 
     /* Lattice analysis */
@@ -1793,7 +1798,7 @@ void janet_bytecode_ovm_optimize(JanetFuncDef *def) {
     total_removed += initial_length - final_length;
     const char *name = (const char *) def->name;
     janet_eprintf("Optimizing %-30s %04d-%03d (total instructions removed: %d of %d)\n", name ? name : "<anon>",
-    initial_length, initial_length - final_length, total_removed, total_before);
+                  initial_length, initial_length - final_length, total_removed, total_before);
 }
 
 /* C Functions */
