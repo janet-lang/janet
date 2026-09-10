@@ -109,12 +109,31 @@ const enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_SSS /* JOP_CANCEL, */
 };
 
+static void rewrite_symbolmap(JanetFuncDef *def, uint32_t *pc_map) {
+    int32_t smout = 0;
+    for (int32_t i = 0; i < def->symbolmap_length; i++) {
+        JanetSymbolMap *sm = def->symbolmap + i;
+        int keep = 1;
+        /* Don't rewrite upvalue mappings */
+        if (sm->birth_pc < UINT32_MAX) {
+            sm->birth_pc = pc_map[sm->birth_pc];
+            sm->death_pc = pc_map[sm->death_pc];
+            /* entirely dead symbols can be removed from the symbol map. This can happen if a symbol is in dead code. */
+            if (sm->death_pc > (uint32_t) def->bytecode_length) sm->death_pc = (uint32_t) def->bytecode_length;
+            if (sm->birth_pc >= sm->death_pc) keep = 0;
+        }
+        /* Now shift if needed */
+        if (keep) def->symbolmap[smout++] = *sm;
+    }
+    def->symbolmap_length = smout;
+}
+
 /* Remove all noops while preserving jumps and debugging information.
- * Useful as part of a filtering compiler pass. */
+ * Useful as part of a filtering compiler pass. Use this to remove bytecode. */
 void janet_bytecode_remove_noops(JanetFuncDef *def) {
 
     /* Get an instruction rewrite map so we can rewrite jumps */
-    uint32_t *pc_map = janet_smalloc(sizeof(uint32_t) * (1 + def->bytecode_length));
+    uint32_t *pc_map = janet_malloc(sizeof(uint32_t) * (1 + def->bytecode_length));
     uint32_t new_bytecode_length = 0;
     for (int32_t i = 0; i < def->bytecode_length; i++) {
         uint32_t instr = def->bytecode[i];
@@ -166,25 +185,147 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
     }
 
     /* Rewrite symbolmap */
-    int32_t smout = 0;
-    for (int32_t i = 0; i < def->symbolmap_length; i++) {
-        JanetSymbolMap *sm = def->symbolmap + i;
-        int keep = 1;
-        /* Don't rewrite upvalue mappings */
-        if (sm->birth_pc < UINT32_MAX) {
-            sm->birth_pc = pc_map[sm->birth_pc];
-            sm->death_pc = pc_map[sm->death_pc];
-            /* entirely dead symbols can be removed from the symbol map. This can happen if a symbol is in dead code. */
-            if (sm->birth_pc >= sm->death_pc) keep = 0;
-        }
-        /* Now shift if needed */
-        if (keep) def->symbolmap[smout++] = *sm;
-    }
-    def->symbolmap_length = smout;
+    rewrite_symbolmap(def, pc_map);
 
     def->bytecode_length = new_bytecode_length;
     def->bytecode = janet_realloc(def->bytecode, def->bytecode_length * sizeof(uint32_t));
-    janet_sfree(pc_map);
+    janet_free(pc_map);
+}
+
+/* Insert snippets of code into the bytecode while preserving symbol mapping and other
+ * internal structure. Sorts the chunks array increasing by the start field. Use
+ * this to add bytecode. */
+void janet_bytecode_insert_chunks(JanetFuncDef *def, int32_t n_chunks, JanetBytecodeChunk *chunks) {
+
+    /* Sort chunks in increasing start order.
+     * Two chunks inserted at the same index should maintain order. */
+    for (int32_t i = 1; i < n_chunks; i++) {
+        JanetBytecodeChunk pivot = chunks[i];
+        int32_t j = i - 1;
+        while (j >= 0 && chunks[j].start > pivot.start) {
+            chunks[j + 1] = chunks[j];
+            j--;
+        }
+        chunks[j + 1] = pivot;
+    }
+
+    /* Calculate final length */
+    int32_t new_length = def->bytecode_length;
+    for (int32_t i = 0; i < n_chunks; i++) {
+        new_length += chunks[i].length;
+    }
+    uint32_t *new_bytecode = array_allocate(sizeof(uint32_t), new_length);
+
+    /* Update symbol map and rewrite jumps */
+    /* old pc -> new pc */
+    uint32_t *pc_map = janet_malloc(sizeof(uint32_t) * (1 + def->bytecode_length));
+    {
+        int32_t pc_cursor = 0;
+        int32_t j = 0;
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            if (chunks[j].start == i) {
+                pc_cursor += chunks[j++].length;
+            }
+            pc_map[i] = pc_cursor++;
+        }
+        pc_map[def->bytecode_length] = pc_cursor;
+    }
+
+    /* Fix jumps */
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        uint32_t instr = def->bytecode[i];
+        uint32_t opcode = instr & 0x7F;
+        int32_t old_jump_target = 0;
+        int32_t new_jump_target = 0;
+        int32_t new_location = pc_map[i];
+        switch (opcode) {
+            case JOP_NOOP:
+                continue;
+            case JOP_JUMP:
+                /* relative pc is in DS field of instruction */
+                old_jump_target = i + (((int32_t)instr) >> 8);
+                janet_assert(old_jump_target >= 0, "bounds");
+                janet_assert(old_jump_target < def->bytecode_length, "bounds");
+                new_jump_target = pc_map[old_jump_target];
+                def->bytecode[i] = (instr & 0xFF) | ((uint32_t)(new_jump_target - new_location) << 8);
+                break;
+            case JOP_JUMP_IF:
+            case JOP_JUMP_IF_NIL:
+            case JOP_JUMP_IF_NOT:
+            case JOP_JUMP_IF_NOT_NIL:
+                /* relative pc is in ES field of instruction */
+                old_jump_target = i + (((int32_t)instr) >> 16);
+                janet_assert(old_jump_target >= 0, "bounds");
+                janet_assert(old_jump_target < def->bytecode_length, "bounds");
+                new_jump_target = pc_map[old_jump_target];
+                def->bytecode[i] = (instr & 0xFFFF) | ((uint32_t)(new_jump_target - new_location) << 16);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /* Copy bytecode */
+    uint32_t *read_cursor = def->bytecode;
+    uint32_t *write_cursor = new_bytecode;
+    for (int32_t i = 0; i <= n_chunks; i++) {
+        /* Rewrite original bytecode */
+        if (i && i < n_chunks) {
+            janet_assert(chunks[i].start >= chunks[i - 1].start, "chunk order");
+        }
+        int32_t last_start = i ? chunks[i - 1].start : 0;
+        int32_t this_start = (i == n_chunks) ? def->bytecode_length : chunks[i].start;
+        int32_t write_len = this_start - last_start;
+        janet_assert(write_len >= 0, "bad write_len");
+        if (write_len > 0) {
+            memcpy(write_cursor, read_cursor, sizeof(uint32_t) * (size_t) write_len);
+            read_cursor += write_len;
+            write_cursor += write_len;
+        }
+        if (i < n_chunks) {
+            int32_t chunk_len = chunks[i].length;
+            memcpy(write_cursor, chunks[i].bytecode, sizeof(uint32_t) * (size_t) chunk_len);
+            write_cursor += chunk_len;
+        }
+    }
+
+    /* Copy sourcemaps */
+    if (def->sourcemap) {
+        JanetSourceMapping *new_map = array_allocate(sizeof(JanetSourceMapping), new_length);
+        JanetSourceMapping *read_cursor = def->sourcemap;
+        JanetSourceMapping *write_cursor = new_map;
+        for (int32_t i = 0; i <= n_chunks; i++) {
+            int32_t last_start = i ? chunks[i - 1].start : 0;
+            int32_t this_start = (i == n_chunks) ? def->bytecode_length : chunks[i].start;
+            int32_t write_len = this_start - last_start;
+            janet_assert(write_len >= 0, "bad write_len");
+            if (write_len > 0) {
+                memcpy(write_cursor, read_cursor, sizeof(JanetSourceMapping) * (size_t) write_len);
+                read_cursor += write_len;
+                write_cursor += write_len;
+            }
+            if (i < n_chunks) {
+                int32_t chunk_len = chunks[i].length;
+                /* TODO - new source mapping */
+                for (int32_t j = 0; j < chunk_len; j++) {
+                    write_cursor[j].line = -1;
+                    write_cursor[j].column = -1;
+                }
+                write_cursor += chunk_len;
+            }
+        }
+        janet_free(def->sourcemap);
+        def->sourcemap = new_map;
+    }
+
+    /* Replace bytecode */
+    janet_free(def->bytecode);
+    def->bytecode = new_bytecode;
+    def->bytecode_length = new_length;
+
+    /* Rewrite symbolmap */
+    rewrite_symbolmap(def, pc_map);
+    janet_free(pc_map);
 }
 
 /* Remove redundant loads, moves and other instructions if possible and convert them to
@@ -364,6 +505,9 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                 case JOP_LOAD_TRUE:
                 case JOP_LOAD_FALSE:
                 case JOP_LOAD_SELF:
+                case JOP_MAKE_BUFFER:
+                case JOP_MAKE_STRING:
+                case JOP_MAKE_TABLE:
                 case JOP_MAKE_ARRAY:
                 case JOP_MAKE_TUPLE:
                 case JOP_MAKE_BRACKET_TUPLE: {

@@ -325,7 +325,6 @@ static void janet_jump_threading(JanetFuncDef *def) {
                 recur = 1;
                 continue;
             }
-            int32_t original_target = target;
             while ((code[target] & 0x7F) == JOP_NOOP) { /* Skip noops */
                 target++;
             }
@@ -340,9 +339,9 @@ static void janet_jump_threading(JanetFuncDef *def) {
             }
             uint32_t newcode;
             if (is_branch) {
-                newcode = (code[i] & 0xFFFF) | (uint32_t)((target - i) << 16);
+                newcode = (code[i] & 0xFFFF) | ((uint32_t)(target - i) << 16);
             } else {
-                newcode = (code[i] & 0xFF) | (uint32_t)((target - i) << 8);
+                newcode = (code[i] & 0xFF) | ((uint32_t)(target - i) << 8);
             }
             if (newcode != code[i]) recur = 1;
             code[i] = newcode;
@@ -511,6 +510,9 @@ typedef struct {
  * TODO - this is very slow and uses the naive "dense" analysis. However, Janet functions
  * tend to be small and the overhead of creating and dealing with many extra nodes might
  * not be all that helpful for our ISA. Sparse is probably better though.
+ *
+ * Also, iterate over basic blocks instead. There are implicit merges at these locations
+ * that we currently aren't handling.
  */
 
 JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16_t *ret_types) {
@@ -542,6 +544,9 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
     size_t iterations = 0; /* debug counter */
     /* While we have more states to visit, traverse them */
     while (janet_v_count(state_stack)) {
+        if (iterations >= MAX_ITERATIONS) {
+            janet_eprintf("function %s has issue.\n", def->name);
+        }
         janet_assert(iterations < MAX_ITERATIONS, "too many iterations. Check the code.");
         iterations += 1;
         int32_t pc = janet_v_last(state_stack);
@@ -748,10 +753,11 @@ JanetTypeflowInstruction *janet_bytecode_lattice_types(JanetFuncDef *def, uint16
                         uint16_t taken = invert ? false_t : true_t;
                         uint16_t not_taken = invert ? true_t : false_t;
                         uint16_t branches[2] = { taken, not_taken };
-                        int32_t targets[2] = { pc + 1, pc + Ies };
+                        int32_t targets[2] = { pc + Ies, pc + 1 };
                         for (int j = 0; j < 2; j++) {
-                            target = targets[j];
+                            if (!branches[j]) continue; /* impossible branch */
                             types[Ia] = branches[j];
+                            target = targets[j];
                             /* Merge with existing state */
                             Janet oldwrapper = janet_table_get(states, janet_wrap_integer(target));
                             if (janet_checktype(oldwrapper, JANET_NIL)) {
@@ -1435,7 +1441,6 @@ static void bb_remove_redundant_writes(JanetFuncDef *def, JanetBB bb) {
          * return to our function. */
         switch (Iop) {
             default:
-                fprintf(stderr, "opcode = %u\n", Iop);
                 janet_assert(0, "unhandled instruction");
                 continue;
             case JOP_JUMP:
@@ -1542,7 +1547,7 @@ static void bb_remove_redundant_writes(JanetFuncDef *def, JanetBB bb) {
              * Some of these instructions may have side effects if
              * the inputs are abstracts. */
 
-            /* Loads that trite D */
+            /* Loads that write D */
             case JOP_LOAD_NIL:
             case JOP_LOAD_TRUE:
             case JOP_LOAD_FALSE:
@@ -1768,30 +1773,70 @@ void janet_bytecode_ovm_optimize(JanetFuncDef *def) {
     int32_t initial_length = def->bytecode_length;
     total_before += initial_length;
 
-    /* Basic optimization */
-    janet_bytecode_movopt(def);
-    janet_jump_threading(def);
-    {
-        JanetBB *bbs = janet_basic_blocks(def);
-        for (int32_t i = 0; i < janet_v_count(bbs); i++) {
-            //janet_ovm_value_numbering(def, bbs[i]);
-            bb_remove_redundant_writes(def, bbs[i]); // slightly wrong
-        }
-        bb_dead_to_noop(def, bbs);
-        janet_v_free(bbs);
+    /*
+    JanetArray *before = janet_array(0);
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        janet_array_push(before, janet_asm_decode_instruction(def->bytecode[i]));
     }
-    janet_jump_threading(def);
+    */
+
+    /* Basic optimization */
+    for (int i = 0; i < 2; i++) {
+        janet_bytecode_movopt(def);
+        janet_jump_threading(def);
+        {
+            JanetBB *bbs = janet_basic_blocks(def);
+            for (int32_t i = 0; i < janet_v_count(bbs); i++) {
+                //janet_ovm_value_numbering(def, bbs[i]);
+                bb_remove_redundant_writes(def, bbs[i]);
+            }
+            bb_dead_to_noop(def, bbs);
+            janet_v_free(bbs);
+        }
+        janet_bytecode_remove_noops(def);
+    }
+
+    /* Check chunk insertion just because */
+    uint32_t noops[3] = { JOP_NOOP, JOP_NOOP, JOP_NOOP };
+    JanetBytecodeChunk chunks[3];
+    chunks[0].start = 0;
+    chunks[1].start = (def->bytecode_length - 1) / 2;
+    chunks[2].start = def->bytecode_length - 1; /* no noops at end */
+    chunks[0].length = 3;
+    chunks[1].length = 3;
+    chunks[2].length = 3;
+    chunks[0].bytecode = noops;
+    chunks[1].bytecode = noops;
+    chunks[2].bytecode = noops;
+    janet_bytecode_insert_chunks(def, 3, chunks);
     janet_bytecode_remove_noops(def);
 
+    /*
+    JanetArray *after = janet_array(0);
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        janet_array_push(after, janet_asm_decode_instruction(def->bytecode[i]));
+    }
+
+    for (int32_t i = 0; i < after->count || i < before->count; i++) {
+        if (i < after->count) {
+            if (i < before->count) {
+                janet_eprintf("%4d: %Q -> %Q\n", i, before->data[i], after->data[i]);
+            } else {
+                janet_eprintf("%4d: -> %Q\n", i, after->data[i]);
+            }
+        } else {
+            janet_eprintf("%4d: %Q ->\n", i, before->data[i]);
+        }
+    }
+    */
+
     /* Lattice analysis */
-    //uint16_t rettypes = 0;
-    //JanetTypeflowInstruction *instrs = janet_bytecode_lattice_types(func->def, &rettypes);
-    //if (!instrs) janet_panic("function too complicated");
-    //JanetArray *ret = janet_array(func->def->bytecode_length + 1);
-    //for (int32_t i = 0; i < func->def->bytecode_length; i++) {
-    //    Janet x = debug_lattice_types_instruction(instrs[i]);
-    //    janet_array_push(ret, x);
-    //}
+    /*uint16_t rettypes = 0;*/
+    /*JanetTypeflowInstruction *instrs = janet_bytecode_lattice_types(def, &rettypes);*/
+    /*lattice_dead_to_noop(def, instrs);*/
+    /*janet_free(instrs);*/
+    /*janet_jump_threading(def);*/
+    /*janet_bytecode_remove_noops(def);*/
 
     /* Info */
     int32_t final_length = def->bytecode_length;

@@ -1121,6 +1121,13 @@ struct JanetSymbolMap {
     const uint8_t *symbol;
 };
 
+/* Internal data structure for inserting chunks of bytecode */
+typedef struct {
+    uint32_t *bytecode;
+    int32_t length;
+    int32_t start;
+} JanetBytecodeChunk;
+
 /* A function definition. Contains information needed to instantiate closures. */
 struct JanetFuncDef {
     JanetGCObject gc;

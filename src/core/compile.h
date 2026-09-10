@@ -291,5 +291,6 @@ Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 void janet_bytecode_movopt(JanetFuncDef *def);
 void janet_bytecode_remove_noops(JanetFuncDef *def);
 void janet_bytecode_ovm_optimize(JanetFuncDef *def);
+void janet_bytecode_insert_chunks(JanetFuncDef *def, int32_t n_chunks, JanetBytecodeChunk *chunks);
 
 #endif
