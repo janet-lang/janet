@@ -1739,12 +1739,15 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
 
 JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
               "(ffi/trampoline cc)",
-              "Get a native function pointer that can be used as a callback and passed to C libraries. "
-              "This callback trampoline has the signature `void trampoline(void \\*ctx, void \\*userdata)` in "
-              "the given calling convention. This is the only function signature supported. "
-              "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
-              "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
-              "be further inspected with `ffi/read`.") {
+              "Get a native function pointer that can be used as a callback "
+              "and passed to C libraries. This callback trampoline has the "
+              "signature `void trampoline(void *ctx, void *userdata)` in "
+              "the given calling convention. This is the only function "
+              "signature supported. It is up to the programmer to ensure "
+              "that the `userdata` argument contains a janet function that "
+              "will be called with one argument, `ctx` which is an opaque "
+              "pointer. This pointer can be further inspected with "
+              "`ffi/read`.") {
     janet_arity(argc, 0, 1);
     JanetFFICallingConvention cc = JANET_FFI_CC_DEFAULT;
     if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
