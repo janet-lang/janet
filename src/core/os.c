@@ -1751,19 +1751,29 @@ JANET_CORE_FN(os_time,
 }
 
 JANET_CORE_FN(os_clock,
-              "(os/clock &opt source format)",
-              "Return the current time of the requested clock source.\n\n"
-              "The `source` argument selects the clock source to use, when not specified the default "
-              "is `:realtime`:\n"
-              "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
-              "  jumps in the system time\n"
-              "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
-              "  time. The clock is guaranteed to be non-decreasing in real time.\n"
-              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n"
-              "The `format` argument selects the type of output, when not specified the default is `:double`:\n"
-              "- :double: Return the number of seconds + fractional seconds as a double\n"
-              "- :int: Return the number of seconds as an integer\n"
-              "- :tuple: Return a 2 integer tuple [seconds, nanoseconds]\n") {
+              "(os/clock &opt clock as)",
+              "Return the current time of the requested clock source.\n"
+              "\n"
+              "The `clock` argument selects the clock source to use; "
+              "when not specified the default is `:realtime`:\n"
+              "\n"
+              "* `:realtime` - Return the real (i.e., wall-clock) time. "
+              "This clock is affected by discontinuous jumps in the system "
+              "time.\n"
+              "* `:monotonic` - Return the number of whole + fractional "
+              "seconds since some fixed point in time. The clock is "
+              "guaranteed to be non-decreasing in real time.\n"
+              "* `:cputime` - Return the CPU time consumed by this process "
+              "(i.e. all threads in the process).\n"
+              "\n"
+              "The `as` argument selects the type of output; when not "
+              "specified the default is `:double`:\n"
+              "\n"
+              "* `:double` - Return the number of seconds + fractional "
+              "seconds as a double.\n"
+              "* `:int` - Return the number of seconds as an integer.\n"
+              "* `:tuple` - Return a 2-integer tuple `[seconds, "
+              "nanoseconds]`.\n") {
     enum JanetTimeSource source;
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_arity(argc, 0, 2);
