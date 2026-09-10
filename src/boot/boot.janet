@@ -1790,8 +1790,14 @@
   ret)
 
 (defn zipcoll
-  `Creates a table from two arrays/tuples.
-  Returns a new table.`
+  ``
+  Creates a table from `ks` and `vs` by pairing values at the same
+  index from each. If `ks` or `vs` has more values than the other, the
+  extra values are ignored. Returns a new table.
+
+  `ks` and `vs` can by bytes, indexed, fibers, or abstract types with
+  suitable `get` and `next` methods.
+  ``
   [ks vs]
   (def res @{})
   (var kk nil)
