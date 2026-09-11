@@ -167,6 +167,10 @@ enum JanetTimeSource {
 int janet_gettime(struct timespec *spec, enum JanetTimeSource source);
 #endif
 
+#ifdef JANET_BOOTSTRAP
+extern int64_t total_instruction_count;
+#endif
+
 /* strdup */
 #ifdef JANET_WINDOWS
 #define strdup(x) _strdup(x)

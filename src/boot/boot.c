@@ -107,6 +107,8 @@ int main(int argc, const char **argv) {
     status = janet_dobytes(env, boot_buffer, (int32_t) boot_size, boot_filename, NULL);
     janet_free(boot_buffer);
 
+    fprintf(stderr, "total bytecode instructions created: %" PRIi64 "\n", total_instruction_count);
+
     /* Deinitialize vm */
     janet_deinit();
 

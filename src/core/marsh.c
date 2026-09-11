@@ -1484,7 +1484,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) |= (int32_t) (((uint32_t) flag) << 16); /* Avoid left shift of negative value */
+                janet_tuple_flag(tup) |= (int32_t)(((uint32_t) flag) << 16);  /* Avoid left shift of negative value */
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }
