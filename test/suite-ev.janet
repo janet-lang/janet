@@ -27,10 +27,10 @@
   (if-let [host (os/getenv "JANET_TEST_HOST")]
     host
     (try
-      (let [s (net/listen "localhost." port)
-            [host _] (net/localname s)]
-        (net/close s)
-        host)
+      (let [s (net/listen "localhost." port)]
+        (defer (:close s)
+            (def [host _] (net/localname s))
+            host))
       ([] "127.0.0.1"))))
 
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
