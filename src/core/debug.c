@@ -232,10 +232,10 @@ JANET_CORE_FN(cfun_debug_break,
 }
 
 JANET_CORE_FN(cfun_debug_unbreak,
-              "(debug/unbreak source line column)",
-              "Remove a breakpoint with a source key at a given line and column. "
-              "Will throw an error if the breakpoint "
-              "cannot be found.") {
+              "(debug/unbreak source line col)",
+              "Remove a breakpoint from `source` at a given `line` and "
+              "`col`. Will throw an error if the breakpoint cannot be "
+              "found.") {
     JanetFuncDef *def;
     int32_t offset = 0;
     helper_find(argc, argv, &def, &offset);
