@@ -1384,7 +1384,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     Janet marsh_out = janet_unmarshal(
                           janet_core_image,
                           janet_core_image_size,
-                          0,
+                          JANET_MARSHAL_LAZY_BYTECODE,
                           dict,
                           NULL);
 

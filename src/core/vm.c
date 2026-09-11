@@ -1049,6 +1049,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
+            janet_def_lazy_init(func->def);
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
@@ -1089,6 +1090,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
         }
         if (janet_checktype(callee, JANET_FUNCTION)) {
             func = janet_unwrap_function(callee);
+            janet_def_lazy_init(func->def);
             if (func->gc.flags & JANET_FUNCFLAG_TRACE) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }

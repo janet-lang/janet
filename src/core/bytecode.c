@@ -408,6 +408,9 @@ int janet_verify(JanetFuncDef *def) {
     int32_t maxslot = def->arity + vargs;
     int32_t sc = def->slotcount;
 
+    /* Yes, this skips checks. Only for loading from core image */
+    if (def->flags & JANET_FUNCDEF_FLAG_LAZY_BYTECODE) return 0;
+
     if (def->environments_length > 256) return 15;
     if (def->bytecode_length == 0) return 1;
 

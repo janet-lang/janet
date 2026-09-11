@@ -35,6 +35,7 @@
 
 /* Add a break point to a function */
 void janet_debug_break(JanetFuncDef *def, int32_t pc) {
+    janet_def_lazy_init(def);
     if (pc >= def->bytecode_length || pc < 0)
         janet_panic("invalid bytecode offset");
     def->bytecode[pc] |= 0x80;
@@ -42,6 +43,7 @@ void janet_debug_break(JanetFuncDef *def, int32_t pc) {
 
 /* Remove a break point from a function */
 void janet_debug_unbreak(JanetFuncDef *def, int32_t pc) {
+    janet_def_lazy_init(def);
     if (pc >= def->bytecode_length || pc < 0)
         janet_panic("invalid bytecode offset");
     def->bytecode[pc] &= ~((uint32_t)0x80);
@@ -67,6 +69,7 @@ void janet_debug_find(
             if (def->sourcemap &&
                     def->source &&
                     !janet_string_compare(source, def->source)) {
+                janet_def_lazy_init(def);
                 /* Correct source file, check mappings. The chosen
                  * pc index is the instruction closest to the given line column, but
                  * not after. */

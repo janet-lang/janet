@@ -256,6 +256,64 @@ static void janet_marshal_u32s(MarshalState *st, const uint32_t *u32s, int32_t n
     }
 }
 
+static int32_t unsafe_readint(const uint8_t **atdata) {
+    const uint8_t *data = *atdata;
+    int32_t ret;
+    if (*data < 128) {
+        ret = *data++;
+    } else if (*data < 192) {
+        uint32_t uret = ((data[0] & 0x3F) << 8) + data[1];
+        /* Sign extend 18 MSBs */
+        uret |= (uret >> 13) ? 0xFFFFC000 : 0;
+        ret = (int32_t)uret;
+        data += 2;
+    } else if (*data == LB_INTEGER) {
+        uint32_t ui = ((uint32_t)(data[1]) << 24) |
+                      ((uint32_t)(data[2]) << 16) |
+                      ((uint32_t)(data[3]) << 8) |
+                      (uint32_t)(data[4]);
+        ret = (int32_t)ui;
+        data += 5;
+    } else {
+        janet_assert(0, "bad int");
+        ret = 0;
+    }
+    *atdata = data;
+    return ret;
+}
+
+/* Lazy initialization of function defs from ROM */
+void janet_def_lazy_init(JanetFuncDef *def) {
+    if (def->flags & JANET_FUNCDEF_FLAG_LAZY_BYTECODE) {
+        def->flags &= ~((uint32_t)JANET_FUNCDEF_FLAG_LAZY_BYTECODE);
+        uint8_t *data = (uint8_t *) def->bytecode;
+        int32_t len = def->bytecode_length;
+        def->bytecode = array_allocate(sizeof(uint32_t), len);
+        for (int32_t i = 0; i < len; i++) {
+            int s = sizeof(uint32_t);
+            /* Handle endianess */
+            def->bytecode[i] =
+                (uint32_t)(data[s * i]) |
+                ((uint32_t)(data[s * i + 1]) << 8) |
+                ((uint32_t)(data[s * i + 2]) << 16) |
+                ((uint32_t)(data[s * i + 3]) << 24);
+        }
+    }
+    if (def->flags & JANET_FUNCDEF_FLAG_LAZY_SOURCEMAP) {
+        def->flags &= ~((uint32_t)JANET_FUNCDEF_FLAG_LAZY_SOURCEMAP);
+        def->flags |= JANET_FUNCDEF_FLAG_HASSOURCEMAP;
+        const uint8_t *data = (const uint8_t *) def->sourcemap;
+        int32_t len = def->bytecode_length;
+        def->sourcemap = array_allocate(sizeof(JanetSourceMapping), len);
+        int32_t current = 0;
+        for (int32_t i = 0; i < len; i++) {
+            current += unsafe_readint(&data);
+            def->sourcemap[i].line = current;
+            def->sourcemap[i].column = unsafe_readint(&data);
+        }
+    }
+}
+
 /* Marshal a function def */
 static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     MARSH_STACKCHECK;
@@ -269,6 +327,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
     /* Add to lookup */
     janet_v_push(st->seen_defs, def);
 
+    janet_def_lazy_init(def);
     pushint(st, def->flags);
     pushint(st, def->slotcount);
     pushint(st, def->arity);
@@ -1001,7 +1060,13 @@ static const uint8_t *unmarshal_one_def(
         if (!def->bytecode) {
             JANET_OUT_OF_MEMORY;
         }
-        data = janet_unmarshal_u32s(st, data, def->bytecode, bytecode_length);
+        if (flags & JANET_MARSHAL_LAZY_BYTECODE) {
+            def->flags |= JANET_FUNCDEF_FLAG_LAZY_BYTECODE;
+            def->bytecode = (uint32_t *) data;
+            data += bytecode_length * sizeof(uint32_t);
+        } else {
+            data = janet_unmarshal_u32s(st, data, def->bytecode, bytecode_length);
+        }
         def->bytecode_length = bytecode_length;
 
         /* Unmarshal environments */
@@ -1034,15 +1099,22 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal source maps if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASSOURCEMAP) {
-            int32_t current = 0;
-            def->sourcemap = array_allocate(sizeof(JanetSourceMapping), bytecode_length);
-            if (!def->sourcemap) {
-                JANET_OUT_OF_MEMORY;
-            }
-            for (int32_t i = 0; i < bytecode_length; i++) {
-                current += readint(st, &data);
-                def->sourcemap[i].line = current;
-                def->sourcemap[i].column = readint(st, &data);
+            if (flags & JANET_MARSHAL_LAZY_BYTECODE) {
+                def->flags &= ~((uint32_t)JANET_FUNCDEF_FLAG_HASSOURCEMAP);
+                def->flags |= JANET_FUNCDEF_FLAG_LAZY_SOURCEMAP;
+                def->sourcemap = (JanetSourceMapping *) data;
+                for (int32_t i = 0; i < bytecode_length; i++) {
+                    readint(st, &data);
+                    readint(st, &data);
+                }
+            } else {
+                int32_t current = 0;
+                def->sourcemap = array_allocate(sizeof(JanetSourceMapping), bytecode_length);
+                for (int32_t i = 0; i < bytecode_length; i++) {
+                    current += readint(st, &data);
+                    def->sourcemap[i].line = current;
+                    def->sourcemap[i].column = readint(st, &data);
+                }
             }
         } else {
             def->sourcemap = NULL;
@@ -1484,7 +1556,7 @@ static const uint8_t *unmarshal_one(
                 /* Tuple */
                 Janet *tup = janet_tuple_begin(len);
                 int32_t flag = readint(st, &data);
-                janet_tuple_flag(tup) |= (int32_t) (((uint32_t) flag) << 16); /* Avoid left shift of negative value */
+                janet_tuple_flag(tup) |= (int32_t)(((uint32_t) flag) << 16);  /* Avoid left shift of negative value */
                 for (int32_t i = 0; i < len; i++) {
                     data = unmarshal_one(st, data, tup + i, flags + 1);
                 }

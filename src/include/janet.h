@@ -1105,6 +1105,8 @@ struct JanetAbstractHead {
 #define JANET_FUNCDEF_FLAG_STRUCTARG 0x1000000
 #define JANET_FUNCDEF_FLAG_HASCLOBITSET 0x2000000
 #define JANET_FUNCDEF_FLAG_NAMEDARGS 0x4000000
+#define JANET_FUNCDEF_FLAG_LAZY_BYTECODE 0x8000000
+#define JANET_FUNCDEF_FLAG_LAZY_SOURCEMAP 0x10000000
 #define JANET_FUNCDEF_FLAG_TAG 0xFFFF
 
 /* Source mapping structure for a bytecode instruction */
@@ -1909,6 +1911,7 @@ JANET_API JanetModule janet_native(const char *name, JanetString *error);
 /* Marshaling */
 #define JANET_MARSHAL_UNSAFE 0x20000
 #define JANET_MARSHAL_NO_CYCLES 0x40000
+#define JANET_MARSHAL_LAZY_BYTECODE 0x80000
 
 JANET_API void janet_marshal(
     JanetBuffer *buf,

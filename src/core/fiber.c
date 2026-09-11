@@ -217,6 +217,7 @@ int janet_fiber_funcframe(JanetFiber *fiber, JanetFunction *func) {
     }
 
     /* Set up the next frame */
+    janet_def_lazy_init(func->def);
     fiber->frame = nextframe;
     fiber->stacktop = fiber->stackstart = nextstacktop;
     newframe = janet_fiber_frame(fiber);
@@ -387,6 +388,7 @@ int janet_fiber_funcframe_tail(JanetFiber *fiber, JanetFunction *func) {
     fiber->stacktop = fiber->stackstart = nextstacktop;
 
     /* Set frame stuff */
+    janet_def_lazy_init(func->def);
     janet_fiber_frame(fiber)->func = func;
     janet_fiber_frame(fiber)->pc = func->def->bytecode;
     janet_fiber_frame(fiber)->flags |= JANET_STACKFRAME_TAILCALL;

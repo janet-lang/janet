@@ -99,6 +99,8 @@ void janet_def_addflags(JanetFuncDef *def);
 
 void janet_buffer_dtostr(JanetBuffer *buffer, double x);
 
+void janet_def_lazy_init(JanetFuncDef *def);
+
 const char *janet_strerror(int e);
 
 const void *janet_strbinsearch(

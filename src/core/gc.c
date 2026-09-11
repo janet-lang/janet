@@ -368,8 +368,12 @@ static void janet_deinit_block(JanetGCObject *mem) {
             janet_free(def->defs);
             janet_free(def->environments);
             janet_free(def->constants);
-            janet_free(def->bytecode);
-            janet_free(def->sourcemap);
+            if (!(def->flags & JANET_FUNCDEF_FLAG_LAZY_BYTECODE)) {
+                janet_free(def->bytecode);
+            }
+            if (!(def->flags & JANET_FUNCDEF_FLAG_LAZY_SOURCEMAP)) {
+                janet_free(def->sourcemap);
+            }
             janet_free(def->closure_bitset);
             janet_free(def->symbolmap);
         }

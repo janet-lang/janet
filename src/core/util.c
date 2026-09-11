@@ -584,7 +584,7 @@ static void janet_check_pointer_align(void *p) {
         uintptr_t u;
     } un;
     un.p = p;
-    janet_assert(!(un.u & (uintptr_t) ((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
+    janet_assert(!(un.u & (uintptr_t)((1 << JANET_NANBOX_64_POINTER_SHIFT) - 1)),
                  "unaligned pointer wrap - cfunction pointers and abstract types must be aligned with this nanboxing configuration.");
 #endif
 }
