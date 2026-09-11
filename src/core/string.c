@@ -308,10 +308,11 @@ static void findsetup(int32_t argc, Janet *argv, struct kmp_state *s, int32_t ex
 }
 
 JANET_CORE_FN(cfun_string_find,
-              "(string/find patt str &opt start-index)",
+              "(string/find patt str &opt start)",
               "Searches for the first instance of pattern `patt` in string "
-              "`str`. Returns the index of the first character in `patt` if found, "
-              "otherwise returns nil.") {
+              "`str`. Returns the index of the first character in `patt` if "
+              "found, otherwise returns nil. Search begins from `start` if "
+              "provided.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
@@ -347,11 +348,13 @@ JANET_CORE_FN(cfun_string_hassuffix,
 }
 
 JANET_CORE_FN(cfun_string_findall,
-              "(string/find-all patt str &opt start-index)",
+              "(string/find-all patt str &opt start)",
               "Searches for all instances of pattern `patt` in string "
-              "`str`. Returns an array of all indices of found patterns. Overlapping "
-              "instances of the pattern are counted individually, meaning a byte in `str` "
-              "may contribute to multiple found patterns.") {
+              "`str`. Returns an array of all indices of found patterns. "
+              "Overlapping instances of the pattern are counted "
+              "individually, meaning a byte in `str` may contribute to "
+              "multiple found patterns. Search begins from `start` if "
+              "provided.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
