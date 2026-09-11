@@ -232,7 +232,7 @@
   [stream]
   (defer (:close stream)
     # prevent immediate close
-    (ev/read stream 1)
+    (assert (ev/read stream 1) "stream should be open")
     (def [host port] (net/localname stream))
     (assert (= host test-host) "localname host server")
     (assert (= port (scan-number test-port)) "localname port server")

@@ -2468,7 +2468,6 @@ Janet janet_ev_lasterr(void) {
                   msgbuf,
                   sizeof(msgbuf),
                   NULL);
-    if (!*msgbuf) snprintf(msgbuf, sizeof(msgbuf), "%d", code);
     char *c = msgbuf;
     while (*c) {
         if (*c == '\n' || *c == '\r') {
@@ -2477,6 +2476,8 @@ Janet janet_ev_lasterr(void) {
         }
         c++;
     }
+    size_t len = c - msgbuf;
+    snprintf(c, sizeof(msgbuf) - len, "(%d)", code);
     return janet_cstringv(msgbuf);
 }
 #else
