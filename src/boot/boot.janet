@@ -3339,14 +3339,16 @@
 (var- debugger-on-status-var nil)
 
 (defn debugger
-  "Run a repl-based debugger on a fiber. Optionally pass in a level
-  to differentiate nested debuggers."
-  [fiber &opt level]
+  ``
+  Run a repl-based debugger on a fiber `fib`. Optionally pass in a level to
+  differentiate nested debuggers.
+  ``
+  [fib &opt level]
   (default level 1)
-  (def nextenv (make-env (fiber/getenv fiber)))
-  (put nextenv :fiber fiber)
+  (def nextenv (make-env (fiber/getenv fib)))
+  (put nextenv :fiber fib)
   (put nextenv :debug-level level)
-  (put nextenv :signal (fiber/last-value fiber))
+  (put nextenv :signal (fiber/last-value fib))
 
   (merge-into nextenv debugger-env)
   (defn debugger-chunks [buf p]

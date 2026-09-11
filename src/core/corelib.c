@@ -1193,15 +1193,17 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "type with a suitable `next` method."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
-                    JDOC("(propagate x fiber)\n\n"
-                         "Propagate a signal from a fiber to the current fiber and "
-                         "set the last value of the current fiber to `x`.  The signal "
-                         "value is then available as the status of the current fiber. "
-                         "The resulting stack trace from the current fiber will include "
-                         "frames from fiber. If fiber is in a state that can be resumed, "
-                         "resuming the current fiber will first resume `fiber`. "
-                         "This function can be used to re-raise an error without losing "
-                         "the original stack trace."));
+                    JDOC("(propagate x fib)\n\n"
+                         "Propagate a signal from a fiber `fib` to the "
+                         "current fiber and set the last value of the "
+                         "current fiber to `x`. The signal value is then "
+                         "available as the status of the current fiber. The "
+                         "resulting stack trace from the current fiber will "
+                         "include frames from `fib`. If `fib` is in a state "
+                         "that can be resumed, resuming the current fiber "
+                         "will first resume `fib`. This function can be "
+                         "used to re-raise an error without losing the "
+                         "original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"
@@ -1219,16 +1221,21 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "return the value that was passed to resume."));
     janet_quick_asm(env, JANET_FUN_CANCEL,
                     "cancel", 2, 2, 2, 2, cancel_asm, sizeof(cancel_asm),
-                    JDOC("(cancel fiber err)\n\n"
-                         "Resume a fiber but have it immediately raise an error. This lets a programmer unwind a pending fiber. "
-                         "Returns the same result as resume."));
+                    JDOC("(cancel fib err)\n\n"
+                         "Resume a fiber `fib` but have it immediately "
+                         "raise an error. This enables unwinding a pending "
+                         "fiber. Returns same result as `resume`."));
     janet_quick_asm(env, JANET_FUN_RESUME,
                     "resume", 2, 1, 2, 2, resume_asm, sizeof(resume_asm),
-                    JDOC("(resume fiber &opt x)\n\n"
-                         "Resume a new or suspended fiber and optionally pass in a value to the fiber that "
-                         "will be returned to the last yield in the case of a pending fiber, or the argument to "
-                         "the dispatch function in the case of a new fiber. Returns either the return result of "
-                         "the fiber's dispatch function, or the value from the next yield call in fiber."));
+                    JDOC("(resume fib &opt x)\n\n"
+                         "Resume a new or suspended fiber `fib` and "
+                         "optionally pass in a value `x` to `fib` that "
+                         "is then returned to the last yield in the case of "
+                         "a pending fiber, or the argument to the dispatch "
+                         "function in the case of a new fiber. Returns "
+                         "either the return result of `fib`'s dispatch "
+                         "function, or the value from the next yield call "
+                         "in `fib`."));
     janet_quick_asm(env, JANET_FUN_IN,
                     "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
                     JDOC("(in x key &opt dflt)\n\n"
