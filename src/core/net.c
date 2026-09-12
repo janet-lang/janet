@@ -65,11 +65,15 @@ const JanetAbstractType janet_address_type = {
 #define JSOCKVALID(x) ((x) != INVALID_SOCKET)
 #define JSock SOCKET
 #define JSOCKFLAGS 0
+#define as_socket(H) ((SOCKET)(uintptr_t)(H))
+#define as_handle(S) ((HANDLE)(uintptr_t)(S))
 #else
 #define JSOCKCLOSE(x) close(x)
 #define JSOCKDEFAULT 0
 #define JSOCKVALID(x) ((x) >= 0)
 #define JSock int
+#define as_socket(H) (H)
+#define as_handle(S) (S)
 #ifdef SOCK_CLOEXEC
 #define JSOCKFLAGS SOCK_CLOEXEC
 #else
@@ -94,7 +98,7 @@ typedef unsigned short in_port_t;
 #endif
 #endif
 
-static JanetStream *make_stream(JSock handle, uint32_t flags);
+static JanetStream *make_stream(JSock sock, uint32_t flags);
 
 /* We pass this flag to all send calls to prevent sigpipe */
 #ifndef MSG_NOSIGNAL
@@ -351,10 +355,10 @@ void net_callback_accept(JanetFiber *fiber, JanetAsyncEvent event) {
         case JANET_ASYNC_EVENT_INIT:
         case JANET_ASYNC_EVENT_READ: {
 #if defined(JANET_LINUX)
-            JSock connfd = accept4(stream->handle, NULL, NULL, SOCK_CLOEXEC);
+            JSock connfd = accept4(as_socket(stream->handle), NULL, NULL, SOCK_CLOEXEC);
 #else
             /* On BSDs, CLOEXEC should be inherited from server socket */
-            JSock connfd = accept(stream->handle, NULL, NULL);
+            JSock connfd = accept(as_socket(stream->handle), NULL, NULL);
 #endif
             if (JSOCKVALID(connfd)) {
                 janet_net_socknoblock(connfd);
@@ -952,7 +956,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
+    if (getsockname(as_socket(js->handle), (struct sockaddr *) &ss, &slen)) {
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
@@ -967,7 +971,7 @@ JANET_CORE_FN(cfun_net_getpeername,
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
+    if (getpeername(as_socket(js->handle), (struct sockaddr *)&ss, &slen)) {
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
@@ -1106,9 +1110,9 @@ JANET_CORE_FN(cfun_stream_flush,
     janet_stream_flags(stream, JANET_STREAM_WRITABLE | JANET_STREAM_SOCKET);
     /* Toggle no delay flag */
     int flag = 1;
-    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    setsockopt(as_socket(stream->handle), IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
     flag = 0;
-    setsockopt((JSock) stream->handle, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+    setsockopt(as_socket(stream->handle), IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
     return argv[0];
 }
 
@@ -1219,7 +1223,7 @@ JANET_CORE_FN(cfun_net_setsockopt,
 
     janet_assert(optlen != 0, "invalid socket option value");
 
-    int r = setsockopt((JSock) stream->handle, st->level, st->optname, optval, optlen);
+    int r = setsockopt(as_socket(stream->handle), st->level, st->optname, optval, optlen);
     if (r == -1) {
         janet_panicf("setsockopt(%q): %s", argv[1], janet_strerror(errno));
     }
@@ -1245,8 +1249,8 @@ static const JanetMethod net_stream_methods[] = {
     {NULL, NULL}
 };
 
-static JanetStream *make_stream(JSock handle, uint32_t flags) {
-    return janet_stream((JanetHandle) handle, flags | JANET_STREAM_SOCKET | JANET_STREAM_NODUPS, net_stream_methods);
+static JanetStream *make_stream(JSock sock, uint32_t flags) {
+    return janet_stream(as_handle(sock), flags | JANET_STREAM_SOCKET | JANET_STREAM_NODUPS, net_stream_methods);
 }
 
 void janet_lib_net(JanetTable *env) {
