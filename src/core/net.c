@@ -311,9 +311,9 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
 
 static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err) {
     SOCKET lsock = as_socket(state->lstream->handle);
-    PRINT_SOCKET_DEBUG("lsock" lsock);
+    PRINT_SOCKET_DEBUG("lsock", lsock);
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
-    PRINT_SOCKET_DEBUG("asock" asock);
+    PRINT_SOCKET_DEBUG("asock", asock);
     if (asock == INVALID_SOCKET) {
         *err = janet_ev_lasterr();
         return 1;
