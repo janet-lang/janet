@@ -266,4 +266,12 @@ void janet_lib_filewatch(JanetTable *env);
 void janet_lib_ffi(JanetTable *env);
 #endif
 
+#define PRINT_SOCKET_DEBUG(stage, s) \
+    printf("[%s] Raw Socket Value: 0x%llX | Size of type: %zu bytes\n", \
+           stage, (unsigned long long)(s), sizeof(s))
+
+#define PRINT_HANDLE_DEBUG(stage, h) \
+    printf("[%s] Raw Handle Value: 0x%llX | Size of type: %zu bytes\n", \
+           stage, (unsigned long long)(uintptr_t)(h), sizeof(h))
+
 #endif
