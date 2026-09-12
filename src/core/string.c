@@ -465,10 +465,11 @@ JANET_CORE_FN(cfun_string_split,
 }
 
 JANET_CORE_FN(cfun_string_checkset,
-              "(string/check-set set str)",
-              "Checks that the string `str` only contains bytes that appear in the string `set`. "
-              "Returns true if all bytes in `str` appear in `set`, false if some bytes in `str` do "
-              "not appear in `set`.") {
+              "(string/check-set bytes str)",
+              "Checks that the string `str` only contains bytes that appear "
+              "in the string `bytes`. Returns true if all bytes in `str` "
+              "appear in `bytes`, false if some bytes in `str` do not appear "
+              "in `bytes`.") {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);
@@ -602,9 +603,10 @@ static void trim_help_args(int32_t argc, Janet *argv, JanetByteView *str, JanetB
 }
 
 JANET_CORE_FN(cfun_string_trim,
-              "(string/trim str &opt set)",
-              "Trim leading and trailing whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/trim str &opt bytes)",
+              "Trim leading and trailing whitespace from a byte sequence "
+              "`str`. If argument `bytes` is provided, treat only "
+              "characters in `bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -615,9 +617,10 @@ JANET_CORE_FN(cfun_string_trim,
 }
 
 JANET_CORE_FN(cfun_string_triml,
-              "(string/triml str &opt set)",
-              "Trim leading whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/triml str &opt bytes)",
+              "Trim leading whitespace from a byte sequence `str`. If "
+              "argument `bytes` is provided, treat only characters in "
+              "`bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -625,9 +628,10 @@ JANET_CORE_FN(cfun_string_triml,
 }
 
 JANET_CORE_FN(cfun_string_trimr,
-              "(string/trimr str &opt set)",
-              "Trim trailing whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/trimr str &opt bytes)",
+              "Trim trailing whitespace from a byte sequence `str`. If "
+              "argument `bytes` is provided, treat only characters in "
+              "`bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t right_edge = trim_help_rightedge(str, set);
