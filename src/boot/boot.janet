@@ -139,11 +139,11 @@
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x & ns] ~(set ,x (,+ ,x ,;ns)))
-(defmacro -= "Decrements the var x by n." [x & ns] ~(set ,x (,- ,x ,;ns)))
-(defmacro *= "Shorthand for (set x (\\* x n))." [x & ns] ~(set ,x (,* ,x ,;ns)))
-(defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
-(defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
+(defmacro += "Shorthand for (set x (+ x ;ns))." [x & ns] ~(set ,x (,+ ,x ,;ns)))
+(defmacro -= "Shorthand for (set x (- x ;ns))." [x & ns] ~(set ,x (,- ,x ,;ns)))
+(defmacro *= "Shorthand for (set x (* x ;ns))." [x & ns] ~(set ,x (,* ,x ,;ns)))
+(defmacro /= "Shorthand for (set x (/ x ;ns))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
+(defmacro %= "Shorthand for (set x (% x ;ns))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
 (defmacro assert :flycheck # should top level assert flycheck?
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
