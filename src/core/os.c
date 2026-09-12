@@ -1916,20 +1916,25 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
 
 JANET_CORE_FN(os_date,
               "(os/date &opt time local)",
-              "Returns the given time as a date struct, or the current time if `time` is not given. "
-              "Date is given in UTC unless `local` is truthy, in which case the date is formatted for "
-              "the local timezone. Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
-              "* :seconds - number of seconds [0-61]\n\n"
-              "* :minutes - number of minutes [0-59]\n\n"
-              "* :hours - number of hours [0-23]\n\n"
-              "* :month-day - day of month [0-30]\n\n"
-              "* :month - month of year [0, 11]\n\n"
-              "* :year - years since year 0 (e.g. 2019)\n\n"
-              "* :week-day - day of the week [0-6]\n\n"
-              "* :year-day - day of the year [0-365]\n\n"
-              "* :dst - if Day Light Savings is in effect\n\n"
-              "You can set local timezone by setting TZ environment variable. "
-              "See tzset(<time.h>) or _tzset(<time.h>) for further details.") {
+              "Returns the given time as a date struct, or the current time "
+              "if `time` is not given. Date is given in UTC unless `local` "
+              "is truthy, in which case the date is formatted for the local "
+              "timezone. Returns a struct with following key-value pairs. "
+              "Note that all numbers are 0-indexed.\n"
+              "\n"
+              "* `:seconds` - number of seconds [0-61]\n"
+              "* `:minutes` - number of minutes [0-59]\n"
+              "* `:hours` - number of hours [0-23]\n"
+              "* `:month-day` - day of month [0-30]\n"
+              "* `:month` - month of year [0, 11]\n"
+              "* `:year` - years since year 0 (e.g. 2019)\n"
+              "* `:week-day` - day of the week [0-6]\n"
+              "* `:year-day` - day of the year [0-365]\n"
+              "* `:dst` - if Day Light Savings is in effect\n"
+              "\n"
+              "The local timezone can be set by setting the `TZ` "
+              "environment variable. See `tzset()` (`<time.h>`) or "
+              "`_tzset()` (`<time.h>`) for further details.") {
     janet_arity(argc, 0, 2);
     (void) argv;
     struct tm t_infos;
@@ -1951,11 +1956,14 @@ JANET_CORE_FN(os_date,
 
 JANET_CORE_FN(os_strftime,
               "(os/strftime fmt &opt time local)",
-              "Format the given time as a string, or the current time if `time` is not given. "
-              "The time is formatted according to the same rules as the ISO C89 function strftime(). "
-              "The time is formatted in UTC unless `local` is truthy, in which case the date is formatted for "
-              "the local timezone. You can set local timezone by setting TZ environment variable. "
-              "See tzset(<time.h>) or _tzset(<time.h>) for further details.") {
+              "Format the given time as a string, or the current time if "
+              "`time` is not given. The time is formatted according to the "
+              "same rules as the ISO C89 function `strftime()`. The time is "
+              "formatted in UTC unless `local` is truthy, in which case the "
+              "date is formatted for the local timezone. The local timezone "
+              "can be set by setting the `TZ` environment variable. See "
+              "`tzset()` (`<time.h>`) or `_tzset()`(`<time.h>`) for further "
+              "details.") {
     janet_arity(argc, 1, 3);
     const char *fmt = janet_getcstring(argv, 0);
     /* ANSI X3.159-1989, section 4.12.3.5 "The strftime function" */
