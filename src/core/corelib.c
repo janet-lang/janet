@@ -260,8 +260,9 @@ JANET_CORE_FN(janet_core_expand_path,
 }
 
 JANET_CORE_FN(janet_core_dyn,
-              "(dyn key &opt default)",
-              "Get a dynamic binding. Returns the default value (or nil) if no binding found.") {
+              "(dyn key &opt dflt)",
+              "Get a dynamic binding value for `key`. If no binding found, "
+              "returns `dflt` (or nil).") {
     janet_arity(argc, 1, 2);
     Janet value;
     if (janet_vm.fiber->env) {
@@ -276,8 +277,8 @@ JANET_CORE_FN(janet_core_dyn,
 }
 
 JANET_CORE_FN(janet_core_setdyn,
-              "(setdyn key value)",
-              "Set a dynamic binding. Returns value.") {
+              "(setdyn key val)",
+              "Set a dynamic binding for `key` to `val`. Returns `val`.") {
     janet_fixarity(argc, 2);
     if (!janet_vm.fiber->env) {
         janet_vm.fiber->env = janet_table(2);
@@ -399,14 +400,14 @@ JANET_CORE_FN(janet_core_scannumber,
 }
 
 JANET_CORE_FN(janet_core_tuple,
-              "(tuple & items)",
-              "Creates a new tuple that contains items. Returns the new tuple.") {
+              "(tuple & xs)",
+              "Creates and returns a tuple that contains values from `xs`.") {
     return janet_wrap_tuple(janet_tuple_n(argv, argc));
 }
 
 JANET_CORE_FN(janet_core_array,
-              "(array & items)",
-              "Create a new array that contains items. Returns the new array.") {
+              "(array & xs)",
+              "Creates and returns an array that contains values from `xs`.") {
     JanetArray *array = janet_array(argc);
     array->count = argc;
     safe_memcpy(array->data, argv, argc * sizeof(Janet));
@@ -613,11 +614,14 @@ JANET_CORE_FN(janet_core_hash,
 }
 
 JANET_CORE_FN(janet_core_getline,
-              "(getline &opt prompt buf env)",
-              "Reads a line of input into a buffer, including the newline character, using a prompt. "
-              "An optional environment table can be provided for auto-complete. "
-              "Returns the modified buffer. "
-              "Use this function to implement a simple interface for a terminal program.") {
+              "(getline &opt prmpt buf env)",
+              "Reads a line of input into a buffer (including the "
+              "newline character) showing a prompt `prmpt` if specified. "
+              "Optional argument `buf` specifies a buffer; if not set, "
+              "a new buffer is created. Provide an optional environment "
+              "table `env` for auto-complete. Returns the modified buffer. "
+              "Use this function to implement a simple interface for a "
+              "terminal program.") {
     FILE *in = janet_dynfile("in", stdin);
     FILE *out = janet_dynfile("out", stdout);
     janet_arity(argc, 0, 3);
