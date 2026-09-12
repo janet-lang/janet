@@ -451,13 +451,16 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
  */
 
 JANET_CORE_FN(cfun_net_sockaddr,
-              "(net/address host port &opt type multi)",
-              "Look up the connection information for a given hostname, port, and connection type. Returns "
-              "a handle that can be used to send datagrams over network without establishing a connection. "
-              "On Posix platforms, you can use :unix for host to connect to a unix domain socket, where the name is "
-              "given in the port argument. On Linux, abstract "
-              "unix domain sockets are specified with a leading '@' character in port. If `multi` is truthy, will "
-              "return all address that match in an array instead of just the first.") {
+              "(net/address host port &opt cntype multi)",
+              "Look up the connection information for a given `host`, "
+              "`port`, and connection type `cntype`. Returns a handle that "
+              "can be used to send datagrams over the network without "
+              "establishing a connection. On POSIX platforms, you can use "
+              "`:unix` for `host` to connect to a unix domain socket, where "
+              "the name is given in the `port` argument. On Linux, abstract "
+              "unix domain sockets are specified with a leading '@' "
+              "character in `port`. If `multi` is truthy, returns all "
+              "addresses that match in an array instead of just the first.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_CONNECT); /* connect OR listen */
     janet_arity(argc, 2, 4);
     int socktype = janet_get_sockettype(argv, argc, 2);
@@ -499,12 +502,15 @@ JANET_CORE_FN(cfun_net_sockaddr,
 }
 
 JANET_CORE_FN(cfun_net_connect,
-              "(net/connect host port &opt type bindhost bindport)",
-              "Open a connection to communicate with a server. Returns a duplex stream "
-              "that can be used to communicate with the server. Type is an optional keyword "
-              "to specify a connection type, either :stream or :datagram. The default is :stream. "
-              "Bindhost is an optional string to select from what address to make the outgoing "
-              "connection, with the default being the same as using the OS's preferred address. ") {
+              "(net/connect host port &opt cntype bindhost bindport)",
+              "Open a connection to communicate with a server at `host` "
+              "`port`. Returns a duplex stream that can be used to "
+              "communicate with the server. `cntype` is an optional keyword "
+              "to specify a connection type, either `:stream` or "
+              "`:datagram`; the default is `:stream`. `bindhost` and "
+              "`bindport` are optional strings to select from what address "
+              "to make the outgoing connection; the default is the same as "
+              "using the OS's preferred address.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_CONNECT);
     janet_arity(argc, 2, 5);
 
@@ -680,10 +686,11 @@ JANET_CORE_FN(cfun_net_connect,
 }
 
 JANET_CORE_FN(cfun_net_socket,
-              "(net/socket &opt type address-family)",
-              "Creates a new unbound socket. Type is an optional keyword, "
-              "either a :stream (usually tcp), or :datagram (usually udp). The default is :stream. "
-              "`address-family` should be one of :ipv4 or :ipv6.") {
+              "(net/socket &opt cntype address-family)",
+              "Creates a new unbound socket. `cntype` is an optional "
+              "keyword, either `:stream` (usually TCP), or `:datagram` "
+              "(usually UDP). The default is `:stream`. `address-family` "
+              "should be `:ipv4` or `:ipv6`.") {
     janet_arity(argc, 0, 2);
 
     int socktype = janet_get_sockettype(argv, argc, 0);
@@ -807,13 +814,17 @@ JANET_CORE_FN(cfun_net_shutdown,
 }
 
 JANET_CORE_FN(cfun_net_listen,
-              "(net/listen host port &opt type no-reuse)",
-              "Creates a server. Returns a new stream that is neither readable nor "
-              "writeable. Use net/accept or net/accept-loop be to handle connections and start the server. "
-              "The type parameter specifies the type of network connection, either "
-              "a :stream (usually tcp), or :datagram (usually udp). If not specified, the default is "
-              ":stream. The host and port arguments are the same as in net/address. The last boolean parameter `no-reuse` will "
-              "disable the use of `SO_REUSEADDR` and `SO_REUSEPORT` when creating a server on some operating systems.") {
+              "(net/listen host port &opt cntype no-reuse)",
+              "Creates a server. Returns a new stream that is neither "
+              "readable nor writeable. Use `net/accept` or "
+              "`net/accept-loop` to handle connections and start the "
+              "server. The `cntype` parameter specifies the connection "
+              "type, either `:stream` (usually TCP), or `:datagram` "
+              "(usually UDP). If not specified, the default is `:stream`. "
+              "The `host` and `port` arguments are the same as in "
+              "`net/address`. The last boolean parameter `no-reuse` "
+              "disables the use of `SO_REUSEADDR` and `SO_REUSEPORT` when "
+              "creating a server on some operating systems.") {
     janet_sandbox_assert(JANET_SANDBOX_NET_LISTEN);
     janet_arity(argc, 2, 4);
 

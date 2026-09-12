@@ -797,13 +797,16 @@ static int get_signal_kw(const Janet *argv, int32_t n) {
 #endif
 
 JANET_CORE_FN(os_proc_kill,
-              "(os/proc-kill proc &opt wait signal)",
-              "Kill the subprocess `proc` by sending SIGKILL to it on POSIX systems, or by closing "
-              "the process handle on Windows. If `proc` has already completed, raise an error. If "
-              "`wait` is truthy, will wait for `proc` to complete and return the exit code (this "
-              "will raise an error if `proc` is being waited for). Otherwise, return `proc`. If "
-              "`signal` is provided, send it instead of SIGKILL. Signal keywords are named after "
-              "their C counterparts but in lowercase with the leading SIG stripped. `signal` is "
+              "(os/proc-kill proc &opt wait which)",
+              "Kill the subprocess `proc` by sending SIGKILL to it on POSIX "
+              "systems, or by closing the process handle on Windows. If "
+              "`proc` has already completed, raise an error. If `wait` is "
+              "truthy, waits for `proc` to complete and return the exit "
+              "code (this raises an error if `proc` is being waited for). "
+              "Otherwise, return `proc`. Optional argument `which` is a "
+              "keyword named after its C counterpart but in lowercase with "
+              "the leading SIG stripped. If `which` is provided, the "
+              "corresponding signal is sent instead of SIGKILL. `which` is "
               "ignored on Windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
@@ -2601,9 +2604,12 @@ JANET_CORE_FN(os_umask,
 #endif
 
 JANET_CORE_FN(os_dir,
-              "(os/dir dir &opt array)",
-              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
-              "with only the file name or directory name and no prefix.") {
+              "(os/dir dir &opt arr)",
+              "Enumerate files and subdirectories in a directory `dir`. "
+              "Returns an array of paths relative to `dir` with only the "
+              "file or directory name with no prefix. If an array `arr` "
+              "is specified, append paths to it instead of creating a new "
+              "array.") {
     janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, 2);
     const char *dir = janet_getcstring(argv, 0);
