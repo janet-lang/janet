@@ -368,7 +368,7 @@ static void reverse_u64(uint8_t bytes[8]) {
 JANET_CORE_FN(cfun_buffer_push_uint16,
               "(buffer/push-uint16 buffer order data)",
               "Push a 16 bit unsigned integer data onto the end of the buffer. "
-              "Returns the modified buffer."
+              "Returns the modified buffer. "
               "Expands the buffer as necessary. Throws an error if size limit is exceeded.") {
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
@@ -388,7 +388,7 @@ JANET_CORE_FN(cfun_buffer_push_uint16,
 JANET_CORE_FN(cfun_buffer_push_uint32,
               "(buffer/push-uint32 buffer order data)",
               "Push a 32 bit unsigned integer data onto the end of the buffer. "
-              "Returns the modified buffer."
+              "Returns the modified buffer. "
               "Expands the buffer as necessary. Throws an error if size limit is exceeded.") {
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
@@ -405,7 +405,7 @@ JANET_CORE_FN(cfun_buffer_push_uint32,
 JANET_CORE_FN(cfun_buffer_push_uint64,
               "(buffer/push-uint64 buffer order data)",
               "Push a 64 bit unsigned integer data onto the end of the buffer. "
-              "Returns the modified buffer."
+              "Returns the modified buffer. "
               "Expands the buffer as necessary. Throws an error if size limit is exceeded.") {
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
@@ -422,7 +422,7 @@ JANET_CORE_FN(cfun_buffer_push_uint64,
 JANET_CORE_FN(cfun_buffer_push_float32,
               "(buffer/push-float32 buffer order data)",
               "Push the underlying bytes of a 32 bit float data onto the end of the buffer. "
-              "Returns the modified buffer."
+              "Returns the modified buffer. "
               "Expands the buffer as necessary. Throws an error if size limit is exceeded.") {
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
@@ -439,7 +439,7 @@ JANET_CORE_FN(cfun_buffer_push_float32,
 JANET_CORE_FN(cfun_buffer_push_float64,
               "(buffer/push-float64 buffer order data)",
               "Push the underlying bytes of a 64 bit float data onto the end of the buffer. "
-              "Returns the modified buffer."
+              "Returns the modified buffer. "
               "Expands the buffer as necessary. Throws an error if size limit is exceeded.") {
     janet_fixarity(argc, 3);
     JanetBuffer *buffer = janet_getbuffer(argv, 0);

@@ -141,18 +141,23 @@ JANET_CORE_FN(cfun_io_temp,
 JANET_CORE_FN(cfun_io_fopen,
               "(file/open path &opt mode buffer-size)",
               "Open a file. `path` is an absolute or relative path, and "
-              "`mode` is a set of flags indicating the mode to open the file in. "
-              "`mode` is a keyword where each character represents a flag. If the file "
-              "cannot be opened, returns nil, otherwise returns the new file handle. "
-              "Mode flags:\n\n"
-              "* r - allow reading from the file\n\n"
-              "* w - allow writing to the file\n\n"
-              "* a - append to the file\n\n"
-              "Following one of the initial flags, 0 or more of the following flags can be appended:\n\n"
-              "* b - open the file in binary mode (rather than text mode)\n\n"
-              "* + - append to the file instead of overwriting it\n\n"
-              "* n - error if the file cannot be opened instead of returning nil\n\n"
-              "See fopen (<stdio.h>, C99) for further details.") {
+              "`mode` is a set of flags indicating the mode to open the "
+              "file in. `mode` is a keyword where each character represents "
+              "a flag. If the file cannot be opened, returns nil, otherwise "
+              "returns the new file handle. Mode flags:\n"
+              "\n"
+              "* `r` - allow reading from file\n"
+              "* `w` - allow writing to file\n"
+              "* `a` - append to file\n"
+              "\n"
+              "After one of the initial flags, 0 or more of the following "
+              "flags can be appended:\n"
+              "\n"
+              "* `b` - open file in binary mode (rather than text mode)\n"
+              "* `+` - open file for both reading and writing\n"
+              "* `n` - error if file cannot be opened instead of returning nil\n"
+              "\n"
+              "See `fopen()` (`<stdio.h>`, C99) for further details.") {
     janet_arity(argc, 1, 3);
     const uint8_t *fname = janet_getstring(argv, 0);
     const uint8_t *fmode;
@@ -342,12 +347,12 @@ JANET_CORE_FN(cfun_io_fclose,
 
 /* Seek a file */
 JANET_CORE_FN(cfun_io_fseek,
-              "(file/seek f &opt whence n)",
+              "(file/seek f whence &opt n)",
               "Jump to a relative location in the file `f`. `whence` must be one of:\n\n"
               "* :cur - jump relative to the current file location\n\n"
               "* :set - jump relative to the beginning of the file\n\n"
               "* :end - jump relative to the end of the file\n\n"
-              "By default, `whence` is :cur. Optionally a value `n` may be passed "
+              "By default, `n` is 0. Optionally a value `n` may be passed "
               "for the relative number of bytes to seek in the file. `n` may be a real "
               "number to handle large files of more than 4GB. Returns the file handle.") {
     janet_arity(argc, 2, 3);
@@ -356,20 +361,18 @@ JANET_CORE_FN(cfun_io_fseek,
         janet_panic("file is closed");
     int64_t offset = 0;
     int whence = SEEK_CUR;
-    if (argc >= 2) {
-        const uint8_t *whence_sym = janet_getkeyword(argv, 1);
-        if (!janet_cstrcmp(whence_sym, "cur")) {
-            whence = SEEK_CUR;
-        } else if (!janet_cstrcmp(whence_sym, "set")) {
-            whence = SEEK_SET;
-        } else if (!janet_cstrcmp(whence_sym, "end")) {
-            whence = SEEK_END;
-        } else {
-            janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
-        }
-        if (argc == 3) {
-            offset = (int64_t) janet_getinteger64(argv, 2);
-        }
+    const uint8_t *whence_sym = janet_getkeyword(argv, 1);
+    if (!janet_cstrcmp(whence_sym, "cur")) {
+        whence = SEEK_CUR;
+    } else if (!janet_cstrcmp(whence_sym, "set")) {
+        whence = SEEK_SET;
+    } else if (!janet_cstrcmp(whence_sym, "end")) {
+        whence = SEEK_END;
+    } else {
+        janet_panicf("expected one of :cur, :set, :end, got %v", argv[1]);
+    }
+    if (argc == 3) {
+        offset = (int64_t) janet_getinteger64(argv, 2);
     }
     if (fseek(iof->file, offset, whence)) janet_panic("error seeking file");
     return argv[0];

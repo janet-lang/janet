@@ -26,6 +26,7 @@
 #include "gc.h"
 #include "util.h"
 #include "regalloc.h"
+#include "vector.h"
 #endif
 
 /* Look up table for instructions */
@@ -109,6 +110,83 @@ const enum JanetInstructionType janet_instructions[JOP_INSTRUCTION_COUNT] = {
     JINT_SSS /* JOP_CANCEL, */
 };
 
+/* Keep track of how large corelib is. Useful
+ * for minimizing code bloat. */
+#ifdef JANET_BOOTSTRAP
+int64_t total_instruction_count = 0;
+#endif
+
+/* Traverse bytecode and remove unreachable code my marking it as a noop. */
+void janet_bytecode_dead_code(JanetFuncDef *def) {
+    int32_t *pcstack = NULL;
+    uint32_t *code = def->bytecode;
+    int32_t *codes = (int32_t *)code;
+    int32_t len = def->bytecode_length;
+    int32_t words = (len + 31) / 32;
+    uint32_t *visited_bitmap = array_allocate(sizeof(uint32_t), words);
+    memset(visited_bitmap, 0, words * sizeof(uint32_t));
+    janet_v_push(pcstack, 0);
+    while (janet_v_count(pcstack)) {
+        int32_t pc = janet_v_last(pcstack);
+        janet_v_pop(pcstack);
+        while (pc < len) {
+            int32_t index = pc >> 5;
+            int32_t mask = 1 << (pc & 0x1F);
+            if (visited_bitmap[index] & mask) break;
+            visited_bitmap[index] |= mask;
+            switch (code[pc] & 0x7F) {
+                default:
+                    pc++;
+                    continue;
+                case JOP_RETURN_NIL:
+                case JOP_RETURN:
+                case JOP_ERROR:
+                case JOP_TAILCALL:
+                    pc = len;
+                    continue;
+                case JOP_JUMP:
+                    janet_v_push(pcstack, pc + (codes[pc] >> 8));
+                    pc = len;
+                    continue;
+                case JOP_JUMP_IF:
+                case JOP_JUMP_IF_NIL:
+                case JOP_JUMP_IF_NOT:
+                case JOP_JUMP_IF_NOT_NIL:
+                    janet_v_push(pcstack, pc + (codes[pc] >> 16));
+                    pc++;
+                    continue;
+            }
+        }
+    }
+    for (int32_t pc = 0; pc < len; pc++) {
+        if (!(visited_bitmap[pc >> 5] & (1 << (pc & 0x1F)))) {
+            code[pc] = JOP_NOOP;
+        }
+    }
+    janet_free(visited_bitmap);
+    janet_v_free(pcstack);
+}
+
+/* Handle remapping symbols when bytecode changes */
+static void rewrite_symbolmap(JanetFuncDef *def, uint32_t *pc_map) {
+    int32_t smout = 0;
+    for (int32_t i = 0; i < def->symbolmap_length; i++) {
+        JanetSymbolMap *sm = def->symbolmap + i;
+        int keep = 1;
+        /* Don't rewrite upvalue mappings */
+        if (sm->birth_pc < UINT32_MAX) {
+            sm->birth_pc = pc_map[sm->birth_pc];
+            sm->death_pc = pc_map[sm->death_pc];
+            /* entirely dead symbols can be removed from the symbol map. This can happen if a symbol is in dead code. */
+            if (sm->death_pc > (uint32_t) def->bytecode_length) sm->death_pc = (uint32_t) def->bytecode_length;
+            if (sm->birth_pc >= sm->death_pc) keep = 0;
+        }
+        /* Now shift if needed */
+        if (keep) def->symbolmap[smout++] = *sm;
+    }
+    def->symbolmap_length = smout;
+}
+
 /* Remove all noops while preserving jumps and debugging information.
  * Useful as part of a filtering compiler pass. */
 void janet_bytecode_remove_noops(JanetFuncDef *def) {
@@ -166,23 +244,73 @@ void janet_bytecode_remove_noops(JanetFuncDef *def) {
     }
 
     /* Rewrite symbolmap */
-    for (int32_t i = 0; i < def->symbolmap_length; i++) {
-        JanetSymbolMap *sm = def->symbolmap + i;
-        /* Don't rewrite upvalue mappings */
-        if (sm->birth_pc < UINT32_MAX) {
-            sm->birth_pc = pc_map[sm->birth_pc];
-            sm->death_pc = pc_map[sm->death_pc];
-        }
-    }
+    rewrite_symbolmap(def, pc_map);
 
     def->bytecode_length = new_bytecode_length;
     def->bytecode = janet_realloc(def->bytecode, def->bytecode_length * sizeof(uint32_t));
     janet_sfree(pc_map);
 }
 
+/* Simple Jump threading. Traverse basic blocks instead?
+ * jump instructions are always last instruction in basic block. */
+void janet_bytecode_jump_threading(JanetFuncDef *def) {
+    int32_t blen = def->bytecode_length;
+    uint32_t *code = def->bytecode;
+    int32_t *codes = (int32_t *)code;
+    int recur = 1;
+    while (recur) {
+        recur = 0;
+        for (int32_t i = 0; i < blen; i++) {
+            int32_t target;
+            int is_branch = 0;
+            switch (code[i] & 0x7F) {
+                default:
+                    continue;
+                case JOP_JUMP:
+                    target = i + (codes[i] >> 8);
+                    break;
+                case JOP_JUMP_IF:
+                case JOP_JUMP_IF_NOT:
+                case JOP_JUMP_IF_NIL:
+                case JOP_JUMP_IF_NOT_NIL:
+                    is_branch = 1;
+                    target = i + (codes[i] >> 16);
+                    break;
+            }
+            if (target == i) continue; /* infinite loop */
+            if (target == i + 1) {
+                code[i] = JOP_NOOP;
+                recur = 1;
+                continue;
+            }
+            while ((code[target] & 0x7F) == JOP_NOOP) { /* Skip noops */
+                target++;
+            }
+            if ((code[target] & 0x7F) == JOP_RETURN_NIL && !is_branch) {
+                code[i] = JOP_RETURN_NIL;
+                recur = 1;
+                continue;
+            }
+            /* update target */
+            if ((code[target] & 0x7F) == JOP_JUMP) {
+                target += (codes[target] >> 8);
+            }
+            uint32_t newcode;
+            if (is_branch) {
+                newcode = (code[i] & 0xFFFF) | ((uint32_t)(target - i) << 16);
+            } else {
+                newcode = (code[i] & 0xFF) | ((uint32_t)(target - i) << 8);
+            }
+            if (newcode != code[i]) recur = 1;
+            code[i] = newcode;
+        }
+    }
+}
+
 /* Remove redundant loads, moves and other instructions if possible and convert them to
  * noops. Input is assumed valid bytecode. */
 void janet_bytecode_movopt(JanetFuncDef *def) {
+
     JanetcRegisterAllocator ra;
     int recur = 1;
 
@@ -357,6 +485,8 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
                 case JOP_LOAD_TRUE:
                 case JOP_LOAD_FALSE:
                 case JOP_LOAD_SELF:
+                case JOP_MAKE_STRING:
+                case JOP_MAKE_TABLE:
                 case JOP_MAKE_ARRAY:
                 case JOP_MAKE_TUPLE:
                 case JOP_MAKE_BRACKET_TUPLE: {
@@ -400,6 +530,29 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
 #undef EE
     }
 }
+
+/* Entry point for optimization */
+void janet_bytecode_optimize(JanetFuncDef *def) {
+    int32_t delta;
+    do { // Fixpoint for instruction removal
+        int32_t before = def->bytecode_length;
+        janet_bytecode_jump_threading(def);
+        janet_bytecode_movopt(def);
+        janet_bytecode_dead_code(def);
+        janet_bytecode_remove_noops(def);
+        delta = def->bytecode_length - before;
+    } while (delta < 0);
+#ifdef JANET_BOOTSTRAP
+    total_instruction_count += def->bytecode_length;
+#endif
+}
+
+/* TODO - type and error analysis */
+/*
+void janet_bytecode_analyze(JanetFuncDef *def) {
+    janet_panic("NYI");
+}
+*/
 
 /* Verify some bytecode */
 int janet_verify(JanetFuncDef *def) {

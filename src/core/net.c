@@ -953,9 +953,8 @@ JANET_CORE_FN(cfun_net_getsockname,
     janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
-    char ss[sizeof(struct sockaddr_storage) + 64]; /* extra space */
+    struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    memset(&ss, 0, slen);
     if (getsockname((JSock)js->handle, (struct sockaddr *) &ss, &slen)) {
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
@@ -969,9 +968,8 @@ JANET_CORE_FN(cfun_net_getpeername,
     janet_fixarity(argc, 1);
     JanetStream *js = janet_getabstract(argv, 0, &janet_stream_type);
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
-    char ss[sizeof(struct sockaddr_storage) + 64]; /* extra space */
+    struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    memset(&ss, 0, slen);
     if (getpeername((JSock)js->handle, (struct sockaddr *)&ss, &slen)) {
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }

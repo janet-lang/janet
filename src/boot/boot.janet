@@ -49,10 +49,12 @@
   (apply defn name :macro more))
 
 (defmacro as-macro
-  ``Use a function or macro literal `f` as a macro. This lets
-  any function be used as a macro. Inside a quasiquote, the
-  idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
-  to avoid unwanted variable capture of `my-custom-macro`.``
+  ``
+  Use a function or macro literal `f` as a macro. This allows any
+  function to be used as a macro. Inside a quasiquote, the idiom
+  `(as-macro ,my-custom-macro arg1 arg2...)` can be used to avoid
+  unwanted variable capture of `my-custom-macro`.
+  ``
   [f & args]
   (f ;args))
 
@@ -137,11 +139,11 @@
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x & ns] ~(set ,x (,+ ,x ,;ns)))
-(defmacro -= "Decrements the var x by n." [x & ns] ~(set ,x (,- ,x ,;ns)))
-(defmacro *= "Shorthand for (set x (\\* x n))." [x & ns] ~(set ,x (,* ,x ,;ns)))
-(defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
-(defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
+(defmacro += "Shorthand for (set x (+ x ;ns))." [x & ns] ~(set ,x (,+ ,x ,;ns)))
+(defmacro -= "Shorthand for (set x (- x ;ns))." [x & ns] ~(set ,x (,- ,x ,;ns)))
+(defmacro *= "Shorthand for (set x (* x ;ns))." [x & ns] ~(set ,x (,* ,x ,;ns)))
+(defmacro /= "Shorthand for (set x (/ x ;ns))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
+(defmacro %= "Shorthand for (set x (% x ;ns))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
 (defmacro assert :flycheck # should top level assert flycheck?
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
@@ -177,7 +179,7 @@
   "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
 
 (defdyn *lint-warn*
-  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+  "The current lint warning level. The warning level is the lint level at which an error will be printed but compilation will continue as normal.")
 
 (defdyn *lint-levels*
   "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
@@ -1788,8 +1790,14 @@
   ret)
 
 (defn zipcoll
-  `Creates a table from two arrays/tuples.
-  Returns a new table.`
+  ``
+  Creates a table from `ks` and `vs` by pairing values at the same
+  index from each. If `ks` or `vs` has more values than the other, the
+  extra values are ignored. Returns a new table.
+
+  `ks` and `vs` can by bytes, indexed, fibers, or abstract types with
+  suitable `get` and `next` methods.
+  ``
   [ks vs]
   (def res @{})
   (var kk nil)
@@ -3920,12 +3928,15 @@
     (print-index identity)))
 
 (defmacro doc
-  ``Shows documentation for the given symbol, or can show a list of available bindings.
-  If `sym` is a symbol, will look for documentation for that symbol. If `sym` is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment
-  containing that string (all bindings will be shown if no string is given).``
-  [&opt sym]
-  ~(,doc* ',sym))
+  ``
+  Shows documentation for `what` or lists binding names. If `what` is
+  a symbol, shows documentation for that symbol. If `what` is a
+  string, shows all lexical and dynamic binding names in the current
+  environment containing the string. If `what` is not provided, shows
+  all binding names.
+  ``
+  [&opt what]
+  ~(,doc* ',what))
 
 (defn doc-of
   `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
@@ -4180,7 +4191,7 @@
   (defmacro ev/spawn
     ``
     Run some code in a new task fiber. This is shorthand for
-    `(ev/go (fn [] ;body))`."
+    `(ev/go (fn [] ;body))`.
     ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
@@ -4322,7 +4333,7 @@
 
 (compwhen (dyn 'ffi/native)
 
-  (defdyn *ffi-context* " Current native library for ffi/bind and other settings")
+  (defdyn *ffi-context* "Current native library for `ffi/defbind` and other settings")
 
   (defn- default-mangle
     [name &]
@@ -4344,8 +4355,8 @@
 
   (defmacro ffi/defbind-alias :flycheck
     "Generate bindings for native functions in a convenient manner.
-     Similar to defbind but allows for the janet function name to be
-     different than the FFI function."
+     Similar to `ffi/defbind` but allows for the janet function name
+     to be different than the FFI function."
     [name alias ret-type & body]
     (def real-ret-type (eval ret-type))
     (def meta (slice body 0 -2))

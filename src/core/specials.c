@@ -734,10 +734,10 @@ static JanetSlot janetc_if(JanetFopts opts, int32_t argn, const Janet *argv) {
     labeld = janet_v_count(c->buffer);
     if (labeljr < labeld) {
         check_16bit_jump(c, labeljr, labelr);
-        c->buffer[labeljr] |= (uint32_t) (labelr - labeljr) << 16;
+        c->buffer[labeljr] |= (uint32_t)(labelr - labeljr) << 16;
         if (!tail && labeljd < labeld) {
             check_24bit_jump(c, labeljd, labeld);
-            c->buffer[labeljd] |= (uint32_t) (labeld - labeljd) << 8;
+            c->buffer[labeljd] |= (uint32_t)(labeld - labeljd) << 8;
         }
     }
 
@@ -991,7 +991,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
     for (int32_t i = labelwt; i < labeld; i++) {
         if (c->buffer[i] == (0x80 | JOP_JUMP)) {
             check_24bit_jump(c, i, labeld);
-            c->buffer[i] = JOP_JUMP | ((uint32_t) (labeld - i) << 8);
+            c->buffer[i] = JOP_JUMP | ((uint32_t)(labeld - i) << 8);
         }
     }
 
