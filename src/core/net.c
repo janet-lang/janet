@@ -311,9 +311,7 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
 
 static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err) {
     SOCKET lsock = as_socket(state->lstream->handle);
-    PRINT_SOCKET_DEBUG("lsock", lsock);
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
-    PRINT_SOCKET_DEBUG("asock", asock);
     if (asock == INVALID_SOCKET) {
         *err = janet_ev_lasterr();
         return 1;
@@ -863,7 +861,6 @@ JANET_CORE_FN(cfun_net_listen,
 #else
             sfd = socket(rp->ai_family, rp->ai_socktype | JSOCKFLAGS, rp->ai_protocol);
 #endif
-            PRINT_SOCKET_DEBUG("listen", sfd);
             if (!JSOCKVALID(sfd)) continue;
             const char *err = serverify_socket(sfd, reuse, reuse);
             if (NULL != err) {
@@ -959,9 +956,7 @@ JANET_CORE_FN(cfun_net_getsockname,
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    PRINT_HANDLE_DEBUG("getsockname", js->handle);
     JSock sock = as_socket(js->handle);
-    PRINT_SOCKET_DEBUG("getsockname", sock);
     if (getsockname(sock, (struct sockaddr *) &ss, &slen)) {
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
@@ -977,9 +972,7 @@ JANET_CORE_FN(cfun_net_getpeername,
     if (js->flags & JANET_STREAM_CLOSED) janet_panic("stream closed");
     struct sockaddr_storage ss = { 0 };
     socklen_t slen = sizeof(ss);
-    PRINT_HANDLE_DEBUG("getpeername", js->handle);
     JSock sock = as_socket(js->handle);
-    PRINT_SOCKET_DEBUG("getpeername", sock);
     if (getpeername(sock, (struct sockaddr *)&ss, &slen)) {
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
@@ -1259,10 +1252,7 @@ static const JanetMethod net_stream_methods[] = {
 };
 
 static JanetStream *make_stream(JSock sock, uint32_t flags) {
-    PRINT_SOCKET_DEBUG("make stream socket before", sock);
-    JanetStream *ret = janet_stream(as_handle(sock), flags | JANET_STREAM_SOCKET | JANET_STREAM_NODUPS, net_stream_methods);
-    PRINT_HANDLE_DEBUG("make stream handle after", ret->handle);
-    return ret;
+    return janet_stream(as_handle(sock), flags | JANET_STREAM_SOCKET | JANET_STREAM_NODUPS, net_stream_methods);
 }
 
 void janet_lib_net(JanetTable *env) {
