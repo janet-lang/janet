@@ -12,6 +12,10 @@
 
 (var is-verbose (os/getenv "VERBOSE"))
 
+(defn verbose-print
+  [& x]
+  (if is-verbose (eprint ;x)))
+
 (defn- assert-no-tail
   "Override's the default assert with some nice error handling."
   [x &opt e]

@@ -36,6 +36,9 @@
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
 (def test-host (decide-test-host test-port))
 
+(verbose-print "test-host: " test-host)
+(verbose-print "test-port: " test-port)
+
 # Subprocess
 # 5e1a8c86f
 (def janet (dyn *executable*))
