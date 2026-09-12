@@ -1177,9 +1177,10 @@ JanetChannel *janet_channel_make_threaded(uint32_t limit) {
 /* Channel Methods */
 
 JANET_CORE_FN(cfun_channel_push,
-              "(ev/give channel value)",
-              "Write a value to a channel, suspending the current fiber if the channel is full. "
-              "Returns the channel if the write succeeded, nil otherwise.") {
+              "(ev/give chan val)",
+              "Write `val` to a channel `chan`, suspending the current "
+              "fiber if `chan` is full. Returns `chan` on success, nil "
+              "otherwise.") {
     janet_fixarity(argc, 2);
     JanetChannel *channel = janet_getchannel(argv, 0);
     if (janet_vm.coerce_error) {
@@ -1192,8 +1193,9 @@ JANET_CORE_FN(cfun_channel_push,
 }
 
 JANET_CORE_FN(cfun_channel_pop,
-              "(ev/take channel)",
-              "Read from a channel, suspending the current fiber if no value is available.") {
+              "(ev/take chan)",
+              "Read from a channel `chan`, suspending the current fiber if "
+              "no value is available.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     Janet item;
@@ -1278,8 +1280,8 @@ JANET_CORE_FN(cfun_channel_choice,
 }
 
 JANET_CORE_FN(cfun_channel_full,
-              "(ev/full channel)",
-              "Check if a channel is full or not.") {
+              "(ev/full chan)",
+              "Returns true if a channel `chan` is full, false otherwise.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1289,8 +1291,9 @@ JANET_CORE_FN(cfun_channel_full,
 }
 
 JANET_CORE_FN(cfun_channel_capacity,
-              "(ev/capacity channel)",
-              "Get the number of items a channel will store before blocking writers.") {
+              "(ev/capacity chan)",
+              "Get number of items a channel `chan` can store before "
+              "blocking writers.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1300,8 +1303,8 @@ JANET_CORE_FN(cfun_channel_capacity,
 }
 
 JANET_CORE_FN(cfun_channel_count,
-              "(ev/count channel)",
-              "Get the number of items currently waiting in a channel.") {
+              "(ev/count chan)",
+              "Get number of items waiting in a channel `chan`.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1351,8 +1354,8 @@ JANET_CORE_FN(cfun_channel_new_threaded,
 
 JANET_CORE_FN(cfun_channel_close,
               "(ev/chan-close chan)",
-              "Close a channel. A closed channel will cause all pending reads and writes to return nil. "
-              "Returns the channel.") {
+              "Close a channel `chan`. Once closed, causes all pending "
+              "reads and writes to return nil. Returns `chan`.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
