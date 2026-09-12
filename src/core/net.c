@@ -81,6 +81,11 @@ const JanetAbstractType janet_address_type = {
 #endif
 #endif
 
+/* Just in case */
+#ifdef JANET_WINDOWS
+#define socklen_t int
+#endif
+
 /* maximum number of bytes in a socket address host (post name resolution) */
 #ifdef JANET_WINDOWS
 #ifdef JANET_NO_IPV6
@@ -195,19 +200,19 @@ void net_callback_connect(JanetFiber *fiber, JanetAsyncEvent event) {
     /* We should be using ConnectEx here */
     int res = 0;
     int size = sizeof(res);
-    int r = getsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_CONNECT_TIME, (char *)&res, &size);
+    int r = getsockopt(as_socket(stream->handle), SOL_SOCKET, SO_CONNECT_TIME, (char *)&res, &size);
     if (r == NO_ERROR && res == (~0)) {
         return; /* This apparently indicates we haven't yet gotten a connection */
     }
     const int no_error = NO_ERROR;
     if (r == NO_ERROR) { /* Last sockopt worked, one more */
         /* Put socket in a good state instead of an empty default state. */
-        r = setsockopt((SOCKET)stream->handle, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
+        r = setsockopt(as_socket(stream->handle), SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
     }
 #else
     int res = 0;
     socklen_t size = sizeof(res);
-    int r = getsockopt(stream->handle, SOL_SOCKET, SO_ERROR, &res, &size);
+    int r = getsockopt(as_socket(stream->handle), SOL_SOCKET, SO_ERROR, &res, &size);
     const int no_error = 0;
 #endif
     if (r == no_error) {

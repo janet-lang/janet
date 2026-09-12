@@ -2471,6 +2471,9 @@ Janet janet_ev_lasterr(void) {
         c++;
     }
     size_t len = c - msgbuf;
+    if (len) {
+        *c++ = ' '; /* Padding between message and error code */
+    }
     snprintf(c, sizeof(msgbuf) - len, "(%d)", code);
     return janet_cstringv(msgbuf);
 }
