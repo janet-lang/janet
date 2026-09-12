@@ -434,8 +434,7 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
     }
     /* getaddrinfo */
     struct addrinfo *ai = NULL;
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
+    struct addrinfo hints = { 0 };
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = socktype;
     hints.ai_flags = passive ? AI_PASSIVE : 0;
@@ -537,8 +536,7 @@ JANET_CORE_FN(cfun_net_connect,
             janet_panic("bindhost not supported for unix domain sockets");
         }
         /* getaddrinfo */
-        struct addrinfo hints;
-        memset(&hints, 0, sizeof(hints));
+        struct addrinfo hints = { 0 };
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = socktype;
         hints.ai_flags = 0;
@@ -697,8 +695,7 @@ JANET_CORE_FN(cfun_net_socket,
     /* Create socket */
     JSock sfd = JSOCKDEFAULT;
     struct addrinfo *ai = NULL;
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
+    struct addrinfo hints = { 0 };
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = socktype;
 #ifdef AI_NUMERICSERV

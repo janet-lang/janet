@@ -715,8 +715,7 @@ static DWORD WINAPI janet_timeout_body(LPVOID ptr) {
 #else
 static void *janet_timeout_body(void *ptr) {
 #ifdef JANET_ANDROID
-    struct sigaction action;
-    memset(&action, 0, sizeof(action));
+    struct sigaction action = { 0 };
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
     action.sa_handler = &janet_timeout_stop;
@@ -1564,8 +1563,7 @@ JanetFiber *janet_loop1(void) {
 
     /* Poll for events */
     if (janet_vm.tq_count || janet_atomic_load(&janet_vm.listener_count)) {
-        JanetTimeout to;
-        memset(&to, 0, sizeof(to));
+        JanetTimeout to = { 0 };
         int has_timeout;
         /* Drop timeouts that are no longer needed */
         while ((has_timeout = peek_timeout(&to))) {
@@ -1798,9 +1796,8 @@ void janet_unregister_stream(JanetStream *stream) {
 
 #define JANET_EPOLL_MAX_EVENTS 64
 void janet_loop1_impl(int has_timeout, JanetTimestamp timeout) {
-    struct itimerspec its;
+    struct itimerspec its = { 0 };
     if (janet_vm.timer_enabled || has_timeout) {
-        memset(&its, 0, sizeof(its));
         if (has_timeout) {
             its.it_value.tv_sec = timeout / 1000;
             its.it_value.tv_nsec = (timeout % 1000) * 1000000;
@@ -2264,8 +2261,7 @@ void janet_ev_post_event(JanetVM *vm, JanetCallback cb, JanetEVGenericMessage ms
                                             (LPOVERLAPPED) event),
                  "failed to post completion event");
 #else
-    JanetSelfPipeEvent event;
-    memset(&event, 0, sizeof(event));
+    JanetSelfPipeEvent event = { 0 };
     event.msg = msg;
     event.cb = cb;
     int fd = vm->selfpipe[1];
@@ -2313,8 +2309,7 @@ static void *janet_thread_body(void *ptr) {
     JanetThreadedCallback cb = init->cb;
     int fd = init->write_pipe;
     janet_free(init);
-    JanetSelfPipeEvent response;
-    memset(&response, 0, sizeof(response));
+    JanetSelfPipeEvent response = { 0 };
     response.msg = subr(msg);
     response.cb = cb;
     /* handle a bit of back pressure before giving up. */
@@ -2421,8 +2416,7 @@ void janet_ev_default_threaded_callback(JanetEVGenericMessage return_value) {
 /* Convenience method for common case */
 JANET_NO_RETURN
 void janet_ev_threaded_await(JanetThreadedSubroutine fp, int tag, int argi, void *argp) {
-    JanetEVGenericMessage arguments;
-    memset(&arguments, 0, sizeof(arguments));
+    JanetEVGenericMessage arguments = { 0 };
     arguments.tag = tag;
     arguments.argi = argi;
     arguments.argp = argp;
@@ -2992,8 +2986,7 @@ int janet_make_pipe(JanetHandle handles[2], int mode) {
      */
     JanetHandle shandle, chandle;
     CHAR PipeNameBuffer[MAX_PATH];
-    SECURITY_ATTRIBUTES saAttr;
-    memset(&saAttr, 0, sizeof(saAttr));
+    SECURITY_ATTRIBUTES saAttr = { 0 };
     saAttr.nLength = sizeof(saAttr);
     saAttr.bInheritHandle = TRUE;
     if (mode == 3) {
@@ -3274,8 +3267,7 @@ JANET_CORE_FN(cfun_ev_thread,
     janet_marshal(buffer, value, NULL, JANET_MARSHAL_UNSAFE);
     if (flags & 0x1) {
         /* Return immediately */
-        JanetEVGenericMessage arguments;
-        memset(&arguments, 0, sizeof(arguments));
+        JanetEVGenericMessage arguments = { 0 };
         arguments.tag = (uint32_t) flags;
         arguments.argi = (uint32_t) janet_vm.sandbox_flags;
         arguments.argp = buffer;
