@@ -310,7 +310,7 @@ JANET_NO_RETURN static void janet_sched_accept(JanetStream *stream, JanetFunctio
 }
 
 static int net_sched_accept_impl(NetStateAccept *state, JanetFiber *fiber, Janet *err) {
-    SOCKET lsock = (SOCKET) state->lstream->handle;
+    SOCKET lsock = as_socket(state->lstream->handle);
     SOCKET asock = WSASocketW(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
     if (asock == INVALID_SOCKET) {
         *err = janet_ev_lasterr();
@@ -801,7 +801,7 @@ JANET_CORE_FN(cfun_net_shutdown,
     }
     int status;
 #ifdef JANET_WINDOWS
-    status = shutdown((SOCKET) stream->handle, shutdown_type);
+    status = shutdown(as_socket(stream->handle), shutdown_type);
 #else
     do {
         status = shutdown(stream->handle, shutdown_type);

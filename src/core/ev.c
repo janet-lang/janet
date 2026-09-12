@@ -366,7 +366,7 @@ static void janet_stream_close_impl(JanetStream *stream) {
     if (stream->handle != INVALID_HANDLE_VALUE) {
 #ifdef JANET_NET
         if (stream->flags & JANET_STREAM_SOCKET) {
-            if (canclose) closesocket((SOCKET) stream->handle);
+            if (canclose) closesocket((SOCKET)(uintptr_t) stream->handle);
         } else
 #endif
         {
@@ -2564,7 +2564,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
                 state->wbuf.len = (ULONG) chunk_size;
                 state->wbuf.buf = (char *) state->chunk_buf;
                 state->fromlen = sizeof(state->from);
-                status = WSARecvFrom((SOCKET) stream->handle, &state->wbuf, 1,
+                status = WSARecvFrom((SOCKET)(uintptr_t) stream->handle, &state->wbuf, 1,
                                      NULL, &state->flags, &state->from, &state->fromlen, &state->overlapped.as.wsaoverlapped, NULL);
                 if (status && (WSA_IO_PENDING != WSAGetLastError())) {
                     janet_cancel(fiber, janet_ev_lasterr());
@@ -2809,7 +2809,7 @@ void ev_callback_write(JanetFiber *fiber, JanetAsyncEvent event) {
             int status;
 #ifdef JANET_NET
             if (state->mode == JANET_ASYNC_WRITEMODE_SENDTO) {
-                SOCKET sock = (SOCKET) stream->handle;
+                SOCKET sock = (SOCKET)(uintptr_t) stream->handle;
                 state->wbuf.buf = (char *) bytes;
                 state->wbuf.len = len;
                 const struct sockaddr *to = state->dest_abst;
