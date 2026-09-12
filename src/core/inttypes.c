@@ -235,14 +235,17 @@ JANET_CORE_FN(cfun_to_number,
 }
 
 JANET_CORE_FN(cfun_to_bytes,
-              "(int/to-bytes value &opt endianness buffer)",
-              "Write the bytes of an `int/s64` or `int/u64` into a buffer.\n"
-              "The `buffer` parameter specifies an existing buffer to write to, if unset a new buffer will be created.\n"
+              "(int/to-bytes val &opt endianness buf)",
+              "Write the bytes of an `int/s64` or `int/u64`, `val`, into a "
+              "buffer. The optional `buf` parameter is an existing buffer "
+              "to write to; if not provided, a new buffer will be created. "
               "Returns the modified buffer.\n"
+              "\n"
               "The `endianness` parameter indicates the byte order:\n"
-              "- `nil` (unset): system byte order\n"
-              "- `:le`: little-endian, least significant byte first\n"
-              "- `:be`: big-endian, most significant byte first\n") {
+              "\n"
+              "- `:be` - big-endian, most significant byte first\n"
+              "- `:le` - little-endian, least significant byte first\n"
+              "- `nil` or unset - system byte order\n") {
     janet_arity(argc, 1, 3);
     if (janet_is_int(argv[0]) == JANET_INT_NONE) {
         janet_panicf("int/to-bytes: expected an int/s64 or int/u64, got %q", argv[0]);

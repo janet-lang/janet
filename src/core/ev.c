@@ -3411,13 +3411,14 @@ JANET_CORE_FN(janet_cfun_stream_close,
 }
 
 JANET_CORE_FN(janet_cfun_stream_read,
-              "(ev/read stream n &opt buffer timeout)",
-              "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
-              "`:all` to read into the buffer until end of stream. "
-              "Optionally provide a buffer to write into "
-              "as well as a timeout in seconds after which to cancel the operation and raise an error. "
-              "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "
-              "error if there are problems with the IO operation.") {
+              "(ev/read stream n &opt buf timeout)",
+              "Read at most `n` bytes into a buffer asynchronously from a "
+              "stream. `n` can also be `:all` to read into the buffer until "
+              "end of stream. Optionally provide a buffer, `buf`, to write "
+              "into and `timeout` in seconds after which to cancel the "
+              "operation and raise an error. Returns the buffer if the read "
+              "was successful or nil if end-of-stream reached. Raises "
+              "an error if there were problems with the IO operation.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
@@ -3434,9 +3435,10 @@ JANET_CORE_FN(janet_cfun_stream_read,
 }
 
 JANET_CORE_FN(janet_cfun_stream_chunk,
-              "(ev/chunk stream n &opt buffer timeout)",
-              "Same as ev/read, but will not return early if less than n bytes are available. If an end of "
-              "stream is reached, will also return early with the collected bytes.") {
+              "(ev/chunk stream n &opt buf timeout)",
+              "Same as `ev/read`, but does not return early if less than "
+              "`n` bytes are available. If an end-of-stream is reached, "
+              "returns early with the collected bytes.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
