@@ -453,9 +453,9 @@ JanetFiber *janet_root_fiber(void) {
 /* CFuns */
 
 JANET_CORE_FN(cfun_fiber_getenv,
-              "(fiber/getenv fiber)",
-              "Gets the environment for a fiber. Returns nil if no such table is "
-              "set yet.") {
+              "(fiber/getenv fib)",
+              "Gets the environment for a fiber `fib`. Returns nil if no "
+              "such table is set yet.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return fiber->env ?
@@ -464,9 +464,9 @@ JANET_CORE_FN(cfun_fiber_getenv,
 }
 
 JANET_CORE_FN(cfun_fiber_setenv,
-              "(fiber/setenv fiber table)",
-              "Sets the environment table for a fiber. Set to nil to remove the current "
-              "environment.") {
+              "(fiber/setenv fib tab)",
+              "Sets the environment table for a fiber `fib` to `tab`. Set "
+              "to nil to remove the current environment.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     if (janet_checktype(argv[1], JANET_NIL)) {
@@ -654,16 +654,16 @@ int janet_fiber_can_resume(JanetFiber *fiber) {
 }
 
 JANET_CORE_FN(cfun_fiber_can_resume,
-              "(fiber/can-resume? fiber)",
-              "Check if a fiber is finished and cannot be resumed.") {
+              "(fiber/can-resume? fib)",
+              "Check if a fiber `fib` is finished and cannot be resumed.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return janet_wrap_boolean(janet_fiber_can_resume(fiber));
 }
 
 JANET_CORE_FN(cfun_fiber_last_value,
-              "(fiber/last-value fiber)",
-              "Get the last value returned or signaled from the fiber.") {
+              "(fiber/last-value fib)",
+              "Get the last value returned or signaled from a fiber `fib`.") {
     janet_fixarity(argc, 1);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     return fiber->last_value;

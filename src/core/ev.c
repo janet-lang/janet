@@ -3388,9 +3388,10 @@ JANET_CORE_FN(cfun_ev_deadline,
 }
 
 JANET_CORE_FN(cfun_ev_cancel,
-              "(ev/cancel fiber err)",
-              "Cancel a suspended task fiber in the event loop. Differs from "
-              "`cancel` in that it returns the canceled fiber immediately.") {
+              "(ev/cancel fib err)",
+              "Cancel a suspended task fiber `fib` in the event loop. "
+              "Differs from `cancel` in that it returns the canceled "
+              "fiber immediately.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
