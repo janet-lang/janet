@@ -2534,30 +2534,34 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
 }
 
 JANET_CORE_FN(os_stat,
-              "(os/stat path &opt tab|key)",
-              "Gets information about a file or directory. Returns a table unless the second argument is a keyword, "
-              "in which case it returns only that field/value from stat. If the file or directory does not exist, returns nil."
-              "The keys are:\n\n"
-              "* :dev - the device that the file is on\n\n"
-              "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
-              "* :int-permissions - A Unix permission integer like 8r744\n\n"
-              "* :permissions - A Unix permission string like \"rwxr--r--\"\n\n"
-              "* :uid - File uid\n\n"
-              "* :gid - File gid\n\n"
-              "* :nlink - number of links to file\n\n"
-              "* :rdev - Real device of file. 0 on Windows\n\n"
-              "* :size - size of file in bytes\n\n"
-              "* :blocks - number of blocks in file. 0 on Windows\n\n"
-              "* :blocksize - size of blocks in file. 0 on Windows\n\n"
-              "* :accessed - timestamp when file last accessed\n\n"
-              "* :changed - timestamp when file last changed (permissions changed)\n\n"
-              "* :modified - timestamp when file last modified (content changed)\n") {
+              "(os/stat path &opt tab-or-kwd)",
+              "Gets information about a file or directory. Returns a table "
+              "unless the second argument `tab-or-kwd` is a keyword, in "
+              "which case it returns only that field/value from `stat()`. "
+              "If `tab-or-kwd` is a table, reuses it as basis of the "
+              "returned table. If the file or directory does not exist, "
+              "returns nil. The keys are:\n"
+              "\n"
+              "* `:dev` - device that the file is on\n"
+              "* `:mode` - type of file, one of `:file`, `:directory`, `:block`, `:character`, `:fifo`, `:socket`, `:link`, or `:other`\n"
+              "* `:int-permissions` - a Unix permission integer like 8r744\n"
+              "* `:permissions` - a Unix permission string like \"rwxr--r--\"\n"
+              "* `:uid` - file uid\n"
+              "* `:gid` - file gid\n"
+              "* `:nlink` - number of links to file\n"
+              "* `:rdev` - real device of file. 0 on Windows\n"
+              "* `:size` - size of file in bytes\n"
+              "* `:blocks` - number of blocks in file. 0 on Windows\n"
+              "* `:blocksize` - size of blocks in file. 0 on Windows\n"
+              "* `:accessed` - timestamp when file last accessed\n"
+              "* `:changed` - timestamp when file last changed (permissions changed)\n"
+              "* `:modified` - timestamp when file last modified (content changed)") {
     return os_stat_or_lstat(0, argc, argv);
 }
 
 JANET_CORE_FN(os_lstat,
-              "(os/lstat path &opt tab|key)",
-              "Like os/stat, but don't follow symlinks.\n") {
+              "(os/lstat path &opt tab-or-kwd)",
+              "Like `os/stat`, but doesn't follow symlinks.\n") {
     return os_stat_or_lstat(1, argc, argv);
 }
 
