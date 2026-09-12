@@ -1277,7 +1277,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "abstract type with a suitable `length` method."));
     janet_quick_asm(env, JANET_FUN_BNOT,
                     "bnot", 1, 1, 1, 1, bnot_asm, sizeof(bnot_asm),
-                    JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
+                    JDOC("(bnot n)\n\nReturns bit-wise inverse of integer `n`."));
     make_apply(env);
 
     /* Variadic ops */
@@ -1310,27 +1310,34 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                      JDOC("(% & xs)\n\n"
                           "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
-                     JDOC("(band & xs)\n\n"
-                          "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(band & ns)\n\n"
+                          "Returns bit-wise and of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_BOR, "bor", 0, 0, JOP_BOR,
-                     JDOC("(bor & xs)\n\n"
-                          "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(bor & ns)\n\n"
+                          "Returns bit-wise or of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
-                     JDOC("(bxor & xs)\n\n"
-                          "Returns the bit-wise xor of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(bxor & ns)\n\n"
+                          "Returns bit-wise xor of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
-                     JDOC("(blshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted left by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+                     JDOC("(blshift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "left by the sum of all values in `shifts`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_RSHIFT, "brshift", 1, 1, JOP_SHIFT_RIGHT,
-                     JDOC("(brshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+                     JDOC("(brshift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "right by the sum of all values in `shifts`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_RSHIFTU, "brushift", 1, 1, JOP_SHIFT_RIGHT_UNSIGNED,
-                     JDOC("(brushift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer. The sign of x is not preserved, so "
-                          "for positive shifts the return value will always be positive."));
+                     JDOC("(brushift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "right by the sum of all values in `shifts`; "
+                          "integers only. The sign of `n` is not preserved, "
+                          "so for positive shifts the return value is "
+                          "always be positive."));
 
     /* Variadic comparators */
     templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_GREATER_THAN,
