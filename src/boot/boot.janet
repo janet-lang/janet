@@ -244,33 +244,37 @@
   ~(if ,condition nil (do ,;body)))
 
 (defmacro cond
-  `Evaluates conditions sequentially until the first true condition
-  is found, and then executes the corresponding body. If there are an
-  odd number of forms, and no forms are matched, the last expression
-  is executed. If there are no matches, returns nil.`
-  [& pairs]
+  ``
+  Evaluates conditions sequentially until the first true condition is
+  found, and then executes the corresponding body. If there are an odd
+  number of forms, and no forms are matched, the last expression is
+  executed. If there are no matches, returns nil.
+  ``
+  [& clauses]
   (defn aux [i]
-    (def restlen (- (length pairs) i))
+    (def restlen (- (length clauses) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (in pairs i)
-        (tuple 'if (in pairs i)
-               (in pairs (+ i 1))
+      (if (= restlen 1) (in clauses i)
+        (tuple 'if (in clauses i)
+               (in clauses (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
 
 (defmacro case
-  ``Select the body that equals the dispatch value. When `pairs`
-  has an odd number of elements, the last is the default expression.
-  If no match is found, returns nil.``
-  [dispatch & pairs]
+  ``
+  Select the body that equals the `dispatch` value. When `clauses` has
+  an odd number of elements, the last is the default expression. If no
+  match is found, returns nil.
+  ``
+  [dispatch & clauses]
   (def atm (idempotent? dispatch))
   (def sym (if atm dispatch (gensym)))
   (defn aux [i]
-    (def restlen (- (length pairs) i))
+    (def restlen (- (length clauses) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (in pairs i)
-        (tuple 'if (tuple = sym (in pairs i))
-               (in pairs (+ i 1))
+      (if (= restlen 1) (in clauses i)
+        (tuple 'if (tuple = sym (in clauses i))
+               (in clauses (+ i 1))
                (aux (+ i 2))))))
   (if atm
     (aux 0)
@@ -4296,14 +4300,15 @@
 (compwhen (dyn 'net/listen)
   (defn net/server
     ``
-    Starts a server with `net/listen`. Runs `net/accept-loop` asynchronously if
-    `handler` is set and `type` is `:stream` (the default). It is invalid to set
-    `handler` if `type` is `:datagram`. Returns the new server stream.
+    Starts a server with `net/listen`. Runs `net/accept-loop`
+    asynchronously if `handler` is set and `cntype` is `:stream` (the
+    default). It is invalid to set `handler` if `cntype` is
+    `:datagram`. Returns the new server stream.
     ``
-    [host port &opt handler type no-reuse]
-    (assert (not (and (= type :datagram) handler))
+    [host port &opt handler cntype no-reuse]
+    (assert (not (and (= cntype :datagram) handler))
             "handler not supported for :datagram servers")
-    (def s (net/listen host port type no-reuse))
+    (def s (net/listen host port cntype no-reuse))
     (if handler
       (ev/go (fn :net/server-handler [] (net/accept-loop s handler))))
     s))
