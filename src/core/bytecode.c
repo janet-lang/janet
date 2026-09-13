@@ -322,7 +322,7 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
         if (def->closure_bitset != NULL) {
             for (int32_t i = 0; i < def->slotcount; i++) {
                 int32_t index = i >> 5;
-                uint32_t mask = ((uint32_t)i) << (((uint32_t) i) & 31);
+                uint32_t mask = ((uint32_t)1) << (((uint32_t) i) & 31);
                 if (def->closure_bitset[index] & mask) {
                     janetc_regalloc_touch(&ra, i);
                 }
