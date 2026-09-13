@@ -325,7 +325,7 @@ static void marshal_one_def(MarshalState *st, JanetFuncDef *def, int flags) {
 
     /* Marshal closure bitset, if needed */
     if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
-        janet_marshal_u32s(st, def->closure_bitset, ((def->slotcount + 31) >> 5));
+        janet_marshal_u32s(st, def->closure_bitset, ((def->slotcount - 1) >> 5) + 1);
     }
 }
 
@@ -1050,7 +1050,7 @@ static const uint8_t *unmarshal_one_def(
 
         /* Unmarshal closure bitset if needed */
         if (def->flags & JANET_FUNCDEF_FLAG_HASCLOBITSET) {
-            int32_t n = (def->slotcount + 31) >> 5;
+            int32_t n = ((def->slotcount - 1) >> 5) + 1;
             def->closure_bitset = array_allocate(sizeof(uint32_t), n);
             if (NULL == def->closure_bitset) {
                 JANET_OUT_OF_MEMORY;
