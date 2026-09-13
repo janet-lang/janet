@@ -122,7 +122,7 @@ void janet_bytecode_dead_code(JanetFuncDef *def) {
     uint32_t *code = def->bytecode;
     int32_t *codes = (int32_t *)code;
     int32_t len = def->bytecode_length;
-    int32_t words = (len + 31) / 32;
+    int32_t words = ((len - 1) / 32) + 1;
     uint32_t *visited_bitmap = array_allocate(sizeof(uint32_t), words);
     memset(visited_bitmap, 0, words * sizeof(uint32_t));
     janet_v_push(pcstack, 0);
@@ -131,7 +131,7 @@ void janet_bytecode_dead_code(JanetFuncDef *def) {
         janet_v_pop(pcstack);
         while (pc < len) {
             int32_t index = pc >> 5;
-            int32_t mask = 1 << (pc & 0x1F);
+            int32_t mask = ((uint32_t)1) << (pc & 0x1F);
             if (visited_bitmap[index] & mask) break;
             visited_bitmap[index] |= mask;
             switch (code[pc] & 0x7F) {
@@ -159,7 +159,7 @@ void janet_bytecode_dead_code(JanetFuncDef *def) {
         }
     }
     for (int32_t pc = 0; pc < len; pc++) {
-        if (!(visited_bitmap[pc >> 5] & (1 << (pc & 0x1F)))) {
+        if (!(visited_bitmap[pc >> 5] & (((uint32_t)1) << (pc & 0x1F)))) {
             code[pc] = JOP_NOOP;
         }
     }
@@ -322,7 +322,7 @@ void janet_bytecode_movopt(JanetFuncDef *def) {
         if (def->closure_bitset != NULL) {
             for (int32_t i = 0; i < def->slotcount; i++) {
                 int32_t index = i >> 5;
-                uint32_t mask = 1U << (((uint32_t) i) & 31);
+                uint32_t mask = ((uint32_t)i) << (((uint32_t) i) & 31);
                 if (def->closure_bitset[index] & mask) {
                     janetc_regalloc_touch(&ra, i);
                 }
