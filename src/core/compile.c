@@ -312,12 +312,13 @@ JanetSlot janetc_resolve(
 
     JanetSlot ret = janetc_cslot(janet_wrap_nil());
     JanetScope *scope = c->scope;
-    SymPair *pair;
+    SymPair *pair = NULL;
     int foundlocal = 1;
     int unused = 0;
+    int symbol_found = 0;
 
     /* Search scopes for symbol, starting from top */
-    while (scope) {
+    while (scope && !symbol_found) {
         int32_t i, len;
         if (scope->flags & JANET_SCOPE_UNUSED)
             unused = 1;
@@ -328,16 +329,19 @@ JanetSlot janetc_resolve(
             if (pair->sym == sym) {
                 ret = pair->slot;
                 pair->referenced = 1;
-                goto found;
+                symbol_found = 1;
+                break;
             }
         }
-        if (scope->flags & JANET_SCOPE_FUNCTION)
-            foundlocal = 0;
-        scope = scope->parent;
+        if (!symbol_found) {
+            if (scope->flags & JANET_SCOPE_FUNCTION)
+                foundlocal = 0;
+            scope = scope->parent;
+        }
     }
 
     /* Symbol not found - check for global */
-    {
+    if (!symbol_found) {
         JanetBinding binding = janet_resolve_ext(c->env, sym);
         if (binding.type == JANET_BINDING_NONE) {
             Janet handler = janet_table_get_keyword(c->env, "missing-symbol");
@@ -396,9 +400,8 @@ JanetSlot janetc_resolve(
         return ret;
     }
 
-    /* Symbol was found */
-found:
-
+    /* Symbol was found - handle environment setup */
+    
     /* Constants can be returned immediately (they are stateless) */
     if (ret.flags & (JANET_SLOT_CONSTANT | JANET_SLOT_REF))
         return ret;

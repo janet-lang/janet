@@ -320,11 +320,12 @@ int32_t janet_hash(Janet x) {
         case JANET_KEYWORD:
             hash = janet_string_hash(janet_unwrap_string(x));
             break;
-        case JANET_TUPLE:
+        case JANET_TUPLE: {
             hash = janet_tuple_hash(janet_unwrap_tuple(x));
             uint32_t inc = (janet_tuple_flag(janet_unwrap_tuple(x)) & JANET_TUPLE_FLAG_BRACKETCTOR) ? 1 : 0;
             hash = (int32_t)((uint32_t)hash + inc); /* avoid overflow undefined behavior */
             break;
+        }
         case JANET_STRUCT:
             hash = janet_struct_hash(janet_unwrap_struct(x));
             break;
@@ -347,9 +348,9 @@ int32_t janet_hash(Janet x) {
                 hash = at->hash(xx, janet_abstract_size(xx));
                 break;
             }
+            /* fallthrough */
         }
-        /* fallthrough */
-        default:
+        default: {
             if (sizeof(double) == sizeof(void *)) {
                 /* Assuming 8 byte pointer (8 byte aligned) */
                 uint64_t i = murmur64(janet_u64(x));
@@ -361,6 +362,7 @@ int32_t janet_hash(Janet x) {
                 hash = (int32_t)((hilo << 16) | (hilo >> 16));
             }
             break;
+        }
     }
     return hash;
 }
@@ -439,15 +441,15 @@ int janet_compare(Janet x, Janet y) {
     return status - 2;
 }
 
+#define GOTO_bad {janet_panicf("expected integer key for %s in range [0, %d), got %v", janet_type_names[type], max, key); return;}
 static int32_t getter_checkint(JanetType type, Janet key, int32_t max) {
-    if (!janet_checkint(key)) goto bad;
+    if (!janet_checkint(key)) GOTO_bad;
     int32_t ret = janet_unwrap_integer(key);
-    if (ret < 0) goto bad;
-    if (ret >= max) goto bad;
+    if (ret < 0) GOTO_bad;
+    if (ret >= max) GOTO_bad;
     return ret;
-bad:
-    janet_panicf("expected integer key for %s in range [0, %d), got %v", janet_type_names[type], max, key);
 }
+#undef GOTO_bad
 
 /* Gets a value and returns. Can panic. */
 Janet janet_in(Janet ds, Janet key) {

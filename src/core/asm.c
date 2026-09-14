@@ -241,6 +241,7 @@ static int32_t janet_asm_addenv(JanetAssembler *a, Janet envname) {
     return envindex;
 }
 
+#define GOTO_error { janet_asm_errorv(a, janet_formatc("error parsing instruction argument %v", x)); return 0; }
 /* Parse an argument to an assembly instruction, and return the result as an
  * integer. This integer will need to be bounds checked. */
 static int32_t doarg_1(
@@ -268,14 +269,14 @@ static int32_t doarg_1(
     }
     switch (janet_type(x)) {
         default:
-            goto error;
+            GOTO_error;
             break;
         case JANET_NUMBER: {
             double y = janet_unwrap_number(x);
             if (janet_checkintrange(y)) {
                 ret = (int32_t) y;
             } else {
-                goto error;
+                GOTO_error;
             }
             break;
         }
@@ -288,7 +289,7 @@ static int32_t doarg_1(
                     ret |= doarg_1(a, JANET_OAT_SIMPLETYPE, t[i]);
                 }
             } else {
-                goto error;
+                GOTO_error;
             }
             break;
         }
@@ -298,7 +299,7 @@ static int32_t doarg_1(
                 if (janet_checktype(result, JANET_NUMBER)) {
                     ret = janet_unwrap_integer(result) - a->bytecode_count;
                 } else {
-                    goto error;
+                    GOTO_error;
                 }
             } else if (argtype == JANET_OAT_TYPE || argtype == JANET_OAT_SIMPLETYPE) {
                 const TypeAlias *alias = janet_strbinsearch(
@@ -312,7 +313,7 @@ static int32_t doarg_1(
                     janet_asm_errorv(a, janet_formatc("unknown type %v", x));
                 }
             } else {
-                goto error;
+                GOTO_error;
             }
             break;
         }
@@ -325,7 +326,7 @@ static int32_t doarg_1(
                     janet_asm_errorv(a, janet_formatc("unknown name %v", x));
                 }
             } else {
-                goto error;
+                GOTO_error;
             }
             if (argtype == JANET_OAT_ENVIRONMENT && ret == -1) {
                 /* Add a new env */
@@ -340,11 +341,8 @@ static int32_t doarg_1(
     if (argtype == JANET_OAT_SLOT && ret >= a->def->slotcount)
         a->def->slotcount = (int32_t) ret + 1;
     return ret;
-
-error:
-    janet_asm_errorv(a, janet_formatc("error parsing instruction argument %v", x));
-    return 0;
 }
+#undef GOTO_error
 
 /* Parse a single argument to an instruction. Trims it as well as
  * try to convert arguments to bit patterns */
