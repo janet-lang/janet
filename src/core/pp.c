@@ -120,7 +120,7 @@ static void string_description_b(JanetBuffer *buffer, const char *title, void *p
     *c++ = ' ';
     *c++ = '0';
     *c++ = 'x';
-#if defined(JANET_64)
+#if defined(JANET_NANBOX_64)
 #define POINTSIZE 6
 #else
 #define POINTSIZE (sizeof(void *))

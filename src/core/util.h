@@ -169,6 +169,8 @@ int janet_gettime(struct timespec *spec, enum JanetTimeSource source);
 
 #ifdef JANET_BOOTSTRAP
 extern int64_t total_instruction_count;
+extern int64_t total_optimize_fixpoint_loops;
+extern int64_t total_funcdefs_optimized;
 #endif
 
 /* strdup */

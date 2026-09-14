@@ -4,8 +4,10 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-/* Copy of util.h */
+/* Copy of util.h - compiler stats */
 extern int64_t total_instruction_count;
+extern int64_t total_optimize_fixpoint_loops;
+extern int64_t total_funcdefs_optimized;
 
 /* Tests */
 extern int array_test();
