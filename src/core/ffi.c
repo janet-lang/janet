@@ -1792,9 +1792,10 @@ JANET_CORE_FN(janet_core_raw_native,
 }
 
 JANET_CORE_FN(janet_core_native_lookup,
-              "(ffi/lookup native symbol-name)",
-              "Lookup a symbol from a native object. All symbol lookups will return a raw pointer "
-              "if the symbol is found, else nil.") {
+              "(ffi/lookup ffi-native sym-name)",
+              "Lookup a symbol `sym-name` from a native object "
+              "`ffi-native`. All symbol lookups return a raw pointer if "
+              "the symbol is found, else nil.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 2);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
@@ -1806,9 +1807,9 @@ JANET_CORE_FN(janet_core_native_lookup,
 }
 
 JANET_CORE_FN(janet_core_native_close,
-              "(ffi/close native)",
-              "Free a native object. Dereferencing pointers to symbols in the object will have undefined "
-              "behavior after freeing.") {
+              "(ffi/close ffi-native)",
+              "Free a native object `ffi-native`. Dereferencing pointers to "
+              "symbols in the object has undefined behavior after freeing.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 1);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
