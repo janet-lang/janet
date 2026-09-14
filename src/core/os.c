@@ -1600,9 +1600,9 @@ JANET_CORE_FN(os_posix_fork,
 }
 
 JANET_CORE_FN(os_posix_chroot,
-              "(os/posix-chroot dirname)",
-              "Call `chroot` to change the root directory to `dirname`. "
-              "Not supported on all systems (POSIX only).") {
+              "(os/posix-chroot dir)",
+              "Call `chroot` to change the root directory to a directory "
+              "`dir`. Only supported on POSIX systems.") {
     janet_sandbox_assert(JANET_SANDBOX_CHROOT);
     janet_fixarity(argc, 1);
 #if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
@@ -1812,9 +1812,9 @@ JANET_CORE_FN(os_clock,
 }
 
 JANET_CORE_FN(os_sleep,
-              "(os/sleep n)",
-              "Suspend the program for `n` seconds. `n` can be a real number. Returns "
-              "nil.") {
+              "(os/sleep sec)",
+              "Suspend current thread for `sec` seconds. `sec` can be a "
+              "number with a fractional part. Returns nil.") {
     janet_fixarity(argc, 1);
     double delay = janet_getnumber(argv, 0);
     if (delay < 0) janet_panic("invalid argument to sleep");
