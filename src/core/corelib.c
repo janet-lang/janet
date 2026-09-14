@@ -479,11 +479,11 @@ JANET_CORE_FN(janet_core_range,
 }
 
 JANET_CORE_FN(janet_core_table,
-              "(table & kvs)",
-              "Creates a new table from a variadic number of keys and values. "
-              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-              "an odd number of elements, an error will be thrown. Returns the "
-              "new table.") {
+              "(table & ksvs)",
+              "Creates and returns a new table from a variadic number of "
+              "keys and values `ksvs`, k1, v1, k2, v2, k3, v3, ... If "
+              "`ksvs` has an odd number of elements, an error will be "
+              "thrown.") {
     int32_t i;
     if (argc & 1)
         janet_panic("expected even number of arguments");
@@ -515,11 +515,11 @@ JANET_CORE_FN(janet_core_getproto,
 }
 
 JANET_CORE_FN(janet_core_struct,
-              "(struct & kvs)",
-              "Create a new struct from a sequence of key value pairs. "
-              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-              "an odd number of elements, an error will be thrown. Returns the "
-              "new struct.") {
+              "(struct & ksvs)",
+              "Creates and returns a new struct from a variadic number of "
+              "keys and values `ksvs`, k1, v1, k2, v2, k3, v3, ... If "
+              "`ksvs` has an odd number of elements, an error will be "
+              "thrown.") {
     int32_t i;
     if (argc & 1) {
         janet_panic("expected even number of arguments");
