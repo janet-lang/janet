@@ -106,9 +106,9 @@ JANET_CORE_FN(cfun_tuple_sourcemap,
 }
 
 JANET_CORE_FN(cfun_tuple_setmap,
-              "(tuple/setmap tup line column)",
-              "Set the sourcemap metadata on a tuple. line and column indicate "
-              "should be integers.") {
+              "(tuple/setmap tup line col)",
+              "Set the sourcemap metadata on a tuple, `tup`. `line` and "
+              "`col` should be integers.") {
     janet_fixarity(argc, 3);
     const Janet *tup = janet_gettuple(argv, 0);
     janet_tuple_head(tup)->sm_line = janet_getinteger(argv, 1);

@@ -1056,7 +1056,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Copy upvalue bitset */
     if (scope->ua.count) {
         /* Number of u32s we need to create a bitmask for all slots */
-        int32_t slotchunks = (def->slotcount + 31) >> 5;
+        int32_t slotchunks = ((def->slotcount - 1) >> 5) + 1;
         /* numchunks is min of slotchunks and scope->ua.count */
         int32_t numchunks = slotchunks > scope->ua.count ? scope->ua.count : slotchunks;
         uint32_t *chunks = janet_calloc(slotchunks, sizeof(uint32_t));
@@ -1131,8 +1131,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     janetc_popscope(c);
 
     /* Do basic optimization */
-    janet_bytecode_movopt(def);
-    janet_bytecode_remove_noops(def);
+    janet_bytecode_optimize(def);
 
     return def;
 }

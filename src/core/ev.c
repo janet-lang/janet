@@ -1177,9 +1177,10 @@ JanetChannel *janet_channel_make_threaded(uint32_t limit) {
 /* Channel Methods */
 
 JANET_CORE_FN(cfun_channel_push,
-              "(ev/give channel value)",
-              "Write a value to a channel, suspending the current fiber if the channel is full. "
-              "Returns the channel if the write succeeded, nil otherwise.") {
+              "(ev/give chan val)",
+              "Write `val` to a channel `chan`, suspending the current "
+              "fiber if `chan` is full. Returns `chan` on success, nil "
+              "otherwise.") {
     janet_fixarity(argc, 2);
     JanetChannel *channel = janet_getchannel(argv, 0);
     if (janet_vm.coerce_error) {
@@ -1192,8 +1193,9 @@ JANET_CORE_FN(cfun_channel_push,
 }
 
 JANET_CORE_FN(cfun_channel_pop,
-              "(ev/take channel)",
-              "Read from a channel, suspending the current fiber if no value is available.") {
+              "(ev/take chan)",
+              "Read from a channel `chan`, suspending the current fiber if "
+              "no value is available.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     Janet item;
@@ -1278,8 +1280,8 @@ JANET_CORE_FN(cfun_channel_choice,
 }
 
 JANET_CORE_FN(cfun_channel_full,
-              "(ev/full channel)",
-              "Check if a channel is full or not.") {
+              "(ev/full chan)",
+              "Returns true if a channel `chan` is full, false otherwise.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1289,8 +1291,9 @@ JANET_CORE_FN(cfun_channel_full,
 }
 
 JANET_CORE_FN(cfun_channel_capacity,
-              "(ev/capacity channel)",
-              "Get the number of items a channel will store before blocking writers.") {
+              "(ev/capacity chan)",
+              "Get number of items a channel `chan` can store before "
+              "blocking writers.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1300,8 +1303,8 @@ JANET_CORE_FN(cfun_channel_capacity,
 }
 
 JANET_CORE_FN(cfun_channel_count,
-              "(ev/count channel)",
-              "Get the number of items currently waiting in a channel.") {
+              "(ev/count chan)",
+              "Get number of items waiting in a channel `chan`.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -1351,8 +1354,8 @@ JANET_CORE_FN(cfun_channel_new_threaded,
 
 JANET_CORE_FN(cfun_channel_close,
               "(ev/chan-close chan)",
-              "Close a channel. A closed channel will cause all pending reads and writes to return nil. "
-              "Returns the channel.") {
+              "Close a channel `chan`. Once closed, causes all pending "
+              "reads and writes to return nil. Returns `chan`.") {
     janet_fixarity(argc, 1);
     JanetChannel *channel = janet_getchannel(argv, 0);
     janet_chan_lock(channel);
@@ -3388,9 +3391,10 @@ JANET_CORE_FN(cfun_ev_deadline,
 }
 
 JANET_CORE_FN(cfun_ev_cancel,
-              "(ev/cancel fiber err)",
-              "Cancel a suspended task fiber in the event loop. Differs from "
-              "`cancel` in that it returns the canceled fiber immediately.") {
+              "(ev/cancel fib err)",
+              "Cancel a suspended task fiber `fib` in the event loop. "
+              "Differs from `cancel` in that it returns the canceled "
+              "fiber immediately.") {
     janet_fixarity(argc, 2);
     JanetFiber *fiber = janet_getfiber(argv, 0);
     Janet err = argv[1];
@@ -3408,13 +3412,14 @@ JANET_CORE_FN(janet_cfun_stream_close,
 }
 
 JANET_CORE_FN(janet_cfun_stream_read,
-              "(ev/read stream n &opt buffer timeout)",
-              "Read up to n bytes into a buffer asynchronously from a stream. `n` can also be the keyword "
-              "`:all` to read into the buffer until end of stream. "
-              "Optionally provide a buffer to write into "
-              "as well as a timeout in seconds after which to cancel the operation and raise an error. "
-              "Returns the buffer if the read was successful or nil if end-of-stream reached. Will raise an "
-              "error if there are problems with the IO operation.") {
+              "(ev/read stream n &opt buf timeout)",
+              "Read at most `n` bytes into a buffer asynchronously from a "
+              "stream. `n` can also be `:all` to read into the buffer until "
+              "end of stream. Optionally provide a buffer, `buf`, to write "
+              "into and `timeout` in seconds after which to cancel the "
+              "operation and raise an error. Returns the buffer if the read "
+              "was successful or nil if end-of-stream reached. Raises "
+              "an error if there were problems with the IO operation.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);
@@ -3431,9 +3436,10 @@ JANET_CORE_FN(janet_cfun_stream_read,
 }
 
 JANET_CORE_FN(janet_cfun_stream_chunk,
-              "(ev/chunk stream n &opt buffer timeout)",
-              "Same as ev/read, but will not return early if less than n bytes are available. If an end of "
-              "stream is reached, will also return early with the collected bytes.") {
+              "(ev/chunk stream n &opt buf timeout)",
+              "Same as `ev/read`, but does not return early if less than "
+              "`n` bytes are available. If an end-of-stream is reached, "
+              "returns early with the collected bytes.") {
     janet_arity(argc, 2, 4);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
     janet_stream_flags(stream, JANET_STREAM_READABLE);

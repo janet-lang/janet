@@ -1,7 +1,8 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## 1.42.1 - ???
+## 1.42.1 - 2026-09-10
+- More changes to documentation.
 - Correct SONAME in Makefile
 
 ## 1.42.0 - 2026-08-31

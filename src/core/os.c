@@ -797,13 +797,16 @@ static int get_signal_kw(const Janet *argv, int32_t n) {
 #endif
 
 JANET_CORE_FN(os_proc_kill,
-              "(os/proc-kill proc &opt wait signal)",
-              "Kill the subprocess `proc` by sending SIGKILL to it on POSIX systems, or by closing "
-              "the process handle on Windows. If `proc` has already completed, raise an error. If "
-              "`wait` is truthy, will wait for `proc` to complete and return the exit code (this "
-              "will raise an error if `proc` is being waited for). Otherwise, return `proc`. If "
-              "`signal` is provided, send it instead of SIGKILL. Signal keywords are named after "
-              "their C counterparts but in lowercase with the leading SIG stripped. `signal` is "
+              "(os/proc-kill proc &opt wait which)",
+              "Kill the subprocess `proc` by sending SIGKILL to it on POSIX "
+              "systems, or by closing the process handle on Windows. If "
+              "`proc` has already completed, raise an error. If `wait` is "
+              "truthy, waits for `proc` to complete and return the exit "
+              "code (this raises an error if `proc` is being waited for). "
+              "Otherwise, return `proc`. Optional argument `which` is a "
+              "keyword named after its C counterpart but in lowercase with "
+              "the leading SIG stripped. If `which` is provided, the "
+              "corresponding signal is sent instead of SIGKILL. `which` is "
               "ignored on Windows.") {
     janet_arity(argc, 1, 3);
     JanetProc *proc = janet_getabstract(argv, 0, &ProcAT);
@@ -1597,9 +1600,9 @@ JANET_CORE_FN(os_posix_fork,
 }
 
 JANET_CORE_FN(os_posix_chroot,
-              "(os/posix-chroot dirname)",
-              "Call `chroot` to change the root directory to `dirname`. "
-              "Not supported on all systems (POSIX only).") {
+              "(os/posix-chroot dir)",
+              "Call `chroot` to change the root directory to a directory "
+              "`dir`. Only supported on POSIX systems.") {
     janet_sandbox_assert(JANET_SANDBOX_CHROOT);
     janet_fixarity(argc, 1);
 #if defined(JANET_WINDOWS) || defined(JANET_PLAN9)
@@ -1751,19 +1754,29 @@ JANET_CORE_FN(os_time,
 }
 
 JANET_CORE_FN(os_clock,
-              "(os/clock &opt source format)",
-              "Return the current time of the requested clock source.\n\n"
-              "The `source` argument selects the clock source to use, when not specified the default "
-              "is `:realtime`:\n"
-              "- :realtime: Return the real (i.e., wall-clock) time. This clock is affected by discontinuous "
-              "  jumps in the system time\n"
-              "- :monotonic: Return the number of whole + fractional seconds since some fixed point in "
-              "  time. The clock is guaranteed to be non-decreasing in real time.\n"
-              "- :cputime: Return the CPU time consumed by this process  (i.e. all threads in the process)\n"
-              "The `format` argument selects the type of output, when not specified the default is `:double`:\n"
-              "- :double: Return the number of seconds + fractional seconds as a double\n"
-              "- :int: Return the number of seconds as an integer\n"
-              "- :tuple: Return a 2 integer tuple [seconds, nanoseconds]\n") {
+              "(os/clock &opt clock as)",
+              "Return the current time of the requested clock source.\n"
+              "\n"
+              "The `clock` argument selects the clock source to use; "
+              "when not specified the default is `:realtime`:\n"
+              "\n"
+              "* `:realtime` - Return the real (i.e., wall-clock) time. "
+              "This clock is affected by discontinuous jumps in the system "
+              "time.\n"
+              "* `:monotonic` - Return the number of whole + fractional "
+              "seconds since some fixed point in time. The clock is "
+              "guaranteed to be non-decreasing in real time.\n"
+              "* `:cputime` - Return the CPU time consumed by this process "
+              "(i.e. all threads in the process).\n"
+              "\n"
+              "The `as` argument selects the type of output; when not "
+              "specified the default is `:double`:\n"
+              "\n"
+              "* `:double` - Return the number of seconds + fractional "
+              "seconds as a double.\n"
+              "* `:int` - Return the number of seconds as an integer.\n"
+              "* `:tuple` - Return a 2-integer tuple `[seconds, "
+              "nanoseconds]`.\n") {
     enum JanetTimeSource source;
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);
     janet_arity(argc, 0, 2);
@@ -1799,9 +1812,9 @@ JANET_CORE_FN(os_clock,
 }
 
 JANET_CORE_FN(os_sleep,
-              "(os/sleep n)",
-              "Suspend the program for `n` seconds. `n` can be a real number. Returns "
-              "nil.") {
+              "(os/sleep sec)",
+              "Suspend current thread for `sec` seconds. `sec` can be a "
+              "number with a fractional part. Returns nil.") {
     janet_fixarity(argc, 1);
     double delay = janet_getnumber(argv, 0);
     if (delay < 0) janet_panic("invalid argument to sleep");
@@ -1916,20 +1929,25 @@ static struct tm *time_to_tm(const Janet *argv, int32_t argc, int32_t n, struct 
 
 JANET_CORE_FN(os_date,
               "(os/date &opt time local)",
-              "Returns the given time as a date struct, or the current time if `time` is not given. "
-              "Date is given in UTC unless `local` is truthy, in which case the date is formatted for "
-              "the local timezone. Returns a struct with following key values. Note that all numbers are 0-indexed.\n\n"
-              "* :seconds - number of seconds [0-61]\n\n"
-              "* :minutes - number of minutes [0-59]\n\n"
-              "* :hours - number of hours [0-23]\n\n"
-              "* :month-day - day of month [0-30]\n\n"
-              "* :month - month of year [0, 11]\n\n"
-              "* :year - years since year 0 (e.g. 2019)\n\n"
-              "* :week-day - day of the week [0-6]\n\n"
-              "* :year-day - day of the year [0-365]\n\n"
-              "* :dst - if Day Light Savings is in effect\n\n"
-              "You can set local timezone by setting TZ environment variable. "
-              "See tzset(<time.h>) or _tzset(<time.h>) for further details.") {
+              "Returns the given time as a date struct, or the current time "
+              "if `time` is not given. Date is given in UTC unless `local` "
+              "is truthy, in which case the date is formatted for the local "
+              "timezone. Returns a struct with following key-value pairs. "
+              "Note that all numbers are 0-indexed.\n"
+              "\n"
+              "* `:seconds` - number of seconds [0-61]\n"
+              "* `:minutes` - number of minutes [0-59]\n"
+              "* `:hours` - number of hours [0-23]\n"
+              "* `:month-day` - day of month [0-30]\n"
+              "* `:month` - month of year [0, 11]\n"
+              "* `:year` - years since year 0 (e.g. 2019)\n"
+              "* `:week-day` - day of the week [0-6]\n"
+              "* `:year-day` - day of the year [0-365]\n"
+              "* `:dst` - if Day Light Savings is in effect\n"
+              "\n"
+              "The local timezone can be set by setting the `TZ` "
+              "environment variable. See `tzset()` (`<time.h>`) or "
+              "`_tzset()` (`<time.h>`) for further details.") {
     janet_arity(argc, 0, 2);
     (void) argv;
     struct tm t_infos;
@@ -1951,11 +1969,14 @@ JANET_CORE_FN(os_date,
 
 JANET_CORE_FN(os_strftime,
               "(os/strftime fmt &opt time local)",
-              "Format the given time as a string, or the current time if `time` is not given. "
-              "The time is formatted according to the same rules as the ISO C89 function strftime(). "
-              "The time is formatted in UTC unless `local` is truthy, in which case the date is formatted for "
-              "the local timezone. You can set local timezone by setting TZ environment variable. "
-              "See tzset(<time.h>) or _tzset(<time.h>) for further details.") {
+              "Format the given time as a string, or the current time if "
+              "`time` is not given. The time is formatted according to the "
+              "same rules as the ISO C89 function `strftime()`. The time is "
+              "formatted in UTC unless `local` is truthy, in which case the "
+              "date is formatted for the local timezone. The local timezone "
+              "can be set by setting the `TZ` environment variable. See "
+              "`tzset()` (`<time.h>`) or `_tzset()`(`<time.h>`) for further "
+              "details.") {
     janet_arity(argc, 1, 3);
     const char *fmt = janet_getcstring(argv, 0);
     /* ANSI X3.159-1989, section 4.12.3.5 "The strftime function" */
@@ -2526,30 +2547,34 @@ static Janet os_stat_or_lstat(int do_lstat, int32_t argc, Janet *argv) {
 }
 
 JANET_CORE_FN(os_stat,
-              "(os/stat path &opt tab|key)",
-              "Gets information about a file or directory. Returns a table unless the second argument is a keyword, "
-              "in which case it returns only that field/value from stat. If the file or directory does not exist, returns nil."
-              "The keys are:\n\n"
-              "* :dev - the device that the file is on\n\n"
-              "* :mode - the type of file, one of :file, :directory, :block, :character, :fifo, :socket, :link, or :other\n\n"
-              "* :int-permissions - A Unix permission integer like 8r744\n\n"
-              "* :permissions - A Unix permission string like \"rwxr--r--\"\n\n"
-              "* :uid - File uid\n\n"
-              "* :gid - File gid\n\n"
-              "* :nlink - number of links to file\n\n"
-              "* :rdev - Real device of file. 0 on Windows\n\n"
-              "* :size - size of file in bytes\n\n"
-              "* :blocks - number of blocks in file. 0 on Windows\n\n"
-              "* :blocksize - size of blocks in file. 0 on Windows\n\n"
-              "* :accessed - timestamp when file last accessed\n\n"
-              "* :changed - timestamp when file last changed (permissions changed)\n\n"
-              "* :modified - timestamp when file last modified (content changed)\n") {
+              "(os/stat path &opt tab-or-kwd)",
+              "Gets information about a file or directory. Returns a table "
+              "unless the second argument `tab-or-kwd` is a keyword, in "
+              "which case it returns only that field/value from `stat()`. "
+              "If `tab-or-kwd` is a table, reuses it as basis of the "
+              "returned table. If the file or directory does not exist, "
+              "returns nil. The keys are:\n"
+              "\n"
+              "* `:dev` - device that the file is on\n"
+              "* `:mode` - type of file, one of `:file`, `:directory`, `:block`, `:character`, `:fifo`, `:socket`, `:link`, or `:other`\n"
+              "* `:int-permissions` - a Unix permission integer like 8r744\n"
+              "* `:permissions` - a Unix permission string like \"rwxr--r--\"\n"
+              "* `:uid` - file uid\n"
+              "* `:gid` - file gid\n"
+              "* `:nlink` - number of links to file\n"
+              "* `:rdev` - real device of file. 0 on Windows\n"
+              "* `:size` - size of file in bytes\n"
+              "* `:blocks` - number of blocks in file. 0 on Windows\n"
+              "* `:blocksize` - size of blocks in file. 0 on Windows\n"
+              "* `:accessed` - timestamp when file last accessed\n"
+              "* `:changed` - timestamp when file last changed (permissions changed)\n"
+              "* `:modified` - timestamp when file last modified (content changed)") {
     return os_stat_or_lstat(0, argc, argv);
 }
 
 JANET_CORE_FN(os_lstat,
-              "(os/lstat path &opt tab|key)",
-              "Like os/stat, but don't follow symlinks.\n") {
+              "(os/lstat path &opt tab-or-kwd)",
+              "Like `os/stat`, but doesn't follow symlinks.\n") {
     return os_stat_or_lstat(1, argc, argv);
 }
 
@@ -2593,9 +2618,12 @@ JANET_CORE_FN(os_umask,
 #endif
 
 JANET_CORE_FN(os_dir,
-              "(os/dir dir &opt array)",
-              "Iterate over files and subdirectories in a directory. Returns an array of paths parts, "
-              "with only the file name or directory name and no prefix.") {
+              "(os/dir dir &opt arr)",
+              "Enumerate files and subdirectories in a directory `dir`. "
+              "Returns an array of paths relative to `dir` with only the "
+              "file or directory name with no prefix. If an array `arr` "
+              "is specified, append paths to it instead of creating a new "
+              "array.") {
     janet_sandbox_assert(JANET_SANDBOX_FS_READ);
     janet_arity(argc, 1, 2);
     const char *dir = janet_getcstring(argv, 0);
@@ -2715,32 +2743,39 @@ static jmode_t os_optmode(int32_t argc, const Janet *argv, int32_t n, int32_t df
 
 JANET_CORE_FN(os_open,
               "(os/open path &opt flags mode)",
-              "Create a stream from a file, like the POSIX open system call. Returns a new stream. "
-              "`mode` should be a file mode as passed to `os/chmod`, but only if the create flag is given. "
-              "The default mode is 8r666. "
-              "Allowed flags are as follows:\n\n"
+              "Create a stream from a file, like the POSIX open system "
+              "call. Returns a new stream. `mode` should be a file mode "
+              "as passed to `os/chmod`, but only if the create flag is "
+              "given. The default mode is 8r666.\n"
+              "\n"
+              "Allowed flags are as follows:\n"
+              "\n"
               "  * :r - open this file for reading\n"
               "  * :w - open this file for writing\n"
-              "  * :c - create a new file (O\\_CREATE)\n"
-              "  * :e - fail if the file exists (O\\_EXCL)\n"
-              "  * :t - shorten an existing file to length 0 (O\\_TRUNC)\n\n"
-              "  * :a - append to a file (O\\_APPEND on posix, FILE_APPEND_DATA on windows)\n"
-              "Posix-only flags:\n\n"
-              "  * :x - O\\_SYNC\n"
-              "  * :C - O\\_NOCTTY\n\n"
-              "  * :N - Turn off O\\_NONBLOCK and disable ev reading/writing\n\n"
-              "Windows-only flags:\n\n"
-              "  * :R - share reads (FILE\\_SHARE\\_READ)\n"
-              "  * :W - share writes (FILE\\_SHARE\\_WRITE)\n"
-              "  * :D - share deletes (FILE\\_SHARE\\_DELETE)\n"
-              "  * :H - FILE\\_ATTRIBUTE\\_HIDDEN\n"
-              "  * :O - FILE\\_ATTRIBUTE\\_READONLY\n"
-              "  * :F - FILE\\_ATTRIBUTE\\_OFFLINE\n"
-              "  * :T - FILE\\_ATTRIBUTE\\_TEMPORARY\n"
-              "  * :d - FILE\\_FLAG\\_DELETE\\_ON\\_CLOSE\n"
-              "  * :V - Turn off FILE\\_FLAG\\_OVERLAPPED and disable ev reading/writing\n"
-              "  * :I - set bInheritHandle on the created file so it can be passed to other processes.\n"
-              "  * :b - FILE\\_FLAG\\_NO\\_BUFFERING\n") {
+              "  * :c - create a new file (`O_CREATE`)\n"
+              "  * :e - fail if the file exists (`O_EXCL`)\n"
+              "  * :t - shorten an existing file to length 0 (`O_TRUNC`)\n"
+              "  * :a - append to a file (`O_APPEND` on posix, `FILE_APPEND_DATA` on windows)\n"
+              "\n"
+              "Posix-only flags:\n"
+              "\n"
+              "  * :x - `O_SYNC`\n"
+              "  * :C - `O_NOCTTY`\n"
+              "  * :N - Turn off `O_NONBLOCK` and disable ev reading/writing\n"
+              "\n"
+              "Windows-only flags:\n"
+              "\n"
+              "  * :R - share reads (`FILE_SHARE_READ`)\n"
+              "  * :W - share writes (`FILE_SHARE_WRITE`)\n"
+              "  * :D - share deletes (`FILE_SHARE_DELETE`)\n"
+              "  * :H - `FILE_ATTRIBUTE_HIDDEN`\n"
+              "  * :O - `FILE_ATTRIBUTE_READONLY`\n"
+              "  * :F - `FILE_ATTRIBUTE_OFFLINE`\n"
+              "  * :T - `FILE_ATTRIBUTE_TEMPORARY`\n"
+              "  * :d - `FILE_FLAG_DELETE_ON_CLOSE`\n"
+              "  * :V - Turn off `FILE_FLAG_OVERLAPPED` and disable ev reading/writing\n"
+              "  * :I - set `bInheritHandle` on the created file so it can be passed to other processes.\n"
+              "  * :b - `FILE_FLAG_NO_BUFFERING`\n") {
     janet_arity(argc, 1, 3);
     const char *path = janet_getcstring(argv, 0);
     const uint8_t *opt_flags = janet_optkeyword(argv, argc, 1, (const uint8_t *) "r");

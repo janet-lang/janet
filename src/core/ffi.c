@@ -466,24 +466,24 @@ static JanetFFIType decode_ffi_type(Janet x) {
     }
 }
 
-JANET_CORE_FN(cfun_ffi_struct,
-              "(ffi/struct & types)",
-              "Create a struct type definition that can be used to pass structs into native functions. ") {
+JANET_CORE_FN(cfun_ffi_struct, "(ffi/struct & ffi-types)",
+              "Create a struct type definition from `ffi-types` that can be "
+              "used to pass structs into native functions.") {
     janet_arity(argc, 1, -1);
     return janet_wrap_abstract(build_struct_type(argc, argv));
 }
 
 JANET_CORE_FN(cfun_ffi_size,
-              "(ffi/size type)",
-              "Get the size of an ffi type in bytes.") {
+              "(ffi/size ffi-type)",
+              "Get the size of an FFI type `ffi-type` in bytes.") {
     janet_fixarity(argc, 1);
     size_t size = type_size(decode_ffi_type(argv[0]));
     return janet_wrap_number((double) size);
 }
 
 JANET_CORE_FN(cfun_ffi_align,
-              "(ffi/align type)",
-              "Get the align of an ffi type in bytes.") {
+              "(ffi/align ffi-type)",
+              "Get the align of an FFI type `ffi-type` in bytes.") {
     janet_fixarity(argc, 1);
     size_t size = type_align(decode_ffi_type(argv[0]));
     return janet_wrap_number((double) size);
@@ -1666,9 +1666,10 @@ JANET_CORE_FN(cfun_ffi_jitfn,
 }
 
 JANET_CORE_FN(cfun_ffi_call,
-              "(ffi/call pointer signature & args)",
-              "Call a raw pointer as a function pointer. The function signature specifies "
-              "how Janet values in `args` are converted to native machine types.") {
+              "(ffi/call ptr signature & args)",
+              "Call a raw pointer `ptr` as a function pointer. The function "
+              "signature specifies how Janet values in `args` are converted "
+              "to native machine types.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, -1);
     void *function_pointer = janet_ffi_get_callable_pointer(argv, 0);
@@ -1695,10 +1696,12 @@ JANET_CORE_FN(cfun_ffi_call,
 }
 
 JANET_CORE_FN(cfun_ffi_buffer_write,
-              "(ffi/write ffi-type data &opt buffer index)",
-              "Append a native type to a buffer such as it would appear in memory. This can be used "
-              "to pass pointers to structs in the ffi, or send C/C++/native structs over the network "
-              "or to files. Returns a modified buffer or a new buffer if one is not supplied.") {
+              "(ffi/write ffi-type data &opt buf index)",
+              "Append a native type, `ffi-type`, to a buffer as it would "
+              "appear in memory. This can be used to pass pointers to "
+              "structs in the ffi, or send C/C++/native structs over "
+              "the network or to files. Returns a modified buffer, `buf`, "
+              "or a new buffer if not supplied.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     JanetFFIType type = decode_ffi_type(argv[0]);
@@ -1739,12 +1742,15 @@ JANET_CORE_FN(cfun_ffi_buffer_read,
 
 JANET_CORE_FN(cfun_ffi_get_callback_trampoline,
               "(ffi/trampoline cc)",
-              "Get a native function pointer that can be used as a callback and passed to C libraries. "
-              "This callback trampoline has the signature `void trampoline(void \\*ctx, void \\*userdata)` in "
-              "the given calling convention. This is the only function signature supported. "
-              "It is up to the programmer to ensure that the `userdata` argument contains a janet function "
-              "the will be called with one argument, `ctx` which is an opaque pointer. This pointer can "
-              "be further inspected with `ffi/read`.") {
+              "Get a native function pointer that can be used as a callback "
+              "and passed to C libraries. This callback trampoline has the "
+              "signature `void trampoline(void *ctx, void *userdata)` in "
+              "the given calling convention. This is the only function "
+              "signature supported. It is up to the programmer to ensure "
+              "that the `userdata` argument contains a janet function that "
+              "will be called with one argument, `ctx` which is an opaque "
+              "pointer. This pointer can be further inspected with "
+              "`ffi/read`.") {
     janet_arity(argc, 0, 1);
     JanetFFICallingConvention cc = JANET_FFI_CC_DEFAULT;
     if (argc >= 1) cc = decode_ffi_cc(janet_getkeyword(argv, 0));
@@ -1786,9 +1792,10 @@ JANET_CORE_FN(janet_core_raw_native,
 }
 
 JANET_CORE_FN(janet_core_native_lookup,
-              "(ffi/lookup native symbol-name)",
-              "Lookup a symbol from a native object. All symbol lookups will return a raw pointer "
-              "if the symbol is found, else nil.") {
+              "(ffi/lookup ffi-native sym-name)",
+              "Lookup a symbol `sym-name` from a native object "
+              "`ffi-native`. All symbol lookups return a raw pointer if "
+              "the symbol is found, else nil.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 2);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
@@ -1800,9 +1807,9 @@ JANET_CORE_FN(janet_core_native_lookup,
 }
 
 JANET_CORE_FN(janet_core_native_close,
-              "(ffi/close native)",
-              "Free a native object. Dereferencing pointers to symbols in the object will have undefined "
-              "behavior after freeing.") {
+              "(ffi/close ffi-native)",
+              "Free a native object `ffi-native`. Dereferencing pointers to "
+              "symbols in the object has undefined behavior after freeing.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_DEFINE);
     janet_fixarity(argc, 1);
     JanetAbstractNative *anative = janet_getabstract(argv, 0, &janet_native_type);
@@ -1824,8 +1831,9 @@ JANET_CORE_FN(cfun_ffi_malloc,
 }
 
 JANET_CORE_FN(cfun_ffi_free,
-              "(ffi/free pointer)",
-              "Free memory allocated with `ffi/malloc`. Returns nil.") {
+              "(ffi/free ptr)",
+              "Free memory reachable from `ptr` allocated with "
+              "`ffi/malloc`. Returns nil.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_fixarity(argc, 1);
     if (janet_checktype(argv[0], JANET_NIL)) return janet_wrap_nil();
@@ -1835,12 +1843,15 @@ JANET_CORE_FN(cfun_ffi_free,
 }
 
 JANET_CORE_FN(cfun_ffi_pointer_buffer,
-              "(ffi/pointer-buffer pointer capacity &opt count offset)",
-              "Create a buffer from a pointer. The underlying memory of the buffer will not be "
-              "reallocated or freed by the garbage collector, allowing unmanaged, mutable memory "
-              "to be manipulated with buffer functions. Attempts to resize or extend the buffer "
-              "beyond its initial capacity will raise an error. As with many FFI functions, this is memory "
-              "unsafe and can potentially allow out of bounds memory access. Returns a new buffer.") {
+              "(ffi/pointer-buffer ptr capacity &opt n offset)",
+              "Create a buffer from a pointer `ptr`. The underlying memory "
+              "of the buffer will not be reallocated or freed by the "
+              "garbage collector, allowing unmanaged, mutable memory to be "
+              "manipulated with buffer functions. Attempts to resize or "
+              "extend the buffer beyond its initial capacity will raise an "
+              "error. As with many FFI functions, this is memory unsafe and "
+              "can potentially allow out of bounds memory access. Returns a "
+              "new buffer.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 2, 4);
     void *pointer = janet_getpointer(argv, 0);
@@ -1852,9 +1863,10 @@ JANET_CORE_FN(cfun_ffi_pointer_buffer,
 }
 
 JANET_CORE_FN(cfun_ffi_pointer_cfunction,
-              "(ffi/pointer-cfunction pointer &opt name source-file source-line)",
-              "Create a C Function from a raw pointer. Optionally give the cfunction a name and "
-              "source location for stack traces and debugging.") {
+              "(ffi/pointer-cfunction ptr &opt name source line)",
+              "Create a C Function from a raw pointer `ptr`. Optionally "
+              "give the cfunction a name and source location for stack "
+              "traces and debugging.") {
     janet_sandbox_assert(JANET_SANDBOX_FFI_USE);
     janet_arity(argc, 1, 4);
     void *pointer = janet_getpointer(argv, 0);
@@ -1869,11 +1881,14 @@ JANET_CORE_FN(cfun_ffi_pointer_cfunction,
 
 JANET_CORE_FN(cfun_ffi_supported_calling_conventions,
               "(ffi/calling-conventions)",
-              "Get an array of all supported calling conventions on the current architecture. Some architectures may have some FFI "
-              "functionality (ffi/malloc, ffi/free, ffi/read, ffi/write, etc.) but not support "
-              "any calling conventions. This function can be used to get all supported calling conventions "
-              "that can be used on this architecture. All architectures support the :none calling "
-              "convention which is a placeholder that cannot be used at runtime.") {
+              "Get an array of all supported calling conventions on the "
+              "current architecture. Some architectures may have some FFI "
+              "functionality (`ffi/malloc`, `ffi/free`, `ffi/read`, "
+              "`ffi/write`, etc.) but not support any calling conventions. "
+              "This function can be used to get all supported calling "
+              "conventions that can be used on this architecture. All "
+              "architectures support the `:none` calling convention which "
+              "is a placeholder that cannot be used at runtime.") {
     janet_fixarity(argc, 0);
     (void) argv;
     JanetArray *array = janet_array(4);

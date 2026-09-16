@@ -260,8 +260,9 @@ JANET_CORE_FN(janet_core_expand_path,
 }
 
 JANET_CORE_FN(janet_core_dyn,
-              "(dyn key &opt default)",
-              "Get a dynamic binding. Returns the default value (or nil) if no binding found.") {
+              "(dyn key &opt dflt)",
+              "Get a dynamic binding value for `key`. If no binding found, "
+              "returns `dflt` (or nil).") {
     janet_arity(argc, 1, 2);
     Janet value;
     if (janet_vm.fiber->env) {
@@ -276,8 +277,8 @@ JANET_CORE_FN(janet_core_dyn,
 }
 
 JANET_CORE_FN(janet_core_setdyn,
-              "(setdyn key value)",
-              "Set a dynamic binding. Returns value.") {
+              "(setdyn key val)",
+              "Set a dynamic binding for `key` to `val`. Returns `val`.") {
     janet_fixarity(argc, 2);
     if (!janet_vm.fiber->env) {
         janet_vm.fiber->env = janet_table(2);
@@ -399,14 +400,14 @@ JANET_CORE_FN(janet_core_scannumber,
 }
 
 JANET_CORE_FN(janet_core_tuple,
-              "(tuple & items)",
-              "Creates a new tuple that contains items. Returns the new tuple.") {
+              "(tuple & xs)",
+              "Creates and returns a tuple that contains values from `xs`.") {
     return janet_wrap_tuple(janet_tuple_n(argv, argc));
 }
 
 JANET_CORE_FN(janet_core_array,
-              "(array & items)",
-              "Create a new array that contains items. Returns the new array.") {
+              "(array & xs)",
+              "Creates and returns an array that contains values from `xs`.") {
     JanetArray *array = janet_array(argc);
     array->count = argc;
     safe_memcpy(array->data, argv, argc * sizeof(Janet));
@@ -478,11 +479,11 @@ JANET_CORE_FN(janet_core_range,
 }
 
 JANET_CORE_FN(janet_core_table,
-              "(table & kvs)",
-              "Creates a new table from a variadic number of keys and values. "
-              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-              "an odd number of elements, an error will be thrown. Returns the "
-              "new table.") {
+              "(table & ksvs)",
+              "Creates and returns a new table from a variadic number of "
+              "keys and values `ksvs`, k1, v1, k2, v2, k3, v3, ... If "
+              "`ksvs` has an odd number of elements, an error will be "
+              "thrown.") {
     int32_t i;
     if (argc & 1)
         janet_panic("expected even number of arguments");
@@ -514,11 +515,11 @@ JANET_CORE_FN(janet_core_getproto,
 }
 
 JANET_CORE_FN(janet_core_struct,
-              "(struct & kvs)",
-              "Create a new struct from a sequence of key value pairs. "
-              "kvs is a sequence k1, v1, k2, v2, k3, v3, ... If kvs has "
-              "an odd number of elements, an error will be thrown. Returns the "
-              "new struct.") {
+              "(struct & ksvs)",
+              "Creates and returns a new struct from a variadic number of "
+              "keys and values `ksvs`, k1, v1, k2, v2, k3, v3, ... If "
+              "`ksvs` has an odd number of elements, an error will be "
+              "thrown.") {
     int32_t i;
     if (argc & 1) {
         janet_panic("expected even number of arguments");
@@ -613,11 +614,14 @@ JANET_CORE_FN(janet_core_hash,
 }
 
 JANET_CORE_FN(janet_core_getline,
-              "(getline &opt prompt buf env)",
-              "Reads a line of input into a buffer, including the newline character, using a prompt. "
-              "An optional environment table can be provided for auto-complete. "
-              "Returns the modified buffer. "
-              "Use this function to implement a simple interface for a terminal program.") {
+              "(getline &opt prmpt buf env)",
+              "Reads a line of input into a buffer (including the "
+              "newline character) showing a prompt `prmpt` if specified. "
+              "Optional argument `buf` specifies a buffer; if not set, "
+              "a new buffer is created. Provide an optional environment "
+              "table `env` for auto-complete. Returns the modified buffer. "
+              "Use this function to implement a simple interface for a "
+              "terminal program.") {
     FILE *in = janet_dynfile("in", stdin);
     FILE *out = janet_dynfile("out", stdout);
     janet_arity(argc, 0, 3);
@@ -1193,15 +1197,17 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "type with a suitable `next` method."));
     janet_quick_asm(env, JANET_FUN_PROP,
                     "propagate", 2, 2, 2, 2, propagate_asm, sizeof(propagate_asm),
-                    JDOC("(propagate x fiber)\n\n"
-                         "Propagate a signal from a fiber to the current fiber and "
-                         "set the last value of the current fiber to `x`.  The signal "
-                         "value is then available as the status of the current fiber. "
-                         "The resulting stack trace from the current fiber will include "
-                         "frames from fiber. If fiber is in a state that can be resumed, "
-                         "resuming the current fiber will first resume `fiber`. "
-                         "This function can be used to re-raise an error without losing "
-                         "the original stack trace."));
+                    JDOC("(propagate x fib)\n\n"
+                         "Propagate a signal from a fiber `fib` to the "
+                         "current fiber and set the last value of the "
+                         "current fiber to `x`. The signal value is then "
+                         "available as the status of the current fiber. The "
+                         "resulting stack trace from the current fiber will "
+                         "include frames from `fib`. If `fib` is in a state "
+                         "that can be resumed, resuming the current fiber "
+                         "will first resume `fib`. This function can be "
+                         "used to re-raise an error without losing the "
+                         "original stack trace."));
     janet_quick_asm(env, JANET_FUN_DEBUG,
                     "debug", 1, 0, 1, 1, debug_asm, sizeof(debug_asm),
                     JDOC("(debug &opt x)\n\n"
@@ -1219,16 +1225,21 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "return the value that was passed to resume."));
     janet_quick_asm(env, JANET_FUN_CANCEL,
                     "cancel", 2, 2, 2, 2, cancel_asm, sizeof(cancel_asm),
-                    JDOC("(cancel fiber err)\n\n"
-                         "Resume a fiber but have it immediately raise an error. This lets a programmer unwind a pending fiber. "
-                         "Returns the same result as resume."));
+                    JDOC("(cancel fib err)\n\n"
+                         "Resume a fiber `fib` but have it immediately "
+                         "raise an error. This enables unwinding a pending "
+                         "fiber. Returns same result as `resume`."));
     janet_quick_asm(env, JANET_FUN_RESUME,
                     "resume", 2, 1, 2, 2, resume_asm, sizeof(resume_asm),
-                    JDOC("(resume fiber &opt x)\n\n"
-                         "Resume a new or suspended fiber and optionally pass in a value to the fiber that "
-                         "will be returned to the last yield in the case of a pending fiber, or the argument to "
-                         "the dispatch function in the case of a new fiber. Returns either the return result of "
-                         "the fiber's dispatch function, or the value from the next yield call in fiber."));
+                    JDOC("(resume fib &opt x)\n\n"
+                         "Resume a new or suspended fiber `fib` and "
+                         "optionally pass in a value `x` to `fib` that "
+                         "is then returned to the last yield in the case of "
+                         "a pending fiber, or the argument to the dispatch "
+                         "function in the case of a new fiber. Returns "
+                         "either the return result of `fib`'s dispatch "
+                         "function, or the value from the next yield call "
+                         "in `fib`."));
     janet_quick_asm(env, JANET_FUN_IN,
                     "in", 3, 2, 3, 4, in_asm, sizeof(in_asm),
                     JDOC("(in x key &opt dflt)\n\n"
@@ -1277,7 +1288,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                          "abstract type with a suitable `length` method."));
     janet_quick_asm(env, JANET_FUN_BNOT,
                     "bnot", 1, 1, 1, 1, bnot_asm, sizeof(bnot_asm),
-                    JDOC("(bnot x)\n\nReturns the bit-wise inverse of integer x."));
+                    JDOC("(bnot n)\n\nReturns bit-wise inverse of integer `n`."));
     make_apply(env);
 
     /* Variadic ops */
@@ -1310,27 +1321,34 @@ JanetTable *janet_core_env(JanetTable *replacements) {
                      JDOC("(% & xs)\n\n"
                           "Returns the remainder of dividing the first value of xs by each remaining value."));
     templatize_varop(env, JANET_FUN_BAND, "band", -1, -1, JOP_BAND,
-                     JDOC("(band & xs)\n\n"
-                          "Returns the bit-wise and of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(band & ns)\n\n"
+                          "Returns bit-wise and of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_BOR, "bor", 0, 0, JOP_BOR,
-                     JDOC("(bor & xs)\n\n"
-                          "Returns the bit-wise or of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(bor & ns)\n\n"
+                          "Returns bit-wise or of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_BXOR, "bxor", 0, 0, JOP_BXOR,
-                     JDOC("(bxor & xs)\n\n"
-                          "Returns the bit-wise xor of all values in xs. Each x in xs must be an integer."));
+                     JDOC("(bxor & ns)\n\n"
+                          "Returns bit-wise xor of all values in `ns`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_LSHIFT, "blshift", 1, 1, JOP_SHIFT_LEFT,
-                     JDOC("(blshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted left by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+                     JDOC("(blshift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "left by the sum of all values in `shifts`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_RSHIFT, "brshift", 1, 1, JOP_SHIFT_RIGHT,
-                     JDOC("(brshift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer."));
+                     JDOC("(brshift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "right by the sum of all values in `shifts`; "
+                          "integers only."));
     templatize_varop(env, JANET_FUN_RSHIFTU, "brushift", 1, 1, JOP_SHIFT_RIGHT_UNSIGNED,
-                     JDOC("(brushift x & shifts)\n\n"
-                          "Returns the value of x bit shifted right by the sum of all values in shifts. x "
-                          "and each element in shift must be an integer. The sign of x is not preserved, so "
-                          "for positive shifts the return value will always be positive."));
+                     JDOC("(brushift n & shifts)\n\n"
+                          "Returns the value of integer `n` bit shifted "
+                          "right by the sum of all values in `shifts`; "
+                          "integers only. The sign of `n` is not preserved, "
+                          "so for positive shifts the return value is "
+                          "always be positive."));
 
     /* Variadic comparators */
     templatize_comparator(env, JANET_FUN_GT, ">", 0, JOP_GREATER_THAN,
@@ -1358,7 +1376,7 @@ JanetTable *janet_core_env(JanetTable *replacements) {
     janet_def(env, "janet/build", janet_cstringv(JANET_BUILD),
               JDOC("The build identifier of the running janet program."));
     janet_def(env, "janet/config-bits", janet_wrap_integer(JANET_CURRENT_CONFIG_BITS),
-              JDOC("The flag set of config options from janetconf.h which is used to check "
+              JDOC("The flag set of config options from `janetconf.h` which is used to check "
                    "if native modules are compatible with the host program."));
 
     /* Allow references to the environment */
