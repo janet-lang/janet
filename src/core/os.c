@@ -1775,7 +1775,7 @@ JANET_CORE_FN(os_clock,
               "* `:double` - Return the number of seconds + fractional "
               "seconds as a double.\n"
               "* `:int` - Return the number of seconds as an integer.\n"
-              "* `:tuple` - Return a 2-integer tuple `[seconds, "
+              "* `:tuple` - Return a 2-tuple of integers `[seconds "
               "nanoseconds]`.\n") {
     enum JanetTimeSource source;
     janet_sandbox_assert(JANET_SANDBOX_HRTIME);

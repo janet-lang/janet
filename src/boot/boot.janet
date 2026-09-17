@@ -1785,7 +1785,7 @@
   only one of those values will become a key in the returned table.
 
   `x` can be a bytes, indexed, dictionary, or abstract type with a
-  `suitable next` method.
+  suitable `next` method.
   ``
   [x]
   (def ret @{})
@@ -1863,7 +1863,7 @@
 
 (defn put-in
   ``
-  Use the keys `ks` to put a value `v` into a nested spot in
+  Use the keys `ks` to put a value `val` into a nested spot in
   `x`. Missing spots will be replaced with tables. Returns `x`
   modified.
 
@@ -1873,7 +1873,7 @@
   `ks` can be an indexed or abstract type with suitable `get` and
   `length` methods.
   ``
-  [x ks v]
+  [x ks val]
   (var d x)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
@@ -1887,7 +1887,7 @@
       (set d v)))
   (def last-key (get ks len-1))
   (def last-val (get d last-key))
-  (put d last-key v)
+  (put d last-key val)
   x)
 
 (defn update
@@ -2098,17 +2098,17 @@
 
 (defn interpose
   ``
-  Returns an array of the values of `x` separated by `sep`.
+  Returns an array of the values of `x` separated by `val`.
 
   `x` can be a bytes, indexed, fiber or abstract type with suitable
   `get` and `next` methods.
   ``
-  [sep x]
+  [val x]
   (var k (next x nil))
   (if (not= nil k)
     (if (lengthable? x)
       (do
-        (def ret (array/new-filled (- (* 2 (length x)) 1) sep))
+        (def ret (array/new-filled (- (* 2 (length x)) 1) val))
         (var i 0)
         (while (not= nil k)
           (put ret i (in x k))
@@ -2118,7 +2118,7 @@
       (do
         (def ret @[(in x k)])
         (while (not= nil (set k (next x k)))
-          (array/push ret sep (in x k)))
+          (array/push ret val (in x k)))
         ret))
     @[]))
 
