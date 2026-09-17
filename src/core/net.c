@@ -1152,20 +1152,20 @@ static const struct sockopt_type sockopt_type_list[] = {
 };
 
 JANET_CORE_FN(cfun_net_setsockopt,
-              "(net/setsockopt stream option value)",
-              "set socket options.\n"
+              "(net/setsockopt stream option val)",
+              "Set socket options. Supported options and associated value "
+              "types are:\n"
               "\n"
-              "supported options and associated value types:\n"
-              "- :so-broadcast boolean\n"
-              "- :so-reuseaddr boolean\n"
-              "- :so-keepalive boolean\n"
-              "- :ip-multicast-ttl number\n"
-              "- :ip-add-membership string\n"
-              "- :ip-drop-membership string\n"
-              "- :ipv6-join-group string\n"
-              "- :ipv6-leave-group string\n"
-              "- :ipv6-multicast-hops number\n"
-              "- :ipv6-unicast-hops number\n"
+              "* `:so-broadcast` - boolean\n"
+              "* `:so-reuseaddr` - boolean\n"
+              "* `:so-keepalive` - boolean\n"
+              "* `:ip-multicast-ttl` - number\n"
+              "* `:ip-add-membership` - string\n"
+              "* `:ip-drop-membership` - string\n"
+              "* `:ipv6-join-group` - string\n"
+              "* `:ipv6-leave-group` - string\n"
+              "* `:ipv6-multicast-hops` - number\n"
+              "* `:ipv6-unicast-hops` - number\n"
              ) {
     janet_arity(argc, 3, 3);
     JanetStream *stream = janet_getabstract(argv, 0, &janet_stream_type);
