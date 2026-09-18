@@ -480,7 +480,12 @@ static void loadhistory(void) {
         while (janet_parser_has_more(&p) && gbl_history_count < JANET_HISTORY_MAX) {
             if (janet_parser_status(&p) == JANET_PARSE_ERROR) {
                 janet_eprintf("bad history file: %s\n", janet_parser_error(&p));
-                goto parsing_done;
+                {
+                    janet_parser_deinit(&p);
+                    gbl_historyi = 0;
+                    fclose(history_file);
+                    return;
+                }
             }
             Janet x = janet_parser_produce(&p);
             const char *cstr = (const char *) janet_to_string(x);
@@ -491,10 +496,6 @@ static void loadhistory(void) {
 
         if (c == EOF) break;
     }
-parsing_done:
-    janet_parser_deinit(&p);
-    gbl_historyi = 0;
-    fclose(history_file);
 }
 
 static void savehistory(void) {

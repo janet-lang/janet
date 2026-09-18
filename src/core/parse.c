@@ -807,6 +807,7 @@ void janet_parser_deinit(JanetParser *parser) {
     janet_free(parser->states);
 }
 
+#define GOTO_nomem {JANET_OUT_OF_MEMORY; return; }
 void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
     /* Misc fields */
     dest->flag = src->flag;
@@ -832,25 +833,23 @@ void janet_parser_clone(const JanetParser *src, JanetParser *dest) {
     dest->buf = NULL;
     if (dest->bufcap) {
         dest->buf = janet_malloc(dest->bufcap);
-        if (!dest->buf) goto nomem;
+        if (!dest->buf) GOTO_nomem;
         memcpy(dest->buf, src->buf, dest->bufcap);
     }
     if (dest->argcap) {
         dest->args = janet_malloc(sizeof(Janet) * dest->argcap);
-        if (!dest->args) goto nomem;
+        if (!dest->args) GOTO_nomem;
         memcpy(dest->args, src->args, dest->argcap * sizeof(Janet));
     }
     if (dest->statecap) {
         dest->states = janet_malloc(sizeof(JanetParseState) * dest->statecap);
-        if (!dest->states) goto nomem;
+        if (!dest->states) GOTO_nomem;
         memcpy(dest->states, src->states, dest->statecap * sizeof(JanetParseState));
     }
 
     return;
-
-nomem:
-    JANET_OUT_OF_MEMORY;
 }
+#undef GOTO_nomem
 
 int janet_parser_has_more(JanetParser *parser) {
     return !!parser->pending;

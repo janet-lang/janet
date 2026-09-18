@@ -124,11 +124,11 @@ JANET_CORE_FN(janet_core_expand_path,
               "* :sys: -- the system path, or (dyn :syspath)") {
     janet_fixarity(argc, 2);
     const char *input = janet_getcstring(argv, 0);
-    const char *template = janet_getcstring(argv, 1);
+    const char *template_ = janet_getcstring(argv, 1);
     const char *curfile = janet_dyncstring("current-file", "");
     const char *syspath = janet_dyncstring("syspath", "");
     JanetBuffer *out = janet_buffer(0);
-    size_t tlen = strlen(template);
+    size_t tlen = strlen(template_);
 
     /* Calculate name */
     const char *name = input + strlen(input);
@@ -158,11 +158,11 @@ JANET_CORE_FN(janet_core_expand_path,
     }
 
     for (size_t i = 0; i < tlen; i++) {
-        if (template[i] == ':') {
-            if (strncmp(template + i, ":all:", 5) == 0) {
+        if (template_[i] == ':') {
+            if (strncmp(template_ + i, ":all:", 5) == 0) {
                 janet_buffer_push_cstring(out, input);
                 i += 4;
-            } else if (strncmp(template + i, ":@all:", 6) == 0) {
+            } else if (strncmp(template_ + i, ":@all:", 6) == 0) {
                 if (input[0] == '@') {
                     const char *p = input;
                     while (*p && !is_path_sep(*p)) p++;
@@ -177,20 +177,20 @@ JANET_CORE_FN(janet_core_expand_path,
                     janet_buffer_push_cstring(out, input);
                 }
                 i += 5;
-            } else if (strncmp(template + i, ":cur:", 5) == 0) {
+            } else if (strncmp(template_ + i, ":cur:", 5) == 0) {
                 janet_buffer_push_bytes(out, (const uint8_t *)curdir, curlen);
                 i += 4;
-            } else if (strncmp(template + i, ":dir:", 5) == 0) {
+            } else if (strncmp(template_ + i, ":dir:", 5) == 0) {
                 janet_buffer_push_bytes(out, (const uint8_t *)input,
                                         (int32_t)(name - input));
                 i += 4;
-            } else if (strncmp(template + i, ":sys:", 5) == 0) {
+            } else if (strncmp(template_ + i, ":sys:", 5) == 0) {
                 janet_buffer_push_cstring(out, syspath);
                 i += 4;
-            } else if (strncmp(template + i, ":name:", 6) == 0) {
+            } else if (strncmp(template_ + i, ":name:", 6) == 0) {
                 janet_buffer_push_cstring(out, name);
                 i += 5;
-            } else if (strncmp(template + i, ":native:", 8) == 0) {
+            } else if (strncmp(template_ + i, ":native:", 8) == 0) {
 #ifdef JANET_WINDOWS
                 janet_buffer_push_cstring(out, ".dll");
 #else
@@ -198,10 +198,10 @@ JANET_CORE_FN(janet_core_expand_path,
 #endif
                 i += 7;
             } else {
-                janet_buffer_push_u8(out, (uint8_t) template[i]);
+                janet_buffer_push_u8(out, (uint8_t) template_[i]);
             }
         } else {
-            janet_buffer_push_u8(out, (uint8_t) template[i]);
+            janet_buffer_push_u8(out, (uint8_t) template_[i]);
         }
     }
 
