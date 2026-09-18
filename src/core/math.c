@@ -355,7 +355,7 @@ JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
 }
 
 JANET_CORE_FN(janet_cfun_frexp, "(math/frexp x)",
-              "Returns a tuple of (mantissa, exponent) from number.") {
+              "Returns a tuple of `[mantissa exponent]` from a number `x`.") {
     janet_fixarity(argc, 1);
     double x = janet_getnumber(argv, 0);
     int exp;

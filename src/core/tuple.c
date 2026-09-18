@@ -95,8 +95,8 @@ JANET_CORE_FN(cfun_tuple_type,
 
 JANET_CORE_FN(cfun_tuple_sourcemap,
               "(tuple/sourcemap tup)",
-              "Returns the sourcemap metadata attached to a tuple, "
-              "which is another tuple (line, column).") {
+              "Returns the sourcemap metadata attached to a tuple `tup`, "
+              "which is another tuple `[line column]`.") {
     janet_fixarity(argc, 1);
     const Janet *tup = janet_gettuple(argv, 0);
     Janet contents[2];
