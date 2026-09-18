@@ -24,6 +24,7 @@
 #include "features.h"
 #include <janet.h>
 #include "util.h"
+#include "compile.h"
 #endif
 
 #include <setjmp.h>
@@ -495,7 +496,6 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
     int32_t count, i;
     const Janet *arr;
     Janet x;
-    (void) flags;
 
     /* Initialize funcdef */
     def = janet_funcdef_alloc();
@@ -799,6 +799,15 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
         janet_asm_errorv(&a, janet_formatc("invalid assembly (%d)", verify_status));
     }
 
+    /* Optionally do optimization and a second verify step */
+    if (flags & JANET_ASSEMBLE_FLAG_OPTIMIZE) {
+        janet_bytecode_optimize(def);
+        int verify_status = janet_verify(def);
+        if (verify_status) {
+            janet_asm_errorv(&a, janet_formatc("invalid assembly after optimization (%d)", verify_status));
+        }
+    }
+
     /* Add final flags */
     janet_def_addflags(def);
 
@@ -1059,15 +1068,20 @@ Janet janet_disasm(JanetFuncDef *def) {
 }
 
 JANET_CORE_FN(cfun_asm,
-              "(asm assembly)",
+              "(asm assembly &opt flags)",
               "Returns a new function that is the compiled result of the assembly.\n"
               "The syntax for the assembly can be found on the Janet website, and should correspond\n"
               "to the return value of disasm. Will throw an\n"
-              "error on invalid assembly.") {
+              "error on invalid assembly. Supports a keyword `flags` to control assembly.\n"
+              "The only supported flag is `:o`, which will optimize bytecode automatically.") {
     janet_sandbox_assert(JANET_SANDBOX_ASM);
-    janet_fixarity(argc, 1);
+    janet_arity(argc, 1, 2);
+    uint64_t flags = 0;
+    if (argc >= 2) {
+        flags = janet_getflags(argv, 1, "o");
+    }
     JanetAssembleResult res;
-    res = janet_asm(argv[0], 0);
+    res = janet_asm(argv[0], (int32_t) flags);
     if (res.status != JANET_ASSEMBLE_OK) {
         janet_panics(res.error ? res.error : janet_cstring("invalid assembly"));
     }

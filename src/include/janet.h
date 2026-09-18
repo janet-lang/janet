@@ -1689,6 +1689,7 @@ JANET_API int janet_parser_has_more(JanetParser *parser);
 
 /* Assembly */
 #ifdef JANET_ASSEMBLER
+#define JANET_ASSEMBLE_FLAG_OPTIMIZE 1
 typedef struct JanetAssembleResult JanetAssembleResult;
 enum JanetAssembleStatus {
     JANET_ASSEMBLE_OK,

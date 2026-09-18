@@ -257,17 +257,6 @@ static BytecodeBB *janet_bytecode_basic_blocks(JanetFuncDef *def, int32_t *n_blo
     }
     janet_free(bitmap);
     *n_blocks = block_count;
-    /*
-    #ifdef JANET_BOOTSTRAP
-    for (int32_t i = 0; i < block_count; i++) {
-        janet_eprintf("block: start=%d, end=%d, next[0]=%d, next[1]=%d\n",
-                blocks[i].start,
-                blocks[i].end,
-                blocks[i].next[0],
-                blocks[i].next[1]);
-    }
-    #endif
-    */
     return blocks;
 }
 
@@ -332,15 +321,25 @@ static double vn_encode_vn(VN vn) {
     encoded |= vn.has_slot ? 0x10000 : 0;
     encoded |= vn64 << 17;
     janet_assert(encoded <= JANET_INTMAX_DOUBLE, "encoding failure");
-    return (double) encoded;
+    union {
+        double d;
+        uint64_t u;
+    } un;
+    un.u = encoded;
+    return un.d;
 }
 
 static VN vn_decode_vn(double encoded) {
-    uint64_t u = (uint64_t) encoded;
+    union {
+        uint64_t u;
+        double d;
+    } un;
+    un.d = encoded;
     VN ret;
-    ret.has_slot = (u & 0x10000) ? 1 : 0;
-    ret.slot = u & 0xFFFF;
-    ret.value_number = (int32_t)(u >> 17);
+    ret.has_slot = (un.u & 0x10000) ? 1 : 0;
+    ret.slot = un.u & 0xFFFF;
+    uint64_t x = ((un.u >> 17) - 0x20000);
+    ret.value_number = (int32_t)x;
     return ret;
 }
 
@@ -352,7 +351,16 @@ static VN vn_check_key(VNContext *ctx, double key) {
     VN ret = vn_decode_vn(janet_unwrap_number(check));
     /* Ensure the value number is still valid */
     if (ret.has_slot) {
-        if (ctx->value_numbers[ret.slot] != ret.value_number) return zero;
+        if (ctx->value_numbers[ret.slot] != ret.value_number) {
+            /* Look for a matching slot */
+            for (int32_t i = 0; i < ctx->def->slotcount; i++) {
+                if (ctx->value_numbers[i] == ret.value_number) {
+                    ret.value_number = ctx->value_numbers[i];
+                    return ret;
+                }
+            }
+            return zero;
+        }
     }
     return ret;
 }
@@ -373,13 +381,13 @@ static uint32_t vn_move_or_load(VNContext *ctx, uint32_t destination_slot, VN vn
         }
         return current_instruction;
     } else {
+        ctx->value_numbers[destination_slot] = vn.value_number;
         /* Emit a move */
         if (!vn.has_slot) return current_instruction;
         if (destination_slot == vn.slot) return JOP_NOOP;
         if ((destination_slot > 255) && vn.slot > 255) return current_instruction;
         /* Check if slot has been rewritten - if so, just use current instruction */
         if (ctx->value_numbers[vn.slot] != vn.value_number) return current_instruction;
-        ctx->value_numbers[destination_slot] = vn.value_number;
         if (destination_slot > 255) {
             return JOP_MOVE_FAR | (destination_slot << 16) | ((uint32_t) vn.slot << 8);
         } else {
@@ -655,6 +663,12 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
                 case JOP_GET_INDEX: {
                     /* TODO - actually do replacement */
                     int32_t Bv = ctx.value_numbers[B];
+                    double key = vn_encode_2arg(opcode, Bv, C);
+                    VN vn = vn_check_key(&ctx, key);
+                    if (vn.value_number) {
+                        code[pc] = vn_move_or_load(&ctx, A, vn, code[pc]);
+                        continue;
+                    }
                     B = vn_find_reg(&ctx, Bv, B);
                     code[pc] = recon_abc(code[pc], A, B, C);
                     ctx.value_numbers[A] = nextv++;
