@@ -198,8 +198,13 @@ static BytecodeBB *janet_bytecode_basic_blocks(JanetFuncDef *def, int32_t *n_blo
     for (int32_t i = 0; i < words; i++) {
 #ifdef JANET_MSVC
         block_count += __popcnt(bitmap[i]);
-#else
+#elif defined(__GNUC__)
         block_count += __builtin_popcount(bitmap[i]);
+#else
+        for (int j = 0; j < 32; j++) {
+            uint32_t mask = ((uint32_t)1 << j);
+            if (mask & bitmap[i]) block_count++;
+        }
 #endif
     }
     BytecodeBB *blocks = array_allocate(sizeof(BytecodeBB), block_count);
@@ -1437,8 +1442,13 @@ void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
                 BytecodeBB *basic_blocks = janet_bytecode_basic_blocks(def, &nblocks);
                 janet_assert(nblocks > 0, "no blocks");
                 if (level >= 1) {
+                    /* TODO - allow limited value numbering at optimize = 0.
+                     * Constant folding can currently remove named slots which can break debug info */
                     janet_bytecode_local_value_numbering(def, basic_blocks, nblocks);
                 }
+                /* This will currently also break debug info, although less severely than
+                 * value numbering. At optimize=0, we should pin all named slots but allow
+                 * constant propogation for anonymous intermediate computations */
                 janet_bytecode_movopt_full(def, basic_blocks, nblocks);
                 janet_free(basic_blocks);
             }
