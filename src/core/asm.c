@@ -801,7 +801,8 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 
     /* Optionally do optimization and a second verify step */
     if (flags & JANET_ASSEMBLE_FLAG_OPTIMIZE) {
-        janet_bytecode_optimize(def);
+        int32_t optimization_level = 1; /* TODO */
+        janet_bytecode_optimize(def, optimization_level);
         int verify_status = janet_verify(def);
         if (verify_status) {
             janet_asm_errorv(&a, janet_formatc("invalid assembly after optimization (%d)", verify_status));

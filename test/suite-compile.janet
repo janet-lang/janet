@@ -21,6 +21,8 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
+(setdyn *optimize* 1)
+
 # Regression Test
 # 0378ba78
 (assert (= 1 (((compile '(fn [] 1) @{})))) "regression test")
@@ -116,21 +118,27 @@
 
 (defn check-good-compile
   [code msg]
-  (def lints @[])
-  (def result4 (compile code (curenv) "suite-compile.janet" lints))
-  (assert (and (function? result4) (empty? lints)) msg))
+  (each opt [-1 0 1]
+    (setdyn *optimize* opt)
+    (def lints @[])
+    (def result4 (compile code (curenv) "suite-compile.janet" lints))
+    (assert (and (function? result4) (empty? lints)) (string msg " optimization " opt))))
 
 (defn check-bad-compile
   [code msg]
-  (def lints @[])
-  (def result4 (compile code (curenv) "suite-compile.janet" lints))
-  (assert (not (and (function? result4) (empty? lints))) msg))
+  (each opt [-1 0 1]
+    (setdyn *optimize* opt)
+    (def lints @[])
+    (def result4 (compile code (curenv) "suite-compile.janet" lints))
+    (assert (not (and (function? result4) (empty? lints))) (string msg " optimization " opt))))
 
 (defn check-lint-compile
   [code msg]
-  (def lints @[])
-  (def result4 (compile code (curenv) "suite-compile.janet" lints))
-  (assert (and (function? result4) (next lints)) msg))
+  (each opt [-1 0 1]
+    (setdyn *optimize* opt)
+    (def lints @[])
+    (def result4 (compile code (curenv) "suite-compile.janet" lints))
+    (assert (and (function? result4) (next lints)) (string msg " optimization " opt))))
 
 (check-good-compile '(fnamed) "named no args")
 (check-good-compile '(fnamed :x 1 :y 2 :z 3) "named full args")
@@ -191,5 +199,9 @@
 (check-good-compile '(eachp () 5) "good compile eachp 1")
 (check-good-compile '(do (def [] [1]) nil) "def with empty tuple binding 1")
 (check-good-compile '(do (def x (def [] [1])) x) "def with empty tuple binding 2")
+
+# Optimization edge cases
+(check-lint-compile '|(when-with [_ nil] (print $200)) "dead code + upvalues 1")
+(check-lint-compile '|(when-with [_ nil] (print $255)) "dead code + upvalues 2")
 
 (end-suite)

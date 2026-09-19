@@ -283,7 +283,7 @@ static uint32_t recon_abc(uint32_t opcode, uint32_t A, uint32_t B, uint32_t C) {
     return (0x7F & opcode) |
            ((A & 0xFF) << 8) |
            ((B & 0xFF) << 16) |
-           ((C & 0xFF) << 24);
+           (C << 24);
 }
 static uint32_t recon_ae(uint32_t opcode, uint32_t A, uint32_t E) {
     return (0x7F & opcode) |
@@ -1057,10 +1057,9 @@ static void janet_bytecode_movopt_basic_block(JanetFuncDef *def, BytecodeBB bb, 
         uint32_t Iop = I & 0x7F;
         uint32_t Ia = (I >> 8) & 0xFF;
         uint32_t Ib = (I >> 16) & 0xFF;
-        uint32_t Ic = (I >> 24) & 0xFF;
+        uint32_t Ic = (I >> 24);
         uint32_t Id = (I >> 8);
         uint32_t Ie = (I >> 16);
-        /*int32_t Ies = ((int32_t) I >> 16);*/
         /* Whenever we execute an instruction that can yield or await, clear the bitset.
          * Closures could read some slots that seem to be unused, and then control could
          * return to our function. */
@@ -1253,6 +1252,7 @@ static void janet_bytecode_movopt_basic_block(JanetFuncDef *def, BytecodeBB bb, 
             /* Clear writes, set reads (in that order!) */
             if (out != -1) bs_clear_bit(bitset, out);
             for (int j = 0; j < nins; j++) {
+                janet_assert(ins[j] < def->slotcount, "slot too big");
                 bs_set_bit(bitset, ins[j]);
             }
         }
@@ -1307,26 +1307,34 @@ void janet_bytecode_movopt_full(JanetFuncDef *def, BytecodeBB *blocks, int32_t n
 }
 
 /* Entry point for optimization */
-void janet_bytecode_optimize(JanetFuncDef *def) {
+void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
     int32_t delta;
-    do { /* Fixpoint for instruction removal */
-        int32_t before = def->bytecode_length;
-        janet_bytecode_jump_threading(def);
-        {
-            int32_t nblocks = 0;
-            BytecodeBB *basic_blocks = janet_bytecode_basic_blocks(def, &nblocks);
-            janet_assert(nblocks > 0, "no blocks");
-            janet_bytecode_local_value_numbering(def, basic_blocks, nblocks);
-            janet_bytecode_movopt_full(def, basic_blocks, nblocks);
-            janet_free(basic_blocks);
-        }
-        janet_bytecode_dead_code(def);
-        janet_bytecode_remove_noops(def);
-        delta = def->bytecode_length - before;
-#ifdef JANET_BOOTSTRAP
-        total_optimize_fixpoint_loops++;
+#ifdef JANET_DEBUG
+    int result = janet_verify(def);
+    janet_assert(result == 0, "input bytecode bad");
 #endif
-    } while (delta < 0);
+    if (level >= 0) {
+        do { /* Fixpoint for instruction removal */
+            int32_t before = def->bytecode_length;
+            janet_bytecode_jump_threading(def);
+            {
+                int32_t nblocks = 0;
+                BytecodeBB *basic_blocks = janet_bytecode_basic_blocks(def, &nblocks);
+                janet_assert(nblocks > 0, "no blocks");
+                if (level >= 1) {
+                    janet_bytecode_local_value_numbering(def, basic_blocks, nblocks);
+                }
+                janet_bytecode_movopt_full(def, basic_blocks, nblocks);
+                janet_free(basic_blocks);
+            }
+            janet_bytecode_dead_code(def);
+            janet_bytecode_remove_noops(def);
+            delta = def->bytecode_length - before;
+#ifdef JANET_BOOTSTRAP
+            total_optimize_fixpoint_loops++;
+#endif
+        } while (delta < 0);
+    }
 #ifdef JANET_BOOTSTRAP
     total_instruction_count += def->bytecode_length;
     total_funcdefs_optimized++;

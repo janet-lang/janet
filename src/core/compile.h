@@ -106,7 +106,7 @@ typedef struct JanetSpecial JanetSpecial;
 struct JanetSlot {
     Janet constant; /* If the slot has a constant value */
     int32_t index;
-    int32_t envindex; /* 0 is local, positive number is an upvalue */
+    int32_t envindex; /* -1 is local, positive number is an upvalue */
     uint32_t flags;
 };
 
@@ -194,8 +194,9 @@ struct JanetCompiler {
     /* Collect linting results */
     JanetArray *lints;
 
-    /* Cached version of (dyn *redef*) */
+    /* Cached version of (dyn *redef*) and (dyn *optimize*) */
     int is_redef;
+    int32_t optimize;
 };
 
 #define JANET_FOPTS_TAIL 0x10000
@@ -276,7 +277,7 @@ JanetSlot janetc_value(JanetFopts opts, Janet x);
 void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name);
 void janetc_popscope(JanetCompiler *c);
 void janetc_popscope_keepslot(JanetCompiler *c, JanetSlot retslot);
-JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c);
+JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c, JanetString name);
 
 /* Create a destroy slot */
 JanetSlot janetc_cslot(Janet x);
@@ -288,6 +289,6 @@ JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 
 /* Bytecode optimization */
-void janet_bytecode_optimize(JanetFuncDef *def);
+void janet_bytecode_optimize(JanetFuncDef *def, int32_t level);
 
 #endif

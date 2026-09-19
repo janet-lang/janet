@@ -7,6 +7,8 @@
 ###
 ###
 
+(setdyn :optimize 1)
+
 (def defn :macro :flycheck
   ```
   (defn name & more)
@@ -1504,6 +1506,7 @@
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
+(defdyn *optimize* "Set optimization level for the the `compile` function. Default is 0, and higher integer levels will enable more optimization.")
 
 (defdyn *current-file*
   "Bound to the name of the currently compiling file.")
@@ -5237,6 +5240,8 @@
 ### Bootstrap
 ###
 ###
+
+(setdyn :optimize nil)
 
 (do
 

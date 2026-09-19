@@ -404,7 +404,12 @@ found:
         return ret;
 
     /* Unused references and locals shouldn't add captured envs. */
-    if (unused || foundlocal) {
+    if (foundlocal) {
+        ret.envindex = -1;
+        return ret;
+    }
+    if (unused) {
+        ret.index = 0; /* we must have at least 1 slot if we are calling resolve in scope */
         ret.envindex = -1;
         return ret;
     }
@@ -1002,10 +1007,13 @@ void janet_def_addflags(JanetFuncDef *def) {
 /* Compile a funcdef */
 /* Once the various other settings of the FuncDef have been tweaked,
  * call janet_def_addflags to set the proper flags for the funcdef */
-JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
+JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c, JanetString name) {
     JanetScope *scope = c->scope;
     JanetFuncDef *def = janet_funcdef_alloc();
     def->slotcount = scope->ra.max + 1;
+
+    /* TODO - turn this on even for unused code for verification purposes */
+    int optimize = (scope->flags & JANET_SCOPE_UNUSED) ? 0 : c->optimize;
 
     janet_assert(scope->flags & JANET_SCOPE_FUNCTION, "expected function scope");
 
@@ -1130,10 +1138,23 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
+    /* Add a name _before_ optimization for debugging */
+    def->name = name;
+
     /* Do basic optimization */
-    janet_bytecode_optimize(def);
+    janet_bytecode_optimize(def, optimize);
+
+#ifdef JANET_DEBUG
+    janet_verify(def);
+#endif
 
     return def;
+}
+
+static int32_t to_optimization_level(Janet x) {
+    if (!janet_checkint(x)) return 0;
+    int32_t int_level = janet_unwrap_integer(x);
+    return int_level;
 }
 
 /* Initialize a compiler */
@@ -1148,6 +1169,7 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
     c->current_mapping.column = -1;
     c->lints = lints;
     c->is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
+    c->optimize = to_optimization_level(janet_table_get_keyword(c->env, "optimize"));
     /* Init result */
     c->result.error = NULL;
     c->result.status = JANET_COMPILE_OK;
@@ -1185,8 +1207,7 @@ JanetCompileResult janet_compile_lint(Janet source,
     janetc_value(fopts, source);
 
     if (c.result.status == JANET_COMPILE_OK) {
-        JanetFuncDef *def = janetc_pop_funcdef(&c);
-        def->name = janet_cstring("thunk");
+        JanetFuncDef *def = janetc_pop_funcdef(&c, janet_cstring("thunk"));
         janet_def_addflags(def);
         c.result.funcdef = def;
     } else {

@@ -960,8 +960,7 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         janetc_emit(c, JOP_TAILCALL | ((uint32_t) tempself << 8));
         janetc_regalloc_freetemp(&c->scope->ra, tempself, JANETC_REGTEMP_0);
         /* Compile function */
-        JanetFuncDef *def = janetc_pop_funcdef(c);
-        def->name = janet_cstring("while");
+        JanetFuncDef *def = janetc_pop_funcdef(c, janet_cstring("while"));
         janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
         /* And then load the closure and call it. */
@@ -1195,7 +1194,8 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     }
 
     /* Build function */
-    def = janetc_pop_funcdef(c);
+    JanetString name = hasname ? janet_unwrap_symbol(head) : NULL;
+    def = janetc_pop_funcdef(c, name);
     def->arity = arity;
     def->min_arity = min_arity;
     def->max_arity = max_arity;
@@ -1206,7 +1206,6 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     if (structarg) def->flags |= JANET_FUNCDEF_FLAG_STRUCTARG;
     if (namedargs) def->flags |= JANET_FUNCDEF_FLAG_NAMEDARGS;
 
-    if (hasname) def->name = janet_unwrap_symbol(head); /* Also correctly unwraps keyword */
     janet_def_addflags(def);
     defindex = janetc_addfuncdef(c, def);
 
