@@ -971,6 +971,16 @@ void janet_bytecode_remove_unused_constants(JanetFuncDef *def) {
     janet_assert(words > 0, "bad length");
     uint32_t *bitset = array_allocate(sizeof(uint32_t), words);
     memset(bitset, 0, words * sizeof(uint32_t));
+
+    /* Quirk: We rely on the first N constants being the named arguments of a function for warnings
+     * while making function calls. Preserve these in the case we have named arguments so we don't get
+     * spurious warnings for unused named arguments (or miss warnings!) */
+    if (def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS) {
+        for (int32_t index = 0; index < def->named_args_count; index++) {
+            bs_set_bit(bitset, index);
+        }
+    }
+
     for (int32_t pc = 0; pc < def->bytecode_length; pc++) {
         uint32_t E = code[pc] >> 16;
         switch (code[pc] & 0x7F) {

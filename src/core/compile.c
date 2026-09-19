@@ -1012,9 +1012,6 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c, JanetString name) {
     JanetFuncDef *def = janet_funcdef_alloc();
     def->slotcount = scope->ra.max + 1;
 
-    /* TODO - turn this on even for unused code for verification purposes */
-    int optimize = (scope->flags & JANET_SCOPE_UNUSED) ? 0 : c->optimize;
-
     janet_assert(scope->flags & JANET_SCOPE_FUNCTION, "expected function scope");
 
     /* Copy envs */
@@ -1141,9 +1138,6 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c, JanetString name) {
     /* Add a name _before_ optimization for debugging */
     def->name = name;
 
-    /* Do basic optimization */
-    janet_bytecode_optimize(def, optimize);
-
 #ifdef JANET_DEBUG
     janet_verify(def);
 #endif
@@ -1209,6 +1203,7 @@ JanetCompileResult janet_compile_lint(Janet source,
     if (c.result.status == JANET_COMPILE_OK) {
         JanetFuncDef *def = janetc_pop_funcdef(&c, janet_cstring("thunk"));
         janet_def_addflags(def);
+        janet_bytecode_optimize(def, c.optimize);
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;

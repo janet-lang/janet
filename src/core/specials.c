@@ -963,6 +963,9 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         JanetFuncDef *def = janetc_pop_funcdef(c, janet_cstring("while"));
         janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
+        /* Do basic optimization */
+        int32_t optimize = (c->scope->flags & JANET_SCOPE_UNUSED) ? -1 : c->optimize;
+        janet_bytecode_optimize(def, optimize);
         /* And then load the closure and call it. */
         int32_t cloreg = janetc_regalloc_temp(&c->scope->ra, JANETC_REGTEMP_0);
         janetc_emit(c, JOP_CLOSURE | ((uint32_t) cloreg << 8) | ((uint32_t) defindex << 16));
@@ -1023,6 +1026,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Begin function */
     c->scope->flags |= JANET_SCOPE_CLOSURE;
+    int32_t optimize = (c->scope->flags & JANET_SCOPE_UNUSED) ? -1 : c->optimize;
     janetc_scope(&fnscope, c, JANET_SCOPE_FUNCTION, "function");
 
     if (argn == 0) {
@@ -1211,6 +1215,9 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     /* Ensure enough slots for vararg function. */
     if (arity + vararg > def->slotcount) def->slotcount = arity + vararg;
+
+    /* Do basic optimization */
+    janet_bytecode_optimize(def, optimize);
 
     /* Instantiate closure */
     ret = janetc_gettarget(opts);
