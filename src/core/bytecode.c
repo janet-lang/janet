@@ -900,6 +900,120 @@ static void rewrite_symbolmap(JanetFuncDef *def, uint32_t *pc_map) {
     def->symbolmap_length = smout;
 }
 
+/* Remove unused closure defs */
+void janet_bytecode_remove_unused_closures(JanetFuncDef *def) {
+    if (def->defs_length < 1) return;
+    uint32_t *code = def->bytecode;
+    int32_t words = ((def->defs_length - 1) >> 5) + 1;
+    janet_assert(words > 0, "bad length");
+    uint32_t *bitset = array_allocate(sizeof(uint32_t), words);
+    memset(bitset, 0, words * sizeof(uint32_t));
+    for (int32_t pc = 0; pc < def->bytecode_length; pc++) {
+        uint32_t E = code[pc] >> 16;
+        switch (code[pc] & 0x7F) {
+            default:
+                continue;
+            case JOP_CLOSURE:
+                bs_set_bit(bitset, E);
+                continue;
+        }
+    }
+
+    /* Check if we need to compress closures */
+    int remap = 0;
+    for (int32_t i = 0; i < def->defs_length; i++) {
+        if (!bs_read_bit(bitset, i)) {
+            remap = 1;
+            break;
+        }
+    }
+
+    /* Remap closures */
+    if (remap) {
+        uint32_t *def_remaps = array_allocate(sizeof(uint32_t), def->defs_length);
+        int32_t j = 0;
+        for (int32_t i = 0; i < def->defs_length; i++) {
+            def_remaps[i] = j;
+            def->defs[j] = def->defs[i];
+            if (bs_read_bit(bitset, i)) {
+                j++;
+            }
+        }
+        def->defs_length = j;
+        for (int32_t pc = 0; pc < def->bytecode_length; pc++) {
+            uint32_t E = code[pc] >> 16;
+            switch (code[pc] & 0x7F) {
+                default:
+                    continue;
+                case JOP_CLOSURE:
+                    code[pc] = (code[pc] & 0xFFFF) | (def_remaps[E] << 16);
+                    continue;
+            }
+        }
+        janet_free(def_remaps);
+
+        /* TODO - recalculate closure bitset and do more optimization */
+    }
+
+    janet_free(bitset);
+}
+
+/* Remove unused constants from the constant buffer */
+void janet_bytecode_remove_unused_constants(JanetFuncDef *def) {
+    if (def->constants_length < 1) return;
+    uint32_t *code = def->bytecode;
+    int32_t words = ((def->constants_length - 1) >> 5) + 1;
+    janet_assert(words > 0, "bad length");
+    uint32_t *bitset = array_allocate(sizeof(uint32_t), words);
+    memset(bitset, 0, words * sizeof(uint32_t));
+    for (int32_t pc = 0; pc < def->bytecode_length; pc++) {
+        uint32_t E = code[pc] >> 16;
+        switch (code[pc] & 0x7F) {
+            default:
+                continue;
+            case JOP_LOAD_CONSTANT:
+                bs_set_bit(bitset, E);
+                continue;
+        }
+    }
+
+    /* Check if we need to compress constants */
+    int remap = 0;
+    for (int32_t i = 0; i < def->constants_length; i++) {
+        if (!bs_read_bit(bitset, i)) {
+            remap = 1;
+            break;
+        }
+    }
+
+    /* Remap constants */
+    if (remap) {
+        uint32_t *constant_remaps = array_allocate(sizeof(uint32_t), def->constants_length);
+        int32_t j = 0;
+        for (int32_t i = 0; i < def->constants_length; i++) {
+            constant_remaps[i] = j;
+            def->constants[j] = def->constants[i];
+            if (bs_read_bit(bitset, i)) {
+                j++;
+            }
+        }
+        def->constants_length = j;
+        for (int32_t pc = 0; pc < def->bytecode_length; pc++) {
+            uint32_t E = code[pc] >> 16;
+            switch (code[pc] & 0x7F) {
+                default:
+                    continue;
+                case JOP_LOAD_CONSTANT:
+                    code[pc] = (code[pc] & 0xFFFF) | (constant_remaps[E] << 16);
+                    continue;
+            }
+        }
+        janet_free(constant_remaps);
+    }
+
+    janet_free(bitset);
+}
+
 /* Remove all noops while preserving jumps and debugging information.
  * Useful as part of a filtering compiler pass. */
 void janet_bytecode_remove_noops(JanetFuncDef *def) {
@@ -1306,7 +1420,8 @@ void janet_bytecode_movopt_full(JanetFuncDef *def, BytecodeBB *blocks, int32_t n
     janet_free(bitsets);
 }
 
-/* Entry point for optimization */
+/* Entry point for optimization. The def should already be valid as determined by janet_verify.
+ * The compiler may skip this check for performance but the assembler will not. */
 void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
     int32_t delta;
 #ifdef JANET_DEBUG
@@ -1334,6 +1449,8 @@ void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
             total_optimize_fixpoint_loops++;
 #endif
         } while (delta < 0);
+        janet_bytecode_remove_unused_constants(def);
+        janet_bytecode_remove_unused_closures(def);
     }
 #ifdef JANET_BOOTSTRAP
     total_instruction_count += def->bytecode_length;
