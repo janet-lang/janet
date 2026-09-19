@@ -415,7 +415,115 @@ static void vn_add_lookup(VNContext *ctx, double key, VN vn) {
     }
 }
 
+/* Check for constant propogation. Only implemented for small constants. */
+static VN vn_const_prop(VNContext *ctx, uint32_t opcode, int32_t Bv, int32_t Cv) {
+    (void) ctx; /* Will be needed for other constants besides 16 bit integers */
+    VN zero = {0};
+    if (Bv >= -3 || Cv >= -3) return zero;
+    /* Both Bv and Cv are constant integers */
+    int32_t b = (int16_t)((uint16_t) - (Bv + 4));
+    int32_t c = (int16_t)((uint16_t) - (Cv + 4));
+    int64_t result = 0; /* Extra precision for multiply */
+    int is_bool = 0;
+    int bool_result = 0;
+    switch (opcode) {
+        default:
+            return zero;
+        case JOP_SUBTRACT:
+            result = (int64_t)(b - c);
+            break;
+        case JOP_ADD:
+        case JOP_ADD_IMMEDIATE:
+            result = (int64_t)(b + c);
+            break;
+        case JOP_MULTIPLY:
+        case JOP_MULTIPLY_IMMEDIATE:
+            result = (int64_t)(b * c);
+            break;
+        case JOP_DIVIDE_FLOOR:
+            if (c <= 0 || b <= 0) return zero;
+            result = (int64_t)(b / c);
+            break;
+        case JOP_REMAINDER:
+            if (c <= 0) return zero;
+            result = (int64_t)(b % c);
+            break;
+        case JOP_EQUALS:
+        case JOP_EQUALS_IMMEDIATE:
+            is_bool = 1;
+            bool_result = b == c;
+            break;
+        case JOP_NOT_EQUALS:
+        case JOP_NOT_EQUALS_IMMEDIATE:
+            is_bool = 1;
+            bool_result = b != c;
+            break;
+        case JOP_LESS_THAN:
+        case JOP_LESS_THAN_IMMEDIATE:
+            is_bool = 1;
+            bool_result = b < c;
+            break;
+        case JOP_LESS_THAN_EQUAL:
+            is_bool = 1;
+            bool_result = b <= c;
+            break;
+        case JOP_GREATER_THAN:
+        case JOP_GREATER_THAN_IMMEDIATE:
+            is_bool = 1;
+            bool_result = b > c;
+            break;
+        case JOP_GREATER_THAN_EQUAL:
+            is_bool = 1;
+            bool_result = b >= c;
+            break;
+        case JOP_BAND:
+            result = (int64_t)(b & c);
+            break;
+        case JOP_BOR:
+            result = (int64_t)(b | c);
+            break;
+        case JOP_BXOR:
+            result = (int64_t)(b ^ c);
+            break;
+        case JOP_SHIFT_LEFT:
+        case JOP_SHIFT_LEFT_IMMEDIATE: {
+            if (c < 0 || c > 31) return zero;
+            result = (int32_t)b << c;
+        }
+        break;
+        case JOP_SHIFT_RIGHT:
+        case JOP_SHIFT_RIGHT_IMMEDIATE: {
+            if (c < 0 || c > 31) return zero;
+            int32_t iresult = b >> c;
+            result = iresult;
+        }
+        break;
+        case JOP_SHIFT_RIGHT_UNSIGNED:
+        case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE: {
+            if (c < 0 || c > 31) return zero;
+            int32_t b_sign_extend = (int32_t) b;
+            uint32_t b_unsigned = (uint32_t) b_sign_extend;
+            result = (int32_t)(b_unsigned >> c);
+        }
+        break;
+    }
+    if (result <= INT16_MAX && result >= INT16_MIN) {
+        VN result_vn;
+        if (is_bool) {
+            result_vn.value_number = bool_result ? -3 : -2;
+        } else {
+            uint16_t uresult = (uint16_t) result;
+            result_vn.value_number = (int32_t)(-4 - uresult);
+        }
+        result_vn.has_slot = 0;
+        result_vn.slot = 0;
+        return result_vn;
+    }
+    return zero;
+}
+
 /* Local value numbering routine - reduce number of loads, moves, and redundant computations.  */
+/* TODO - slot maps for removed symbols can be removed */
 void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks, int32_t n_blocks) {
     if (def->closure_bitset) return; /* Upvalues can be changed by side effects */
     if (def->bytecode_length >= 0x10000) return; /* Prevent overflow in value numbering */
@@ -614,6 +722,12 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
                 case JOP_NOT_EQUALS: {
                     int32_t Bv = ctx.value_numbers[B];
                     int32_t Cv = ctx.value_numbers[C];
+                    /* Check for constant prop */
+                    VN const_check = vn_const_prop(&ctx, opcode, Bv, Cv);
+                    if (const_check.value_number) {
+                        code[pc] = vn_move_or_load(&ctx, A, const_check, code[pc]);
+                        continue;
+                    }
                     double key = vn_encode_2arg(opcode, Bv, Cv);
                     /* TODO - promote to immediates if possible (if Cv is integer constant) */
                     VN vn = vn_check_key(&ctx, key);
@@ -661,8 +775,18 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
                 case JOP_SHIFT_RIGHT_IMMEDIATE:
                 case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
                 case JOP_GET_INDEX: {
-                    /* TODO - actually do replacement */
                     int32_t Bv = ctx.value_numbers[B];
+                    /* Check constant prop */
+                    {
+                        int16_t C_imm = (int8_t) C; /* To 16 bit and sign extend */
+                        uint16_t encoded_C = (uint16_t)C_imm;
+                        int32_t Cv = -4 - (int32_t)encoded_C;
+                        VN check_const_prop = vn_const_prop(&ctx, opcode, Bv, Cv);
+                        if (check_const_prop.value_number) {
+                            code[pc] = vn_move_or_load(&ctx, A, check_const_prop, code[pc]);
+                            continue;
+                        }
+                    }
                     double key = vn_encode_2arg(opcode, Bv, C);
                     VN vn = vn_check_key(&ctx, key);
                     if (vn.value_number) {

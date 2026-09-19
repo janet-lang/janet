@@ -294,6 +294,7 @@
                  [1 6 3 'y]
                  [2 6 4 'z]])
         "arg & inner symbolmap")
+# @[(0 2 0 arg) (0 2 1 a) (0 2 2 x) (0 2 3 y) (0 2 4 z)]
 
 # 4782a76
 (assert (= 10 (do (var x 10) (def y x) (++ x) y)) "no invalid aliasing")
