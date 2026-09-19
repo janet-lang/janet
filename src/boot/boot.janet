@@ -3285,12 +3285,12 @@
     (x path)))
 
 (defn module/find
-  ```
-  Try to match a module or path name from the patterns in `module/paths`.
-  Returns a tuple (fullpath kind) where the kind is one of :source, :native,
-  or :image if the module is found, otherwise a tuple with nil followed by
-  an error message.
-  ```
+  ``
+  Try to match a module or path name from the patterns in
+  `module/paths`.  Returns a tuple `[fullpath kind]` where the kind is
+  one of `:source`, `:native`, or `:image` if the module is found,
+  otherwise a tuple with nil followed by an error message.
+  ``
   [path &opt find-all]
   (var ret nil)
   (def mp (dyn *module-paths* module/paths))

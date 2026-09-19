@@ -1204,14 +1204,17 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 }
 
 /* C Function for compiling */
-JANET_CORE_FN(cfun_compile,
-              "(compile ast &opt env source lints)",
-              "Compiles an Abstract Syntax Tree (ast) into a function. "
-              "Pair the compile function with parsing functionality to implement "
-              "eval. Returns a new function and does not modify ast. Returns an error "
-              "struct with keys :line, :column, and :error if compilation fails. "
-              "If a `lints` array is given, linting messages will be appended to the array. "
-              "Each message will be a tuple of the form `(level line col message)`.") {
+JANET_CORE_FN(cfun_compile, "(compile ast &opt env source lints)",
+              "Compiles an abstract syntax tree `ast` into a function. "
+              "Returns a new function and does not modify `ast`. If "
+              "compilation fails, returns an error struct with keys "
+              "`:line`, `:column`, and `:error`. If a table `env` is "
+              "given, specifies the environment of the fiber used during "
+              "compilation. Optional argument `source` is a string or "
+              "keyword that is a source path for better errors. If a "
+              "`lints` array is given, linting messages will be appended to "
+              "the array. Each message will be a tuple of the form `[level "
+              "line col message]`.") {
     janet_sandbox_assert(JANET_SANDBOX_COMPILE);
     janet_arity(argc, 1, 4);
     JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))
