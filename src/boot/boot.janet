@@ -3621,7 +3621,7 @@
   (def delimiters
     (if has-color
       {:code ["\e[97m" "\e[39m"]
-       :italics ["\e[4m" "\e[24m"]
+       :italics ["\e[3m" "\e[23m"]
        :bold ["\e[1m" "\e[22m"]}
       {:code ["`" "`"]
        :italics ["*" "*"]
