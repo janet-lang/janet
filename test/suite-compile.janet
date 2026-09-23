@@ -118,7 +118,7 @@
 
 (defn check-good-compile
   [code msg]
-  (each opt [-1 0 1]
+  (each opt [0 1 2 3]
     (setdyn *optimize* opt)
     (def lints @[])
     (def result4 (compile code (curenv) "suite-compile.janet" lints))
@@ -126,7 +126,7 @@
 
 (defn check-bad-compile
   [code msg]
-  (each opt [-1 0 1]
+  (each opt [0 1 2 3]
     (setdyn *optimize* opt)
     (def lints @[])
     (def result4 (compile code (curenv) "suite-compile.janet" lints))
@@ -134,7 +134,7 @@
 
 (defn check-lint-compile
   [code msg]
-  (each opt [-1 0 1]
+  (each opt [0 1 2 3]
     (setdyn *optimize* opt)
     (def lints @[])
     (def result4 (compile code (curenv) "suite-compile.janet" lints))

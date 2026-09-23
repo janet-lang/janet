@@ -288,6 +288,10 @@ JanetSlot janetc_resolve(JanetCompiler *c, const uint8_t *sym);
 /* Check if a symbol is already in scope for shadowing lints */
 Shadowing janetc_shadowcheck(JanetCompiler *c, const uint8_t *sym);
 
+/* Inlining. We can do inling both from bytecode and from our frontend */
+uint32_t *janet_bytecode_inline_chunk(JanetFuncDef *idef,
+                                      int32_t dest_slot, uint32_t slot_delta, uint32_t const_delta);
+
 /* Bytecode optimization */
 void janet_bytecode_optimize(JanetFuncDef *def, int32_t level);
 

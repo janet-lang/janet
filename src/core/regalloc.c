@@ -133,12 +133,39 @@ int32_t janetc_regalloc_1(JanetcRegisterAllocator *ra) {
     return reg;
 }
 
+/* Find n contiguous registers but do not allocate them. */
+int32_t janetc_regalloc_findn(JanetcRegisterAllocator *ra, int32_t n) {
+    int32_t run = 0;
+    int32_t i;
+    for (i = 0; i < (ra->count * 32); i++) {
+        if (ra->chunks[i >> 5] & ithbit(i & 0x1F)) {
+            run = 0;
+        } else {
+            run++;
+        }
+        if (run == n) return 1 + i - n;
+    }
+    return 1 + i - run;
+}
+
+int32_t janetc_regalloc_n(JanetcRegisterAllocator *ra, int32_t n) {
+    int32_t loc = janetc_regalloc_findn(ra, n);
+    for (int32_t i = 0; i < n; i++) janetc_regalloc_touch(ra, loc + i);
+    if (loc + n - 1 > ra->max)
+        ra->max = loc + n - 1;
+    return loc;
+}
+
 /* Free a register. The register must have been previously allocated
  * without being freed. */
 void janetc_regalloc_free(JanetcRegisterAllocator *ra, int32_t reg) {
     int32_t chunk = reg >> 5;
     int32_t bit = reg & 0x1F;
     ra->chunks[chunk] &= ~ithbit(bit);
+}
+
+void janetc_regalloc_free_n(JanetcRegisterAllocator *ra, int32_t loc, int32_t n) {
+    for (int32_t i = 0; i < n; i++) janetc_regalloc_free(ra, loc + i);
 }
 
 /* Check if a register is set. */

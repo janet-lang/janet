@@ -28,6 +28,7 @@
 #include "vector.h"
 #include "util.h"
 #include "state.h"
+#include "regalloc.h"
 #endif
 
 JanetFopts janetc_fopts_default(JanetCompiler *c) {
@@ -608,6 +609,24 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     }
 }
 
+static int function_can_inline(JanetFopts opts, JanetFunction *func, JanetSlot *slots) {
+    JanetFuncDef *def = func->def;
+    /* TODO - hoist this check to a flag on the func def */
+    if (opts.compiler->optimize < 2) return 0;
+    if (def->environments_length) return 0;
+    if (def->defs_length) return 0;
+    if (def->slotcount > 32) return 0;
+    if (def->bytecode_length > 40) return 0;
+    if (def->flags & (JANET_FUNCDEF_FLAG_NAMEDARGS | JANET_FUNCDEF_FLAG_STRUCTARG | JANET_FUNCDEF_FLAG_VARARG)) return 0;
+    if (janet_v_count(slots) != def->min_arity) return 0; /* TODO - optional arguments */
+    if (janet_v_count(slots) != def->max_arity) return 0;
+    /* Check for JOP_LOAD_SELF */
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        if ((def->bytecode[i] & 0x7F) == JOP_LOAD_SELF) return 0;
+    }
+    return 1;
+}
+
 /* Compile a call or tailcall instruction */
 static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, const Janet *form) {
     JanetSlot retslot;
@@ -620,9 +639,76 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, c
             if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {
                 specialized = 1;
                 retslot = o->optimize(opts, slots);
+            } else if (function_can_inline(opts, f, slots)) {
+                /* Function inlining */
+                int is_tail;
+                JanetSlot target;
+                if ((opts.flags & JANET_FOPTS_TAIL) &&
+                        /* Prevent top level tail calls for better errors */
+                        !(c->scope->flags & JANET_SCOPE_TOP)) {
+                    is_tail = 1;
+                } else {
+                    is_tail = 0;
+                }
+                /* contiguous chunk of fun->def->slotcount slots */
+                if (!is_tail) target = janetc_gettarget(opts);
+                int32_t nslots = f->def->slotcount;
+                int32_t slot_delta = janetc_regalloc_n(&c->scope->ra, nslots);
+                if (slot_delta + f->def->slotcount < 256) {
+                    /*janet_eprintf("inlining %V\n", janet_wrap_function(f));*/
+                    /* Limit inlining when too many slots */
+                    JanetScope *scope = c->scope;
+                    while (scope) {
+                        if (scope->flags & JANET_SCOPE_FUNCTION)
+                            break;
+                        scope = scope->parent;
+                    }
+                    /* Setup the function parameters */
+                    JanetSlot dest;
+                    dest.envindex = -1;
+                    dest.flags = JANET_SLOTTYPE_ANY;
+                    dest.constant = janet_wrap_nil();
+                    for (int32_t i = 0; i < janet_v_count(slots); i++) {
+                        dest.index = slot_delta + i;
+                        janetc_copy(c, dest, slots[i]);
+                    }
+
+                    /* Initialize other slots to nil just like in a normal function call */
+                    /* TODO - add pass to remove these if needed so we can add this back.
+                     * The current compiler doesn't rely on nil-initialization behavior but might in the future
+                     * (e.g. removing redundant ldn at the beginning of a function.
+                    for (int32_t i = janet_v_count(slots); i < nslots; i++) {
+                        janetc_emit(c, JOP_LOAD_NIL | ((uint32_t)(i + slot_delta) << 8));
+                    }
+                    */
+
+                    /* Do main inlining (patch the bytecode) */
+                    int32_t const_delta = janet_v_count(scope->consts); /* Get const delta _after_ moving slots. janetc_copy can add constants here! */
+                    uint32_t *insert_code = janet_bytecode_inline_chunk(f->def, is_tail ? -1 : target.index, slot_delta, const_delta);
+                    for (int32_t i = 0; i < janet_v_count(insert_code); i++) {
+                        /* TODO - better match up source code mapping - e.g. if inlined function
+                         * is from the same source file */
+                        janetc_emit(c, insert_code[i]);
+                    }
+                    /* Copy constants into our constants buffer */
+                    for (int32_t i = 0; i < f->def->constants_length; i++) {
+                        janet_v_push(scope->consts, f->def->constants[i]);
+                    }
+                    janet_v_free(insert_code);
+                    specialized = 1;
+                    if (is_tail) {
+                        retslot = janetc_cslot(janet_wrap_nil());
+                        retslot.flags = JANET_SLOT_RETURNED;
+                    } else {
+                        retslot = target;
+                    }
+                } else {
+                    /*janet_eprintf("inlining failed %V\n", janet_wrap_function(f));*/
+                    ;
+                }
+                janetc_regalloc_free_n(&c->scope->ra, slot_delta, nslots);
             }
         }
-        /* TODO janet function inlining (no c functions)*/
     }
     if (!specialized) {
         int32_t min_arity = janetc_pushslots(c, slots);
@@ -937,7 +1023,6 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 } else {
                     /* Function calls */
                     JanetSlot head = janetc_value(subopts, tup[0]);
-                    subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
                     ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head, tup);
                     janetc_freeslot(c, head);
                 }

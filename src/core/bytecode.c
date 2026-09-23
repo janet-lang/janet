@@ -541,8 +541,8 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
     uint32_t *code = def->bytecode;
     for (int32_t blocki = 0; blocki < n_blocks; blocki++) {
         BytecodeBB block = blocks[blocki];
-        int32_t nextv = 1; /* Reserve negative values */
-        for (int32_t i = 0; i < def->slotcount; i++) ctx.value_numbers[i] = 0; /* initialize to unknown */
+        int32_t nextv = 1 + def->slotcount; /* Reserve negative values */
+        for (int32_t i = 0; i < def->slotcount; i++) ctx.value_numbers[i] = i + 1; /* initialize to some unique value */
         janet_table_clear(ctx.value_lookup);
         for (int32_t pc = block.start; pc < block.end; pc++) {
             uint32_t A = (code[pc] & 0xFF00U) >> 8;
@@ -781,18 +781,18 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
                 case JOP_SHIFT_RIGHT_UNSIGNED_IMMEDIATE:
                 case JOP_GET_INDEX: {
                     int32_t Bv = ctx.value_numbers[B];
+                    int16_t C_imm = (int8_t) C; /* To 16 bit and sign extend */
+                    uint16_t encoded_C = (uint16_t)C_imm;
+                    int32_t Cv = -4 - (int32_t)encoded_C;
                     /* Check constant prop */
                     {
-                        int16_t C_imm = (int8_t) C; /* To 16 bit and sign extend */
-                        uint16_t encoded_C = (uint16_t)C_imm;
-                        int32_t Cv = -4 - (int32_t)encoded_C;
                         VN check_const_prop = vn_const_prop(&ctx, opcode, Bv, Cv);
                         if (check_const_prop.value_number) {
                             code[pc] = vn_move_or_load(&ctx, A, check_const_prop, code[pc]);
                             continue;
                         }
                     }
-                    double key = vn_encode_2arg(opcode, Bv, C);
+                    double key = vn_encode_2arg(opcode, Bv, Cv);
                     VN vn = vn_check_key(&ctx, key);
                     if (vn.value_number) {
                         code[pc] = vn_move_or_load(&ctx, A, vn, code[pc]);
@@ -800,7 +800,11 @@ void janet_bytecode_local_value_numbering(JanetFuncDef *def, BytecodeBB *blocks,
                     }
                     B = vn_find_reg(&ctx, Bv, B);
                     code[pc] = recon_abc(code[pc], A, B, C);
-                    ctx.value_numbers[A] = nextv++;
+                    VN vnnext;
+                    vnnext.has_slot = 1;
+                    vnnext.slot = A;
+                    vnnext.value_number = nextv++;
+                    vn_add_lookup(&ctx, key, vnnext);
                     continue;
                 }
 
@@ -1108,6 +1112,13 @@ void janet_bytecode_jump_threading(JanetFuncDef *def) {
             switch (code[i] & 0x7F) {
                 default:
                     continue;
+                case JOP_MOVE_NEAR:
+                case JOP_MOVE_FAR:
+                    if (((codes[i] >> 8) & 0xFF) == (codes[i] >> 16)) {
+                        /* Not really jump threading, but an easy optimization */
+                        code[i] = JOP_NOOP;
+                    }
+                    continue;
                 case JOP_JUMP:
                     target = i + (codes[i] >> 8);
                     break;
@@ -1219,7 +1230,6 @@ static void janet_bytecode_movopt_basic_block(JanetFuncDef *def, BytecodeBB bb, 
                 pin = 1;
                 break;
             /* Read A */
-            case JOP_ERROR:
             case JOP_TYPECHECK:
             case JOP_JUMP_IF:
             case JOP_JUMP_IF_NOT:
@@ -1231,6 +1241,7 @@ static void janet_bytecode_movopt_basic_block(JanetFuncDef *def, BytecodeBB bb, 
                 ins[0] = Ia;
                 break;
             /* Read D */
+            case JOP_ERROR:
             case JOP_RETURN:
             case JOP_PUSH:
             case JOP_PUSH_ARRAY:
@@ -1435,12 +1446,155 @@ void janet_bytecode_movopt_full(JanetFuncDef *def, BytecodeBB *blocks, int32_t n
     janet_free(bitsets);
 }
 
+/*
+ * Inlining
+ */
+
+/* Rewrite a chunk of code for inline use. Returns a vector of uint32_ts to be freed with janet_v_free.
+ * Use dest_slot = -1 to mean an inline tail call.
+ * TODO - replace some of the asserts with return NULL to indicate inlining failed.
+ * */
+uint32_t *janet_bytecode_inline_chunk(JanetFuncDef *idef,
+                                      int32_t dest_slot, uint32_t slot_delta, uint32_t const_delta) {
+    int is_tail = dest_slot < 0;
+    uint32_t *icode = idef->bytecode;
+    uint32_t *code = NULL;
+    int32_t *jump_pcs = NULL;
+    int32_t *remap = NULL;
+    /* Skip functions that are too hard for now */
+    janet_assert(slot_delta < 256, "slot delta too big");
+    janet_assert(idef->defs_length == 0, "no inlining closure functions");
+    janet_assert(idef->environments_length == 0, "no inlining functions that reference closure environments");
+    /* Patch instructions with slot shift and constant index shift. */
+    for (int32_t pc = 0; pc < idef->bytecode_length; pc++) {
+        enum JanetInstructionType itype = janet_instructions[icode[pc] & 0x7F];
+        uint32_t newi = icode[pc];
+        /* rewrite slots. For now, assume adding slot delta will not overflow any slot indices */
+        switch (itype) {
+            case JINT_SES:
+                janet_assert(0, "upvalue instruction not supported for inlining");
+            case JINT_0:
+            case JINT_L:
+                break;
+            case JINT_S:
+                janet_assert((newi & 0x7F) != JOP_LOAD_SELF, "cannot inline lds instruction");
+            /* fallthrough */
+            case JINT_SI:
+            case JINT_SU:
+            case JINT_ST:
+            case JINT_SL:
+            case JINT_SD:
+                newi += slot_delta << 8;
+                break;
+            case JINT_SC:
+                newi += slot_delta << 8 | (const_delta << 16);
+                break;
+            case JINT_SS:
+            case JINT_SSI:
+            case JINT_SSU:
+                newi += (slot_delta << 8) | (slot_delta << 16);
+                break;
+            case JINT_SSS:
+                newi += (slot_delta << 8) | (slot_delta << 16) | (slot_delta << 24);
+                break;
+        }
+        if (is_tail) {
+            janet_v_push(code, newi);
+        } else {
+            /* Account for new locations for jump targets */
+            janet_v_push(remap, janet_v_count(code));
+            /* Replace returns with move and jump to end of the block
+             * Also fix tail calls that are no longer in tail position. */
+            switch (icode[pc] & 0x7F) {
+                default:
+                    janet_v_push(code, newi);
+                    break;
+                case JOP_RETURN: {
+                    uint32_t retreg = newi >> 8;
+                    janet_assert(retreg < 0x10000U, "retreg too big");
+                    janet_v_push(code, JOP_MOVE_NEAR | (dest_slot << 8) | (retreg << 16));
+                    if (pc < idef->bytecode_length - 1) {
+                        /* Last instruction doesn't need a jump. Jump-
+                         * threading would take care of this, but why not
+                         * generate better code earlier? */
+                        janet_v_push(jump_pcs, janet_v_count(code));
+                        janet_v_push(code, JOP_JUMP);
+                    }
+                }
+                break;
+                case JOP_RETURN_NIL: {
+                    janet_v_push(code, JOP_LOAD_NIL | (dest_slot << 8));
+                    if (pc < idef->bytecode_length - 1) { /* Ditto */
+                        janet_v_push(jump_pcs, janet_v_count(code));
+                        janet_v_push(code, JOP_JUMP);
+                    }
+                }
+                break;
+                case JOP_TAILCALL: {
+                    /* Convert to a normal call and jump */
+                    uint32_t callee = newi >> 8;
+                    janet_assert(callee < 0x10000U, "callee too big");
+                    janet_v_push(code, JOP_CALL | (dest_slot << 8) | (callee << 16));
+                    if (pc < idef->bytecode_length - 1) { /* Ditto */
+                        janet_v_push(jump_pcs, janet_v_count(code));
+                        janet_v_push(code, JOP_JUMP);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    if (!is_tail) {
+        janet_assert(janet_v_count(remap) == idef->bytecode_length, "bad remap");
+        /* Fix jumps to account for the inserted jumps */
+        for (int32_t old_pc = 0; old_pc < idef->bytecode_length; old_pc++) {
+            switch (idef->bytecode[old_pc] & 0x7F) {
+                default:
+                    continue;
+                case JOP_JUMP_IF:
+                case JOP_JUMP_IF_NOT:
+                case JOP_JUMP_IF_NOT_NIL:
+                case JOP_JUMP_IF_NIL: {
+                    int32_t pc = remap[old_pc];
+                    int32_t old_jump = ((int32_t)(idef->bytecode[old_pc])) >> 16;
+                    int32_t new_jump = remap[old_pc + old_jump] - pc;
+                    code[pc] = (code[pc] & 0xFFFFU) | (uint32_t)(new_jump << 16);
+                }
+                continue;
+                case JOP_JUMP: {
+                    int32_t pc = remap[old_pc];
+                    int32_t old_jump = ((int32_t)(idef->bytecode[old_pc])) >> 8;
+                    int32_t new_jump = remap[old_pc + old_jump] - pc;
+                    code[pc] = JOP_JUMP | (uint32_t)(new_jump << 8);
+                }
+                continue;
+            }
+        }
+        janet_v_free(remap);
+    }
+    /* Now fix jumps to jump to the end of the generated block */
+    while (janet_v_count(jump_pcs)) {
+        int32_t pc = janet_v_last(jump_pcs);
+        janet_v_pop(jump_pcs);
+        int32_t target = janet_v_count(code) - pc;
+        janet_assert(target > 0, "backwards jump");
+        code[pc] = JOP_JUMP | ((uint32_t)target << 8);
+    }
+    janet_v_free(jump_pcs);
+    return code;
+}
+
 /* Entry point for optimization. The def should already be valid as determined by janet_verify.
  * The compiler may skip this check for performance but the assembler will not. */
 void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
     int32_t delta;
 #ifdef JANET_DEBUG
     int result = janet_verify(def);
+    if (result != 0) {
+        for (int32_t i = 0; i < def->bytecode_length; i++) {
+            janet_eprintf("%4d: %Q\n", i, janet_asm_decode_instruction(def->bytecode[i]));
+        }
+    }
     janet_assert(result == 0, "input bytecode bad");
 #endif
     if (level >= 0) {
