@@ -531,10 +531,7 @@ JANET_CORE_FN(cfun_buffer_popn,
 
 JANET_CORE_FN(cfun_buffer_slice,
               "(buffer/slice bytes &opt start end)",
-              "Takes a slice of a byte sequence from `start` to `end`. The range is half open, "
-              "[start, end). Indexes can also be negative, indicating indexing from the end of the "
-              "end of the array. By default, `start` is 0 and `end` is the length of the buffer. "
-              "Returns a new buffer.") {
+              "Same as `string/slice`, but returns a buffer.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     JanetBuffer *buffer = janet_buffer(range.end - range.start);
