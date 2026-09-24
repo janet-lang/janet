@@ -64,14 +64,20 @@ JANET_CORE_FN(cfun_tuple_brackets,
 }
 
 JANET_CORE_FN(cfun_tuple_slice,
-              "(tuple/slice arrtup [,start=0 [,end=(length arrtup)]])",
-              "Take a sub-sequence of an array or tuple from index `start` "
-              "inclusive to index `end` exclusive. If `start` or `end` are not provided, "
-              "they default to 0 and the length of `arrtup`, respectively. "
-              "`start` and `end` can also be negative to indicate indexing "
-              "from the end of the input. Note that if `start` is negative it is "
-              "exclusive, and if `end` is negative it is inclusive, to allow a full "
-              "negative slice range. Returns the new tuple.") {
+              "(tuple/slice ind &opt start end)",
+              "Returns a tuple based on a range of an indexed "
+              "type `ind`. The range is specified by optional "
+              "index arguments `start` and `end` defaulting to 0 "
+              "and the length of `ind` respectively. When "
+              "non-negative, `start` is inclusive and `end` is "
+              "exclusive, i.e. [`start`, `end`), and their "
+              "values can range from 0 through the length of "
+              "`ind`. When negative, `start` is exclusive and "
+              "`end` is inclusive, i.e. (`start`, `end`], and "
+              "their values can range from the negative of one "
+              "more than the length of `ind` through -1. If "
+              "`start` or `end` is out of range, an error is "
+              "raised.") {
     JanetView view = janet_getindexed(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_wrap_tuple(janet_tuple_n(view.items + range.start, range.end - range.start));

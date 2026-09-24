@@ -172,12 +172,19 @@ static int32_t kmp_next(struct kmp_state *state) {
 
 JANET_CORE_FN(cfun_string_slice,
               "(string/slice bytes &opt start end)",
-              "Returns a substring from a byte sequence. The substring is from "
-              "index `start` inclusive to index `end`, exclusive. All indexing "
-              "is from 0. `start` and `end` can also be negative to indicate indexing "
-              "from the end of the string. Note that if `start` is negative it is "
-              "exclusive, and if `end` is negative it is inclusive, to allow a full "
-              "negative slice range.") {
+              "Returns a string based on a range of a byte "
+              "sequence `bytes`. The range is specified by "
+              "optional index arguments `start` and `end` "
+              "defaulting to 0 and the length of `bytes` "
+              "respectively. When non-negative, `start` is "
+              "inclusive and `end` is exclusive, i.e. [`start`, "
+              "`end`), and their values can range from 0 through "
+              "the length of `bytes`. When negative, `start` is "
+              "exclusive and `end` is inclusive, i.e. (`start`, "
+              "`end`], and their values can range from the "
+              "negative of one more than the length of `bytes` "
+              "through -1. If `start` or `end` is out of range, "
+              "an error is raised.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
@@ -185,7 +192,7 @@ JANET_CORE_FN(cfun_string_slice,
 
 JANET_CORE_FN(cfun_symbol_slice,
               "(symbol/slice bytes &opt start end)",
-              "Same as string/slice, but returns a symbol.") {
+              "Same as `string/slice`, but returns a symbol.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_symbolv(view.bytes + range.start, range.end - range.start);
@@ -193,7 +200,7 @@ JANET_CORE_FN(cfun_symbol_slice,
 
 JANET_CORE_FN(cfun_keyword_slice,
               "(keyword/slice bytes &opt start end)",
-              "Same as string/slice, but returns a keyword.") {
+              "Same as `string/slice`, but returns a keyword.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_keywordv(view.bytes + range.start, range.end - range.start);
