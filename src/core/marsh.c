@@ -1059,8 +1059,10 @@ static const uint8_t *unmarshal_one_def(
         }
 
         /* Validate */
-        if (janet_verify(def))
-            janet_panic("funcdef has invalid bytecode");
+        int status;
+        if ((status = janet_verify(def))) {
+            janet_panicf("funcdef has invalid bytecode: %d", status);
+        }
 
         /* Set def */
         *out = def;

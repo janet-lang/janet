@@ -64,7 +64,7 @@
 # Optimization in assembler
 # a bit brittle, but easy to fix
 (def optimized (disasm (asm ~{:bytecode [(ldi 0 10) (movn 1 0) (add 2 0 1) (add 3 1 1) (add 4 0 0) (add 5 2 3) (ret 5)] :slotcount 40} :o) :bytecode))
-(assert (deep= optimized '@[(ldi 5 40) (ret 5)]) "bytecode optimization 1")
+(assert (deep= optimized '@[(ldi 0 40) (ret 0)]) "bytecode optimization 1")
 
 (end-suite)
 

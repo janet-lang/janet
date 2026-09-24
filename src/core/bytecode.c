@@ -1446,6 +1446,141 @@ void janet_bytecode_movopt_full(JanetFuncDef *def, BytecodeBB *blocks, int32_t n
     janet_free(bitsets);
 }
 
+/* Rename slots to normalize code and reduce def->slotcount */
+void janet_bytecode_compact_slots(JanetFuncDef *def) {
+    /* TODO - we would need to be somewhat careful in that case. */
+    if (def->slotcount > 256) return;
+    /* Remap: old slot -> new slot */
+    /* Invert: new slot -> old slot */
+    int32_t *remap = array_allocate(sizeof(int32_t), def->slotcount * 2);
+    int32_t *invert = remap + def->slotcount;
+    uint32_t *code = def->bytecode;
+    int32_t len = def->bytecode_length;
+    int32_t next_slot = def->arity;
+    int32_t greatest = 0;
+    for (int32_t i = 0; i < def->slotcount * 2; i++) remap[i] = -1;
+    /* Pin closure slots for now */
+    if (def->closure_bitset) {
+        for (int32_t i = 0; i < def->slotcount; i++) {
+            if (bs_read_bit(def->closure_bitset, i)) {
+                remap[i] = i;
+                invert[i] = i;
+                greatest = i;
+            }
+        }
+    }
+    /* Pin arguments - TODO slots for unused arguments could be reused */
+    for (int32_t i = 0; i < def->arity && i < def->slotcount; i++) {
+        remap[i] = i;
+        invert[i] = i;
+        if (i > greatest) greatest = i;
+    }
+    if (def->flags & (JANET_FUNCDEF_FLAG_VARARG | JANET_FUNCDEF_FLAG_NAMEDARGS | JANET_FUNCDEF_FLAG_STRUCTARG)) {
+        remap[def->arity] = def->arity;
+        invert[def->arity] = def->arity;
+        next_slot++;
+    }
+    /* Rename 8 bit slots first, then larger slots */
+    for (int32_t pc = 0; pc < len; pc++) {
+        enum JanetInstructionType itype = janet_instructions[code[pc] & 0x7F];
+        int nslots = 0;
+        uint32_t slots[3];
+        /* rewrite slots. For now, assume adding slot delta will not overflow any slot indices */
+        switch (itype) {
+            case JINT_0:
+            case JINT_L:
+                continue;
+            case JINT_S:
+                nslots = 1;
+                slots[0] = (code[pc] >> 8) & 0xFFFFFFU;
+                break;
+            case JINT_SES:
+            case JINT_SI:
+            case JINT_SU:
+            case JINT_ST:
+            case JINT_SL:
+            case JINT_SD:
+            case JINT_SC:
+                nslots = 1;
+                slots[0] = (code[pc] >> 8) & 0xFFU;
+                break;
+            case JINT_SS:
+                nslots = 2;
+                slots[0] = (code[pc] >> 8) & 0xFFU;
+                slots[1] = (code[pc] >> 16) & 0xFFFFU;
+                break;
+            case JINT_SSI:
+            case JINT_SSU:
+                nslots = 2;
+                slots[0] = (code[pc] >> 8) & 0xFFU;
+                slots[1] = (code[pc] >> 16) & 0xFFU;
+                break;
+            case JINT_SSS:
+                nslots = 3;
+                slots[0] = (code[pc] >> 8) & 0xFFU;
+                slots[1] = (code[pc] >> 16) & 0xFFU;
+                slots[2] = code[pc] >> 24;
+                break;
+        }
+        /* Find new slots */
+        for (int i = 0; i < nslots; i++) {
+            if (remap[slots[i]] == -1) {
+                while (invert[next_slot] != -1) next_slot++;
+                remap[slots[i]] = next_slot;
+                invert[next_slot] = slots[i];
+                next_slot++;
+            }
+            slots[i] = remap[slots[i]];
+        }
+        /* Now rewrite */
+        switch (itype) {
+            case JINT_0:
+            case JINT_L:
+                continue;
+            case JINT_S:
+                code[pc] = (code[pc] & 0xFFU) | (slots[0] << 8);
+                break;
+            case JINT_SES:
+            case JINT_SI:
+            case JINT_SU:
+            case JINT_ST:
+            case JINT_SL:
+            case JINT_SD:
+            case JINT_SC:
+                code[pc] = (code[pc] & 0xFFFF00FFU) | ((slots[0] & 0xFF) << 8);
+                break;
+            case JINT_SS:
+                code[pc] = (code[pc] & 0xFFU) | ((slots[0] & 0xFF) << 8) | (slots[1] << 16);
+                break;
+            case JINT_SSI:
+            case JINT_SSU:
+                code[pc] = (code[pc] & 0xFF0000FFU) | ((slots[0] & 0xFF) << 8) | ((slots[1] & 0xFF) << 16);
+                break;
+            case JINT_SSS:
+                code[pc] = (code[pc] & 0xFFU) | ((slots[0] & 0xFF) << 8)  | ((slots[1] & 0xFF) << 16) | (slots[2] << 24);
+                break;
+        }
+    }
+    /* Fix symbol mappings */
+    int32_t smout = 0;
+    for (int32_t i = 0; i < def->symbolmap_length; i++) {
+        if (def->symbolmap[i].birth_pc == UINT32_MAX) {
+            smout++;
+            continue; /* upvalue */
+        }
+        JanetSymbolMap sm = def->symbolmap[i];
+        uint32_t old_slot = sm.slot_index;
+        if (remap[old_slot] != -1) { /* If not remapped, drop! */
+            sm.slot_index = (uint32_t) remap[old_slot];
+            def->symbolmap[smout++] = sm;
+        }
+    }
+    def->symbolmap_length = smout;
+    if (greatest + 1 > next_slot) next_slot = greatest + 1;
+    def->slotcount = next_slot;
+    janet_free(remap);
+}
+
 /*
  * Inlining
  */
@@ -1625,6 +1760,7 @@ void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
         } while (delta < 0);
         janet_bytecode_remove_unused_constants(def);
         janet_bytecode_remove_unused_closures(def);
+        janet_bytecode_compact_slots(def);
     }
 #ifdef JANET_BOOTSTRAP
     total_instruction_count += def->bytecode_length;

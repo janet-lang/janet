@@ -259,7 +259,7 @@
 
 # 88813c4
 (assert (deep= (in (disasm (defn a [] (def x 10) x)) :symbolmap)
-               @[[0 2 0 'a] [0 2 1 'x]])
+               @[[0 2 0 'x]])
         "symbolmap when *debug* is true")
 
 (defn a [arg]
@@ -289,10 +289,10 @@
                                (def z 30)
                                (+ x y z)))) :symbolmap)
                @[[0 6 0 'arg]
-                 [0 6 1 'a]
-                 [0 6 2 'x]
-                 [1 6 3 'y]
-                 [2 6 4 'z]])
+                 #[0 6 1 'a]
+                 [0 6 1 'x]
+                 [1 6 2 'y]
+                 [2 6 3 'z]])
         "arg & inner symbolmap")
 # @[(0 2 0 arg) (0 2 1 a) (0 2 2 x) (0 2 3 y) (0 2 4 z)]
 
