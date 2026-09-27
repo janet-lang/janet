@@ -236,7 +236,7 @@ JANET_CORE_FN(cfun_array_ensure,
 }
 
 JANET_CORE_FN(cfun_array_slice,
-              "(array/slice arrtup &opt start end)",
+              "(array/slice ind &opt start end)",
               "Same as `tuple/slice`, but returns an array.") {
     JanetView view = janet_getindexed(argv, 0);
     JanetRange range = janet_getslice(argc, argv);

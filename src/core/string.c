@@ -447,12 +447,13 @@ JANET_CORE_FN(cfun_string_replaceall,
 }
 
 JANET_CORE_FN(cfun_string_split,
-              "(string/split delim str &opt start limit)",
-              "Splits a string `str` with delimiter `delim` and returns an array of "
-              "substrings. The substrings will not contain the delimiter `delim`. If `delim` "
-              "is not found, the returned array will have one element. Will start searching "
-              "for `delim` at the index `start` (if provided), and return up to a maximum "
-              "of `limit` results (if provided).") {
+              "(string/split sep str &opt start limit)",
+              "Splits a string `str` with separator `sep` and returns an "
+              "array of substrings. The substrings will not contain `sep`. "
+              "If `sep` is not found, the returned array will have one "
+              "element. Will start searching for `sep` at the index `start` "
+              "(if provided), and return up to a maximum of `limit` results "
+              "(if provided).") {
     int32_t result;
     JanetArray *array;
     struct kmp_state state;
@@ -475,11 +476,11 @@ JANET_CORE_FN(cfun_string_split,
 }
 
 JANET_CORE_FN(cfun_string_checkset,
-              "(string/check-set bytes str)",
-              "Checks that the string `str` only contains bytes that appear "
-              "in the string `bytes`. Returns true if all bytes in `str` "
-              "appear in `bytes`, false if some bytes in `str` do not appear "
-              "in `bytes`.") {
+              "(string/check-set set-bytes bytes)",
+              "Checks that only bytes from `set-bytes` are contained in "
+              "`bytes`. Returns true if all bytes in `bytes` appear in "
+              "`set-bytes` or false if at least one byte in `bytes` does "
+              "not appear in `set-bytes`. Both arguments are bytes types.") {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);

@@ -2171,12 +2171,12 @@
   contents)
 
 (defn spit
-  ``Write `contents` to a file at `path`. Can optionally append to the file.``
-  [path contents &opt mode]
+  ``Write `bytes` to a file at `path`. Can optionally append to the file.``
+  [path bytes &opt mode]
   (default mode :wb)
   (def f (file/open path mode))
   (if-not f (error (string "could not open file " path " with mode " mode)))
-  (file/write f contents)
+  (file/write f bytes)
   (file/close f)
   nil)
 
