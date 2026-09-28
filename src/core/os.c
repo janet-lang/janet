@@ -1358,7 +1358,7 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
             }
             c++;
         }
-        janet_panicf("failed to create process: %s", janet_cstringv(msgbuf));
+        janet_panicf("failed to create process: %V", janet_cstringv(msgbuf));
     }
 
     pHandle = processInfo.hProcess;
