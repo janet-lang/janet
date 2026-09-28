@@ -5081,7 +5081,7 @@
                --help (-h)             : Show this help
                --version (-v)          : Print the version string
                --stdin (-s)            : Use raw stdin instead of getline like functionality
-               --eval (-e) code        : Execute a string of janet
+               --eval (-e) code        : Evaluate some code for side effects
                --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
                --debug (-d)            : Set the debug flag in the REPL
                --repl (-r)             : Enter the REPL after running all scripts
