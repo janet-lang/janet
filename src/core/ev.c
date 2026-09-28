@@ -977,7 +977,10 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
                 break;
             }
             if (!sent) {
-                janet_chan_unpack(channel, &x, 1);
+                if (channel->closed || janet_q_push_head(&channel->items, &x, sizeof(Janet))) {
+                    /* channel is closed or full. Otherwise, keep it. */
+                    janet_chan_unpack(channel, &x, 1);
+                }
             }
         } else {
             JanetChannelPending writer;

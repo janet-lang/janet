@@ -101,4 +101,17 @@
 (assert (deep= @"hello\nworld2\n" (slurp "tmp/out.txt")) "file threading 1")
 (assert (deep= @"world1\nabc\n" (slurp "tmp/out2.txt")) "file threading 2")
 
+# A value given to a threaded channel whose only waiting reader has since been
+# resumed by another select clause must be kept for the next reader.
+(def stale-tchan (ev/thread-chan 10))
+(def stale-pchan (ev/chan 10))
+(ev/spawn (ev/select stale-tchan stale-pchan))
+(ev/sleep 0)
+(ev/give stale-pchan 1)
+(ev/sleep 0)
+(ev/give stale-tchan 42)
+(ev/sleep 0.01)
+(assert (= 42 (try (ev/with-deadline 1 (ev/take stale-tchan)) ([_] nil)))
+        "value given to a threaded channel with a stale reader is kept")
+
 (end-suite)

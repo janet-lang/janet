@@ -550,9 +550,9 @@ JANET_CORE_FN(janet_core_gensym,
 
 JANET_CORE_FN(janet_core_gccollect,
               "(gccollect)",
-              "Run garbage collection. You should probably not call this manually.") {
+              "Run the garbage collector to free unreachable values.") {
     (void) argv;
-    (void) argc;
+    janet_fixarity(argc, 0);
     janet_collect();
     return janet_wrap_nil();
 }
@@ -561,7 +561,7 @@ JANET_CORE_FN(janet_core_gcsetinterval,
               "(gcsetinterval interval)",
               "Set an integer number of bytes to allocate before running garbage collection. "
               "Low values for interval will be slower but use less memory. "
-              "High values will be faster but use more memory.") {
+              "High values will be faster but use more memory. Set to 0 to disable automatic collection.") {
     janet_fixarity(argc, 1);
     size_t s = janet_getsize(argv, 0);
     /* limit interval to 48 bits */
