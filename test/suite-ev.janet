@@ -644,8 +644,13 @@
 # os/spawn and os/execute when program does not exist gives a normal error
 (def dne-path "this-long-binary-name-does-not-exist")
 (assert (nil? (os/stat dne-path :mode)) "binary path does not exist 1")
-# On some systems, the intial process may launch but should immediately fail. Other systems will refuse to launch a process.
-(assert (let [[ok _result] (protect (let [p (os/spawn [dne-path] :p)] (assert (zero? (:wait p)))))] (not ok))
+(assert (let [[ok _result]
+              (protect
+                (let [process (os/spawn [dne-path] :p)]
+                  # if initial process launch works, it should at least fail with a non-zero exit code.
+                  (if-not (= 0 (:wait process))
+                    (error "should error"))))]
+          (not ok))
         "binary path does not exist 2 - os/spawn")
 (assert (let [[ok _result] (protect (os/execute [dne-path] :px))] (not ok)) "binary path does not exist 2 - os/execute")
 
