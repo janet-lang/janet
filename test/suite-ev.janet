@@ -641,4 +641,10 @@
     (string "'" x "'")))
 (assert (= 0 (os/shell (string/join [;run janet "-e" (shell-quote "(os/exit 0)")] " "))) "os/shell simple")
 
+# os/spawn and os/execute when program does not exist gives a normal error
+(def dne-path "this-long-binary-name-does-not-exist")
+(assert (nil? (os/stat dne-path :mode)) "binary path does not exist 1")
+(assert (let [[ok _result] (protect (os/spawn [dne-path] :px))] (not ok)) "binary path does not exist 2 - os/spawn")
+(assert (let [[ok _result] (protect (os/execute [dne-path] :px))] (not ok)) "binary path does not exist 2 - os/execute")
+
 (end-suite)
