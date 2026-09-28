@@ -114,4 +114,50 @@
 (assert (= 42 (try (ev/with-deadline 1 (ev/take stale-tchan)) ([_] nil)))
         "value given to a threaded channel with a stale reader is kept")
 
+# Fibers that parked on a threaded channel must not stay gc roots forever.
+# Leaked roots also made every nested resume slower (roots are scanned on unroot).
+(defn- count-uncollected [n park wake]
+  (def fibers (table/weak-keys n))
+  (repeat n
+    (def fiber (ev/spawn (park)))
+    (ev/sleep 0)
+    (wake)
+    (ev/sleep 0)
+    (put fibers fiber true))
+  (gccollect)
+  (length fibers))
+(def tchan (ev/thread-chan 10))
+(def pchan (ev/chan 10))
+(assert (>= 1 (count-uncollected 100 |(ev/select tchan pchan) |(ev/give pchan 1)))
+        "no leaked roots for ev/select woken by another channel")
+(assert (>= 1 (count-uncollected 100 |(ev/take tchan) |(ev/give tchan 1)))
+        "no leaked roots for ev/take on threaded channel")
+
+# ev/select must not lose an item that a thread gives to a threaded channel
+# between the select's check of that channel and its wait on it. Before, the
+# item was taken and dropped, and the select never waited on that channel.
+(def race-n 5000)
+(def race-tchan (ev/thread-chan 16))
+(def race-pchan (ev/chan))
+(ev/thread
+  (fn []
+    (for i 0 race-n
+      (ev/give race-tchan i)
+      (var x 0)
+      (repeat 500 (++ x)))
+    (ev/give race-tchan :done))
+  nil :n)
+(def race-got @[])
+(def race-result
+  (try
+    (ev/with-deadline 20
+      (forever
+        (def [_ _ v] (ev/select race-tchan race-pchan))
+        (if (= v :done) (break))
+        (array/push race-got v))
+      :ok)
+    ([err] err)))
+(assert (= :ok race-result) "ev/select over a threaded channel does not hang")
+(assert (= race-n (length race-got)) "ev/select over a threaded channel loses no items")
+
 (end-suite)

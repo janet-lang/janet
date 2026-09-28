@@ -852,18 +852,25 @@ static int janet_chanat_gc(void *p, size_t s) {
     return 0;
 }
 
+static void janet_chanat_remove_vmref_one(JanetChannelPending *pending) {
+    if (pending->thread == &janet_vm) {
+        pending->thread = NULL;
+        janet_gcunroot(janet_wrap_fiber(pending->fiber));
+    }
+}
+
 static void janet_chanat_remove_vmref(JanetQueue *fq) {
     JanetChannelPending *pending = fq->data;
     if (fq->head <= fq->tail) {
         for (int32_t i = fq->head; i < fq->tail; i++) {
-            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+            janet_chanat_remove_vmref_one(pending + i);
         }
     } else {
         for (int32_t i = fq->head; i < fq->capacity; i++) {
-            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+            janet_chanat_remove_vmref_one(pending + i);
         }
         for (int32_t i = 0; i < fq->tail; i++) {
-            if (pending[i].thread == &janet_vm) pending[i].thread = NULL;
+            janet_chanat_remove_vmref_one(pending + i);
         }
     }
 }
@@ -999,6 +1006,29 @@ static void janet_thread_chan_cb(JanetEVGenericMessage msg) {
         }
     }
     janet_chan_unlock(channel);
+    janet_gcunroot(janet_wrap_fiber(fiber));
+}
+
+/* Remove pending entries of this thread whose fiber has since been resumed some
+ * other way (e.g. by another clause of ev/select), releasing the gc root taken
+ * when each was queued. Entries still in the queue have nothing posted for them,
+ * so each root is released exactly once. Fibers of other threads are never
+ * dereferenced. Must hold the channel lock. Only scans when the queue length is
+ * a power of two, which keeps this amortized O(1) per call while bounding stale
+ * entries to about the number of live ones. */
+static void janet_chan_remove_stale(JanetQueue *fq) {
+    int32_t count = janet_q_count(fq);
+    if (count & (count - 1)) return;
+    for (int32_t i = 0; i < count; i++) {
+        JanetChannelPending pending;
+        janet_q_pop(fq, &pending, sizeof(pending));
+        if (pending.thread == &janet_vm && pending.sched_id != pending.fiber->sched_id) {
+            janet_gcunroot(janet_wrap_fiber(pending.fiber));
+        } else {
+            /* Live items must be inserted back in the same order */
+            janet_q_push(fq, &pending, sizeof(pending));
+        }
+    }
 }
 
 /* Push a value to a channel, and return 1 if channel should block, zero otherwise.
@@ -1042,6 +1072,9 @@ static int janet_channel_push_with_lock(JanetChannel *channel, Janet x, int mode
             pending.fiber = janet_vm.root_fiber,
             pending.sched_id = janet_vm.root_fiber->sched_id,
             pending.mode = mode ? JANET_CP_MODE_CHOICE_WRITE : JANET_CP_MODE_WRITE;
+            if (is_threaded) {
+                janet_chan_remove_stale(&channel->write_pending);
+            }
             janet_q_push(&channel->write_pending, &pending, sizeof(pending));
             janet_chan_unlock(channel);
             if (is_threaded) {
@@ -1101,6 +1134,9 @@ static int janet_channel_pop_with_lock(JanetChannel *channel, Janet *item, int i
         pending.fiber = janet_vm.root_fiber,
         pending.sched_id = janet_vm.root_fiber->sched_id;
         pending.mode = is_choice ? JANET_CP_MODE_CHOICE_READ : JANET_CP_MODE_READ;
+        if (is_threaded) {
+            janet_chan_remove_stale(&channel->read_pending);
+        }
         janet_q_push(&channel->read_pending, &pending, sizeof(pending));
         janet_chan_unlock(channel);
         if (is_threaded) {
@@ -1231,7 +1267,8 @@ JANET_CORE_FN(cfun_channel_choice,
         janet_panic("cannot select from channel inside janet_call");
     }
 
-    /* Check channels for immediate reads and writes */
+    /* Check channels for immediate reads and writes. Avoid awating to event loop
+     * if possible, but should be very similar to async block of code. */
     for (int32_t i = 0; i < argc; i++) {
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
             /* Write */
@@ -1263,19 +1300,39 @@ JANET_CORE_FN(cfun_channel_choice,
         }
     }
 
+    /* We cannot assume threaded channels are unchanged here, as other threads can mutate them.
+     * Namely, they may been closed or have items added or removed during this call. Simple channels
+     * could be slightly simpler and skip the extra closed checks. */
+
     /* Wait for all readers or writers */
     for (int32_t i = 0; i < argc; i++) {
         if (janet_indexed_view(argv[i], &data, &len) && len == 2) {
             /* Write */
             JanetChannel *chan = janet_getchannel(data, 0);
             janet_chan_lock(chan);
-            janet_channel_push_with_lock(chan, data[1], 1);
+            if (chan->closed) {
+                janet_chan_unlock(chan);
+                janet_schedule(janet_vm.root_fiber, make_close_result(chan));
+                break;
+            }
+            if (!janet_channel_push_with_lock(chan, data[1], 1)) {
+                janet_schedule(janet_vm.root_fiber, make_write_result(chan));
+                break;
+            }
         } else {
             /* Read */
             Janet item;
             JanetChannel *chan = janet_getchannel(argv, i);
             janet_chan_lock(chan);
-            janet_channel_pop_with_lock(chan, &item, 1);
+            if (chan->closed) {
+                janet_chan_unlock(chan);
+                janet_schedule(janet_vm.root_fiber, make_close_result(chan));
+                break;
+            }
+            if (janet_channel_pop_with_lock(chan, &item, 1)) {
+                janet_schedule(janet_vm.root_fiber, make_read_result(chan, item));
+                break;
+            }
         }
     }
 
@@ -1385,6 +1442,9 @@ JANET_CORE_FN(cfun_channel_close,
                         janet_schedule(writer.fiber, janet_wrap_nil());
                     }
                 }
+                if (janet_chan_is_threaded(channel)) {
+                    janet_gcunroot(janet_wrap_fiber(writer.fiber));
+                }
             }
         }
         JanetChannelPending reader;
@@ -1407,6 +1467,9 @@ JANET_CORE_FN(cfun_channel_close,
                     } else {
                         janet_schedule(reader.fiber, janet_wrap_nil());
                     }
+                }
+                if (janet_chan_is_threaded(channel)) {
+                    janet_gcunroot(janet_wrap_fiber(reader.fiber));
                 }
             }
         }

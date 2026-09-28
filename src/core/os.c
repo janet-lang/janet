@@ -1343,12 +1343,12 @@ static Janet os_execute_impl(int32_t argc, Janet *argv, JanetExecuteMode mode) {
         char msgbuf[256];
         msgbuf[0] = '\0';
         FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                NULL,
-                cp_error_code,
-                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                msgbuf,
-                sizeof(msgbuf),
-                NULL);
+                       NULL,
+                       cp_error_code,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       msgbuf,
+                       sizeof(msgbuf),
+                       NULL);
         if (!*msgbuf) snprintf(msgbuf, sizeof(msgbuf), "%" PRIu32, (uint32_t) cp_error_code);
         char *c = msgbuf;
         while (*c) {
