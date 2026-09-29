@@ -2203,6 +2203,10 @@ JANET_CORE_FN(os_mkdir,
 #endif
     if (res == 0) return janet_wrap_true();
     if (errno == EEXIST) return janet_wrap_false();
+#ifdef __FreeBSD__
+    /* See kern/59739 at this point I believe its expected behaviour */
+    if (errno == EISDIR && path && path[0] == '/' && path[1] == 0) return janet_wrap_false();
+#endif
     janet_panicf("%s: %s", janet_strerror(errno), path);
 }
 
