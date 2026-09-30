@@ -53,10 +53,10 @@ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
     int32_t index = janet_maphash(cap, janet_hash(key));
     int32_t i;
     for (i = index; i < cap; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
+        if (janet_checktype(st[i].key, JANET_NIL) || janet_bitwise_same(st[i].key, key) || janet_equals(st[i].key, key))
             return st + i;
     for (i = 0; i < index; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
+        if (janet_checktype(st[i].key, JANET_NIL) || janet_bitwise_same(st[i].key, key) || janet_equals(st[i].key, key))
             return st + i;
     return NULL;
 }

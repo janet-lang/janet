@@ -69,6 +69,14 @@ uint32_t janet_hash_mix(uint32_t input, uint32_t more);
 
 #define janet_maphash(cap, hash) ((uint32_t)(hash) & (cap - 1))
 
+/* janet_bitwise_same is true when x and y are the same type and bits,
+ * guarded for the nanboxed implementation */
+#if defined(JANET_NANBOX_64) || defined(JANET_NANBOX_32)
+#define janet_bitwise_same(x, y) (janet_u64(x) == janet_u64(y))
+#else
+#define janet_bitwise_same(x, y) ((x).type == (y).type && janet_u64(x) == janet_u64(y))
+#endif
+
 int janet_valid_utf8(const uint8_t *str, int32_t len);
 
 int janet_is_symbol_char(uint8_t c);
