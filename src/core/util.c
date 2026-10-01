@@ -302,7 +302,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (janet_bitwise_same(kv->key, key) || janet_equals(kv->key, key)) {
+        } else if (janet_key_equals(kv->key, key)) {
             return buckets + i;
         }
     }
@@ -315,7 +315,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (janet_bitwise_same(kv->key, key) || janet_equals(kv->key, key)) {
+        } else if (janet_key_equals(kv->key, key)) {
             return buckets + i;
         }
     }

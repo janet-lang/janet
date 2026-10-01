@@ -77,6 +77,24 @@ uint32_t janet_hash_mix(uint32_t input, uint32_t more);
 #define janet_bitwise_same(x, y) ((x).type == (y).type && janet_u64(x) == janet_u64(y))
 #endif
 
+/* Compare a stored key with a lookup key. Most types are equal only when bitwise identical, so
+ * janet_equals only runs for zero (since 0.0 and -0.0 are equal), strings, tuples, structs and abstract
+ * types. NaN is never stored as a key, so we skip it. */
+static inline int janet_key_equals(Janet stored, Janet key) {
+    if (janet_bitwise_same(stored, key)) return 1;
+    switch (janet_type(key)) {
+        case JANET_NUMBER:
+            return janet_unwrap_number(key) == 0 && janet_equals(stored, key);
+        case JANET_STRING:
+        case JANET_TUPLE:
+        case JANET_STRUCT:
+        case JANET_ABSTRACT:
+            return janet_equals(stored, key);
+        default:
+            return 0;
+    }
+}
+
 int janet_valid_utf8(const uint8_t *str, int32_t len);
 
 int janet_is_symbol_char(uint8_t c);
