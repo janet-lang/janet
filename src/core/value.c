@@ -246,27 +246,27 @@ static int janet_compare_abstract(JanetAbstract xx, JanetAbstract yy) {
     return xt->compare(xx, yy);
 }
 
-int janet_equals(Janet x, Janet y) {
+/* Compare two values of the same type that are not tuples or structs */
+static int janet_equals_leaf(Janet x, Janet y) {
+    switch (janet_type(x)) {
+        case JANET_NUMBER:
+            return janet_unwrap_number(x) == janet_unwrap_number(y);
+        case JANET_STRING:
+            return janet_string_equal(janet_unwrap_string(x), janet_unwrap_string(y));
+        case JANET_ABSTRACT:
+            return !janet_compare_abstract(janet_unwrap_abstract(x), janet_unwrap_abstract(y));
+        default:
+            return janet_bitwise_same(x, y);
+    }
+}
+
+static int janet_equals_containers(Janet x, Janet y) {
     janet_vm.traversal = janet_vm.traversal_base;
     do {
         if (janet_type(x) != janet_type(y)) return 0;
         switch (janet_type(x)) {
-            case JANET_NIL:
-                break;
-            case JANET_BOOLEAN:
-                if (janet_unwrap_boolean(x) != janet_unwrap_boolean(y)) return 0;
-                break;
-            case JANET_NUMBER:
-                if (janet_unwrap_number(x) != janet_unwrap_number(y)) return 0;
-                break;
-            case JANET_STRING:
-                if (!janet_string_equal(janet_unwrap_string(x), janet_unwrap_string(y))) return 0;
-                break;
-            case JANET_ABSTRACT:
-                if (janet_compare_abstract(janet_unwrap_abstract(x), janet_unwrap_abstract(y))) return 0;
-                break;
             default:
-                if (janet_unwrap_pointer(x) != janet_unwrap_pointer(y)) return 0;
+                if (!janet_equals_leaf(x, y)) return 0;
                 break;
             case JANET_TUPLE: {
                 const Janet *t1 = janet_unwrap_tuple(x);
@@ -278,7 +278,6 @@ int janet_equals(Janet x, Janet y) {
                 push_traversal_node(janet_tuple_head(t1), janet_tuple_head(t2), 0);
                 break;
             }
-            break;
             case JANET_STRUCT: {
                 const JanetKV *s1 = janet_unwrap_struct(x);
                 const JanetKV *s2 = janet_unwrap_struct(y);
@@ -290,10 +289,15 @@ int janet_equals(Janet x, Janet y) {
                 push_traversal_node(janet_struct_head(s1), janet_struct_head(s2), 0);
                 break;
             }
-            break;
         }
     } while (!traversal_next(&x, &y));
     return 1;
+}
+
+int janet_equals(Janet x, Janet y) {
+    if (janet_type(x) != janet_type(y)) return 0;
+    if (janet_checktypes(x, JANET_TFLAG_TUPLE | JANET_TFLAG_STRUCT)) return janet_equals_containers(x, y);
+    return janet_equals_leaf(x, y);
 }
 
 static uint64_t murmur64(uint64_t h) {
