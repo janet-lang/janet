@@ -303,11 +303,9 @@ ninja -C build install
 
 ## Development
 
-Janet can be hacked on with pretty much any environment you like, but for IDE
-lovers, [Gnome Builder](https://wiki.gnome.org/Apps/Builder) is probably the
-best option, as it has excellent Meson integration. It also offers code completion
-for Janet's C API right out of the box, which is very useful for exploring. VSCode, Vim,
-Emacs, and Atom each have syntax packages for the Janet language, though.
+Janet can be hacked on with pretty much any environment you like, but an
+environment that understands Meson out of the box will likely yield the easiest
+setup.
 
 ## Installation
 
