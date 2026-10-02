@@ -34,9 +34,9 @@
   (do
     # from number
     (def a (u64 10))
-    # max double we can convert to int (2^53)
+    # max double we can convert to int (2^53 - 1)
     (def b (u64 0x1fffffffffffff))
-    (def b (u64 (math/pow 2 53)))
+    (def b (u64 (- (math/pow 2 53) 1)))
     # from string
     (def c (u64 "0xffff_ffff_ffff_ffff"))
     (def c (u64 "32rvv_vv_vv_vv"))
@@ -75,9 +75,9 @@
   (do
     # from number
     (def a (i64 -10))
-    # max double we can convert to int (2^53)
-    (def b (i64 0x1fffffffffffff))
-    (def b (i64 (math/pow 2 53)))
+    # max double we can convert to int (2^53 - 1)
+    (def b (i64 0x1_ffff_ffff_ffff))
+    (def b (i64 (- (math/pow 2 53) 1)))
     # from string
     (def c (i64 "0x7fff_ffff_ffff_ffff"))
     (def d (i64 "123456789"))))
@@ -85,9 +85,9 @@
 (assert-error
   "bad initializers"
   (do
-    # double to big to be converted to uint64 without truncation (2^53 + 1)
-    (def b (u64 (+ 0xffff_ffff_ffff_ff 1)))
-    (def b (u64 (+ (math/pow 2 53) 1)))
+    # double to big to be converted to uint64 without truncation (2^53)
+    (def b (u64 (+ 0x1_ffff_ffff_ffff 1)))
+    (def b (u64 (math/pow 2 53)))
     # out of range 65 bits
     (def c (u64 "0x1ffffffffffffffff"))
     # just to big
