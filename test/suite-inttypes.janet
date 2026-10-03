@@ -21,9 +21,6 @@
 (import ./helper :prefix "" :exit true)
 (start-suite)
 
-# Disable linting warnings
-(setdyn *lint-warn* :none)
-
 # New parser
 (assert (= (int/u64 "123") 123:u) "int/u64 parsing 1")
 (assert (= (int/u64 "0") 0:u) "int/u64 parsing 2")
@@ -38,14 +35,14 @@
   "create some uint64 bigints"
   (do
     # from number
-    (def a (int/u64 10))
+    (def _a (int/u64 10))
     # max double we can convert to int (2^53)
-    (def b (int/u64 0x1f_ffff_ffff_ffff))
-    (def b (int/u64 (math/pow 2 53)))
+    (def _b (int/u64 0x1f_ffff_ffff_ffff))
+    (def _c (int/u64 (math/pow 2 53)))
     # from string
-    (def c (int/u64 "0xffff_ffff_ffff_ffff"))
-    (def c (int/u64 "32rvv_vv_vv_vv"))
-    (def d (int/u64 "123456789"))))
+    (def _d (int/u64 "0xffff_ffff_ffff_ffff"))
+    (def _e (int/u64 "32rvv_vv_vv_vv"))
+    (def _f (int/u64 "123456789"))))
 
 # Conversion back to an int32
 # 88db9751d
@@ -71,24 +68,24 @@
   "create some int64 bigints"
   (do
     # from number
-    (def a (int/s64 -10))
+    (def _a (int/s64 -10))
     # max double we can convert to int (2^53)
-    (def b (int/s64 0x1fffffffffffff))
-    (def b (int/s64 (math/pow 2 53)))
+    (def _b (int/s64 0x1fffffffffffff))
+    (def _c (int/s64 (math/pow 2 53)))
     # from string
-    (def c (int/s64 "0x7fff_ffff_ffff_ffff"))
-    (def d (int/s64 "123456789"))))
+    (def _d (int/s64 "0x7fff_ffff_ffff_ffff"))
+    (def _e (int/s64 "123456789"))))
 
 (assert-error
   "bad initializers"
   (do
     # double to big to be converted to uint64 without truncation (2^53 + 1)
-    (def b (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
-    (def b (int/u64 (+ (math/pow 2 53) 1)))
+    (def _a (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
+    (def _b (int/u64 (+ (math/pow 2 53) 1)))
     # out of range 65 bits
-    (def c (int/u64 "0x1ffffffffffffffff"))
+    (def _c (int/u64 "0x1ffffffffffffffff"))
     # just to big
-    (def d (int/u64 "123456789123456789123456789"))))
+    (def _d (int/u64 "123456789123456789123456789"))))
 
 (assert (= (:/ (int/u64 "0xffff_ffff_ffff_ffff") 8 2) (int/u64 "0xfffffffffffffff"))
         "bigint operations 1")
