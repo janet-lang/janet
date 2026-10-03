@@ -24,6 +24,14 @@
 # Disable linting warnings
 (setdyn *lint-warn* :none)
 
+# New parser
+(assert (= (int/u64 "123") 123:u) "int/u64 parsing 1")
+(assert (= (int/u64 "0") 0:u) "int/u64 parsing 2")
+(assert (= (int/u64 "0xFFFF_FFFF_FFFF_FFFF") 0xFFFF_FFFF_FFFF_FFFF:u) "int/u64 parsing 3")
+(assert (= (int/s64 "123") 123:s) "int/s64 parsing 1")
+(assert (= (int/s64 "-123") -123:s) "int/s64 parsing 2")
+(assert (= (int/s64 "0") 0:s) "int/s64 parsing 3")
+
 # some tests for bigint
 # 319575c
 (assert-no-error
@@ -38,14 +46,6 @@
     (def c (int/u64 "0xffff_ffff_ffff_ffff"))
     (def c (int/u64 "32rvv_vv_vv_vv"))
     (def d (int/u64 "123456789"))))
-
-# New parser
-(assert (= (int/u64 "123") 123:u) "int/u64 parsing 1")
-(assert (= (int/u64 "0") 0:u) "int/u64 parsing 2")
-(assert (= (int/u64 "0xFFFF_FFFF_FFFF_FFFF") 0xFFFF_FFFF_FFFF_FFFF:u) "int/u64 parsing 3")
-(assert (= (int/s64 "123") 123:s) "int/s64 parsing 1")
-(assert (= (int/s64 "-123") -123:s) "int/s64 parsing 2")
-(assert (= (int/s64 "0") 0:s) "int/s64 parsing 3")
 
 # Conversion back to an int32
 # 88db9751d
