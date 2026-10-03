@@ -29,15 +29,15 @@
 (assert (= (int/s64 "-123") -123:s) "int/s64 parsing 2")
 (assert (= (int/s64 "0") 0:s) "int/s64 parsing 3")
 
-# some tests for bigint
+# some tests for inttypes
 # 319575c
 (assert-no-error
-  "create some uint64 bigints"
+  "int/u64 creation"
   (do
     # from number
     (def _a (int/u64 10))
-    # max double we can convert to int (2^53)
     (def _b (int/u64 0x1f_ffff_ffff_ffff))
+    # max double we can convert to int (2^53)
     (def _c (int/u64 (math/pow 2 53)))
     # from string
     (def _d (int/u64 "0xffff_ffff_ffff_ffff"))
@@ -57,7 +57,7 @@
   (int/to-number (int/u64 "9007199254740993")))
 
 (assert-error
-  "s64 out of bounds for safe integer"
+  "int/s64 out of bounds for safe integer"
   (int/to-number (int/s64 "-9007199254740993")))
 
 (assert-error
@@ -65,12 +65,12 @@
   (int/to-number 1))
 
 (assert-no-error
-  "create some int64 bigints"
+  "int/s64 creation"
   (do
     # from number
     (def _a (int/s64 -10))
-    # max double we can convert to int (2^53)
     (def _b (int/s64 0x1fffffffffffff))
+    # max double we can convert to int (2^53)
     (def _c (int/s64 (math/pow 2 53)))
     # from string
     (def _d (int/s64 "0x7fff_ffff_ffff_ffff"))
@@ -79,7 +79,7 @@
 (assert-error
   "bad initializers"
   (do
-    # double to big to be converted to uint64 without truncation (2^53 + 1)
+    # double too big (> 2^53) to be converted to uint64 without truncation
     (def _a (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
     (def _b (int/u64 (+ (math/pow 2 53) 1)))
     # out of range 65 bits
@@ -88,13 +88,13 @@
     (def _d (int/u64 "123456789123456789123456789"))))
 
 (assert (= (:/ (int/u64 "0xffff_ffff_ffff_ffff") 8 2) (int/u64 "0xfffffffffffffff"))
-        "bigint operations 1")
+        "inttype operations 1")
 (assert (let [a (int/u64 0xff)] (= (:+ a a a a) (:* a 2 2)))
-        "bigint operations 2")
+        "inttype operations 2")
 
 # 5ae520a2c
-(assert (= (string (int/s64 -123)) "-123") "i64 prints reasonably")
-(assert (= (string (int/u64 123)) "123") "u64 prints reasonably")
+(assert (= (string (int/s64 -123)) "-123") "int/s64 prints reasonably")
+(assert (= (string (int/u64 123)) "123") "int/u64 prints reasonably")
 
 # 1db6d0e0b
 (assert-error
@@ -260,22 +260,22 @@
 (def m2 (unmarshal (marshal m1)))
 (assert (= m1 m2) "marshal/unmarshal")
 
-# compare u64/u64
+# compare int/u64 int/u64
 (assert (= (compare (int/u64 1) (int/u64 2)) -1) "compare 1")
 (assert (= (compare (int/u64 1) (int/u64 1))  0) "compare 2")
 (assert (= (compare (int/u64 2) (int/u64 1)) +1) "compare 3")
 
-# compare i64/i64
+# compare int/s64 int/s64
 (assert (= (compare (int/s64 -1) (int/s64 +1)) -1) "compare 4")
 (assert (= (compare (int/s64 +1) (int/s64 +1))  0) "compare 5")
 (assert (= (compare (int/s64 +1) (int/s64 -1)) +1) "compare 6")
 
-# compare u64/i64
+# compare int/u64 int/s64
 (assert (= (compare (int/u64 1) (int/s64 2)) -1) "compare 7")
 (assert (= (compare (int/u64 1) (int/s64 -1)) +1) "compare 8")
 (assert (= (compare (int/u64 0) (int/s64 -1)) +1) "compare 9")
 
-# compare i64/u64
+# compare int/s64 int/u64
 (assert (= (compare (int/s64 1) (int/u64 2)) -1) "compare 10")
 (assert (= (compare (int/s64 -1) (int/u64 1)) -1) "compare 11")
 (assert (= (compare (int/s64 -1) (int/u64 0)) -1) "compare 12")
