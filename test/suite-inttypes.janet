@@ -57,11 +57,11 @@
 
 (assert-error
   "int/u64 out of bounds for safe integer"
-  (int/to-number (int/u64 "9007199254740993"))
+  (int/to-number (int/u64 "9007199254740993")))
 
-  (assert-error
-    "s64 out of bounds for safe integer"
-    (int/to-number (int/s64 "-9007199254740993"))))
+(assert-error
+  "s64 out of bounds for safe integer"
+  (int/to-number (int/s64 "-9007199254740993")))
 
 (assert-error
   "int/to-number fails on non-abstract types"
