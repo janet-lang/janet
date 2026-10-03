@@ -26,45 +26,42 @@
 
 # some tests for bigint
 # 319575c
-(def i64 int/s64)
-(def u64 int/u64)
-
 (assert-no-error
   "create some uint64 bigints"
   (do
     # from number
-    (def a (u64 10))
+    (def a (int/u64 10))
     # max double we can convert to int (2^53)
-    (def b (u64 0x1fffffffffffff))
-    (def b (u64 (math/pow 2 53)))
+    (def b (int/u64 0x1f_ffff_ffff_ffff))
+    (def b (int/u64 (math/pow 2 53)))
     # from string
-    (def c (u64 "0xffff_ffff_ffff_ffff"))
-    (def c (u64 "32rvv_vv_vv_vv"))
-    (def d (u64 "123456789"))))
+    (def c (int/u64 "0xffff_ffff_ffff_ffff"))
+    (def c (int/u64 "32rvv_vv_vv_vv"))
+    (def d (int/u64 "123456789"))))
+
+# New parser
+(assert (= (int/u64 "123") 123:u) "int/u64 parsing 1")
+(assert (= (int/u64 "0") 0:u) "int/u64 parsing 2")
+(assert (= (int/u64 "0xFFFF_FFFF_FFFF_FFFF") 0xFFFF_FFFF_FFFF_FFFF:u) "int/u64 parsing 3")
+(assert (= (int/s64 "123") 123:s) "int/s64 parsing 1")
+(assert (= (int/s64 "-123") -123:s) "int/s64 parsing 2")
+(assert (= (int/s64 "0") 0:s) "int/s64 parsing 3")
 
 # Conversion back to an int32
 # 88db9751d
-(assert (= (int/to-number (u64 0xFaFa)) 0xFaFa))
-(assert (= (int/to-number (i64 0xFaFa)) 0xFaFa))
-(assert (= (int/to-number (u64 9007199254740991)) 9007199254740991))
-(assert (= (int/to-number (i64 9007199254740991)) 9007199254740991))
-(assert (= (int/to-number (i64 -9007199254740991)) -9007199254740991))
-
-# New parser
-(assert (= (u64 "123") 123:u) "u64 parsing")
-(assert (= (u64 "0") 0:u) "u64 parsing")
-(assert (= (u64 "0xFFFF_FFFF_FFFF_FFFF") 0xFFFF_FFFF_FFFF_FFFF:u) "u64 parsing")
-(assert (= (i64 "123") 123:s) "s64 parsing")
-(assert (= (i64 "-123") -123:s) "s64 parsing")
-(assert (= (i64 "0") 0:s) "s64 parsing")
+(assert (= (int/to-number (int/u64 0xFaFa)) 0xFaFa))
+(assert (= (int/to-number (int/s64 0xFaFa)) 0xFaFa))
+(assert (= (int/to-number (int/u64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (int/s64 9007199254740991)) 9007199254740991))
+(assert (= (int/to-number (int/s64 -9007199254740991)) -9007199254740991))
 
 (assert-error
-  "u64 out of bounds for safe integer"
-  (int/to-number (u64 "9007199254740993"))
+  "int/u64 out of bounds for safe integer"
+  (int/to-number (int/u64 "9007199254740993"))
 
   (assert-error
     "s64 out of bounds for safe integer"
-    (int/to-number (i64 "-9007199254740993"))))
+    (int/to-number (int/s64 "-9007199254740993"))))
 
 (assert-error
   "int/to-number fails on non-abstract types"
@@ -74,33 +71,33 @@
   "create some int64 bigints"
   (do
     # from number
-    (def a (i64 -10))
+    (def a (int/s64 -10))
     # max double we can convert to int (2^53)
-    (def b (i64 0x1fffffffffffff))
-    (def b (i64 (math/pow 2 53)))
+    (def b (int/s64 0x1fffffffffffff))
+    (def b (int/s64 (math/pow 2 53)))
     # from string
-    (def c (i64 "0x7fff_ffff_ffff_ffff"))
-    (def d (i64 "123456789"))))
+    (def c (int/s64 "0x7fff_ffff_ffff_ffff"))
+    (def d (int/s64 "123456789"))))
 
 (assert-error
   "bad initializers"
   (do
     # double to big to be converted to uint64 without truncation (2^53 + 1)
-    (def b (u64 (+ 0xffff_ffff_ffff_ff 1)))
-    (def b (u64 (+ (math/pow 2 53) 1)))
+    (def b (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
+    (def b (int/u64 (+ (math/pow 2 53) 1)))
     # out of range 65 bits
-    (def c (u64 "0x1ffffffffffffffff"))
+    (def c (int/u64 "0x1ffffffffffffffff"))
     # just to big
-    (def d (u64 "123456789123456789123456789"))))
+    (def d (int/u64 "123456789123456789123456789"))))
 
-(assert (= (:/ (u64 "0xffff_ffff_ffff_ffff") 8 2) (u64 "0xfffffffffffffff"))
+(assert (= (:/ (int/u64 "0xffff_ffff_ffff_ffff") 8 2) (int/u64 "0xfffffffffffffff"))
         "bigint operations 1")
-(assert (let [a (u64 0xff)] (= (:+ a a a a) (:* a 2 2)))
+(assert (let [a (int/u64 0xff)] (= (:+ a a a a) (:* a 2 2)))
         "bigint operations 2")
 
 # 5ae520a2c
-(assert (= (string (i64 -123)) "-123") "i64 prints reasonably")
-(assert (= (string (u64 123)) "123") "u64 prints reasonably")
+(assert (= (string (int/s64 -123)) "-123") "i64 prints reasonably")
+(assert (= (string (int/u64 123)) "123") "u64 prints reasonably")
 
 # 1db6d0e0b
 (assert-error
@@ -109,32 +106,32 @@
 
 # int/s64 and int/u64 serialization
 # 6aea7c7f7
-(assert (deep= (int/to-bytes (u64 0)) @"\x00\x00\x00\x00\x00\x00\x00\x00"))
+(assert (deep= (int/to-bytes (int/u64 0)) @"\x00\x00\x00\x00\x00\x00\x00\x00"))
 
-(assert (deep= (int/to-bytes (i64 1) :le)
+(assert (deep= (int/to-bytes (int/s64 1) :le)
                @"\x01\x00\x00\x00\x00\x00\x00\x00"))
-(assert (deep= (int/to-bytes (i64 1) :be)
+(assert (deep= (int/to-bytes (int/s64 1) :be)
                @"\x00\x00\x00\x00\x00\x00\x00\x01"))
-(assert (deep= (int/to-bytes (i64 -1))
+(assert (deep= (int/to-bytes (int/s64 -1))
                @"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"))
-(assert (deep= (int/to-bytes (i64 -5) :be)
+(assert (deep= (int/to-bytes (int/s64 -5) :be)
                @"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFB"))
 
-(assert (deep= (int/to-bytes (u64 1) :le)
+(assert (deep= (int/to-bytes (int/u64 1) :le)
                @"\x01\x00\x00\x00\x00\x00\x00\x00"))
-(assert (deep= (int/to-bytes (u64 1) :be)
+(assert (deep= (int/to-bytes (int/u64 1) :be)
                @"\x00\x00\x00\x00\x00\x00\x00\x01"))
-(assert (deep= (int/to-bytes (u64 300) :be)
+(assert (deep= (int/to-bytes (int/u64 300) :be)
                @"\x00\x00\x00\x00\x00\x00\x01\x2C"))
 
 # int/s64 int/u64 to existing buffer
 # bbb3e16fd
 (let [buf1 @""
       buf2 @"abcd"]
-  (assert (deep= (int/to-bytes (i64 1) :le buf1)
+  (assert (deep= (int/to-bytes (int/s64 1) :le buf1)
                  @"\x01\x00\x00\x00\x00\x00\x00\x00"))
   (assert (deep= buf1 @"\x01\x00\x00\x00\x00\x00\x00\x00"))
-  (assert (deep= (int/to-bytes (u64 300) :be buf2)
+  (assert (deep= (int/to-bytes (int/u64 300) :be buf2)
                  @"abcd\x00\x00\x00\x00\x00\x00\x01\x2C")))
 
 # int/s64 and int/u64 parameter type checking
@@ -146,12 +143,12 @@
 # 6aea7c7f7
 (assert-error
   "invalid endianness passed to int/to-bytes"
-  (int/to-bytes (u64 0) :little))
+  (int/to-bytes (int/u64 0) :little))
 
 # bbb3e16fd
 (assert-error
   "invalid buffer passed to int/to-bytes"
-  (int/to-bytes (u64 0) :little :buffer))
+  (int/to-bytes (int/u64 0) :little :buffer))
 
 # Right hand operators
 # 4fe005e3c
@@ -262,29 +259,29 @@
             (string/format "compare polymorphic %q %q %d" x y c))))
 
 # marshal
-(def m1 (u64 3141592654))
+(def m1 (int/u64 3141592654))
 (def m2 (unmarshal (marshal m1)))
 (assert (= m1 m2) "marshal/unmarshal")
 
 # compare u64/u64
-(assert (= (compare (u64 1) (u64 2)) -1) "compare 1")
-(assert (= (compare (u64 1) (u64 1))  0) "compare 2")
-(assert (= (compare (u64 2) (u64 1)) +1) "compare 3")
+(assert (= (compare (int/u64 1) (int/u64 2)) -1) "compare 1")
+(assert (= (compare (int/u64 1) (int/u64 1))  0) "compare 2")
+(assert (= (compare (int/u64 2) (int/u64 1)) +1) "compare 3")
 
 # compare i64/i64
-(assert (= (compare (i64 -1) (i64 +1)) -1) "compare 4")
-(assert (= (compare (i64 +1) (i64 +1))  0) "compare 5")
-(assert (= (compare (i64 +1) (i64 -1)) +1) "compare 6")
+(assert (= (compare (int/s64 -1) (int/s64 +1)) -1) "compare 4")
+(assert (= (compare (int/s64 +1) (int/s64 +1))  0) "compare 5")
+(assert (= (compare (int/s64 +1) (int/s64 -1)) +1) "compare 6")
 
 # compare u64/i64
-(assert (= (compare (u64 1) (i64 2)) -1) "compare 7")
-(assert (= (compare (u64 1) (i64 -1)) +1) "compare 8")
-(assert (= (compare (u64 0) (i64 -1)) +1) "compare 9")
+(assert (= (compare (int/u64 1) (int/s64 2)) -1) "compare 7")
+(assert (= (compare (int/u64 1) (int/s64 -1)) +1) "compare 8")
+(assert (= (compare (int/u64 0) (int/s64 -1)) +1) "compare 9")
 
 # compare i64/u64
-(assert (= (compare (i64 1) (u64 2)) -1) "compare 10")
-(assert (= (compare (i64 -1) (u64 1)) -1) "compare 11")
-(assert (= (compare (i64 -1) (u64 0)) -1) "compare 12")
+(assert (= (compare (int/s64 1) (int/u64 2)) -1) "compare 10")
+(assert (= (compare (int/s64 -1) (int/u64 1)) -1) "compare 11")
+(assert (= (compare (int/s64 -1) (int/u64 0)) -1) "compare 12")
 
 # off by 1 error in inttypes
 # a3e812b86
