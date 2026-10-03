@@ -145,7 +145,7 @@
 # bbb3e16fd
 (assert-error
   "invalid buffer passed to int/to-bytes"
-  (int/to-bytes (int/u64 0) :little :buffer))
+  (int/to-bytes (int/u64 0) :le :buffer))
 
 # Right hand operators
 # 4fe005e3c
