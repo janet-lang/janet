@@ -38,7 +38,7 @@
     # from number
     (def _a 10:u)
     (def _b 0x1f_ffff_ffff_ffff:u)
-    # max double we can convert to int (2^53)
+    # max double we can convert to int (2^53 == math/int-max)
     (def _c (int/u64 (math/pow 2 53)))
     # from string
     (def _d (int/u64 "0xffff_ffff_ffff_ffff"))
