@@ -77,16 +77,18 @@
     (def _d (int/s64 "0x7fff_ffff_ffff_ffff"))
     (def _e (int/s64 "123456789"))))
 
+# bad initializers
 (assert-error
-  "bad initializers"
-  (do
-    # double too big (> 2^53) to be converted to uint64 without truncation
-    (def _a (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
-    (def _b (int/u64 (+ (math/pow 2 53) 1)))
-    # out of range 65 bits
-    (def _c (int/u64 "0x1ffffffffffffffff"))
-    # just to big
-    (def _d (int/u64 "123456789123456789123456789"))))
+  "double too big (> 2^53) to be converted to uint64 without truncation"
+  (int/u64 (+ (math/pow 2 53) 2)))
+
+(assert-error
+  "out of range 65 bits"
+  (int/u64 "0x1_ffff_ffff_ffff_ffff"))
+
+(assert-error
+  "just too big"
+  (int/u64 "123_456_789_123_456_789_123_456_789"))
 
 (assert (= (:/ 0xffff_ffff_ffff_ffff:u 8 2) 0xfff_ffff_ffff_ffff:u)
         "inttype operations 1")
