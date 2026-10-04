@@ -24,8 +24,8 @@
 # New parser
 (assert (= 123:u (int/u64 "123")) "int/u64 parsing 1")
 (assert (= 0:u (int/u64 "0")) "int/u64 parsing 2")
-(assert (= 0xFFFF_FFFF_FFFF_FFFF:u (int/u64 "0xFFFF_FFFF_FFFF_FFFF")) "int/u64 parsing 3")
-
+(assert (= 0xFFFF_FFFF_FFFF_FFFF:u (int/u64 "0xFFFF_FFFF_FFFF_FFFF"))
+        "int/u64 parsing 3")
 (assert (= 123:s (int/s64 "123")) "int/s64 parsing 1")
 (assert (= -123:s (int/s64 "-123")) "int/s64 parsing 2")
 (assert (= 0:s (int/s64 "0")) "int/s64 parsing 3")
