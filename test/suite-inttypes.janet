@@ -43,23 +43,23 @@
     # from string
     (def _d (int/u64 "0xffff_ffff_ffff_ffff"))
     (def _e (int/u64 "32rvv_vv_vv_vv"))
-    (def _f (int/u64 "123456789"))))
+    (def _f (int/u64 "123_456_789"))))
 
 # Conversion back to an int32
 # 88db9751d
 (assert (= (int/to-number 0xFaFa:u) 0xFaFa) "int/to-number 1")
 (assert (= (int/to-number 0xFaFa:s) 0xFaFa) "int/to-number 2")
-(assert (= (int/to-number 9007199254740991:u) 9007199254740991) "int/to-number 3")
-(assert (= (int/to-number 9007199254740991:s) 9007199254740991) "int/to-number 4")
-(assert (= (int/to-number -9007199254740991:s) -9007199254740991) "int/to-number 5")
+(assert (= (int/to-number 9_007_199_254_740_991:u) 9_007_199_254_740_991) "int/to-number 3")
+(assert (= (int/to-number 9_007_199_254_740_991:s) 9_007_199_254_740_991) "int/to-number 4")
+(assert (= (int/to-number -9_007_199_254_740_991:s) -9_007_199_254_740_991) "int/to-number 5")
 
 (assert-error
   "int/u64 out of bounds for safe integer"
-  (int/to-number 9007199254740993:u))
+  (int/to-number 9_007_199_254_740_993:u))
 
 (assert-error
   "int/s64 out of bounds for safe integer"
-  (int/to-number -9007199254740993:s))
+  (int/to-number -9_007_199_254_740_993:s))
 
 (assert-error
   "int/to-number fails on non-abstract types"
@@ -75,7 +75,7 @@
     (def _c (int/s64 (math/pow 2 53)))
     # from string
     (def _d (int/s64 "0x7fff_ffff_ffff_ffff"))
-    (def _e (int/s64 "123456789"))))
+    (def _e (int/s64 "123_456_789"))))
 
 # bad initializers
 (assert-error
@@ -232,9 +232,9 @@
         "issue #1130")
 
 # issue #272 - 81d301a42
-(let [MAX_INT_64_STRING "9223372036854775807"
-      MAX_UINT_64_STRING "18446744073709551615"
-      MAX_INT_IN_DBL_STRING "9007199254740991"
+(let [MAX_INT_64_STRING "9_223_372_036_854_775_807"
+      MAX_UINT_64_STRING "18_446_744_073_709_551_615"
+      MAX_INT_IN_DBL_STRING "9_007_199_254_740_991"
       NAN (math/log -1)
       INF (/ 1 0)
       MINUS_INF (/ -1 0)
