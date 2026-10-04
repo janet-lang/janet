@@ -24,8 +24,8 @@
 # New parser
 (assert (= 123:u (int/u64 "123")) "int/u64 parsing 1")
 (assert (= 0:u (int/u64 "0")) "int/u64 parsing 2")
-(assert (= 0xFFFF_FFFF_FFFF_FFFF:u (int/u64 "0xFFFF_FFFF_FFFF_FFFF")) "int/u64 parsing 3")
-
+(assert (= 0xFFFF_FFFF_FFFF_FFFF:u (int/u64 "0xFFFF_FFFF_FFFF_FFFF"))
+        "int/u64 parsing 3")
 (assert (= 123:s (int/s64 "123")) "int/s64 parsing 1")
 (assert (= -123:s (int/s64 "-123")) "int/s64 parsing 2")
 (assert (= 0:s (int/s64 "0")) "int/s64 parsing 3")
@@ -38,28 +38,28 @@
     # from number
     (def _a 10:u)
     (def _b 0x1f_ffff_ffff_ffff:u)
-    # max double we can convert to int (2^53)
+    # max double we can convert to int (2^53 == math/int-max)
     (def _c (int/u64 (math/pow 2 53)))
     # from string
     (def _d (int/u64 "0xffff_ffff_ffff_ffff"))
     (def _e (int/u64 "32rvv_vv_vv_vv"))
-    (def _f (int/u64 "123456789"))))
+    (def _f (int/u64 "123_456_789"))))
 
 # Conversion back to an int32
 # 88db9751d
 (assert (= (int/to-number 0xFaFa:u) 0xFaFa) "int/to-number 1")
 (assert (= (int/to-number 0xFaFa:s) 0xFaFa) "int/to-number 2")
-(assert (= (int/to-number 9007199254740991:u) 9007199254740991) "int/to-number 3")
-(assert (= (int/to-number 9007199254740991:s) 9007199254740991) "int/to-number 4")
-(assert (= (int/to-number -9007199254740991:s) -9007199254740991) "int/to-number 5")
+(assert (= (int/to-number 9_007_199_254_740_991:u) 9_007_199_254_740_991) "int/to-number 3")
+(assert (= (int/to-number 9_007_199_254_740_991:s) 9_007_199_254_740_991) "int/to-number 4")
+(assert (= (int/to-number -9_007_199_254_740_991:s) -9_007_199_254_740_991) "int/to-number 5")
 
 (assert-error
   "int/u64 out of bounds for safe integer"
-  (int/to-number 9007199254740993:u))
+  (int/to-number 9_007_199_254_740_993:u))
 
 (assert-error
   "int/s64 out of bounds for safe integer"
-  (int/to-number -9007199254740993:s))
+  (int/to-number -9_007_199_254_740_993:s))
 
 (assert-error
   "int/to-number fails on non-abstract types"
@@ -75,18 +75,20 @@
     (def _c (int/s64 (math/pow 2 53)))
     # from string
     (def _d (int/s64 "0x7fff_ffff_ffff_ffff"))
-    (def _e (int/s64 "123456789"))))
+    (def _e (int/s64 "123_456_789"))))
+
+# bad initializers
+(assert-error
+  "double too big (> 2^53) to be converted to uint64 without truncation"
+  (int/u64 (+ (math/pow 2 53) 2)))
 
 (assert-error
-  "bad initializers"
-  (do
-    # double too big (> 2^53) to be converted to uint64 without truncation
-    (def _a (int/u64 (+ 0xffff_ffff_ffff_ff 1)))
-    (def _b (int/u64 (+ (math/pow 2 53) 1)))
-    # out of range 65 bits
-    (def _c (int/u64 "0x1ffffffffffffffff"))
-    # just to big
-    (def _d (int/u64 "123456789123456789123456789"))))
+  "out of range 65 bits"
+  (int/u64 "0x1_ffff_ffff_ffff_ffff"))
+
+(assert-error
+  "just too big"
+  (int/u64 "123_456_789_123_456_789_123_456_789"))
 
 (assert (= (:/ 0xffff_ffff_ffff_ffff:u 8 2) 0xfff_ffff_ffff_ffff:u)
         "inttype operations 1")
@@ -230,9 +232,9 @@
         "issue #1130")
 
 # issue #272 - 81d301a42
-(let [MAX_INT_64_STRING "9223372036854775807"
-      MAX_UINT_64_STRING "18446744073709551615"
-      MAX_INT_IN_DBL_STRING "9007199254740991"
+(let [MAX_INT_64_STRING "9_223_372_036_854_775_807"
+      MAX_UINT_64_STRING "18_446_744_073_709_551_615"
+      MAX_INT_IN_DBL_STRING "9_007_199_254_740_991"
       NAN (math/log -1)
       INF (/ 1 0)
       MINUS_INF (/ -1 0)
