@@ -247,6 +247,7 @@ static double convert(
            : bignat_extract(mant, exponent2);
 }
 
+#define GOTO_error { janet_free(mant.digits); return 1; }
 /* Scan a real (double) from a string. If the string cannot be converted into
  * and integer, return 0. */
 int janet_scan_number_base(
@@ -268,10 +269,10 @@ int janet_scan_number_base(
      * the decimal point, exponent could wrap around and become positive. It's
      * easier to reject ridiculously large inputs than to check for overflows.
      * */
-    if (len > JANET_NUMBER_LENGTH_RIDICULOUS) goto error;
+    if (len > JANET_NUMBER_LENGTH_RIDICULOUS) GOTO_error;
 
     /* Get sign */
-    if (str >= end) goto error;
+    if (str >= end) GOTO_error;
     if (*str == '-') {
         neg = 1;
         str++;
@@ -294,7 +295,7 @@ int janet_scan_number_base(
                    str[1] >= '0' && str[1] <= '9' &&
                    str[2] == 'r') {
             base = 10 * (str[0] - '0') + (str[1] - '0');
-            if (base < 2 || base > 36) goto error;
+            if (base < 2 || base > 36) GOTO_error;
             str += 3;
         }
     }
@@ -309,7 +310,7 @@ int janet_scan_number_base(
     while (str < end && (*str == '0' || *str == '.')) {
         if (seenpoint) ex--;
         if (*str == '.') {
-            if (seenpoint) goto error;
+            if (seenpoint) GOTO_error;
             seenpoint = 1;
         } else {
             seenadigit = 1;
@@ -320,7 +321,7 @@ int janet_scan_number_base(
     /* Parse significant digits */
     while (str < end) {
         if (*str == '.') {
-            if (seenpoint) goto error;
+            if (seenpoint) GOTO_error;
             seenpoint = 1;
         } else if (*str == '&') {
             foundexp = 1;
@@ -335,10 +336,10 @@ int janet_scan_number_base(
             foundexp = 1;
             break;
         } else if (*str == '_') {
-            if (!seenadigit) goto error;
+            if (!seenadigit) GOTO_error;
         } else {
             int digit = digit_lookup[*str & 0x7F];
-            if (*str > 127 || digit >= base) goto error;
+            if (*str > 127 || digit >= base) GOTO_error;
             if (seenpoint) ex--;
             bignat_muladd(&mant, base, digit);
             seenadigit = 1;
@@ -347,7 +348,7 @@ int janet_scan_number_base(
     }
 
     if (!seenadigit)
-        goto error;
+        GOTO_error;
 
     /* Read exponent */
     if (str < end && foundexp) {
@@ -355,7 +356,7 @@ int janet_scan_number_base(
         int32_t ee = 0;
         seenadigit = 0;
         str++;
-        if (str >= end) goto error;
+        if (str >= end) GOTO_error;
         if (*str == '-') {
             eneg = 1;
             str++;
@@ -369,7 +370,7 @@ int janet_scan_number_base(
         }
         while (str < end) {
             int digit = digit_lookup[*str & 0x7F];
-            if (*str > 127 || digit >= exp_base) goto error;
+            if (*str > 127 || digit >= exp_base) GOTO_error;
             if (ee < (INT32_MAX / 40)) {
                 ee = exp_base * ee + digit;
             }
@@ -381,16 +382,13 @@ int janet_scan_number_base(
     }
 
     if (!seenadigit)
-        goto error;
+        GOTO_error;
 
     *out = convert(neg, &mant, base, ex);
     janet_free(mant.digits);
     return 0;
-
-error:
-    janet_free(mant.digits);
-    return 1;
 }
+#undef GOTO_error
 
 int janet_scan_number(
     const uint8_t *str,

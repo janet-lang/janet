@@ -62,17 +62,19 @@
 #endif
 #endif
 
-typedef struct {
-    JanetVM *thread;
-    JanetFiber *fiber;
-    uint32_t sched_id;
-    enum {
+typedef enum {
         JANET_CP_MODE_READ,
         JANET_CP_MODE_WRITE,
         JANET_CP_MODE_CHOICE_READ,
         JANET_CP_MODE_CHOICE_WRITE,
         JANET_CP_MODE_CLOSE
-    } mode;
+    } JanetChannelPendingModes;
+
+typedef struct {
+    JanetVM *thread;
+    JanetFiber *fiber;
+    uint32_t sched_id;
+    JanetChannelPendingModes mode;
 } JanetChannelPending;
 
 struct JanetChannel {
