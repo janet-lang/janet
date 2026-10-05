@@ -5139,9 +5139,11 @@
            2)
      "z" (fn :z-switch [i &]
            (set no-file false)
-           (import* "./bundle" :prefix "" :exit exit-on-error)
-           (for i (inc i) (length args)
-             (eval [(symbol (get args i))]))
+           (def m (require "./bundle" :exit exit-on-error))
+           (for j (inc i) (length args)
+             (def hook (module/value m (symbol (get args j))))
+             (unless hook (errorf "no hook found for %V" (get args j)))
+             (hook))
            math/inf)
      "t" (fn :t-switch [i &]
            (set should-repl false)
