@@ -234,6 +234,67 @@
         }\
     }
 
+/* Resolve key to an index into a sequence of len elements. Returns 1 and
+ * sets *index if key is an integer in [0, len), otherwise returns 0. */
+static inline int vm_seq_index(Janet key, int32_t len, int32_t *index) {
+/* 64-bit nanboxing makes non-numbers NaN, failing the range check */
+#ifndef JANET_NANBOX_64
+    if (!janet_checktype(key, JANET_NUMBER)) return 0;
+#endif
+    double d = janet_unwrap_number(key);
+    if (!(d >= 0 && d < (double) len)) return 0;
+    int32_t i = (int32_t) d;
+    if ((double) i != d) return 0;
+    *index = i;
+    return 1;
+}
+
+/* Template for JOP_IN and JOP_GET which reads arrays and tuples for
+ * valid key indexes inline and tables and structs directly. The rest
+ * fall through getter */
+#define vm_getop(getter) \
+    {\
+        Janet ds = stack[B];\
+        Janet key = stack[C];\
+        int32_t index;\
+        switch (janet_type(ds)) {\
+            default:\
+                break;\
+            case JANET_ARRAY: {\
+                JanetArray *array = janet_unwrap_array(ds);\
+                if (!vm_seq_index(key, array->count, &index)) break;\
+                stack[A] = array->data[index];\
+                vm_pcnext();\
+            }\
+            case JANET_TUPLE: {\
+                const Janet *tuple = janet_unwrap_tuple(ds);\
+                if (!vm_seq_index(key, janet_tuple_length(tuple), &index)) break;\
+                stack[A] = tuple[index];\
+                vm_pcnext();\
+            }\
+            case JANET_TABLE: {\
+                vm_commit();\
+                Janet a = janet_table_get(janet_unwrap_table(ds), key);\
+                stack = fiber->data + fiber->frame;\
+                stack[A] = a;\
+                vm_pcnext();\
+            }\
+            case JANET_STRUCT: {\
+                vm_commit();\
+                Janet a = janet_struct_get(janet_unwrap_struct(ds), key);\
+                stack = fiber->data + fiber->frame;\
+                stack[A] = a;\
+                vm_pcnext();\
+            }\
+        }\
+        /* Arrays and tuples with rejected keys and default reach this */\
+        vm_commit();\
+        Janet a = getter(ds, key);\
+        stack = fiber->data + fiber->frame;\
+        stack[A] = a;\
+        vm_pcnext();\
+    }
+
 /* Trace a function call.
  * This is a macro to avoid stale argv if janet_eprintf resizes the stack
  */
@@ -906,14 +967,29 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     }
     vm_pcnext();
 
-    VM_OP(JOP_NEXT)
-    vm_commit();
-    {
-        Janet temp = janet_next_impl(stack[B], stack[C], 1);
-        vm_restore();
-        stack[A] = temp;
+    VM_OP(JOP_NEXT) {
+        Janet ds = stack[B];
+        Janet key = stack[C];
+        int32_t index = -1;
+        /* Stays -1 when ds is neither an array nor a tuple */
+        int32_t len = -1;
+        if (janet_checktype(ds, JANET_ARRAY)) {
+            len = janet_unwrap_array(ds)->count;
+        } else if (janet_checktype(ds, JANET_TUPLE)) {
+            len = janet_tuple_length(janet_unwrap_tuple(ds));
+        }
+        if (len >= 0 && (janet_checktype(key, JANET_NIL) || vm_seq_index(key, len, &index))) {
+            int32_t next = index + 1;
+            stack[A] = next < len ? janet_wrap_integer(next) : janet_wrap_nil();
+            vm_pcnext();
+        } else {
+            vm_commit();
+            Janet temp = janet_next_impl(ds, key, 1);
+            vm_restore();
+            stack[A] = temp;
+            vm_pcnext();
+        }
     }
-    vm_pcnext();
 
     VM_OP(JOP_LOAD_NIL)
     stack[D] = janet_wrap_nil();
@@ -1191,40 +1267,45 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     fiber->flags &= ~JANET_FIBER_RESUME_NO_USEVAL;
     vm_checkgc_pcnext();
 
-    VM_OP(JOP_PUT_INDEX)
-    vm_commit();
-    fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL;
-    janet_putindex(stack[A], C, stack[B]);
-    stack = fiber->data + fiber->frame;
-    fiber->flags &= ~JANET_FIBER_RESUME_NO_USEVAL;
-    vm_checkgc_pcnext();
+    VM_OP(JOP_PUT_INDEX) {
+        Janet ds = stack[A];
+        if (janet_checktype(ds, JANET_ARRAY) && (int32_t) C < janet_unwrap_array(ds)->count) {
+            janet_unwrap_array(ds)->data[C] = stack[B];
+            vm_pcnext();
+        } else {
+            vm_commit();
+            fiber->flags |= JANET_FIBER_RESUME_NO_USEVAL;
+            janet_putindex(ds, C, stack[B]);
+            stack = fiber->data + fiber->frame;
+            fiber->flags &= ~JANET_FIBER_RESUME_NO_USEVAL;
+            vm_checkgc_pcnext();
+        }
+    }
 
     VM_OP(JOP_IN)
-    vm_commit();
-    {
-        Janet a = janet_in(stack[B], stack[C]);
-        stack = fiber->data + fiber->frame;
-        stack[A] = a;
-    }
-    vm_pcnext();
+    vm_getop(janet_in);
 
     VM_OP(JOP_GET)
-    vm_commit();
-    {
-        Janet a = janet_get(stack[B], stack[C]);
-        stack = fiber->data + fiber->frame;
-        stack[A] = a;
-    }
-    vm_pcnext();
+    vm_getop(janet_get);
 
-    VM_OP(JOP_GET_INDEX)
-    vm_commit();
-    {
-        Janet a = janet_getindex(stack[B], C);
-        stack = fiber->data + fiber->frame;
-        stack[A] = a;
+    VM_OP(JOP_GET_INDEX) {
+        Janet ds = stack[B];
+        if (janet_checktype(ds, JANET_ARRAY)) {
+            JanetArray *array = janet_unwrap_array(ds);
+            stack[A] = (int32_t) C < array->count ? array->data[C] : janet_wrap_nil();
+            vm_pcnext();
+        } else if (janet_checktype(ds, JANET_TUPLE)) {
+            const Janet *tuple = janet_unwrap_tuple(ds);
+            stack[A] = (int32_t) C < janet_tuple_length(tuple) ? tuple[C] : janet_wrap_nil();
+            vm_pcnext();
+        } else {
+            vm_commit();
+            Janet a = janet_getindex(ds, C);
+            stack = fiber->data + fiber->frame;
+            stack[A] = a;
+            vm_pcnext();
+        }
     }
-    vm_pcnext();
 
     VM_OP(JOP_LENGTH)
     vm_commit();
