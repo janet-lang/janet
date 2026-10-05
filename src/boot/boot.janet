@@ -5024,6 +5024,7 @@
    "-list" "L"
    "-prune" "P"
    "-lint-warn" "w"
+   "-bundle-hook" "z"
    "-lint-error" "x"})
 
 (defn- apply-color
@@ -5104,6 +5105,7 @@
                --update-all (-U)       : Reinstall all installed bundles
                --prune (-P)            : Uninstall all bundles that are orphaned
                --list (-L)             : List all installed bundles
+               --do-hook (-z) hooks... : Manually execute software lifecycle hooks from the ./bundle module
                --                      : Stop handling options
              ```)
            (os/exit 0)
@@ -5135,6 +5137,12 @@
            (import* (in args (+ i 1))
                     :prefix "" :exit exit-on-error)
            2)
+     "z" (fn :z-switch [i &]
+           (set no-file false)
+           (import* "./bundle" :prefix "" :exit exit-on-error)
+           (for i (inc i) (length args)
+             (eval [(symbol (get args i))]))
+           math/inf)
      "t" (fn :t-switch [i &]
            (set should-repl false)
            (set no-file false)
