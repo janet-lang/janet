@@ -50,7 +50,8 @@
 
 # 5c364e0
 (defn check-jdn [x]
-  (assert (deep= (parse (string/format "%j" x)) x) "round trip jdn"))
+  (assert (true? (first (protect (deep= (parse (string/format "%j" x)) x))))
+          (string/format "round trip jdn: %n" x)))
 
 (check-jdn 0)
 (check-jdn nil)
@@ -60,6 +61,13 @@
 (check-jdn 12837192371923)
 (check-jdn "a string")
 (check-jdn @"a buffer")
+# Issue 1899
+(check-jdn -258:s)
+(check-jdn 3_141_592:u)
+
+# Issue 1899
+(assert-error "non-inttype abstract should fail"
+              (string/format "%j" (peg/compile 1)))
 
 # Issue 1737
 (assert (deep= "@[]" (string/format "%M" @[])))
