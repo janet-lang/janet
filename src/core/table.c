@@ -216,8 +216,8 @@ void janet_table_put(JanetTable *t, Janet key, Janet value) {
         } else {
             if (NULL == bucket || 2 * (t->count + t->deleted + 1) > t->capacity) {
                 janet_table_rehash(t, janet_tablen(2 * t->count + 2));
+                bucket = janet_table_find(t, key);
             }
-            bucket = janet_table_find(t, key);
             if (janet_checktype(bucket->value, JANET_BOOLEAN))
                 --t->deleted;
             bucket->key = key;
@@ -235,8 +235,8 @@ static void janet_table_put_no_overwrite(JanetTable *t, Janet key, Janet value) 
         return;
     if (NULL == bucket || 2 * (t->count + t->deleted + 1) > t->capacity) {
         janet_table_rehash(t, janet_tablen(2 * t->count + 2));
+        bucket = janet_table_find(t, key);
     }
-    bucket = janet_table_find(t, key);
     if (janet_checktype(bucket->value, JANET_BOOLEAN))
         --t->deleted;
     bucket->key = key;

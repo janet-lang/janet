@@ -46,19 +46,9 @@ JanetKV *janet_struct_begin(int32_t count) {
     return st;
 }
 
-/* Find an item in a struct without looking for prototypes. Should be similar to janet_dict_find, but
- * specialized to structs (slightly more compact). */
-const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
-    int32_t cap = janet_struct_capacity(st);
-    int32_t index = janet_maphash(cap, janet_hash(key));
-    int32_t i;
-    for (i = index; i < cap; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_key_equals(st[i].key, key))
-            return st + i;
-    for (i = 0; i < index; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_key_equals(st[i].key, key))
-            return st + i;
-    return NULL;
+/* Find an item in a struct without looking for prototypes. */
+ const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
+    return janet_dict_find(st, janet_struct_capacity(st), key);
 }
 
 /* Put a kv pair into a struct that has not yet been fully constructed.

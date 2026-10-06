@@ -77,24 +77,6 @@ uint32_t janet_hash_mix(uint32_t input, uint32_t more);
 #define janet_bitwise_same(x, y) ((x).type == (y).type && janet_u64(x) == janet_u64(y))
 #endif
 
-/* Compare a stored key with a lookup key. Most types are equal only when bitwise identical, so
- * janet_equals only runs for zero (since 0.0 and -0.0 are equal), strings, tuples, structs and abstract
- * types. NaN is never stored as a key, so we skip it. */
-static inline int janet_key_equals(Janet stored, Janet key) {
-    if (janet_bitwise_same(stored, key)) return 1;
-    switch (janet_type(key)) {
-        case JANET_NUMBER:
-            return janet_unwrap_number(key) == 0 && janet_equals(stored, key);
-        case JANET_STRING:
-        case JANET_TUPLE:
-        case JANET_STRUCT:
-        case JANET_ABSTRACT:
-            return janet_equals(stored, key);
-        default:
-            return 0;
-    }
-}
-
 int janet_valid_utf8(const uint8_t *str, int32_t len);
 
 int janet_is_symbol_char(uint8_t c);
@@ -113,7 +95,38 @@ void safe_memcpy(void *dest, const void *src, size_t len);
 
 void janet_buffer_push_types(JanetBuffer *buffer, int types);
 
-const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key);
+const JanetKV *janet_dict_find_deep(const JanetKV *buckets, int32_t cap, Janet key);
+
+/* Helper to find a value in a Janet struct or table. Returns the bucket
+ * containing the key, or the first empty bucket if there is no such key.
+ * Most types are equal only when bitwise identical, so we can probe them
+ * without calling janet_equals. Zero (since 0.0 and -0.0 are equal), strings,
+ * tuples, structs and abstract types go to janet_dict_find_deep, nil too
+ * as it's bitwise identical to an empty bucket's key. NaN is never
+ * stored as a key. */
+static inline const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
+    int32_t hash;
+    if (janet_checktype(key, JANET_KEYWORD) || janet_checktype(key, JANET_SYMBOL)) {
+        hash = janet_string_hash(janet_unwrap_string(key));
+    } else if (janet_checktypes(key, JANET_TFLAG_NIL | JANET_TFLAG_STRING | JANET_TFLAG_TUPLE | JANET_TFLAG_STRUCT | JANET_TFLAG_ABSTRACT) ||
+               (janet_checktype(key, JANET_NUMBER) && janet_unwrap_number(key) == 0)) {
+        return janet_dict_find_deep(buckets, cap, key);
+    } else {
+        hash = janet_hash(key);
+    }
+    uint32_t mask = (uint32_t) cap - 1;
+    uint32_t i = (uint32_t) hash & mask;
+    const JanetKV *first_bucket = NULL;
+    for (int32_t n = 0; n < cap; n++, i = (i + 1) & mask) {
+        const JanetKV *kv = buckets + i;
+        if (janet_bitwise_same(kv->key, key)) return kv;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) return kv;
+            if (NULL == first_bucket) first_bucket = kv;
+        }
+    }
+    return first_bucket;
+}
 
 void janet_memempty(JanetKV *mem, int32_t count);
 
