@@ -47,7 +47,7 @@ JanetKV *janet_struct_begin(int32_t count) {
 }
 
 /* Find an item in a struct without looking for prototypes. */
- const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
+const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
     return janet_dict_find(st, janet_struct_capacity(st), key);
 }
 

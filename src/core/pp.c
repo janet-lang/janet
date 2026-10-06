@@ -44,7 +44,7 @@
 #define STR(x) STR_HELPER(x)
 
 static void number_to_string_b(JanetBuffer *buffer, double x) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
+    janet_buffer_extra(buffer, BUFSIZE);
     const char *fmt = (x == floor(x) &&
                        x <= JANET_INTMAX_DOUBLE &&
                        x >= JANET_INTMIN_DOUBLE) ? "%.0f" : ("%." STR(DBL_DIG) "g");
@@ -104,7 +104,7 @@ static int32_t integer_to_string_b(JanetBuffer *buffer, int32_t x) {
 /* Returns a string description for a pointer. Truncates
  * title to 32 characters */
 static void string_description_b(JanetBuffer *buffer, const char *title, void *pointer) {
-    janet_buffer_ensure(buffer, buffer->count + BUFSIZE, 2);
+    janet_buffer_extra(buffer, BUFSIZE);
     uint8_t *c = buffer->data + buffer->count;
     int32_t i;
     union {
@@ -212,7 +212,9 @@ static void janet_escape_string_b(JanetBuffer *buffer, const uint8_t *str) {
 static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
     if (bx == buffer) {
         /* Ensures buffer won't resize while escaping */
-        janet_buffer_ensure(bx, bx->count + 5 * bx->count + 3, 1);
+        int64_t new_size = 6 * (int64_t) bx->count + 3;
+        if (new_size > INT32_MAX) janet_panic("buffer overflow");
+        janet_buffer_ensure(bx, (int32_t) new_size, 1);
     }
     janet_buffer_push_u8(buffer, '@');
     janet_escape_string_impl(buffer, bx->data, bx->count);
@@ -397,7 +399,7 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             janet_description_b(S->buffer, x);
             break;
         case JANET_NUMBER:
-            janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
+            janet_buffer_extra(S->buffer, BUFSIZE);
             double num = janet_unwrap_number(x);
             if (isnan(num)) return 1;
             if (isinf(num)) return 1;
@@ -632,7 +634,9 @@ static void janet_pretty_one(struct pretty *S, Janet x) {
                 janet_buffer_push_cstring(S->buffer, color);
             }
             if (janet_checktype(x, JANET_BUFFER) && janet_unwrap_buffer(x) == S->buffer) {
-                janet_buffer_ensure(S->buffer, S->buffer->count + S->bufstartlen * 4 + 3, 1);
+                int64_t new_size = (int64_t) S->buffer->count + S->bufstartlen * 4 + 3;
+                if (new_size > INT32_MAX) janet_panic("buffer overflow");
+                janet_buffer_ensure(S->buffer, (int32_t) new_size, 1);
                 janet_buffer_push_u8(S->buffer, '@');
                 /* Use start len to print to self better */
                 S->align += 1 + janet_escape_string_impl(S->buffer, S->buffer->data, S->bufstartlen);
