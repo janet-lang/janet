@@ -7,6 +7,8 @@
 ###
 ###
 
+(setdyn :optimize 1)
+
 (def defn :macro :flycheck
   ```
   (defn name & more)
@@ -49,10 +51,12 @@
   (apply defn name :macro more))
 
 (defmacro as-macro
-  ``Use a function or macro literal `f` as a macro. This lets
-  any function be used as a macro. Inside a quasiquote, the
-  idiom `(as-macro ,my-custom-macro arg1 arg2...)` can be used
-  to avoid unwanted variable capture of `my-custom-macro`.``
+  ``
+  Use a function or macro literal `f` as a macro. This allows any
+  function to be used as a macro. Inside a quasiquote, the idiom
+  `(as-macro ,my-custom-macro arg1 arg2...)` can be used to avoid
+  unwanted variable capture of `my-custom-macro`.
+  ``
   [f & args]
   (f ;args))
 
@@ -137,11 +141,11 @@
 (defn dec "Returns x - 1." [x] (- x 1))
 (defmacro ++ "Increments the var x by 1." [x] ~(set ,x (,+ ,x ,1)))
 (defmacro -- "Decrements the var x by 1." [x] ~(set ,x (,- ,x ,1)))
-(defmacro += "Increments the var x by n." [x & ns] ~(set ,x (,+ ,x ,;ns)))
-(defmacro -= "Decrements the var x by n." [x & ns] ~(set ,x (,- ,x ,;ns)))
-(defmacro *= "Shorthand for (set x (\\* x n))." [x & ns] ~(set ,x (,* ,x ,;ns)))
-(defmacro /= "Shorthand for (set x (/ x n))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
-(defmacro %= "Shorthand for (set x (% x n))." [x & ns] ~(set ,x (,% ,x ,;ns)))
+(defmacro += "Shorthand for (set x (+ x ;ns))." [x & ns] ~(set ,x (,+ ,x ,;ns)))
+(defmacro -= "Shorthand for (set x (- x ;ns))." [x & ns] ~(set ,x (,- ,x ,;ns)))
+(defmacro *= "Shorthand for (set x (* x ;ns))." [x & ns] ~(set ,x (,* ,x ,;ns)))
+(defmacro /= "Shorthand for (set x (/ x ;ns))." [x & ns] ~(set ,x (,/ ,x ,;ns)))
+(defmacro %= "Shorthand for (set x (% x ;ns))." [x & ns] ~(set ,x (,% ,x ,;ns)))
 
 (defmacro assert :flycheck # should top level assert flycheck?
   "Throw an error if x is not truthy. Will not evaluate `err` if x is truthy."
@@ -177,7 +181,7 @@
   "The current lint error level. The error level is the lint level at which compilation will exit with an error and not continue.")
 
 (defdyn *lint-warn*
-  "The current lint warning level. The warning level is the lint level at which and error will be printed but compilation will continue as normal.")
+  "The current lint warning level. The warning level is the lint level at which an error will be printed but compilation will continue as normal.")
 
 (defdyn *lint-levels*
   "A table of keyword alias to numbers denoting a lint level. Can be used to provided custom aliases for numeric lint levels.")
@@ -242,33 +246,37 @@
   ~(if ,condition nil (do ,;body)))
 
 (defmacro cond
-  `Evaluates conditions sequentially until the first true condition
-  is found, and then executes the corresponding body. If there are an
-  odd number of forms, and no forms are matched, the last expression
-  is executed. If there are no matches, returns nil.`
-  [& pairs]
+  ``
+  Evaluates conditions sequentially until the first true condition is
+  found, and then executes the corresponding body. If there are an odd
+  number of forms, and no forms are matched, the last expression is
+  executed. If there are no matches, returns nil.
+  ``
+  [& clauses]
   (defn aux [i]
-    (def restlen (- (length pairs) i))
+    (def restlen (- (length clauses) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (in pairs i)
-        (tuple 'if (in pairs i)
-               (in pairs (+ i 1))
+      (if (= restlen 1) (in clauses i)
+        (tuple 'if (in clauses i)
+               (in clauses (+ i 1))
                (aux (+ i 2))))))
   (aux 0))
 
 (defmacro case
-  ``Select the body that equals the dispatch value. When `pairs`
-  has an odd number of elements, the last is the default expression.
-  If no match is found, returns nil.``
-  [dispatch & pairs]
+  ``
+  Select the body that equals the `dispatch` value. When `clauses` has
+  an odd number of elements, the last is the default expression. If no
+  match is found, returns nil.
+  ``
+  [dispatch & clauses]
   (def atm (idempotent? dispatch))
   (def sym (if atm dispatch (gensym)))
   (defn aux [i]
-    (def restlen (- (length pairs) i))
+    (def restlen (- (length clauses) i))
     (if (= restlen 0) nil
-      (if (= restlen 1) (in pairs i)
-        (tuple 'if (tuple = sym (in pairs i))
-               (in pairs (+ i 1))
+      (if (= restlen 1) (in clauses i)
+        (tuple 'if (tuple = sym (in clauses i))
+               (in clauses (+ i 1))
                (aux (+ i 2))))))
   (if atm
     (aux 0)
@@ -1498,6 +1506,7 @@
 (defdyn *exit* "When set, will cause the current context to complete. Can be set to exit from repl (or file), for example.")
 (defdyn *exit-value* "Set the return value from `run-context` upon an exit.")
 (defdyn *task-id* "When spawning a thread or fiber, the task-id can be assigned for concurrency control.")
+(defdyn *optimize* "Set optimization level for the the `compile` function. Default is 0, and higher integer levels will enable more optimization.")
 
 (defdyn *current-file*
   "Bound to the name of the currently compiling file.")
@@ -1779,7 +1788,7 @@
   only one of those values will become a key in the returned table.
 
   `x` can be a bytes, indexed, dictionary, or abstract type with a
-  `suitable next` method.
+  suitable `next` method.
   ``
   [x]
   (def ret @{})
@@ -1788,8 +1797,14 @@
   ret)
 
 (defn zipcoll
-  `Creates a table from two arrays/tuples.
-  Returns a new table.`
+  ``
+  Creates a table from `ks` and `vs` by pairing values at the same
+  index from each. If `ks` or `vs` has more values than the other, the
+  extra values are ignored. Returns a new table.
+
+  `ks` and `vs` can by bytes, indexed, fibers, or abstract types with
+  suitable `get` and `next` methods.
+  ``
   [ks vs]
   (def res @{})
   (var kk nil)
@@ -1851,7 +1866,7 @@
 
 (defn put-in
   ``
-  Use the keys `ks` to put a value `v` into a nested spot in
+  Use the keys `ks` to put a value `val` into a nested spot in
   `x`. Missing spots will be replaced with tables. Returns `x`
   modified.
 
@@ -1861,7 +1876,7 @@
   `ks` can be an indexed or abstract type with suitable `get` and
   `length` methods.
   ``
-  [x ks v]
+  [x ks val]
   (var d x)
   (def len-1 (- (length ks) 1))
   (if (< len-1 0) (error "expected at least 1 key in ks"))
@@ -1875,7 +1890,7 @@
       (set d v)))
   (def last-key (get ks len-1))
   (def last-val (get d last-key))
-  (put d last-key v)
+  (put d last-key val)
   x)
 
 (defn update
@@ -2086,17 +2101,17 @@
 
 (defn interpose
   ``
-  Returns an array of the values of `x` separated by `sep`.
+  Returns an array of the values of `x` separated by `val`.
 
   `x` can be a bytes, indexed, fiber or abstract type with suitable
   `get` and `next` methods.
   ``
-  [sep x]
+  [val x]
   (var k (next x nil))
   (if (not= nil k)
     (if (lengthable? x)
       (do
-        (def ret (array/new-filled (- (* 2 (length x)) 1) sep))
+        (def ret (array/new-filled (- (* 2 (length x)) 1) val))
         (var i 0)
         (while (not= nil k)
           (put ret i (in x k))
@@ -2106,7 +2121,7 @@
       (do
         (def ret @[(in x k)])
         (while (not= nil (set k (next x k)))
-          (array/push ret sep (in x k)))
+          (array/push ret val (in x k)))
         ret))
     @[]))
 
@@ -2156,12 +2171,12 @@
   contents)
 
 (defn spit
-  ``Write `contents` to a file at `path`. Can optionally append to the file.``
-  [path contents &opt mode]
+  ``Write `bytes` to a file at `path`. Can optionally append to the file.``
+  [path bytes &opt mode]
   (default mode :wb)
   (def f (file/open path mode))
   (if-not f (error (string "could not open file " path " with mode " mode)))
-  (file/write f contents)
+  (file/write f bytes)
   (file/close f)
   nil)
 
@@ -3273,12 +3288,12 @@
     (x path)))
 
 (defn module/find
-  ```
-  Try to match a module or path name from the patterns in `module/paths`.
-  Returns a tuple (fullpath kind) where the kind is one of :source, :native,
-  or :image if the module is found, otherwise a tuple with nil followed by
-  an error message.
-  ```
+  ``
+  Try to match a module or path name from the patterns in
+  `module/paths`.  Returns a tuple `[fullpath kind]` where the kind is
+  one of `:source`, `:native`, or `:image` if the module is found,
+  otherwise a tuple with nil followed by an error message.
+  ``
   [path &opt find-all]
   (var ret nil)
   (def mp (dyn *module-paths* module/paths))
@@ -3331,14 +3346,16 @@
 (var- debugger-on-status-var nil)
 
 (defn debugger
-  "Run a repl-based debugger on a fiber. Optionally pass in a level
-  to differentiate nested debuggers."
-  [fiber &opt level]
+  ``
+  Run a repl-based debugger on a fiber `fib`. Optionally pass in a level to
+  differentiate nested debuggers.
+  ``
+  [fib &opt level]
   (default level 1)
-  (def nextenv (make-env (fiber/getenv fiber)))
-  (put nextenv :fiber fiber)
+  (def nextenv (make-env (fiber/getenv fib)))
+  (put nextenv :fiber fib)
   (put nextenv :debug-level level)
-  (put nextenv :signal (fiber/last-value fiber))
+  (put nextenv :signal (fiber/last-value fib))
 
   (merge-into nextenv debugger-env)
   (defn debugger-chunks [buf p]
@@ -3604,7 +3621,7 @@
   (def delimiters
     (if has-color
       {:code ["\e[97m" "\e[39m"]
-       :italics ["\e[4m" "\e[24m"]
+       :italics ["\e[3m" "\e[23m"]
        :bold ["\e[1m" "\e[22m"]}
       {:code ["`" "`"]
        :italics ["*" "*"]
@@ -3920,12 +3937,15 @@
     (print-index identity)))
 
 (defmacro doc
-  ``Shows documentation for the given symbol, or can show a list of available bindings.
-  If `sym` is a symbol, will look for documentation for that symbol. If `sym` is a string
-  or is not provided, will show all lexical and dynamic bindings in the current environment
-  containing that string (all bindings will be shown if no string is given).``
-  [&opt sym]
-  ~(,doc* ',sym))
+  ``
+  Shows documentation for `what` or lists binding names. If `what` is
+  a symbol, shows documentation for that symbol. If `what` is a
+  string, shows all lexical and dynamic binding names in the current
+  environment containing the string. If `what` is not provided, shows
+  all binding names.
+  ``
+  [&opt what]
+  ~(,doc* ',what))
 
 (defn doc-of
   `Searches all loaded modules in module/cache for a given binding and prints out its documentation.
@@ -4180,7 +4200,7 @@
   (defmacro ev/spawn
     ``
     Run some code in a new task fiber. This is shorthand for
-    `(ev/go (fn [] ;body))`."
+    `(ev/go (fn [] ;body))`.
     ``
     [& body]
     ~(,ev/go (fn :spawn [&] ,;body)))
@@ -4285,16 +4305,21 @@
 (compwhen (dyn 'net/listen)
   (defn net/server
     ``
-    Starts a server with `net/listen`. Runs `net/accept-loop` asynchronously if
-    `handler` is set and `type` is `:stream` (the default). It is invalid to set
-    `handler` if `type` is `:datagram`. Returns the new server stream.
+    Starts a server with `net/listen`. Runs `net/accept-loop`
+    asynchronously if `handler` is set and `cntype` is `:stream` (the
+    default). It is invalid to set `handler` if `cntype` is
+    `:datagram`. Returns the new server stream.
     ``
-    [host port &opt handler type no-reuse]
-    (assert (not (and (= type :datagram) handler))
+    [host port &opt handler cntype no-reuse]
+    (assert (not (and (= cntype :datagram) handler))
             "handler not supported for :datagram servers")
-    (def s (net/listen host port type no-reuse))
-    (if handler
-      (ev/go (fn :net/server-handler [] (net/accept-loop s handler))))
+    (def s (net/listen host port cntype no-reuse))
+    (when handler
+      (ev/go (fn :net/server-handler [] (net/accept-loop s handler)))
+      # Ensure accept-loop has started before returning. Not completely needed, but avoids
+      # the possibility of closing `s` before `net/accept-loop` runs
+      # and getting an annoying error print from `:net/server-handler`
+      (ev/sleep 0))
     s))
 
 ###
@@ -4322,7 +4347,7 @@
 
 (compwhen (dyn 'ffi/native)
 
-  (defdyn *ffi-context* " Current native library for ffi/bind and other settings")
+  (defdyn *ffi-context* "Current native library for `ffi/defbind` and other settings")
 
   (defn- default-mangle
     [name &]
@@ -4344,8 +4369,8 @@
 
   (defmacro ffi/defbind-alias :flycheck
     "Generate bindings for native functions in a convenient manner.
-     Similar to defbind but allows for the janet function name to be
-     different than the FFI function."
+     Similar to `ffi/defbind` but allows for the janet function name
+     to be different than the FFI function."
     [name alias ret-type & body]
     (def real-ret-type (eval ret-type))
     (def meta (slice body 0 -2))
@@ -4999,6 +5024,7 @@
    "-list" "L"
    "-prune" "P"
    "-lint-warn" "w"
+   "-bundle-hook" "z"
    "-lint-error" "x"})
 
 (defn- apply-color
@@ -5056,7 +5082,7 @@
                --help (-h)             : Show this help
                --version (-v)          : Print the version string
                --stdin (-s)            : Use raw stdin instead of getline like functionality
-               --eval (-e) code        : Execute a string of janet
+               --eval (-e) code        : Evaluate some code for side effects
                --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
                --debug (-d)            : Set the debug flag in the REPL
                --repl (-r)             : Enter the REPL after running all scripts
@@ -5079,6 +5105,7 @@
                --update-all (-U)       : Reinstall all installed bundles
                --prune (-P)            : Uninstall all bundles that are orphaned
                --list (-L)             : List all installed bundles
+               --do-hook (-z) hooks... : Manually execute software lifecycle hooks from the ./bundle module
                --                      : Stop handling options
              ```)
            (os/exit 0)
@@ -5110,6 +5137,14 @@
            (import* (in args (+ i 1))
                     :prefix "" :exit exit-on-error)
            2)
+     "z" (fn :z-switch [i &]
+           (set no-file false)
+           (def m (require "./bundle" :exit exit-on-error))
+           (for j (inc i) (length args)
+             (def hook (module/value m (symbol (get args j))))
+             (unless hook (errorf "no hook found for %V" (get args j)))
+             (hook))
+           math/inf)
      "t" (fn :t-switch [i &]
            (set should-repl false)
            (set no-file false)
@@ -5215,6 +5250,8 @@
 ### Bootstrap
 ###
 ###
+
+(setdyn :optimize nil)
 
 (do
 

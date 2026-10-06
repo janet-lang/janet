@@ -287,9 +287,9 @@ void safe_memcpy(void *dest, const void *src, size_t len) {
     memcpy(dest, src, len);
 }
 
-/* Helper to find a value in a Janet struct or table. Returns the bucket
- * containing the key, or the first empty bucket if there is no such key. */
-const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
+/* Helper to find a value in a Janet struct or table like janet_dict_find, for keys
+ * equaling stored key that is not bitwise identical to it. */
+const JanetKV *janet_dict_find_deep(const JanetKV *buckets, int32_t cap, Janet key) {
     int32_t index = janet_maphash(cap, janet_hash(key));
     int32_t i;
     const JanetKV *first_bucket = NULL;
@@ -302,7 +302,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (janet_equals(kv->key, key)) {
+        } else if (janet_bitwise_same(kv->key, key) || janet_equals(kv->key, key)) {
             return buckets + i;
         }
     }
@@ -315,7 +315,7 @@ const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
             } else if (NULL == first_bucket) {
                 first_bucket = kv;
             }
-        } else if (janet_equals(kv->key, key)) {
+        } else if (janet_bitwise_same(kv->key, key) || janet_equals(kv->key, key)) {
             return buckets + i;
         }
     }

@@ -669,7 +669,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
     vm_pcnext();
 
     VM_OP(JOP_ERROR)
-    vm_return(JANET_SIGNAL_ERROR, stack[A]);
+    vm_return(JANET_SIGNAL_ERROR, stack[D]);
 
     VM_OP(JOP_TYPECHECK)
     vm_assert_types(stack[A], E);

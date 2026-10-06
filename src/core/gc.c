@@ -596,6 +596,9 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
+    if (janet_vm.top_dyns) {
+        janet_mark(janet_wrap_table(janet_vm.top_dyns));
+    }
     if (janet_vm.root_fiber != NULL) { /* Can be NULL if janet_collect called outside of interpreter loop */
         janet_mark_fiber(janet_vm.root_fiber);
     }
@@ -646,9 +649,9 @@ static int janet_gc_idequals(Janet lhs, Janet rhs) {
 /* Remove a root value from the GC. This allows the gc to potentially reclaim
  * a value and all its children. */
 int janet_gcunroot(Janet root) {
-    Janet *vtop = janet_vm.roots + janet_vm.root_count;
     /* Search from top to bottom as access is most likely LIFO */
-    for (Janet *v = janet_vm.roots; v < vtop; v++) {
+    for (Janet *v = janet_vm.roots + janet_vm.root_count; v > janet_vm.roots;) {
+        v--;
         if (janet_gc_idequals(root, *v)) {
             *v = janet_vm.roots[--janet_vm.root_count];
             return 1;
@@ -659,13 +662,12 @@ int janet_gcunroot(Janet root) {
 
 /* Remove a root value from the GC. This sets the effective reference count to 0. */
 int janet_gcunrootall(Janet root) {
-    Janet *vtop = janet_vm.roots + janet_vm.root_count;
     int ret = 0;
     /* Search from top to bottom as access is most likely LIFO */
-    for (Janet *v = janet_vm.roots; v < vtop; v++) {
+    for (Janet *v = janet_vm.roots + janet_vm.root_count; v > janet_vm.roots;) {
+        v--;
         if (janet_gc_idequals(root, *v)) {
             *v = janet_vm.roots[--janet_vm.root_count];
-            vtop--;
             ret = 1;
         }
     }

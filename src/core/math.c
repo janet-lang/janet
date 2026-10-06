@@ -149,9 +149,10 @@ JANET_CORE_FN(cfun_rng_uniform,
 }
 
 JANET_CORE_FN(cfun_rng_int,
-              "(math/rng-int rng &opt max)",
-              "Extract a random integer in the range [0, max) for max > 0 from the RNG.  "
-              "If max is 0, return 0.  If no max is given, the default is 2^31 - 1."
+              "(math/rng-int rng &opt lim)",
+              "Get a random integer in the range [0, `lim`) for a positive "
+              "integer `lim` using the RNG `rng`. If `lim` not given, the "
+              "default is 2^31 - 1."
              ) {
     janet_arity(argc, 1, 2);
     JanetRNG *rng = janet_getabstract(argv, 0, &janet_rng_type);
@@ -354,7 +355,7 @@ JANET_CORE_FN(janet_cfun_lcm, "(math/lcm x y)",
 }
 
 JANET_CORE_FN(janet_cfun_frexp, "(math/frexp x)",
-              "Returns a tuple of (mantissa, exponent) from number.") {
+              "Returns a tuple of `[mantissa exponent]` from a number `x`.") {
     janet_fixarity(argc, 1);
     double x = janet_getnumber(argv, 0);
     int exp;

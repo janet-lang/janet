@@ -79,5 +79,13 @@ int system_test() {
 
     assert(janet_equals(tuple1, tuple2));
 
+    /* System test for GC bug #1888 */
+    JanetTable *env = janet_core_env(NULL);
+    janet_setdyn("probe", janet_wrap_integer(42));
+    assert(!janet_dostring(env, "(gccollect)", "gc", NULL));
+    Janet value = janet_dyn("probe");
+    assert(janet_checktype(value, JANET_NUMBER));
+    assert(janet_unwrap_integer(value) == 42);
+
     return 0;
 }

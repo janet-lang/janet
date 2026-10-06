@@ -28,6 +28,7 @@
 #include "vector.h"
 #include "util.h"
 #include "state.h"
+#include "regalloc.h"
 #endif
 
 JanetFopts janetc_fopts_default(JanetCompiler *c) {
@@ -404,7 +405,12 @@ found:
         return ret;
 
     /* Unused references and locals shouldn't add captured envs. */
-    if (unused || foundlocal) {
+    if (foundlocal) {
+        ret.envindex = -1;
+        return ret;
+    }
+    if (unused) {
+        ret.index = 0; /* we must have at least 1 slot if we are calling resolve in scope */
         ret.envindex = -1;
         return ret;
     }
@@ -603,6 +609,24 @@ void janetc_throwaway(JanetFopts opts, Janet x) {
     }
 }
 
+static int function_can_inline(JanetFopts opts, JanetFunction *func, JanetSlot *slots) {
+    JanetFuncDef *def = func->def;
+    /* TODO - hoist this check to a flag on the func def */
+    if (opts.compiler->optimize < 2) return 0;
+    if (def->environments_length) return 0;
+    if (def->defs_length) return 0;
+    if (def->slotcount > 32) return 0;
+    if (def->bytecode_length > 40) return 0;
+    if (def->flags & (JANET_FUNCDEF_FLAG_NAMEDARGS | JANET_FUNCDEF_FLAG_STRUCTARG | JANET_FUNCDEF_FLAG_VARARG)) return 0;
+    if (janet_v_count(slots) != def->min_arity) return 0; /* TODO - optional arguments */
+    if (janet_v_count(slots) != def->max_arity) return 0;
+    /* Check for JOP_LOAD_SELF */
+    for (int32_t i = 0; i < def->bytecode_length; i++) {
+        if ((def->bytecode[i] & 0x7F) == JOP_LOAD_SELF) return 0;
+    }
+    return 1;
+}
+
 /* Compile a call or tailcall instruction */
 static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, const Janet *form) {
     JanetSlot retslot;
@@ -615,9 +639,76 @@ static JanetSlot janetc_call(JanetFopts opts, JanetSlot *slots, JanetSlot fun, c
             if (o && (!o->can_optimize || o->can_optimize(opts, slots))) {
                 specialized = 1;
                 retslot = o->optimize(opts, slots);
+            } else if (function_can_inline(opts, f, slots)) {
+                /* Function inlining */
+                int is_tail;
+                JanetSlot target;
+                if ((opts.flags & JANET_FOPTS_TAIL) &&
+                        /* Prevent top level tail calls for better errors */
+                        !(c->scope->flags & JANET_SCOPE_TOP)) {
+                    is_tail = 1;
+                } else {
+                    is_tail = 0;
+                }
+                /* contiguous chunk of fun->def->slotcount slots */
+                if (!is_tail) target = janetc_gettarget(opts);
+                int32_t nslots = f->def->slotcount;
+                int32_t slot_delta = janetc_regalloc_n(&c->scope->ra, nslots);
+                if (slot_delta + f->def->slotcount < 256) {
+                    /*janet_eprintf("inlining %V\n", janet_wrap_function(f));*/
+                    /* Limit inlining when too many slots */
+                    JanetScope *scope = c->scope;
+                    while (scope) {
+                        if (scope->flags & JANET_SCOPE_FUNCTION)
+                            break;
+                        scope = scope->parent;
+                    }
+                    /* Setup the function parameters */
+                    JanetSlot dest;
+                    dest.envindex = -1;
+                    dest.flags = JANET_SLOTTYPE_ANY;
+                    dest.constant = janet_wrap_nil();
+                    for (int32_t i = 0; i < janet_v_count(slots); i++) {
+                        dest.index = slot_delta + i;
+                        janetc_copy(c, dest, slots[i]);
+                    }
+
+                    /* Initialize other slots to nil just like in a normal function call */
+                    /* TODO - add pass to remove these if needed so we can add this back.
+                     * The current compiler doesn't rely on nil-initialization behavior but might in the future
+                     * (e.g. removing redundant ldn at the beginning of a function.
+                    for (int32_t i = janet_v_count(slots); i < nslots; i++) {
+                        janetc_emit(c, JOP_LOAD_NIL | ((uint32_t)(i + slot_delta) << 8));
+                    }
+                    */
+
+                    /* Do main inlining (patch the bytecode) */
+                    int32_t const_delta = janet_v_count(scope->consts); /* Get const delta _after_ moving slots. janetc_copy can add constants here! */
+                    uint32_t *insert_code = janet_bytecode_inline_chunk(f->def, is_tail ? -1 : target.index, slot_delta, const_delta);
+                    for (int32_t i = 0; i < janet_v_count(insert_code); i++) {
+                        /* TODO - better match up source code mapping - e.g. if inlined function
+                         * is from the same source file */
+                        janetc_emit(c, insert_code[i]);
+                    }
+                    /* Copy constants into our constants buffer */
+                    for (int32_t i = 0; i < f->def->constants_length; i++) {
+                        janet_v_push(scope->consts, f->def->constants[i]);
+                    }
+                    janet_v_free(insert_code);
+                    specialized = 1;
+                    if (is_tail) {
+                        retslot = janetc_cslot(janet_wrap_nil());
+                        retslot.flags = JANET_SLOT_RETURNED;
+                    } else {
+                        retslot = target;
+                    }
+                } else {
+                    /*janet_eprintf("inlining failed %V\n", janet_wrap_function(f));*/
+                    ;
+                }
+                janetc_regalloc_free_n(&c->scope->ra, slot_delta, nslots);
             }
         }
-        /* TODO janet function inlining (no c functions)*/
     }
     if (!specialized) {
         int32_t min_arity = janetc_pushslots(c, slots);
@@ -932,7 +1023,6 @@ JanetSlot janetc_value(JanetFopts opts, Janet x) {
                 } else {
                     /* Function calls */
                     JanetSlot head = janetc_value(subopts, tup[0]);
-                    subopts.flags = JANET_FUNCTION | JANET_CFUNCTION;
                     ret = janetc_call(opts, janetc_toslots(c, tup + 1, janet_tuple_length(tup) - 1), head, tup);
                     janetc_freeslot(c, head);
                 }
@@ -1002,7 +1092,7 @@ void janet_def_addflags(JanetFuncDef *def) {
 /* Compile a funcdef */
 /* Once the various other settings of the FuncDef have been tweaked,
  * call janet_def_addflags to set the proper flags for the funcdef */
-JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
+JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c, JanetString name) {
     JanetScope *scope = c->scope;
     JanetFuncDef *def = janet_funcdef_alloc();
     def->slotcount = scope->ra.max + 1;
@@ -1056,7 +1146,7 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Copy upvalue bitset */
     if (scope->ua.count) {
         /* Number of u32s we need to create a bitmask for all slots */
-        int32_t slotchunks = (def->slotcount + 31) >> 5;
+        int32_t slotchunks = ((def->slotcount - 1) >> 5) + 1;
         /* numchunks is min of slotchunks and scope->ua.count */
         int32_t numchunks = slotchunks > scope->ua.count ? scope->ua.count : slotchunks;
         uint32_t *chunks = janet_calloc(slotchunks, sizeof(uint32_t));
@@ -1130,11 +1220,20 @@ JanetFuncDef *janetc_pop_funcdef(JanetCompiler *c) {
     /* Pop the scope */
     janetc_popscope(c);
 
-    /* Do basic optimization */
-    janet_bytecode_movopt(def);
-    janet_bytecode_remove_noops(def);
+    /* Add a name _before_ optimization for debugging */
+    def->name = name;
+
+#ifdef JANET_DEBUG
+    janet_verify(def);
+#endif
 
     return def;
+}
+
+static int32_t to_optimization_level(Janet x) {
+    if (!janet_checkint(x)) return 0;
+    int32_t int_level = janet_unwrap_integer(x);
+    return int_level;
 }
 
 /* Initialize a compiler */
@@ -1149,6 +1248,7 @@ static void janetc_init(JanetCompiler *c, JanetTable *env, const uint8_t *where,
     c->current_mapping.column = -1;
     c->lints = lints;
     c->is_redef = janet_truthy(janet_table_get_keyword(c->env, "redef"));
+    c->optimize = to_optimization_level(janet_table_get_keyword(c->env, "optimize"));
     /* Init result */
     c->result.error = NULL;
     c->result.status = JANET_COMPILE_OK;
@@ -1186,9 +1286,9 @@ JanetCompileResult janet_compile_lint(Janet source,
     janetc_value(fopts, source);
 
     if (c.result.status == JANET_COMPILE_OK) {
-        JanetFuncDef *def = janetc_pop_funcdef(&c);
-        def->name = janet_cstring("thunk");
+        JanetFuncDef *def = janetc_pop_funcdef(&c, janet_cstring("thunk"));
         janet_def_addflags(def);
+        janet_bytecode_optimize(def, c.optimize);
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;
@@ -1205,14 +1305,17 @@ JanetCompileResult janet_compile(Janet source, JanetTable *env, const uint8_t *w
 }
 
 /* C Function for compiling */
-JANET_CORE_FN(cfun_compile,
-              "(compile ast &opt env source lints)",
-              "Compiles an Abstract Syntax Tree (ast) into a function. "
-              "Pair the compile function with parsing functionality to implement "
-              "eval. Returns a new function and does not modify ast. Returns an error "
-              "struct with keys :line, :column, and :error if compilation fails. "
-              "If a `lints` array is given, linting messages will be appended to the array. "
-              "Each message will be a tuple of the form `(level line col message)`.") {
+JANET_CORE_FN(cfun_compile, "(compile ast &opt env source lints)",
+              "Compiles an abstract syntax tree `ast` into a function. "
+              "Returns a new function and does not modify `ast`. If "
+              "compilation fails, returns an error struct with keys "
+              "`:line`, `:column`, and `:error`. If a table `env` is "
+              "given, specifies the environment of the fiber used during "
+              "compilation. Optional argument `source` is a string or "
+              "keyword that is a source path for better errors. If a "
+              "`lints` array is given, linting messages will be appended to "
+              "the array. Each message will be a tuple of the form `[level "
+              "line col message]`.") {
     janet_sandbox_assert(JANET_SANDBOX_COMPILE);
     janet_arity(argc, 1, 4);
     JanetTable *env = (argc > 1 && !janet_checktype(argv[1], JANET_NIL))

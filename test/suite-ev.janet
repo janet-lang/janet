@@ -23,8 +23,18 @@
 
 (setdyn *lint-warn* :none)
 
+(defn decide-test-host [port]
+  (if-let [host (os/getenv "JANET_TEST_HOST")]
+    host
+    (try
+      (let [s (net/listen "localhost." port)
+            [host _] (net/localname s)]
+        (net/close s)
+        host)
+      ([] "127.0.0.1"))))
+
 (def test-port (os/getenv "JANET_TEST_PORT" "8761"))
-(def test-host (os/getenv "JANET_TEST_HOST" "127.0.0.1"))
+(def test-host (decide-test-host test-port))
 
 # Subprocess
 # 5e1a8c86f
@@ -489,7 +499,7 @@
 (defn level-trigger-handling [conn &] (:close conn))
 (def s (assert (net/server test-host test-port level-trigger-handling)))
 (def c (assert (net/connect test-host test-port)))
-(:close s)
+(:close s) # closing s before net/server's accept loop starts.
 
 # Issue #1531 no. 2
 (def c (ev/chan 0))
@@ -630,5 +640,18 @@
     (string `"` x `"`)
     (string "'" x "'")))
 (assert (= 0 (os/shell (string/join [;run janet "-e" (shell-quote "(os/exit 0)")] " "))) "os/shell simple")
+
+# os/spawn and os/execute when program does not exist gives a normal error
+(def dne-path "this-long-binary-name-does-not-exist")
+(assert (nil? (os/stat dne-path :mode)) "binary path does not exist 1")
+(assert (let [[ok _result]
+              (protect
+                (let [process (os/spawn [dne-path] :p)]
+                  # if initial process launch works, it should at least fail with a non-zero exit code.
+                  (if-not (= 0 (:wait process))
+                    (error "should error"))))]
+          (not ok))
+        "binary path does not exist 2 - os/spawn")
+(assert (let [[ok _result] (protect (os/execute [dne-path] :px))] (not ok)) "binary path does not exist 2 - os/execute")
 
 (end-suite)

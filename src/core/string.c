@@ -172,12 +172,19 @@ static int32_t kmp_next(struct kmp_state *state) {
 
 JANET_CORE_FN(cfun_string_slice,
               "(string/slice bytes &opt start end)",
-              "Returns a substring from a byte sequence. The substring is from "
-              "index `start` inclusive to index `end`, exclusive. All indexing "
-              "is from 0. `start` and `end` can also be negative to indicate indexing "
-              "from the end of the string. Note that if `start` is negative it is "
-              "exclusive, and if `end` is negative it is inclusive, to allow a full "
-              "negative slice range.") {
+              "Returns a string based on a range of a byte "
+              "sequence `bytes`. The range is specified by "
+              "optional index arguments `start` and `end` "
+              "defaulting to 0 and the length of `bytes` "
+              "respectively. When non-negative, `start` is "
+              "inclusive and `end` is exclusive, i.e. [`start`, "
+              "`end`), and their values can range from 0 through "
+              "the length of `bytes`. When negative, `start` is "
+              "exclusive and `end` is inclusive, i.e. (`start`, "
+              "`end`], and their values can range from the "
+              "negative of one more than the length of `bytes` "
+              "through -1. If `start` or `end` is out of range, "
+              "an error is raised.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_stringv(view.bytes + range.start, range.end - range.start);
@@ -185,7 +192,7 @@ JANET_CORE_FN(cfun_string_slice,
 
 JANET_CORE_FN(cfun_symbol_slice,
               "(symbol/slice bytes &opt start end)",
-              "Same as string/slice, but returns a symbol.") {
+              "Same as `string/slice`, but returns a symbol.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_symbolv(view.bytes + range.start, range.end - range.start);
@@ -193,7 +200,7 @@ JANET_CORE_FN(cfun_symbol_slice,
 
 JANET_CORE_FN(cfun_keyword_slice,
               "(keyword/slice bytes &opt start end)",
-              "Same as string/slice, but returns a keyword.") {
+              "Same as `string/slice`, but returns a keyword.") {
     JanetByteView view = janet_getbytes(argv, 0);
     JanetRange range = janet_getslice(argc, argv);
     return janet_keywordv(view.bytes + range.start, range.end - range.start);
@@ -308,10 +315,11 @@ static void findsetup(int32_t argc, Janet *argv, struct kmp_state *s, int32_t ex
 }
 
 JANET_CORE_FN(cfun_string_find,
-              "(string/find patt str &opt start-index)",
+              "(string/find patt str &opt start)",
               "Searches for the first instance of pattern `patt` in string "
-              "`str`. Returns the index of the first character in `patt` if found, "
-              "otherwise returns nil.") {
+              "`str`. Returns the index of the first character in `patt` if "
+              "found, otherwise returns nil. Search begins from `start` if "
+              "provided.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
@@ -347,11 +355,13 @@ JANET_CORE_FN(cfun_string_hassuffix,
 }
 
 JANET_CORE_FN(cfun_string_findall,
-              "(string/find-all patt str &opt start-index)",
+              "(string/find-all patt str &opt start)",
               "Searches for all instances of pattern `patt` in string "
-              "`str`. Returns an array of all indices of found patterns. Overlapping "
-              "instances of the pattern are counted individually, meaning a byte in `str` "
-              "may contribute to multiple found patterns.") {
+              "`str`. Returns an array of all indices of found patterns. "
+              "Overlapping instances of the pattern are counted "
+              "individually, meaning a byte in `str` may contribute to "
+              "multiple found patterns. Search begins from `start` if "
+              "provided.") {
     int32_t result;
     struct kmp_state state;
     findsetup(argc, argv, &state, 0);
@@ -437,12 +447,13 @@ JANET_CORE_FN(cfun_string_replaceall,
 }
 
 JANET_CORE_FN(cfun_string_split,
-              "(string/split delim str &opt start limit)",
-              "Splits a string `str` with delimiter `delim` and returns an array of "
-              "substrings. The substrings will not contain the delimiter `delim`. If `delim` "
-              "is not found, the returned array will have one element. Will start searching "
-              "for `delim` at the index `start` (if provided), and return up to a maximum "
-              "of `limit` results (if provided).") {
+              "(string/split sep str &opt start limit)",
+              "Splits a string `str` with separator `sep` and returns an "
+              "array of substrings. The substrings will not contain `sep`. "
+              "If `sep` is not found, the returned array will have one "
+              "element. Will start searching for `sep` at the index `start` "
+              "(if provided), and return up to a maximum of `limit` results "
+              "(if provided).") {
     int32_t result;
     JanetArray *array;
     struct kmp_state state;
@@ -465,10 +476,11 @@ JANET_CORE_FN(cfun_string_split,
 }
 
 JANET_CORE_FN(cfun_string_checkset,
-              "(string/check-set set str)",
-              "Checks that the string `str` only contains bytes that appear in the string `set`. "
-              "Returns true if all bytes in `str` appear in `set`, false if some bytes in `str` do "
-              "not appear in `set`.") {
+              "(string/check-set set-bytes bytes)",
+              "Checks that only bytes from `set-bytes` are contained in "
+              "`bytes`. Returns true if all bytes in `bytes` appear in "
+              "`set-bytes` or false if at least one byte in `bytes` does "
+              "not appear in `set-bytes`. Both arguments are bytes types.") {
     uint32_t bitset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     janet_fixarity(argc, 2);
     JanetByteView set = janet_getbytes(argv, 0);
@@ -534,34 +546,38 @@ JANET_CORE_FN(cfun_string_join,
 }
 
 JANET_CORE_FN(cfun_string_format,
-              "(string/format format & values)",
-              "Similar to C's `snprintf`, but specialized for operating with Janet values. Returns "
-              "a new string.\n\n"
-              "The following conversion specifiers are supported, where the upper case specifiers generate "
-              "upper case output:\n"
-              "- `c`: ASCII character.\n"
-              "- `d`, `i`: integer, formatted as a decimal number.\n"
-              "- `x`, `X`: integer, formatted as a hexadecimal number.\n"
-              "- `o`: integer, formatted as an octal number.\n"
-              "- `f`, `F`: floating point number, formatted as a decimal number.\n"
-              "- `e`, `E`: floating point number, formatted in scientific notation.\n"
-              "- `g`, `G`: floating point number, formatted in its shortest form.\n"
-              "- `a`, `A`: floating point number, formatted as a hexadecimal number.\n"
-              "- `s`: formatted as a string, precision indicates padding and maximum length.\n"
-              "- `t`: emit the type of the given value.\n"
-              "- `v`: format with (describe x)\n"
-              "- `V`: format with (string x)\n"
-              "- `j`: format to jdn (Janet data notation).\n"
+              "(string/format fmt & args)",
+              "Similar to C's `snprintf()`, but specialized for working with "
+              "Janet values. Returns a new string.\n"
               "\n"
-              "The following conversion specifiers are used for \"pretty-printing\", where the upper-case "
-              "variants generate colored output. These specifiers can take a precision "
+              "The following conversion specifiers are supported (upper "
+              "case variants generate upper case output):\n"
+              "\n"
+              "* `c` - ASCII character\n"
+              "* `d`, `i` - integer, formatted as a decimal number\n"
+              "* `x`, `X` - integer, formatted as a hexadecimal number\n"
+              "* `o` - integer, formatted as an octal number\n"
+              "* `f`, `F` - floating point number, formatted as a decimal number\n"
+              "* `e`, `E` - floating point number, formatted in scientific notation\n"
+              "* `g`, `G` - floating point number, formatted in its shortest form\n"
+              "* `a`, `A` - floating point number, formatted as a hexadecimal number\n"
+              "* `s` - formatted as a string, precision indicates padding and maximum length\n"
+              "* `t` - emit the type of the given value\n"
+              "* `v` - format with `describe`\n"
+              "* `V` - format with `string`\n"
+              "* `j` - format to jdn (Janet data notation)\n"
+              "\n"
+              "The following conversion specifiers are used for "
+              "\"pretty-printing\", where the upper case variants generate "
+              "colored output. These specifiers can take a precision "
               "argument to specify the maximum nesting depth to print. "
               "The multiline specifiers can also take a width argument, "
               "which defaults to 80 columns.\n"
-              "- `p`, `P`: pretty format, truncating if necessary\n"
-              "- `m`, `M`: pretty format without truncating.\n"
-              "- `q`, `Q`: pretty format on one line, truncating if necessary.\n"
-              "- `n`, `N`: pretty format on one line without truncation.\n") {
+              "\n"
+              "* `p`, `P` - pretty format, truncating if needed\n"
+              "* `m`, `M` - pretty format without truncating\n"
+              "* `q`, `Q` - pretty format on one line, truncating if needed\n"
+              "* `n`, `N` - pretty format on one line without truncation") {
     janet_arity(argc, 1, -1);
     JanetBuffer *buffer = janet_buffer(0);
     const char *strfrmt = (const char *) janet_getstring(argv, 0);
@@ -602,9 +618,10 @@ static void trim_help_args(int32_t argc, Janet *argv, JanetByteView *str, JanetB
 }
 
 JANET_CORE_FN(cfun_string_trim,
-              "(string/trim str &opt set)",
-              "Trim leading and trailing whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/trim str &opt bytes)",
+              "Trim leading and trailing whitespace from a byte sequence "
+              "`str`. If argument `bytes` is provided, treat only "
+              "characters in `bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -615,9 +632,10 @@ JANET_CORE_FN(cfun_string_trim,
 }
 
 JANET_CORE_FN(cfun_string_triml,
-              "(string/triml str &opt set)",
-              "Trim leading whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/triml str &opt bytes)",
+              "Trim leading whitespace from a byte sequence `str`. If "
+              "argument `bytes` is provided, treat only characters in "
+              "`bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t left_edge = trim_help_leftedge(str, set);
@@ -625,9 +643,10 @@ JANET_CORE_FN(cfun_string_triml,
 }
 
 JANET_CORE_FN(cfun_string_trimr,
-              "(string/trimr str &opt set)",
-              "Trim trailing whitespace from a byte sequence. If the argument "
-              "`set` is provided, consider only characters in `set` to be whitespace.") {
+              "(string/trimr str &opt bytes)",
+              "Trim trailing whitespace from a byte sequence `str`. If "
+              "argument `bytes` is provided, treat only characters in "
+              "`bytes` as whitespace.") {
     JanetByteView str, set;
     trim_help_args(argc, argv, &str, &set);
     int32_t right_edge = trim_help_rightedge(str, set);

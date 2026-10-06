@@ -46,19 +46,9 @@ JanetKV *janet_struct_begin(int32_t count) {
     return st;
 }
 
-/* Find an item in a struct without looking for prototypes. Should be similar to janet_dict_find, but
- * specialized to structs (slightly more compact). */
+/* Find an item in a struct without looking for prototypes. */
 const JanetKV *janet_struct_find(const JanetKV *st, Janet key) {
-    int32_t cap = janet_struct_capacity(st);
-    int32_t index = janet_maphash(cap, janet_hash(key));
-    int32_t i;
-    for (i = index; i < cap; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
-            return st + i;
-    for (i = 0; i < index; i++)
-        if (janet_checktype(st[i].key, JANET_NIL) || janet_equals(st[i].key, key))
-            return st + i;
-    return NULL;
+    return janet_dict_find(st, janet_struct_capacity(st), key);
 }
 
 /* Put a kv pair into a struct that has not yet been fully constructed.
@@ -205,9 +195,9 @@ JanetTable *janet_struct_to_table(const JanetKV *st) {
 /* C Functions */
 
 JANET_CORE_FN(cfun_struct_with_proto,
-              "(struct/with-proto proto & kvs)",
+              "(struct/with-proto proto & ksvs)",
               "Create a struct using the `proto` argument as the struct's "
-              "prototype. `kvs` are as in the `struct` function.") {
+              "prototype. `ksvs` are as in the `struct` function.") {
     janet_arity(argc, 1, -1);
     JanetStruct proto = janet_optstruct(argv, argc, 0, NULL);
     if (!(argc & 1))

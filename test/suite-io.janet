@@ -55,7 +55,10 @@
   (file/flush f)
   (file/seek f :set 0)
   (assert (= 0 (file/tell f)) "start of file again")
-  (assert (= (string (file/read f :all)) "foo\n") "temp files work"))
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work")  
+  (file/seek f :set)
+  (assert (= 0 (file/tell f)) "start of file again 2")
+  (assert (= (string (file/read f :all)) "foo\n") "temp files work 2"))
 
 # issue #1055 - 2c927ea76
 (let [b @""]

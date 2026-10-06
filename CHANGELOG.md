@@ -1,6 +1,14 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## ??? - Unreleased
+- Bug fixes to ev/thread-chan and ev/select leaking GC roots in some cases
+- Add `-z` (`--do-hook`) flag to more succinctly execute bundle hooks such as "clean", "build", and "check".
+- Add `*optimize*` for some preliminary bytecode optimizations.
+  Set this dynamic binding to an integer between 0 and 3 to set the optimization level.
+- Expose bytecode optimization as an optional argument to the `asm` function.
+- Various documentation improvements
+
 ## 1.42.1 - 2026-09-10
 - More changes to documentation.
 - Correct SONAME in Makefile
