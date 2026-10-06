@@ -463,6 +463,33 @@ static int print_jdn_one(struct pretty *S, Janet x, int depth) {
             janet_buffer_push_u8(S->buffer, '}');
         }
         break;
+#ifdef JANET_INT_TYPES
+        case JANET_ABSTRACT: {
+            void *abst = janet_unwrap_abstract(x);
+            if (janet_abstract_type(abst) == &janet_s64_type) {
+                janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
+                int64_t s64 = janet_unwrap_s64(x);
+                int count = snprintf((char *)S->buffer->data + S->buffer->count,
+                                     BUFSIZE, "%" PRId64 ":s", s64);
+                if (count < 0) {
+                    return 1;
+                }
+                S->buffer->count += count;
+            } else if (janet_abstract_type(abst) == &janet_u64_type) {
+                janet_buffer_ensure(S->buffer, S->buffer->count + BUFSIZE, 2);
+                uint64_t u64 = janet_unwrap_u64(x);
+                int count = snprintf((char *)S->buffer->data + S->buffer->count,
+                                     BUFSIZE, "%" PRIu64 ":u", u64);
+                if (count < 0) {
+                    return 1;
+                }
+                S->buffer->count += count;
+            } else {
+                return 1;
+            }
+        }
+        break;
+#endif
         default:
             return 1;
     }
