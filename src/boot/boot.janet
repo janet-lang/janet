@@ -5039,35 +5039,38 @@
   (file/read stdin :line buf))
 
 (defn- print-info []
-  (def d (bundle-dir))
-  (def blist
-    (if (os/stat d :mode)
-      (map (fn [x]
-              (def manifest (bundle/manifest x))
-              (def ver (or (get manifest :version) (get-in manifest [:info :version])))
-              {:name x :version ver})
-            (sort (os/dir d)))
-      @[]))
   (print "Janet:")
   (print "  version: " janet/version "-" janet/build)
   (print "  platform: " (os/which) "/" (os/arch) "/" (os/compiler))
   (print "  syspath: " (dyn :syspath))
-  (print "Installed bundles:")
-  (if (not (empty? blist))
-    (each l blist (printf "  %s %s" (l :name) (if (l :version) (string/format "(%s)" (l :version)) "")))
-    (print "  None"))
-  (print "Environment:")
-  (def environ (os/environ))
-  (when (get environ "JANET_VIRTUAL_ENV")
-    (printf "  JANET_VIRTUAL_ENV: %s" (get environ "JANET_VIRTUAL_ENV")))
-  (printf "  JANET_PATH: %s" (get environ "JANET_PATH" "<undefined>"))
-  (printf "  JANET_PROFILE: %s" (get environ "JANET_PROFILE" "<undefined>"))
-  (printf "  JANET_HASHSEED: %s" (get environ "JANET_HASHSEED" "<undefined>"))
-  (printf "  JANET_HISTFILE: %s" (get environ "JANET_HISTFILE" "<undefined>"))
-  (printf "  NO_COLOR: %s" (get environ "NO_COLOR" "<undefined>"))
-  (when (get environ "JANET_BUILD_TYPE")
-    (printf "  JANET_BUILD_TYPE: %s" (get environ "JANET_BUILD_TYPE")))
-  (print))
+  # the rest won't work on a reduced build
+  (compif (dyn 'bundle/list)
+    (do
+      (def d (bundle-dir))
+      (def blist
+        (if (os/stat d :mode)
+          (map (fn [x]
+                  (def manifest (bundle/manifest x))
+                  (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                  {:name x :version ver})
+                (sort (os/dir d)))
+          @[]))
+      (print "Installed bundles:")
+      (if (not (empty? blist))
+        (each l blist (printf "  %s %s" (l :name) (if (l :version) (string/format "(%s)" (l :version)) "")))
+        (print "  None"))
+      (print "Environment:")
+      (def environ (os/environ))
+      (when (get environ "JANET_VIRTUAL_ENV")
+        (printf "  JANET_VIRTUAL_ENV: %s" (get environ "JANET_VIRTUAL_ENV")))
+      (printf "  JANET_PATH: %s" (get environ "JANET_PATH" "<undefined>"))
+      (printf "  JANET_PROFILE: %s" (get environ "JANET_PROFILE" "<undefined>"))
+      (printf "  JANET_HASHSEED: %s" (get environ "JANET_HASHSEED" "<undefined>"))
+      (printf "  JANET_HISTFILE: %s" (get environ "JANET_HISTFILE" "<undefined>"))
+      (printf "  NO_COLOR: %s" (get environ "NO_COLOR" "<undefined>"))
+      (when (get environ "JANET_BUILD_TYPE")
+        (printf "  JANET_BUILD_TYPE: %s" (get environ "JANET_BUILD_TYPE")))
+      (print))))
 
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
@@ -5220,9 +5223,7 @@
        (fn [i &] (bundle/update-all) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
        (fn [i &] (eprint "--update-all not supported with reduced os") 1))
      "I"
-     (compif (dyn 'bundle/list)
-       (fn [i &] (print-info) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
-        (fn [i &] (eprint "--info not supported with reduced os") 1))
+     (fn [i &] (print-info) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
      "L"
      (compif (dyn 'bundle/list)
        (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
