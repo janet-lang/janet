@@ -53,7 +53,7 @@
 #if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
 #define JANET_FFI_WIN64_ENABLED
 #endif
-#if (defined(__x86_64__) || defined(_M_X64)) && !defined(JANET_WINDOWS)
+#if (defined(__x86_64__) || defined(_M_X64)) && !defined(__ILP32__) && !defined(JANET_WINDOWS)
 #define JANET_FFI_SYSV64_ENABLED
 #endif
 #if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(JANET_WINDOWS)
