@@ -5038,11 +5038,32 @@
   (file/flush stdout)
   (file/read stdin :line buf))
 
+(defn- get-pointer-shift [bits]
+  (def ptr-bits (band bits (bnot 0x3)))
+  (var res nil)
+  (for n 1 28
+    (when (= ptr-bits (blshift 0x4 n))
+      (set res n)
+      (break)))
+  res)
+
+(defn- get-config-bits []
+  (let [bits janet/config-bits
+        current @[]]
+    (unless (zero? (band bits 0x1))
+      (array/push current "nanbox"))
+    (unless (zero? (band bits 0x2))
+      (array/push current "single-threaded"))
+    (when-let [shift (get-pointer-shift bits)]
+      (array/push current (string "pointer-shift=" shift)))
+    (string/join current ", ")))
+
 (defn- print-info []
   (print "Janet:")
-  (print "  version: " janet/version "-" janet/build)
-  (print "  platform: " (os/which) "/" (os/arch) "/" (os/compiler))
-  (print "  syspath: " (dyn :syspath))
+  (print "  version:     " janet/version "-" janet/build)
+  (print "  platform:    " (os/which) "/" (os/arch) "/" (os/compiler))
+  (print "  syspath:     " (dyn :syspath))
+  (print "  config bits: " (get-config-bits))
   # the rest won't work on a reduced build
   (compif (dyn 'bundle/list)
     (do
@@ -5063,11 +5084,16 @@
       (def environ (os/environ))
       (when (get environ "JANET_VIRTUAL_ENV")
         (printf "  JANET_VIRTUAL_ENV: %s" (get environ "JANET_VIRTUAL_ENV")))
-      (printf "  JANET_PATH: %s" (get environ "JANET_PATH" "<undefined>"))
-      (printf "  JANET_PROFILE: %s" (get environ "JANET_PROFILE" "<undefined>"))
-      (printf "  JANET_HASHSEED: %s" (get environ "JANET_HASHSEED" "<undefined>"))
-      (printf "  JANET_HISTFILE: %s" (get environ "JANET_HISTFILE" "<undefined>"))
-      (printf "  NO_COLOR: %s" (get environ "NO_COLOR" "<undefined>"))
+      (when (get environ "JANET_PATH")
+        (printf "  JANET_PATH: %s" (get environ "JANET_PATH")))
+      (when (get environ "JANET_PROFILE")
+        (printf "  JANET_PROFILE: %s" (get environ "JANET_PROFILE")))
+      (when (get environ "JANET_HASHSEED")
+        (printf "  JANET_HASHSEED: %s" (get environ "JANET_HASHSEED")))
+      (when (get environ "JANET_HISTFILE")
+        (printf "  JANET_HISTFILE: %s" (get environ "JANET_HISTFILE")))
+      (when (get environ "NO_COLOR")
+        (printf "  NO_COLOR: %s" (get environ "NO_COLOR")))
       (when (get environ "JANET_BUILD_TYPE")
         (printf "  JANET_BUILD_TYPE: %s" (get environ "JANET_BUILD_TYPE")))
       (print))))
@@ -5138,7 +5164,7 @@
                --uninstall (-u) name   : Uninstall a bundle by bundle name
                --update-all (-U)       : Reinstall all installed bundles
                --prune (-P)            : Uninstall all bundles that are orphaned
-               --info (-I)             : Info about Janet, environment and installed bundles.
+               --info (-V)             : Info about Janet, environment and installed bundles.
                --list (-L)             : List all installed bundles
                --do-hook (-z) hooks... : Manually execute software lifecycle hooks from the ./bundle module
                --                      : Stop handling options
@@ -5222,7 +5248,7 @@
      (compif (dyn 'bundle/update-all)
        (fn [i &] (bundle/update-all) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
        (fn [i &] (eprint "--update-all not supported with reduced os") 1))
-     "I"
+     "V"
      (fn [i &] (print-info) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
      "L"
      (compif (dyn 'bundle/list)
