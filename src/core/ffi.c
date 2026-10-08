@@ -53,7 +53,7 @@
 #if defined(JANET_WINDOWS) && (defined(__x86_64__) || defined(_M_X64))
 #define JANET_FFI_WIN64_ENABLED
 #endif
-#if (defined(__x86_64__) || defined(_M_X64)) && !defined(__ILP32__) && !defined(JANET_WINDOWS)
+#if (defined(__x86_64__) || defined(_M_X64)) && !defined(JANET_WINDOWS)
 #define JANET_FFI_SYSV64_ENABLED
 #endif
 #if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(JANET_WINDOWS)
@@ -1217,8 +1217,14 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
         sysv64_intsse_return intsse_return;
     } retu;
     uint64_t pair[2];
-    uint64_t regs[6];
     double fp_regs[8];
+#ifdef __ILP32__
+    /* x32 pointers fill only the low half of a slot and must be zero-extended.
+     * Left behind compiler flag because 64b doesn't need to zero unused parts */
+    uint64_t regs[6] = {0};
+#else
+    uint64_t regs[6];
+#endif
     JanetFFIWordSpec ret_spec = signature->ret.spec;
     void *ret_mem = &retu.int_return;
     if (ret_spec == JANET_SYSV64_MEMORY) {
@@ -1233,6 +1239,10 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
     uint64_t *stack = __builtin_alloca_with_align(sizeof(uint64_t) * signature->stack_count, 128);
 #else
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
+#endif
+/* x32 pointers fill only the low half of a slot and must be zero-extended */
+#ifdef __ILP32__
+    memset(stack, 0, sizeof(uint64_t) * signature->stack_count);
 #endif
     for (uint32_t i = 0; i < signature->arg_count; i++) {
         uint64_t *to;
