@@ -6,14 +6,27 @@
 #define MAX_FIBER_STEPS 64
 
 static Janet cfun_fuzz_fiber(int32_t argc, Janet *argv) {
-    janet_fixarity(argc, 3);
+    janet_fixarity(argc, 4);
 
     JanetFunction *function = janet_getfunction(argv, 0);
     int32_t step_budget = janet_getinteger(argv, 1);
     int32_t control = janet_getinteger(argv, 2);
+    int32_t breakpoint_control = janet_getinteger(argv, 3);
     int32_t step_mode = control & 1;
     if (step_budget < 1) step_budget = 1;
     if (step_budget > MAX_FIBER_STEPS) step_budget = MAX_FIBER_STEPS;
+
+    int32_t breakpoints[3];
+    int32_t breakpoint_count = breakpoint_control & 3;
+    JanetFuncDef *definition = function->def;
+    if (definition->bytecode_length <= 0) breakpoint_count = 0;
+    for (int32_t index = 0; index < breakpoint_count; index++) {
+        int32_t offset = ((breakpoint_control >> 4) +
+                index * (breakpoint_control >> 8)) % definition->bytecode_length;
+        if (index == 0 && (breakpoint_control & 4)) offset = 0;
+        breakpoints[index] = offset;
+        janet_debug_break(definition, offset);
+    }
 
     JanetFiber *fiber = NULL;
     Janet output = janet_wrap_nil();
@@ -40,6 +53,12 @@ static Janet cfun_fuzz_fiber(int32_t argc, Janet *argv) {
                 break;
             }
 
+            if ((breakpoint_control & 8) && step == step_budget / 2) {
+                for (int32_t index = 0; index < breakpoint_count; index++) {
+                    janet_debug_unbreak(definition, breakpoints[index]);
+                }
+            }
+
             Janet input = janet_wrap_integer(step);
             if (step_mode & 1) {
                 signal = janet_step(fiber, input, &output);
@@ -49,6 +68,9 @@ static Janet cfun_fuzz_fiber(int32_t argc, Janet *argv) {
         }
     }
 
+    for (int32_t index = 0; index < breakpoint_count; index++) {
+        janet_debug_unbreak(definition, breakpoints[index]);
+    }
     if (rooted) janet_gcunroot(janet_wrap_fiber(fiber));
     return janet_wrap_integer(signal);
 }
@@ -77,13 +99,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
 
     int32_t step_budget = 8 + ((data[0] >> 2) & 31);
-        int32_t control = ((data[0] >> 7) & 1) |
+    int32_t control = ((data[0] >> 7) & 1) |
             (((data[0] >> 4) & 3) << 1);
+    int32_t breakpoint_control = data[1] | ((int32_t)data[size - 1] << 8);
     written = snprintf(source + source_length,
                        sizeof(source) - source_length,
-                       "value) %d %d)",
+                       "value) %d %d %d)",
                        step_budget,
-                       control);
+                       control,
+                       breakpoint_control);
     if (written < 0 || (size_t)written >= sizeof(source) - source_length)
         return 0;
     source_length += (size_t)written;
