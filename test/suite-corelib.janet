@@ -220,4 +220,6 @@
 (assert-error "limit short-fn parameters 6" (macex1 '|$8888888888888888888888888888888888888888888888888888888888888888888888888888888))
 (assert-error "limit short-fn parameters 7" (macex1 '|$8.8))
 
+(assert (nil? (with [f (file/open "/hopefully/this/doesnt/exist" :r)] "fail!")))
+
 (end-suite)

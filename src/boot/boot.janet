@@ -446,8 +446,7 @@
   `dtor` is a function or callable that is passed the binding. If no destructor
   (`dtor`) is given, will call :close on the resource.``
   [[binding ctor dtor] & body]
-  ~(do
-     (def ,binding ,ctor)
+  ~(if-let [,binding ,ctor]
      ,(defer-impl :with [(or dtor :close) binding] body)))
 
 # declare ahead of time
