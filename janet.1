@@ -180,14 +180,6 @@ cause the debugger to come up in the REPL. Same as calling (setdyn :debug true) 
 default repl.
 
 .TP
-.BR \-n
-Disable ANSI colors in the repl. Has no effect if no repl is run.
-
-.TP
-.BR \-N
-Enable ANSI colors in the repl. Has no effect if no repl is run.
-
-.TP
 .BR \-r
 Open a REPL (Read Eval Print Loop) after executing all sources. By default, if Janet is called with no
 arguments, a REPL is opened.
@@ -228,22 +220,65 @@ When this flag is passed, a script passed to the interpreter will be treated as 
 rather than a janet source file.
 
 .TP
+.BR \-n
+Disable ANSI colors in the repl. Has no effect if no repl is run.
+
+.TP
+.BR \-N
+Enable ANSI colors in the repl. Has no effect if no repl is run.
+
+.TP
 .BR \-l\ lib
 Import a Janet module before running a script or repl. Multiple files can be loaded
 in this manner, and exports from each file will be made available to the script
 or repl.
+
+.TP
+.BR \-t\ lib\ arguments...
+Import a Janet module before running its main function.
+
 .TP
 .BR \-w\ level
 Set the warning linting level for Janet.
 This linting level should be one of :relaxed, :none, :strict, :normal, or a
 Janet number. Any linting message that is of a greater lint level than this setting will be displayed as
 a warning, but not stop compilation or execution.
+
 .TP
 .BR \-x\ level
 Set the error linting level for Janet.
 This linting level should be one of :relaxed, :none, :strict, :normal, or a
 Janet number. Any linting message that is of a greater lint level will cause a compilation error
 and stop compilation.
+
+.TP
+.BR \-b\ dirpath
+Install a bundle from a directory.
+
+.TP
+.BR \-B\ name
+Reinstall a bundle by bundle name.
+
+.TP
+.BR \-u\ name
+Uninstall a bundle by bundle name.
+
+.TP
+.BR \-U
+Reinstall all installed bundles.
+
+.TP
+.BR \-P
+Uninstall all bundles that are orphaned.
+
+.TP
+.BR \-L
+List all installed bundles.
+
+.TP
+.BR \-z\ hooks...
+Manually execute software lifecycle hooks from the ./bundle module.
+
 .TP
 .BR \-\-
 Stop parsing command line arguments. All arguments after this one will be considered file names
