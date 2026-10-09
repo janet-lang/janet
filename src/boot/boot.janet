@@ -4722,7 +4722,7 @@
     [bundle-name]
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
-  (defn- get-tag-from-git
+  (defn- get-tag-from-filesystem
     ``Get the current SHA from 'path'``
     [path]
     (var tag nil)
@@ -4733,7 +4733,24 @@
         (when (= (length parts) 2)
           (def tag-file (string path s ".git" s (string/trim (get parts 1))))
           (when (fexists tag-file)
-            (set tag (string/trim (slurp tag-file)))))))
+            (set tag (string/slice (string/trim (slurp tag-file)) 0 7))))))
+    tag)
+
+  (defn- get-tag-from-git
+    ``Use git when available, to generate a tag for the manifest,
+    otherwise fall back to parsing files using get-tag-from-filesystem.
+    ``
+    [path]
+    (var tag nil)
+    (def cur-dir (os/cwd))
+    (os/cd path)
+    (defer (os/cd cur-dir)
+      (try (do
+             (def [stdout-r stdout-w] (os/pipe))
+             (os/execute ["git" "describe" "--always" "--dirty=-modified"] :p {:out stdout-w})
+             (def res (:read stdout-r math/int32-max))
+             (when res (set tag (string/trim (string res)))))
+        ([_] (set tag (get-tag-from-filesystem path)))))
     tag)
 
   (defn bundle/install
@@ -5095,10 +5112,10 @@
         ([_]))
       (print "Installed bundles:")
       (if (not (empty? blist))
-        (each l blist (printf "  %s %s %s"
+        (each l blist (printf "  %s%s%s"
                               (l :name)
-                              (if (l :version) (string/format "(%s)" (l :version)) "")
-                              (if (l :tag) (string/format "[%s]" (string/slice (l :tag) 0 8)) "")))
+                              (if (l :version) (string/format " (%s)" (l :version)) "")
+                              (if (l :tag) (string/format " [%s]" (l :tag)) "")))
         (print "  None"))
       (print "Environment:")
       (def env (os/environ))
