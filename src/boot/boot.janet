@@ -5067,35 +5067,27 @@
   # the rest won't work on a reduced build
   (compif (dyn 'bundle/list)
     (do
-      (def d (bundle-dir))
-      (def blist
-        (if (os/stat d :mode)
-          (map (fn [x]
-                  (def manifest (bundle/manifest x))
-                  (def ver (or (get manifest :version) (get-in manifest [:info :version])))
-                  {:name x :version ver})
-                (sort (os/dir d)))
-          @[]))
+      (var blist @[])
+      (try
+        (let [d (bundle-dir)]
+          (when (os/stat d :mode)
+            (set blist
+                 (map (fn [x]
+                        (def manifest (bundle/manifest x))
+                        (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                        {:name x :version ver})
+                      (sort (os/dir d))))))
+        ([_]))
       (print "Installed bundles:")
       (if (not (empty? blist))
         (each l blist (printf "  %s %s" (l :name) (if (l :version) (string/format "(%s)" (l :version)) "")))
         (print "  None"))
       (print "Environment:")
-      (def environ (os/environ))
-      (when (get environ "JANET_VIRTUAL_ENV")
-        (printf "  JANET_VIRTUAL_ENV: %s" (get environ "JANET_VIRTUAL_ENV")))
-      (when (get environ "JANET_PATH")
-        (printf "  JANET_PATH: %s" (get environ "JANET_PATH")))
-      (when (get environ "JANET_PROFILE")
-        (printf "  JANET_PROFILE: %s" (get environ "JANET_PROFILE")))
-      (when (get environ "JANET_HASHSEED")
-        (printf "  JANET_HASHSEED: %s" (get environ "JANET_HASHSEED")))
-      (when (get environ "JANET_HISTFILE")
-        (printf "  JANET_HISTFILE: %s" (get environ "JANET_HISTFILE")))
-      (when (get environ "NO_COLOR")
-        (printf "  NO_COLOR: %s" (get environ "NO_COLOR")))
-      (when (get environ "JANET_BUILD_TYPE")
-        (printf "  JANET_BUILD_TYPE: %s" (get environ "JANET_BUILD_TYPE")))
+      (def env (os/environ))
+      (eachp [name val] env
+        (when (string/has-prefix? "JANET_" name)
+          (printf "  %s: %s" name val)))
+      (when-let [nc (get env "NO_COLOR")] (printf "  NO_COLOR: %s" nc))
       (print))))
 
 (defn cli-main
@@ -5141,6 +5133,7 @@
              Options are:
                --help (-h)             : Show this help
                --version (-v)          : Print the version string
+               --info (-V)             : Info about Janet, environment and installed bundles.
                --stdin (-s)            : Use raw stdin instead of getline like functionality
                --eval (-e) code        : Evaluate some code for side effects
                --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
@@ -5164,7 +5157,6 @@
                --uninstall (-u) name   : Uninstall a bundle by bundle name
                --update-all (-U)       : Reinstall all installed bundles
                --prune (-P)            : Uninstall all bundles that are orphaned
-               --info (-V)             : Info about Janet, environment and installed bundles.
                --list (-L)             : List all installed bundles
                --do-hook (-z) hooks... : Manually execute software lifecycle hooks from the ./bundle module
                --                      : Stop handling options
