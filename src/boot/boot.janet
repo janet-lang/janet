@@ -4722,6 +4722,20 @@
     [bundle-name]
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
+  (defn- get-sha
+    ``Get the current SHA from 'path'``
+    [path]
+    (var sha nil)
+    (def s (sep))
+    (let [f (string path s ".git" s "HEAD")]
+      (when (fexists f)
+        (def parts (string/split ":" (slurp f)))
+        (when (= (length parts) 2)
+          (def sha-file (string path s ".git" s (string/trim (get parts 1))))
+          (when (fexists sha-file)
+            (set sha (string/trim (slurp sha-file)))))))
+    sha)
+
   (defn bundle/install
     ``Install a bundle from the local filesystem. The name of the bundle is
     the value mapped to :name in either `config` or the info file. There are
@@ -4765,7 +4779,7 @@
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
-    (def man @{:name bundle-name :local-source path :files @[]})
+    (def man @{:name bundle-name :local-source path :files @[] :sha (get-sha path)})
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
@@ -5075,12 +5089,16 @@
                  (map (fn [x]
                         (def manifest (bundle/manifest x))
                         (def ver (or (get manifest :version) (get-in manifest [:info :version])))
-                        {:name x :version ver})
+                        (def sha (or (get manifest :sha nil)))
+                        {:name x :version ver :sha sha})
                       (sort (os/dir d))))))
         ([_]))
       (print "Installed bundles:")
       (if (not (empty? blist))
-        (each l blist (printf "  %s %s" (l :name) (if (l :version) (string/format "(%s)" (l :version)) "")))
+        (each l blist (printf "  %s %s %s"
+                              (l :name)
+                              (if (l :version) (string/format "(%s)" (l :version)) "")
+                              (if (l :sha) (string/format "[%s]" (l :sha)) "")))
         (print "  None"))
       (print "Environment:")
       (def env (os/environ))
