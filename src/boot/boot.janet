@@ -4748,7 +4748,7 @@
       (try (do
              (def [stdout-r stdout-w] (os/pipe))
              (os/execute ["git" "describe" "--always" "--dirty=-modified"] :p {:out stdout-w})
-             (def res (:read stdout-r math/int32-max))
+             (def res (:read stdout-r 4096))
              (when res (set tag (string/trim (string res)))))
         ([_] (set tag (get-tag-from-filesystem path)))))
     tag)
