@@ -251,6 +251,38 @@
     janet_eprintf(")\n");\
 } while (0)
 
+/* Push frame for func, inlining when fiber has room and func non-variadic. 
+ * Return non-zero for wrong number of args */
+static inline int vm_funcframe(JanetFiber *fiber, JanetFunction *func) {
+/* Debug builds use janet_fiber_funcframe to expose stale pointers every call */
+#ifndef JANET_DEBUG
+    JanetFuncDef *def = func->def;
+    int32_t oldtop = fiber->stacktop;
+    int32_t nextframe = fiber->stackstart;
+    int32_t nextstacktop = nextframe + def->slotcount + JANET_FRAME_SIZE;
+    int32_t next_arity = oldtop - nextframe;
+    if (!(def->flags & JANET_FUNCDEF_FLAG_VARARG) &&
+            next_arity >= def->min_arity &&
+            next_arity <= def->max_arity &&
+            fiber->capacity >= nextstacktop) {
+        Janet *data = fiber->data;
+        for (int32_t i = oldtop; i < nextstacktop; ++i) {
+            data[i] = janet_wrap_nil();
+        }
+        JanetStackFrame *newframe = janet_stack_frame(data + nextframe);
+        newframe->prevframe = fiber->frame;
+        newframe->pc = def->bytecode;
+        newframe->func = func;
+        newframe->env = NULL;
+        newframe->flags = 0;
+        fiber->frame = nextframe;
+        fiber->stacktop = fiber->stackstart = nextstacktop;
+        return 0;
+    }
+#endif
+    return janet_fiber_funcframe(fiber, func);
+}
+
 /* Invoke a method once we have looked it up */
 static Janet janet_method_invoke(Janet method, int32_t argc, Janet *argv) {
     switch (janet_type(method)) {
@@ -677,8 +709,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_RETURN) {
         Janet retval = stack[D];
-        int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
-        janet_fiber_popframe(fiber);
+        JanetStackFrame *frame = janet_stack_frame(stack);
+        int entrance_frame = frame->flags & JANET_STACKFRAME_ENTRANCE;
+        if (NULL == frame->env && fiber->frame != 0) {
+            fiber->stacktop = fiber->stackstart = fiber->frame;
+            fiber->frame = frame->prevframe;
+        } else {
+            janet_fiber_popframe(fiber);
+        }
         if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
@@ -687,8 +725,14 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
 
     VM_OP(JOP_RETURN_NIL) {
         Janet retval = janet_wrap_nil();
-        int entrance_frame = janet_stack_frame(stack)->flags & JANET_STACKFRAME_ENTRANCE;
-        janet_fiber_popframe(fiber);
+        JanetStackFrame *frame = janet_stack_frame(stack);
+        int entrance_frame = frame->flags & JANET_STACKFRAME_ENTRANCE;
+        if (NULL == frame->env && fiber->frame != 0) {
+            fiber->stacktop = fiber->stackstart = fiber->frame;
+            fiber->frame = frame->prevframe;
+        } else {
+            janet_fiber_popframe(fiber);
+        }
         if (entrance_frame) vm_return_no_restore(JANET_SIGNAL_OK, retval);
         vm_restore();
         stack[A] = retval;
@@ -1053,7 +1097,7 @@ static JanetSignal run_vm(JanetFiber *fiber, Janet in) {
                 vm_do_trace(func, fiber->stacktop - fiber->stackstart, fiber->data + fiber->stackstart);
             }
             vm_commit();
-            if (janet_fiber_funcframe(fiber, func)) {
+            if (vm_funcframe(fiber, func)) {
                 int32_t n = fiber->stacktop - fiber->stackstart;
                 janet_panicf("%v called with %d argument%s, expected %d",
                              callee, n, n == 1 ? "" : "s", func->def->arity);
