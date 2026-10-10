@@ -22,7 +22,7 @@ static Janet cfun_fuzz_fiber(int32_t argc, Janet *argv) {
     if (definition->bytecode_length <= 0) breakpoint_count = 0;
     for (int32_t index = 0; index < breakpoint_count; index++) {
         int32_t offset = ((breakpoint_control >> 4) +
-                index * (breakpoint_control >> 8)) % definition->bytecode_length;
+                          index * (breakpoint_control >> 8)) % definition->bytecode_length;
         if (index == 0 && (breakpoint_control & 4)) offset = 0;
         breakpoints[index] = offset;
         janet_debug_break(definition, offset);
@@ -49,7 +49,7 @@ static Janet cfun_fuzz_fiber(int32_t argc, Janet *argv) {
                     status == JANET_STATUS_ERROR ||
                     status == JANET_STATUS_ALIVE ||
                     (status != JANET_STATUS_PENDING &&
-                            status != JANET_STATUS_DEBUG)) {
+                     status != JANET_STATUS_DEBUG)) {
                 break;
             }
 
@@ -100,7 +100,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
     int32_t step_budget = 8 + ((data[0] >> 2) & 31);
     int32_t control = ((data[0] >> 7) & 1) |
-            (((data[0] >> 4) & 3) << 1);
+                      (((data[0] >> 4) & 3) << 1);
     int32_t breakpoint_control = data[1] | ((int32_t)data[size - 1] << 8);
     written = snprintf(source + source_length,
                        sizeof(source) - source_length,

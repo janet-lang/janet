@@ -1231,16 +1231,16 @@ static Janet janet_ffi_sysv64(JanetFFISignature *signature, void *function_point
         ret_mem = alloca(type_size(signature->ret.type));
         regs[0] = (uint64_t) ret_mem;
     }
-/* GCC aligns alloca to the widest allowed vector type (32 bytes for AVX) which can pad
- * between the stack pointer and this block, but stack args start at the stack pointer,
- * so we must ask for the calling convention's 16 byte alignment */
-/* Both GCC and CLANG define GNUC. */
+    /* GCC aligns alloca to the widest allowed vector type (32 bytes for AVX) which can pad
+     * between the stack pointer and this block, but stack args start at the stack pointer,
+     * so we must ask for the calling convention's 16 byte alignment */
+    /* Both GCC and CLANG define GNUC. */
 #if defined(__GNUC__)
     uint64_t *stack = __builtin_alloca_with_align(sizeof(uint64_t) * signature->stack_count, 128);
 #else
     uint64_t *stack = alloca(sizeof(uint64_t) * signature->stack_count);
 #endif
-/* x32 pointers fill only the low half of a slot and must be zero-extended */
+    /* x32 pointers fill only the low half of a slot and must be zero-extended */
 #ifdef __ILP32__
     memset(stack, 0, sizeof(uint64_t) * signature->stack_count);
 #endif
