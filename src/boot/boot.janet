@@ -5090,6 +5090,7 @@
     (string/join current ", ")))
 
 (defn- print-info []
+  (def s (sep))
   (print "Janet:")
   (print "  version:     " janet/version "-" janet/build)
   (print "  platform:    " (os/which) "/" (os/arch) "/" (os/compiler))
@@ -5117,6 +5118,25 @@
                               (if (l :version) (string/format " (%s)" (l :version)) "")
                               (if (l :tag) (string/format " [%s]" (l :tag)) "")))
         (print "  None"))
+      # handle JPM-installed bundles
+      (def jpm-manifest-dir (string (dyn *syspath*) s ".manifests"))
+      (var jpmlist @[])
+      (when (os/stat jpm-manifest-dir :mode)
+        (set jpmlist
+             (map (fn [x]
+                    (when (string/has-suffix? ".jdn" x)
+                      (def manifest (-?> (string jpm-manifest-dir s x) slurp parse))
+                      (def name (string/replace ".jdn" "" x))
+                      (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                      (def tag (or (get manifest :tag nil)))
+                      {:name name :version ver :tag tag}))
+                  (sort (os/dir jpm-manifest-dir)))))
+      (when (not (empty? jpmlist))
+        (print "JPM-installed bundles:")
+        (each l jpmlist (printf "  %s%s%s"
+                                (l :name)
+                                (if (l :version) (string/format " (%s)" (l :version)) "")
+                                (if (l :tag) (string/format " [%s]" (string/slice (l :tag) 0 7)) ""))))
       (print "Environment:")
       (def env (os/environ))
       (eachp [name val] env
