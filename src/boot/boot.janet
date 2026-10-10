@@ -4722,37 +4722,6 @@
     [bundle-name]
     (not (not (os/stat (bundle-dir bundle-name) :mode))))
 
-  (defn- get-tag-from-filesystem
-    ``Get the current SHA from 'path'``
-    [path]
-    (var tag nil)
-    (def s (sep))
-    (let [f (string path s ".git" s "HEAD")]
-      (when (fexists f)
-        (def parts (string/split ":" (slurp f)))
-        (when (= (length parts) 2)
-          (def tag-file (string path s ".git" s (string/trim (get parts 1))))
-          (when (fexists tag-file)
-            (set tag (string/slice (string/trim (slurp tag-file)) 0 7))))))
-    tag)
-
-  (defn- get-tag-from-git
-    ``Use git when available, to generate a tag for the manifest,
-    otherwise fall back to parsing files using get-tag-from-filesystem.
-    ``
-    [path]
-    (var tag nil)
-    (def cur-dir (os/cwd))
-    (os/cd path)
-    (defer (os/cd cur-dir)
-      (try (do
-             (def [stdout-r stdout-w] (os/pipe))
-             (os/execute ["git" "describe" "--always" "--dirty=-modified"] :p {:out stdout-w})
-             (def res (:read stdout-r 4096))
-             (when res (set tag (string/trim (string res)))))
-        ([_] (set tag (get-tag-from-filesystem path)))))
-    tag)
-
   (defn bundle/install
     ``Install a bundle from the local filesystem. The name of the bundle is
     the value mapped to :name in either `config` or the info file. There are
@@ -4796,7 +4765,7 @@
     (def implicit-sources (string path s "bundle"))
     (when (= :directory (os/stat implicit-sources :mode))
       (copyrf implicit-sources (bundle-dir bundle-name)))
-    (def man @{:name bundle-name :local-source path :files @[] :tag (get-tag-from-git path)})
+    (def man @{:name bundle-name :local-source path :files @[]})
     (merge-into man config)
     (sync-manifest man)
     (edefer (do (print "installation error, uninstalling") (bundle/uninstall bundle-name))
@@ -5106,8 +5075,8 @@
             (set blist
                  (map (fn [x]
                         (def manifest (bundle/manifest x))
-                        (def ver (or (get manifest :version) (get-in manifest [:info :version])))
-                        (def tag (or (get manifest :tag nil)))
+                        (def ver (or (get-in manifest [:info :version]) (get manifest :version)))
+                        (def tag (or  (get-in manifest [:info :tag]) (get manifest :tag)))
                         {:name x :version ver :tag tag})
                       (sort (os/dir d))))))
         ([_]))
@@ -5127,8 +5096,8 @@
                     (when (string/has-suffix? ".jdn" x)
                       (def manifest (-?> (string jpm-manifest-dir s x) slurp parse))
                       (def name (string/replace ".jdn" "" x))
-                      (def ver (or (get manifest :version) (get-in manifest [:info :version])))
-                      (def tag (or (get manifest :tag nil)))
+                      (def ver (or (get-in manifest [:info :version]) (get manifest :version)))
+                      (def tag (or (get-in manifest [:info :tag]) (get manifest :tag)))
                       {:name name :version ver :tag tag}))
                   (sort (os/dir jpm-manifest-dir)))))
       (when (not (empty? jpmlist))
