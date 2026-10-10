@@ -5090,7 +5090,6 @@
     (string/join current ", ")))
 
 (defn- print-info []
-  (def s (sep))
   (print "Janet:")
   (print "  version:     " janet/version "-" janet/build)
   (print "  platform:    " (os/which) "/" (os/arch) "/" (os/compiler))
@@ -5099,6 +5098,7 @@
   # the rest won't work on a reduced build
   (compif (dyn 'bundle/list)
     (do
+      (def s (sep))
       (var blist @[])
       (try
         (let [d (bundle-dir)]
