@@ -5038,6 +5038,82 @@
   (file/flush stdout)
   (file/read stdin :line buf))
 
+(defn- get-pointer-shift [bits]
+  (def ptr-bits (band bits (bnot 0x3)))
+  (var res nil)
+  (for n 1 28
+    (when (= ptr-bits (blshift 0x4 n))
+      (set res n)
+      (break)))
+  res)
+
+(defn- get-config-bits []
+  (let [bits janet/config-bits
+        current @[]]
+    (unless (zero? (band bits 0x1))
+      (array/push current "nanbox"))
+    (unless (zero? (band bits 0x2))
+      (array/push current "single-threaded"))
+    (when-let [shift (get-pointer-shift bits)]
+      (array/push current (string "pointer-shift=" shift)))
+    (string/join current ", ")))
+
+(defn- print-info []
+  (print "Janet:")
+  (print "  version:     " janet/version "-" janet/build)
+  (print "  platform:    " (os/which) "/" (os/arch) "/" (os/compiler))
+  (print "  syspath:     " (dyn :syspath))
+  (print "  config bits: " (get-config-bits))
+  # the rest won't work on a reduced build
+  (compif (dyn 'bundle/list)
+    (do
+      (def s (sep))
+      (var blist @[])
+      (try
+        (let [d (bundle-dir)]
+          (when (os/stat d :mode)
+            (set blist
+                 (map (fn [x]
+                        (def manifest (bundle/manifest x))
+                        (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                        (def tag (or (get manifest :tag) (get-in manifest [:info :tag])))
+                        {:name x :version ver :tag tag})
+                      (sort (os/dir d))))))
+        ([_]))
+      (print "Installed bundles:")
+      (if (not (empty? blist))
+        (each l blist (printf "  %s%s%s"
+                              (l :name)
+                              (if (l :version) (string/format " (%s)" (l :version)) "")
+                              (if (l :tag) (string/format " [%s]" (l :tag)) "")))
+        (print "  None"))
+      # handle JPM-installed bundles
+      (def jpm-manifest-dir (string (dyn *syspath*) s ".manifests"))
+      (var jpmlist @[])
+      (when (os/stat jpm-manifest-dir :mode)
+        (set jpmlist
+             (map (fn [x]
+                    (when (string/has-suffix? ".jdn" x)
+                      (def manifest (-?> (string jpm-manifest-dir s x) slurp parse))
+                      (def name (string/replace ".jdn" "" x))
+                      (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                      (def tag (or (get manifest :tag) (get-in manifest [:info :tag])))
+                      {:name name :version ver :tag tag}))
+                  (sort (os/dir jpm-manifest-dir)))))
+      (when (not (empty? jpmlist))
+        (print "JPM-installed bundles:")
+        (each l jpmlist (printf "  %s%s%s"
+                                (l :name)
+                                (if (l :version) (string/format " (%s)" (l :version)) "")
+                                (if (l :tag) (string/format " [%s]" (string/slice (l :tag) 0 7)) ""))))
+      (print "Environment:")
+      (def env (os/environ))
+      (eachp [name val] env
+        (when (string/has-prefix? "JANET_" name)
+          (printf "  %s: %s" name val)))
+      (when-let [nc (get env "NO_COLOR")] (printf "  NO_COLOR: %s" nc))
+      (print))))
+
 (defn cli-main
   `Entrance for the Janet CLI tool. Call this function with the command line
   arguments as an array or tuple of strings to invoke the CLI interface.`
@@ -5081,6 +5157,7 @@
              Options are:
                --help (-h)             : Show this help
                --version (-v)          : Print the version string
+               --info (-V)             : Info about Janet, environment and installed bundles.
                --stdin (-s)            : Use raw stdin instead of getline like functionality
                --eval (-e) code        : Evaluate some code for side effects
                --expression (-E) code arguments... : Evaluate an expression as a short-fn with arguments
@@ -5187,6 +5264,8 @@
      (compif (dyn 'bundle/update-all)
        (fn [i &] (bundle/update-all) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
        (fn [i &] (eprint "--update-all not supported with reduced os") 1))
+     "V"
+     (fn [i &] (print-info) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
      "L"
      (compif (dyn 'bundle/list)
        (fn [i &] (each l (bundle/list) (print l)) (set no-file false) (if (= nil should-repl) (set should-repl false)) 1)
