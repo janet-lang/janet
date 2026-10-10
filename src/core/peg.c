@@ -161,6 +161,7 @@ static LineCol get_linecol_from_position(PegState *s, int32_t position) {
 
 /* Convert a uint64_t to a int64_t by wrapping to a maximum number of bytes */
 static int64_t peg_convert_u64_s64(uint64_t from, int width) {
+    if (width == 0) return 0; /* Avoid undefined shift */
     int shift = 8 * (8 - width);
     return ((int64_t)(from << shift)) >> shift;
 }
@@ -1516,7 +1517,13 @@ static uint32_t peg_compile1(Builder *b, Janet peg) {
             int32_t n = peg_getinteger(b, peg);
             Reserve r = reserve(b, 2);
             if (n < 0) {
-                emit_1(r, RULE_NOTNCHAR, -n);
+                if (n == INT32_MIN) {
+                    /* Since buffers can't hold this many characters, will
+                     * always match. Avoid undefined behavior negating INT32_MIN. */
+                    emit_1(r, RULE_NCHAR, 0);
+                } else {
+                    emit_1(r, RULE_NOTNCHAR, -n);
+                }
             } else {
                 emit_1(r, RULE_NCHAR, n);
             }

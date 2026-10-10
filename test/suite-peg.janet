@@ -679,6 +679,16 @@
       "abcdef"
       @[])
 
+(test "undefined behavior: (int 0)"
+      ~(int 0)
+      "123"
+      @[0])
+
+(test "undefined behavior: int min"
+      math/int32-min
+      "abc"
+      @[])
+
 (test "sub: second pattern cannot match more than the first pattern"
       ~(sub "abcd" "abcde")
       "abcdef"
