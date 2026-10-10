@@ -5075,8 +5075,8 @@
             (set blist
                  (map (fn [x]
                         (def manifest (bundle/manifest x))
-                        (def ver (or (get-in manifest [:info :version]) (get manifest :version)))
-                        (def tag (or  (get-in manifest [:info :tag]) (get manifest :tag)))
+                        (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                        (def tag (or (get manifest :tag) (get-in manifest [:info :tag])))
                         {:name x :version ver :tag tag})
                       (sort (os/dir d))))))
         ([_]))
@@ -5096,8 +5096,8 @@
                     (when (string/has-suffix? ".jdn" x)
                       (def manifest (-?> (string jpm-manifest-dir s x) slurp parse))
                       (def name (string/replace ".jdn" "" x))
-                      (def ver (or (get-in manifest [:info :version]) (get manifest :version)))
-                      (def tag (or (get-in manifest [:info :tag]) (get manifest :tag)))
+                      (def ver (or (get manifest :version) (get-in manifest [:info :version])))
+                      (def tag (or (get manifest :tag) (get-in manifest [:info :tag])))
                       {:name name :version ver :tag tag}))
                   (sort (os/dir jpm-manifest-dir)))))
       (when (not (empty? jpmlist))
