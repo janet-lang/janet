@@ -5065,7 +5065,7 @@
           (if-let [ver (b :version)] (string/format " (%s)" ver) "")
           (if-let [tag (b :tag)] (string/format " [%s]" tag) "")))
 
-(defn- print-info []
+(defn print-info []
   (print "Janet:")
   (print "  version:     " janet/version "-" janet/build)
   (print "  platform:    " (os/which) "/" (os/arch) "/" (os/compiler))
