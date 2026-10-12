@@ -5105,7 +5105,7 @@
                --update-all (-U)       : Reinstall all installed bundles
                --prune (-P)            : Uninstall all bundles that are orphaned
                --list (-L)             : List all installed bundles
-               --do-hook (-z) hooks... : Manually execute software lifecycle hooks from the ./bundle module
+               --do-hook (-z) hooks... : Run software lifecycle hooks from the ./bundle module
                --                      : Stop handling options
              ```)
            (os/exit 0)
