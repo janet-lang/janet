@@ -619,6 +619,39 @@
 (assert-error "bad thread" (ev/thread in))
 (assert-error "bad thread 2" (ev/thread (fn [x y] x) 1))
 
+# Waiting on streams sent to another thread
+# Not on Windows, where sent sockets are not duplicated
+(unless (index-of (os/which) [:mingw :windows])
+  (defn wait-in-thread
+    "Send stream to a thread that runs (f stream) once it is ready to wait."
+    [stream f trigger]
+    (def ch (ev/thread-chan 1))
+    (ev/thread
+      (fn [[s c f]]
+        (ev/give c :ready)
+        (ev/give c (protect (ev/with-deadline 1 (f s)))))
+      [stream ch f] :n)
+    (def [ok res]
+      (protect (ev/with-deadline 5
+                 (ev/take ch)
+                 (ev/sleep 0.05)
+                 (trigger)
+                 (ev/take ch))))
+    (if ok res [false res]))
+  (let [s (net/listen test-host "0")
+        [_ port] (net/localname s)]
+    (assert (= [true :accepted]
+               (wait-in-thread s |(do (:close (net/accept $)) :accepted)
+                               |(:close (net/connect test-host port))))
+            "net/accept on stream sent to thread")
+    (:close s))
+  (let [[r w] (os/pipe)]
+    (assert (= [true "hello"]
+               (wait-in-thread r |(string (ev/read $ 5)) |(ev/write w "hello")))
+            "ev/read on stream sent to thread")
+    (:close r)
+    (:close w)))
+
 # Exec-slurp correct error (os/spawn and the :x flag)
 (defn exec-slurp
   [& args]

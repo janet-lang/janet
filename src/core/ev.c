@@ -479,7 +479,7 @@ static void *janet_stream_unmarshal(JanetMarshalContext *ctx) {
 #else
     p->handle = (JanetHandle) janet_unmarshal_int(ctx);
 #endif
-#ifdef JANET_EV_POLL
+#ifndef JANET_WINDOWS
     janet_register_stream(p);
 #endif
     return p;
