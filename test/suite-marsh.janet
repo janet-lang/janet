@@ -137,6 +137,23 @@
 \xA8\xDE\xDE\xDE\xDE\xDE\xDE\0\0\0\xDE\xDE_unmarshal_testcase3.ja
 neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 \0\0\0\0\0*\xFE\x01\04\x02\0\0'\x03\0\r\0\r\0\r\0\r" load-image-dict))
+# Reject peg bytecode with a negative (argument n) index - the index is read as
+# a signed int32 at match time and only bounds-checked on the high side, so a
+# negative value would read before the argument array.
+(do
+  (def b (buffer (marshal (peg/compile ~(argument 0)))))
+  (var idx nil)
+  (for i 0 (- (length b) 2)
+    (when (and (= (b i) 0x0f) (= (b (+ i 1)) 0x00) (= (b (+ i 2)) 0x00))
+      (set idx i)))
+  (assert idx "peg argument opcode not found")
+  (def tampered
+    (buffer/push (buffer (buffer/slice b 0 (+ idx 1)))
+                 "\xCD\xFA\x0A\x1F\x00"
+                 (buffer/slice b (+ idx 2))))
+  (assert-error "unmarshal peg negative argument index"
+                (peg/match (unmarshal tampered) "x" 0 :arg)))
+
 # XXX: still needed? see 72beeeea
 (gccollect)
 
