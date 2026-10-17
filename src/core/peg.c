@@ -1756,7 +1756,12 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
                 i += 4;
                 break;
             case RULE_ARGUMENT:
-                /* [searchtag, tag] */
+                /* [argument-index, tag] */
+                OVERFLOW_CHECK(3);
+                /* index is read as a signed int32 at match time and only
+                 * bounds-checked against extrac on the high side, so a
+                 * negative index would read before extrav */
+                if (((int32_t) rule[1]) < 0) goto bad;
                 i += 3;
                 break;
             case RULE_GETTAG:
