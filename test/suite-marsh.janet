@@ -154,6 +154,22 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
   (assert-error "unmarshal peg negative argument index"
                 (peg/match (unmarshal tampered) "x" 0 :arg)))
 
+# Reject peg bytecode whose length overflows the allocation size computation.
+# bytecode_len is read as a 64-bit value, and bytecode_len * sizeof(uint32_t)
+# wrapped to a tiny allocation while the fill loop still ran bytecode_len times,
+# a heap buffer overflow.
+(do
+  (def b (buffer (marshal (peg/compile 1))))
+  # byte 11 is the single-byte bytecode length; replace it with an encoded
+  # 64-bit length of 0x4000000000000000 (* 4 wraps to 0).
+  (assert (= (b 11) 2) "unexpected peg marshal layout")
+  (def tampered
+    (buffer/push (buffer (buffer/slice b 0 11))
+                 "\xF8\x00\x00\x00\x00\x00\x00\x00\x40"
+                 (buffer/slice b 12)))
+  (assert-error "unmarshal peg bytecode length overflow"
+                (unmarshal tampered)))
+
 # XXX: still needed? see 72beeeea
 (gccollect)
 
