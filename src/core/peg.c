@@ -1645,21 +1645,14 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
 
     /* Calculate offsets. Should match those in make_peg */
     size_t bytecode_start = size_padded(sizeof(JanetPeg), sizeof(uint32_t));
-
-    /* Reject lengths that would overflow the size computation below. A wrapped
-     * total under-allocates the abstract and the bytecode/constant fill loops
-     * then write past it, a heap buffer overflow. Bytecode is addressed with
-     * 32-bit word indices here and at match time, so a valid peg never exceeds
-     * INT32_MAX words. */
-    if (bytecode_len > (size_t) INT32_MAX ||
-            bytecode_len > (SIZE_MAX - bytecode_start - sizeof(Janet)) / sizeof(uint32_t)) {
+    /* Reject sizes that would overflow total_size (including the abstract header) */
+    size_t max_size = SIZE_MAX - sizeof(JanetAbstractHead) - bytecode_start - sizeof(Janet);
+    if (bytecode_len > INT32_MAX || bytecode_len > max_size / sizeof(uint32_t))
         janet_panic("invalid peg bytecode length");
-    }
     size_t bytecode_size = bytecode_len * sizeof(uint32_t);
-    size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
-    if ((size_t) num_constants > (SIZE_MAX - constants_start) / sizeof(Janet)) {
+    if (num_constants > (max_size - bytecode_size) / sizeof(Janet))
         janet_panic("invalid peg constant count");
-    }
+    size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
     size_t total_size = constants_start + sizeof(Janet) * (size_t) num_constants;
 
     /* DOS prevention? I.E. we could read bytecode and constants before
