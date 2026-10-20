@@ -1645,7 +1645,13 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
 
     /* Calculate offsets. Should match those in make_peg */
     size_t bytecode_start = size_padded(sizeof(JanetPeg), sizeof(uint32_t));
+    /* Reject sizes that would overflow total_size (including the abstract header) */
+    size_t max_size = SIZE_MAX - sizeof(JanetAbstractHead) - bytecode_start - sizeof(Janet);
+    if (bytecode_len > INT32_MAX || bytecode_len > max_size / sizeof(uint32_t))
+        janet_panic("invalid peg bytecode length");
     size_t bytecode_size = bytecode_len * sizeof(uint32_t);
+    if (num_constants > (max_size - bytecode_size) / sizeof(Janet))
+        janet_panic("invalid peg constant count");
     size_t constants_start = size_padded(bytecode_start + bytecode_size, sizeof(Janet));
     size_t total_size = constants_start + sizeof(Janet) * (size_t) num_constants;
 
