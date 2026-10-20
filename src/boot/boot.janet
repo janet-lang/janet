@@ -2809,6 +2809,8 @@
 
 (defdyn *syspath*
   "Path of directory to load system modules from.")
+(defdyn *alt-syspaths*
+  "List of alternative paths to load system modules from.")
 
 # Initialize syspath
 (each [k v] (partition 2 (tuple/slice boot/args 2))
@@ -3237,9 +3239,10 @@
   mp)
 
 (defn module/add-syspath
+  :deprecated
   ```
-  Add a custom syspath to `module/paths` by duplicating all entries that being with `:sys:` and
-  adding duplicates with a specific path prefix instead.
+  Add a custom syspath to `module/paths` by duplicating all entries that begin with `:sys:` and
+  adding duplicates with a specific path prefix instead. Prefer using `*alt-syspaths*` instead.
   ```
   [path]
   (def copies @[])
@@ -3294,9 +3297,22 @@
   one of `:source`, `:native`, or `:image` if the module is found,
   otherwise a tuple with nil followed by an error message.
   ``
-  [path &opt find-all]
+  [path &opt find-all search-alt-syspaths]
+  (default search-alt-syspaths true)
   (var ret nil)
-  (def mp (dyn *module-paths* module/paths))
+  (def mp (array/slice (dyn *module-paths* module/paths)))
+  (when search-alt-syspaths
+    (var last-index 0)
+    (def to-copy (seq [[index entry] :pairs mp
+                       :let [pattern (first entry)]
+                       :when (string? pattern)
+                       :when (string/has-prefix? ":sys:/" pattern)
+                       :after (set last-index index)]
+                   entry))
+    (def copies (seq [syspath :in (dyn *alt-syspaths* [])
+                      [pattern & rest] :in to-copy]
+                  [(string/replace ":sys:" syspath pattern) ;rest]))
+    (array/insert mp (+ 1 last-index) ;copies))
   (def all-matches (if find-all @[]))
   (each [p mod-kind checker] mp
     (when (mod-filter checker path)
@@ -4584,12 +4600,24 @@
     (buffer/format b "%.99m\n" manifest)
     (spit manifest-name b))
 
+  (defn- syspaths
+    [search-alt-syspaths]
+    (filter |(os/stat $0 :mode)
+            [(dyn *syspath*)
+             ;(if search-alt-syspaths (dyn *alt-syspaths* []) [])]))
+
   (defn bundle/manifest
     "Get the manifest for a given installed bundle."
-    [bundle-name]
-    (def name (get-manifest-filename bundle-name))
-    (assertf (fexists name) "no bundle %v found" bundle-name)
-    (parse (slurp name)))
+    [bundle-name &opt search-alt-syspaths]
+    (default search-alt-syspaths true)
+    (var ret nil)
+    (each syspath (syspaths search-alt-syspaths)
+      (def name (with-dyns [*syspath* syspath] (get-manifest-filename bundle-name)))
+      (when (fexists name)
+        (set ret (parse (slurp name)))
+        (break)))
+    (if ret ret
+      (errorf "no bundle %v found" bundle-name)))
 
   (defn- get-bundle-module
     [bundle-name]
@@ -4632,11 +4660,14 @@
 
   (defn bundle/list
     "Get a list of all installed bundles in lexical order."
-    []
-    (def d (bundle-dir))
-    (if (os/stat d :mode)
-      (sort (os/dir d))
-      @[]))
+    [&opt search-alt-syspaths]
+    (default search-alt-syspaths true)
+    (def ret @[])
+    (each syspath (syspaths search-alt-syspaths)
+      (def d (with-dyns [*syspath* syspath] (bundle-dir)))
+      (when (os/stat d :mode)
+       (array/push ret ;(os/dir d)))) 
+    (sort (distinct ret)))
 
   (defn- bundle-uninstall-unchecked
     [bundle-name]
@@ -4660,7 +4691,7 @@
     function with the same name in the bundle script.``
     [bundle-name]
     (def breakage @{})
-    (each b (bundle/list)
+    (each b (bundle/list false)
       (unless (= b bundle-name)
         (def m (bundle/manifest b))
         (def deps (get m :dependencies []))
@@ -4716,11 +4747,18 @@
     (each b to-drop
       (print "uninstalling " b)
       (bundle-uninstall-unchecked b)))
-
-  (defn bundle/installed?
-    "Check if a bundle is installed."
-    [bundle-name]
-    (not (not (os/stat (bundle-dir bundle-name) :mode))))
+    
+    (defn bundle/installed?
+      "Check if a bundle is installed."
+      [bundle-name &opt search-alt-syspaths]
+      (default search-alt-syspaths true)
+      (var ret false)
+      (each syspath (syspaths search-alt-syspaths)
+        (def name (with-dyns [*syspath* syspath] (bundle-dir bundle-name)))
+        (when (os/stat name :mode)
+          (set ret true)
+          (break)))
+      ret)
 
   (defn bundle/install
     ``Install a bundle from the local filesystem. The name of the bundle is
@@ -5056,10 +5094,9 @@
 
   (when-let [jp (getenv-alias "JANET_PATH")]
     (def path-sep (if (index-of (os/which) [:windows :mingw]) ";" ":"))
-    (def paths (string/split path-sep jp))
-    (loop [i :down-to [(- (length paths) 1) 1]]
-      (module/add-syspath (get paths i)))
-    (setdyn *syspath* (first paths)))
+    (def [syspath & alt-syspaths] (string/split path-sep jp))
+    (setdyn *syspath* syspath)
+    (setdyn *alt-syspaths* alt-syspaths))
   (if-let [jprofile (getenv-alias "JANET_PROFILE")] (setdyn *profilepath* jprofile))
   (apply-color
     (and
