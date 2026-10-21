@@ -963,6 +963,10 @@ static JanetSlot janetc_while(JanetFopts opts, int32_t argn, const Janet *argv) 
         JanetFuncDef *def = janetc_pop_funcdef(c, janet_cstring("while"));
         janet_def_addflags(def);
         int32_t defindex = janetc_addfuncdef(c, def);
+        if (defindex > 255) {
+            janetc_error(c, janet_cstring("too many closures"));
+            return janetc_cslot(janet_wrap_nil());
+        }
         /* Do basic optimization */
         if (!(c->scope->flags & JANET_SCOPE_UNUSED)) {
             janet_bytecode_optimize(def, c->optimize);
@@ -1212,6 +1216,10 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
 
     janet_def_addflags(def);
     defindex = janetc_addfuncdef(c, def);
+    if (defindex > 255) {
+        errmsg = "too many closures";
+        goto error;
+    }
 
     /* Ensure enough slots for vararg function. */
     if (arity + vararg > def->slotcount) def->slotcount = arity + vararg;

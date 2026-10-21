@@ -125,6 +125,10 @@ static void janetc_movenear(JanetCompiler *c,
                         JOP_GET_INDEX);
         }
     } else if (src.envindex >= 0) {
+        /* Convert src to near reg */
+        if (src.index > 255) {
+            janet_assert(0, "upvalue index > 255, cannot load");
+        }
         janetc_emit(c,
                     ((uint32_t)(src.index) << 24) |
                     ((uint32_t)(src.envindex) << 16) |
@@ -157,6 +161,9 @@ static void janetc_moveback(JanetCompiler *c,
             int32_t newsrc = JANETC_REGTEMP_5 + 0xF0;
             janetc_emit(c, JOP_MOVE_NEAR | ((uint32_t)(src) << 16) | ((uint32_t) newsrc << 8));
             src = newsrc;
+        }
+        if (dest.index > 255) {
+            janet_assert(0, "upvalue index > 255, cannot store");
         }
         janetc_emit(c,
                     ((uint32_t)(dest.index) << 24) |

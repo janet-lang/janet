@@ -414,6 +414,11 @@ found:
         ret.envindex = -1;
         return ret;
     }
+    if (ret.index > 0xFF) {
+        janetc_error(c, janet_formatc("too many closure upvalues: %S", sym));
+        ret.envindex = -1;
+        return ret;
+    }
 
     /* non-local scope needs to expose its environment */
     JanetScope *original_scope = scope;
