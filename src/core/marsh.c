@@ -1441,6 +1441,10 @@ static const uint8_t *unmarshal_one(
             *out = janet_wrap_function(func);
             janet_v_push(st->lookup, *out);
             data = unmarshal_one_def(st, data, &def, flags + 1);
+            if (def->environments_length != len) {
+                janet_panicf("invalid function - env count %d does not match funcdef (%d)",
+                             len, def->environments_length);
+            }
             func->def = def;
             for (int32_t i = 0; i < len; i++) {
                 data = unmarshal_one_env(st, data, &(func->envs[i]), flags + 1);
