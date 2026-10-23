@@ -66,5 +66,9 @@
 (def optimized (disasm (asm ~{:bytecode [(ldi 0 10) (movn 1 0) (add 2 0 1) (add 3 1 1) (add 4 0 0) (add 5 2 3) (ret 5)] :slotcount 40} :o) :bytecode))
 (assert (deep= optimized '@[(ldi 0 40) (ret 0)]) "bytecode optimization 1")
 
+# short sourcemap/symbolmap entries must not read past the tuple
+(assert-error "short sourcemap entry" (asm '{:arity 0 :bytecode [(ret 0)] :sourcemap [[1]]}))
+(assert-error "short symbolmap entry" (asm '{:arity 0 :bytecode [(ret 0)] :symbolmap [[1 2 3]]}))
+
 (end-suite)
 
