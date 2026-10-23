@@ -166,6 +166,20 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
   (assert-error "unmarshal peg bytecode length overflow"
                 (unmarshal tampered)))
 
+# Reject a function whose captured-env count disagrees with its funcdef. The
+# LB_FUNCTION record carries the number of env slots allocated for the closure,
+# but the env count the GC and upvalue opcodes use comes from the funcdef. If the
+# record claims fewer envs than the funcdef references, the envs[] array is
+# under-allocated and marking/upvalue access reads past it.
+(do
+  (def clo ((fn [x] (fn [] x)) 42))
+  (def b (buffer (marshal clo)))
+  # byte 0 is LB_FUNCTION (0xD7), byte 1 is the env count (1 here)
+  (assert (and (= (b 0) 0xD7) (= (b 1) 1)) "unexpected function marshal layout")
+  (set (b 1) 0)
+  (assert-error "unmarshal function env count mismatch"
+                (do (def c (unmarshal b)) (gccollect) (c))))
+
 # XXX: still needed? see 72beeeea
 (gccollect)
 
