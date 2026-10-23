@@ -721,6 +721,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
                 janet_asm_error(&a, "expected tuple");
             }
             tup = janet_unwrap_tuple(entry);
+            if (janet_tuple_length(tup) < 2) {
+                janet_asm_error(&a, "sourcemap entry must have 2 elements");
+            }
             if (!janet_checkint(tup[0])) {
                 janet_asm_error(&a, "expected integer");
             }
@@ -751,6 +754,9 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
                 janet_asm_error(&a, "expected tuple");
             }
             tup = janet_unwrap_tuple(entry);
+            if (janet_tuple_length(tup) < 4) {
+                janet_asm_error(&a, "symbolmap entry must have 4 elements");
+            }
             if (janet_keyeq(tup[0], "upvalue")) {
                 ss.birth_pc = UINT32_MAX;
             } else if (!janet_checkint(tup[0])) {
