@@ -61,6 +61,16 @@
                        (def foo (fn [one two] one))
                        (foo 100 200)))))
 
+# Reject out-of-range captured environment index. Only -1 (capture current
+# frame) or a non-negative index is valid; a value below -1 would make
+# JOP_CLOSURE read func->envs out of bounds.
+(assert-error "environment index below -1"
+              (asm ~{:arity 1 :min-arity 1 :max-arity 1 :slotcount 2
+                     :bytecode [(clo 1 0) (ret 1)]
+                     :defs @[@{:arity 0 :min-arity 0 :max-arity 0 :slotcount 1
+                               :bytecode [(ldi 0 0) (ret 0)]
+                               :environments @[-1000000]}]}))
+
 # Optimization in assembler
 # a bit brittle, but easy to fix
 (def optimized (disasm (asm ~{:bytecode [(ldi 0 10) (movn 1 0) (add 2 0 1) (add 3 1 1) (add 4 0 0) (add 5 2 3) (ret 5)] :slotcount 40} :o) :bytecode))

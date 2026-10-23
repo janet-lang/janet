@@ -1778,6 +1778,14 @@ int janet_verify(JanetFuncDef *def) {
     if (def->environments_length > 256) return 15;
     if (def->bytecode_length == 0) return 1;
 
+    /* Captured environment indices are either -1 (capture the current stack
+     * frame) or a non-negative index into the enclosing function's envs. A
+     * value below -1 is never emitted by the compiler; JOP_CLOSURE would use
+     * it to index func->envs out of bounds (negative). */
+    for (i = 0; i < def->environments_length; i++) {
+        if (def->environments[i] < -1) return 16;
+    }
+
     if (maxslot > sc) return 2;
 
     /* Verify each instruction */
