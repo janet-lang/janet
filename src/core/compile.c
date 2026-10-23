@@ -178,6 +178,7 @@ void janetc_scope(JanetScope *s, JanetCompiler *c, int flags, const char *name) 
 
 /* Leave a scope. */
 void janetc_popscope(JanetCompiler *c) {
+    if (NULL == c->scope) return; /* Allow for easier cleanup in edge cases */
     JanetScope *oldscope = c->scope;
     JanetScope *newscope = oldscope->parent;
     /* Move free slots to parent scope if not a new function.
@@ -1297,7 +1298,7 @@ JanetCompileResult janet_compile_lint(Janet source,
         c.result.funcdef = def;
     } else {
         c.result.error_mapping = c.current_mapping;
-        janetc_popscope(&c);
+        janetc_popscope(&c); /* c->scope might be null */
     }
 
     janetc_deinit(&c);
