@@ -205,6 +205,7 @@
 (check-lint-compile '|(when-with [_ nil] (print $255)) "dead code + upvalues 2")
 
 # Fuzz check
-(check-bad-compile '(->'(--)|x /(--)(-)(--)(--)(-)(--)(--)(-)(--)(--)(--)(-)(--)(--)(-)|x) "fuzz case")
+(check-bad-compile '(->'(--)|x /(--)(-)(--)(--)(-)(--)(--)(-)(--)(--)(--)(-)(--)(--)(-)|x) "fuzz case 1")
+(check-bad-compile '(->|* /(--)(--)/(--)(--)-=(--)(--)-=(--)(--)-=) "fuzz case 2")
 
 (end-suite)

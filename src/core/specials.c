@@ -1218,7 +1218,7 @@ static JanetSlot janetc_fn(JanetFopts opts, int32_t argn, const Janet *argv) {
     defindex = janetc_addfuncdef(c, def);
     if (defindex > 255) {
         janetc_error(c, janet_cstring("too many closures"));
-        goto error2;
+        return janetc_cslot(janet_wrap_nil()); /* Scope is now already popped, don't goto error */
     }
 
     /* Ensure enough slots for vararg function. */
