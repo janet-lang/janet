@@ -1778,6 +1778,11 @@ int janet_verify(JanetFuncDef *def) {
     if (def->environments_length > 256) return 15;
     if (def->bytecode_length == 0) return 1;
 
+    /* Environment indices must be -1 or non-negative */
+    for (i = 0; i < def->environments_length; i++) {
+        if (def->environments[i] < -1) return 16;
+    }
+
     if (maxslot > sc) return 2;
 
     /* Verify each instruction */
