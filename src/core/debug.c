@@ -23,6 +23,7 @@
 #ifndef JANET_AMALG
 #include "features.h"
 #include <janet.h>
+#include "fiber.h"
 #include "gc.h"
 #include "state.h"
 #include "util.h"
@@ -347,6 +348,7 @@ static Janet doframe(JanetStackFrame *frame) {
                     if (jsm.death_pc < (uint32_t) def->environments_length) {
                         /* death_pc is in valid range */
                         JanetFuncEnv *env = frame->func->envs[jsm.death_pc];
+                        janet_env_valid(env);
                         if (jsm.slot_index < (uint32_t) env->length) {
                             /* slot_index range good */
                             if (env->offset > 0) {
