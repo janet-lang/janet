@@ -179,6 +179,13 @@
 (assert (= (string buf) "xxxxxx") "buffer/format-at negative index")
 (assert-error "expected index at to be in range [0, 0), got 1" (buffer/format-at @"" 1 "abc"))
 
+# buffer/format with %s of the destination buffer itself. The buffer is
+# sized so appending its own contents forces a reallocation mid-copy.
+(def self-buf (buffer/new 9))
+(buffer/push self-buf "abcdefgh")
+(buffer/format self-buf "%s" self-buf)
+(assert (= (string self-buf) "abcdefghabcdefgh") "buffer/format %s self")
+
 # Regression 1714
 (repeat 10
   (assert (deep= (put @"" 100 10) (put (buffer (string/repeat "\0" 101)) 100 10)) "regression 1714")

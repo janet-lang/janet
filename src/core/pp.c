@@ -1229,9 +1229,14 @@ void janet_buffer_format(
                 }
                 case 's': {
                     const char *s = janet_getcbytes(argv, arg);
-                    if (form[2] == '\0')
+                    if (form[2] == '\0') {
+                        /* Prevent resizing buffer while appending */
+                        if (s == (const char *) b->data) {
+                            janet_buffer_extra(b, b->count);
+                            s = (const char *) b->data;
+                        }
                         janet_buffer_push_cstring(b, s);
-                    else {
+                    } else {
                         nb = snprintf(item, MAX_ITEM, form, s);
                     }
                     break;
