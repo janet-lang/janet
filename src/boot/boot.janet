@@ -4650,7 +4650,7 @@
       (print "remove " file)
       (case (os/stat file :mode)
         :file (os/rm file)
-        :directory (os/rmdir file)))
+        :directory (try (os/rmdir file) ([e] (print "  referenced by other bundles, " e))))) # directory may not be empty
     (rmrf (bundle-dir bundle-name))
     nil)
 
@@ -4872,12 +4872,16 @@
     (def s (sep))
     (def absdest (string (dyn *syspath*) s dest))
     (unless (os/mkdir absdest)
-      (errorf "collision at %s, directory already exists" absdest))
+      (if (and chmod-mode (not= (os/stat absdest :mode) chmod-mode))
+        (errorf "collision at %s, directory already exists with different permissions" absdest)))
     (def absdest (os/realpath absdest))
     (array/push files absdest)
     (when chmod-mode
       (os/chmod absdest chmod-mode))
     (print "add " absdest)
+    (def refcount-file (string absdest (sep) ".keep-" (get manifest :name))) # allow multiple bundles to share a package
+    (spit refcount-file "")
+    (array/push files refcount-file)
     absdest)
 
   (defn bundle/whois
