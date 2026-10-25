@@ -1955,6 +1955,17 @@ typedef struct {
     int32_t start;
 } PegCall;
 
+static int peg_has_callbacks(const JanetPeg *peg, Janet subst) {
+    if (janet_checktype(subst, JANET_FUNCTION) || janet_checktype(subst, JANET_CFUNCTION))
+        return 1;
+    for (uint32_t i = 0; i < peg->num_constants; i++) {
+        Janet c = peg->constants[i];
+        if (janet_checktype(c, JANET_FUNCTION) || janet_checktype(c, JANET_CFUNCTION))
+            return 1;
+    }
+    return 0;
+}
+
 /* Initialize state for peg cfunctions */
 static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     PegCall ret;
@@ -1966,12 +1977,14 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     } else {
         ret.peg = compile_peg(argv[0]);
     }
-    if (get_replace) {
-        ret.subst = argv[1];
-        ret.bytes = janet_getbytes(argv, 2);
-    } else {
-        ret.bytes = janet_getbytes(argv, 1);
+    int32_t text_index = get_replace ? 2 : 1;
+    ret.subst = get_replace ? argv[1] : janet_wrap_nil();
+    /* Callbacks may resize a buffer being matched, so match against a copy */
+    if (janet_checktype(argv[text_index], JANET_BUFFER) && peg_has_callbacks(ret.peg, ret.subst)) {
+        JanetBuffer *buffer = janet_unwrap_buffer(argv[text_index]);
+        argv[text_index] = janet_stringv(buffer->data, buffer->count);
     }
+    ret.bytes = janet_getbytes(argv, text_index);
     if (argc > min) {
         ret.start = janet_gethalfrange(argv, min, ret.bytes.len, "offset");
         ret.s.extrac = argc - min - 1;
