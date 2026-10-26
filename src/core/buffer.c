@@ -31,7 +31,7 @@
 /* Allow for managed buffers that cannot realloc/free their backing memory */
 static void janet_buffer_can_realloc(JanetBuffer *buffer) {
     if (buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC) {
-        janet_panic("buffer cannot reallocate foreign memory");
+        janet_panic("buffer cannot reallocate pinned memory");
     }
 }
 
