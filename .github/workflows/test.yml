@@ -174,7 +174,7 @@ jobs:
 
   test-cosmo:
     name: Test build for Cosmo
-    runs-on: ubuntu-24_04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
