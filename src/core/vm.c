@@ -1504,14 +1504,16 @@ void janet_restore(JanetTryState *state) {
     janet_vm.signal_buf = state->vm_jmp_buf;
     janet_vm.return_reg = state->vm_return_reg;
     janet_vm.coerce_error = state->coerce_error;
-    for (;;) {
+    while (janet_vm.try_cleanup->count) {
         Janet last = janet_array_pop(janet_vm.try_cleanup);
         switch (janet_type(last)) {
             default:
                 return;
+            case JANET_NIL:
+                break;
             case JANET_BUFFER:
                 janet_unwrap_buffer(last)->gc.flags &= ~JANET_BUFFER_FLAG_NO_REALLOC;
-                return;
+                break;
         }
     }
 }

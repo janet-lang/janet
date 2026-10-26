@@ -2018,6 +2018,13 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
 static void peg_call_deinit(PegCall *c) {
     if (c->backing_buffer) {
         c->backing_buffer->gc.flags = c->old_buffer_flags;
+        Janet needle = janet_wrap_buffer(c->backing_buffer);
+        for (int32_t i = janet_vm.try_cleanup->count - 1; i >= 0; i--) {
+            if (janet_equals(janet_vm.try_cleanup->data[i], needle)) {
+                janet_vm.try_cleanup->data[i] = janet_wrap_nil();
+                break;
+            }
+        }
     }
 }
 
