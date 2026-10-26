@@ -84,21 +84,56 @@ JanetBuffer *janet_buffer(int32_t capacity) {
     return janet_buffer_init_impl(buffer, capacity);
 }
 
+static void scratch_cleanup_cb(void *mem) {
+    void *ptr = ((void **)mem)[0];
+    janet_free(ptr);
+}
+
+/* Free ptr after the next garbage collection cycle using the scratch memory system */
+static void defer_free_backing_memory(void *ptr) {
+    void *mem = janet_smalloc(sizeof(ptr));
+    ((void **)mem)[0] = ptr;
+    janet_sfinalizer(mem, scratch_cleanup_cb);
+}
+
+/* Resize backing buffer, handling edge cases and flags */
+static uint8_t *janet_buffer_internal_reallocate(JanetBuffer *buffer, int32_t capacity) {
+    uint8_t *new_data;
+    janet_assert(!(buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC), "pinned buffer cannot be resized");
+    if (buffer->gc.flags & JANET_BUFFER_FLAG_COW_MODE) {
+        new_data = janet_malloc((size_t) capacity * sizeof(uint8_t));
+        if (NULL == new_data) {
+            JANET_OUT_OF_MEMORY;
+        }
+        safe_memcpy(new_data, buffer->data, sizeof(uint8_t) * buffer->count);
+        defer_free_backing_memory(buffer->data);
+        buffer->gc.flags &= ~JANET_BUFFER_FLAG_COW_MODE;
+    } else {
+        new_data = janet_realloc(buffer->data, (size_t) capacity * sizeof(uint8_t));
+        if (NULL == new_data) {
+            JANET_OUT_OF_MEMORY;
+        }
+    }
+    buffer->data = new_data;
+    buffer->capacity = capacity;
+    return new_data;
+}
+
+/* Before internal mutation, call this */
+void janet_buffer_cow_check(JanetBuffer *buffer) {
+    if (buffer->gc.flags & JANET_BUFFER_FLAG_COW_MODE) {
+        janet_buffer_internal_reallocate(buffer, buffer->capacity);
+    }
+}
+
 /* Ensure that the buffer has enough internal capacity */
 void janet_buffer_ensure(JanetBuffer *buffer, int32_t capacity, int32_t growth) {
-    uint8_t *new_data;
-    uint8_t *old = buffer->data;
     if (capacity <= buffer->capacity) return;
     janet_buffer_can_realloc(buffer);
     int64_t big_capacity = ((int64_t) capacity) * growth;
     capacity = big_capacity > INT32_MAX ? INT32_MAX : (int32_t) big_capacity;
     janet_gcpressure(capacity - buffer->capacity);
-    new_data = janet_realloc(old, (size_t) capacity * sizeof(uint8_t));
-    if (NULL == new_data) {
-        JANET_OUT_OF_MEMORY;
-    }
-    buffer->data = new_data;
-    buffer->capacity = capacity;
+    janet_buffer_internal_reallocate(buffer, capacity);
 }
 
 /* Ensure that the buffer has enough internal capacity */
@@ -124,13 +159,10 @@ void janet_buffer_extra(JanetBuffer *buffer, int32_t n) {
     if (new_size > buffer->capacity) {
         janet_buffer_can_realloc(buffer);
         int32_t new_capacity = (new_size > (INT32_MAX / 2)) ? INT32_MAX : (new_size * 2);
-        uint8_t *new_data = janet_realloc(buffer->data, new_capacity * sizeof(uint8_t));
         janet_gcpressure(new_capacity - buffer->capacity);
-        if (NULL == new_data) {
-            JANET_OUT_OF_MEMORY;
-        }
-        buffer->data = new_data;
-        buffer->capacity = new_capacity;
+        janet_buffer_internal_reallocate(buffer, new_capacity);
+    } else {
+        janet_buffer_cow_check(buffer);
     }
 }
 
@@ -143,6 +175,7 @@ void janet_buffer_push_cstring(JanetBuffer *buffer, const char *cstring) {
 /* Push multiple bytes into the buffer */
 void janet_buffer_push_bytes(JanetBuffer *buffer, const uint8_t *string, int32_t length) {
     if (0 == length) return;
+    janet_buffer_cow_check(buffer);
     janet_buffer_extra(buffer, length);
     memcpy(buffer->data + buffer->count, string, length);
     buffer->count += length;
@@ -246,6 +279,7 @@ JANET_CORE_FN(cfun_buffer_fill,
         byte = janet_getinteger(argv, 1) & 0xFF;
     }
     if (buffer->count) {
+        janet_buffer_cow_check(buffer);
         memset(buffer->data, byte, buffer->count);
     }
     return argv[0];
@@ -259,13 +293,8 @@ JANET_CORE_FN(cfun_buffer_trim,
     JanetBuffer *buffer = janet_getbuffer(argv, 0);
     janet_buffer_can_realloc(buffer);
     if (buffer->count < buffer->capacity) {
-        int32_t newcap = buffer->count > 4 ? buffer->count : 4;
-        uint8_t *newData = janet_realloc(buffer->data, newcap);
-        if (NULL == newData) {
-            JANET_OUT_OF_MEMORY;
-        }
-        buffer->data = newData;
-        buffer->capacity = newcap;
+        int32_t new_capacity = buffer->count > 4 ? buffer->count : 4;
+        janet_buffer_internal_reallocate(buffer, new_capacity);
     }
     return argv[0];
 }
@@ -563,6 +592,7 @@ JANET_CORE_FN(cfun_buffer_bitset,
     int32_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
+    janet_buffer_cow_check(buffer);
     buffer->data[index] |= 1 << bit;
     return argv[0];
 }
@@ -575,6 +605,7 @@ JANET_CORE_FN(cfun_buffer_bitclear,
     int32_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
+    janet_buffer_cow_check(buffer);
     buffer->data[index] &= ~(1 << bit);
     return argv[0];
 }
@@ -598,6 +629,7 @@ JANET_CORE_FN(cfun_buffer_bittoggle,
     int32_t index;
     JanetBuffer *buffer;
     bitloc(argc, argv, &buffer, &index, &bit);
+    janet_buffer_cow_check(buffer);
     buffer->data[index] ^= (1 << bit);
     return argv[0];
 }
@@ -634,6 +666,7 @@ JANET_CORE_FN(cfun_buffer_blit,
     janet_buffer_ensure(dest, last32, 2);
     if (last32 > dest->count) dest->count = last32;
     if (length_src) {
+        janet_buffer_cow_check(dest);
         if (same_buf) {
             /* janet_buffer_ensure may have invalidated src */
             src.bytes = dest->data;

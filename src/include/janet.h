@@ -1778,6 +1778,7 @@ JANET_API Janet janet_array_peek(JanetArray *array);
 
 /* Buffer functions */
 #define JANET_BUFFER_FLAG_NO_REALLOC 0x10000
+#define JANET_BUFFER_FLAG_COW_MODE 0x20000
 JANET_API JanetBuffer *janet_buffer(int32_t capacity);
 JANET_API JanetBuffer *janet_buffer_init(JanetBuffer *buffer, int32_t capacity);
 JANET_API JanetBuffer *janet_pointer_buffer_unsafe(void *memory, int32_t capacity, int32_t count);
@@ -1792,6 +1793,7 @@ JANET_API void janet_buffer_push_u8(JanetBuffer *buffer, uint8_t x);
 JANET_API void janet_buffer_push_u16(JanetBuffer *buffer, uint16_t x);
 JANET_API void janet_buffer_push_u32(JanetBuffer *buffer, uint32_t x);
 JANET_API void janet_buffer_push_u64(JanetBuffer *buffer, uint64_t x);
+JANET_API void janet_buffer_cow_check(JanetBuffer *buffer);
 
 /* Tuple */
 

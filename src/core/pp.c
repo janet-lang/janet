@@ -221,6 +221,7 @@ static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
 }
 
 void janet_to_string_b(JanetBuffer *buffer, Janet x) {
+    janet_buffer_cow_check(b);
     switch (janet_type(x)) {
         case JANET_NIL:
             janet_buffer_push_cstring(buffer, "");
@@ -994,6 +995,7 @@ static const char *scanformat(
 }
 
 void janet_formatbv(JanetBuffer *b, const char *format, va_list args) {
+    janet_buffer_cow_check(b);
     const char *format_end = format + strlen(format);
     const char *c = format;
     int32_t startlen = b->count;
@@ -1172,6 +1174,7 @@ void janet_buffer_format(
     const char *strfrmt_end = strfrmt + sfl;
     int32_t arg = argstart;
     int32_t startlen = b->count;
+    janet_buffer_cow_check(b);
     while (strfrmt < strfrmt_end) {
         if (*strfrmt != '%')
             janet_buffer_push_u8(b, (uint8_t) * strfrmt++);

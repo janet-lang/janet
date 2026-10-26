@@ -2696,6 +2696,7 @@ void ev_callback_read(JanetFiber *fiber, JanetAsyncEvent event) {
             socklen_t socklen = sizeof(saddr);
 #endif
             do {
+                janet_buffer_cow_check(buffer);
 #ifdef JANET_NET
                 if (state->mode == JANET_ASYNC_READMODE_RECVFROM) {
                     nread = recvfrom(stream->handle, buffer->data + buffer->count, read_limit, state->flags,

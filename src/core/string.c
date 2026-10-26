@@ -380,6 +380,15 @@ struct replace_state {
 
 static void replacesetup(int32_t argc, Janet *argv, struct replace_state *s) {
     janet_arity(argc, 3, 4);
+    /* A callback may resize a buffer argument, so search a copy instead */
+    if (janet_checktype(argv[1], JANET_FUNCTION) || janet_checktype(argv[1], JANET_CFUNCTION)) {
+        for (int32_t i = 0; i < 3; i += 2) {
+            if (janet_checktype(argv[i], JANET_BUFFER)) {
+                JanetBuffer *buffer = janet_unwrap_buffer(argv[i]);
+                argv[i] = janet_stringv(buffer->data, buffer->count);
+            }
+        }
+    }
     JanetByteView pat = janet_getbytes(argv, 0);
     Janet subst = argv[1];
     JanetByteView text = janet_getbytes(argv, 2);
