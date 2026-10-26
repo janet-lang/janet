@@ -139,5 +139,32 @@
 # Check string formatting, #1600
 (assert (= "" (string/format "%.99s" @"")) "string/format %s buffer")
 
+# A replacement callback that grows the text or pattern buffer used to leave
+# string/replace and string/replace-all reading freed memory.
+(def str-grow-buf @"aXbXcXd")
+(assert (= "aZbZcZd"
+           (string/replace-all "X"
+                               (fn [_]
+                                 (buffer/push str-grow-buf (string/repeat "y" 100000))
+                                 "Z")
+                               str-grow-buf))
+        "string/replace-all callback resizing text buffer")
+(def str-grow-buf2 @"aXbXcXd")
+(assert (= "aZbXcXd"
+           (string/replace "X"
+                           (fn [_]
+                             (buffer/push str-grow-buf2 (string/repeat "y" 100000))
+                             "Z")
+                           str-grow-buf2))
+        "string/replace callback resizing text buffer")
+(def str-grow-patt @"X")
+(assert (= "aZbZcZ"
+           (string/replace-all str-grow-patt
+                               (fn [_]
+                                 (buffer/push str-grow-patt (string/repeat "y" 100000))
+                                 "Z")
+                               "aXbXcX"))
+        "string/replace-all callback resizing pattern buffer")
+
 (end-suite)
 
