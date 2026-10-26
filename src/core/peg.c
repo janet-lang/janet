@@ -1955,6 +1955,7 @@ typedef struct {
     int32_t start;
     JanetBuffer *backing_buffer;
     int32_t old_buffer_flags;
+    int32_t gc_suspend;
 } PegCall;
 
 static JanetByteView peg_getbytes(const Janet *argv, int32_t n, PegCall *pc) {
@@ -1964,6 +1965,7 @@ static JanetByteView peg_getbytes(const Janet *argv, int32_t n, PegCall *pc) {
          * instead of causing a use-after-free error. In most cases, we reset
          * flag on good match to avoid extra copies later in peg_cfun_deinit
          * (not always, could error). */
+        pc->gc_suspend = janet_vm.gc_suspend++;
         pc->old_buffer_flags = buffer->gc.flags;
         buffer->gc.flags |= JANET_BUFFER_FLAG_COW_MODE;
         pc->backing_buffer = buffer;
@@ -2017,6 +2019,7 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
 
 static void peg_cfun_deinit(PegCall *c) {
     if (c->backing_buffer) {
+        janet_vm.gc_suspend = c->gc_suspend;
         c->backing_buffer->gc.flags = c->old_buffer_flags;
     }
 }
