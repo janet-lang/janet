@@ -1953,6 +1953,8 @@ typedef struct {
     JanetByteView bytes;
     Janet subst;
     int32_t start;
+    JanetBuffer *input_buffer;
+    int32_t old_flags;
 } PegCall;
 
 /* Initialize state for peg cfunctions */
@@ -1966,11 +1968,18 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     } else {
         ret.peg = compile_peg(argv[0]);
     }
+    int input_loc = 1;
     if (get_replace) {
         ret.subst = argv[1];
-        ret.bytes = janet_getbytes(argv, 2);
+        input_loc = 2;
+    }
+    ret.bytes = janet_getbytes(argv, input_loc);
+    if (janet_checktype(argv[input_loc], JANET_BUFFER)) {
+        ret.input_buffer = janet_unwrap_buffer(argv[input_loc]);
+        ret.old_flags = ret.input_buffer->gc.flags;
+        ret.input_buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
     } else {
-        ret.bytes = janet_getbytes(argv, 1);
+        ret.input_buffer = NULL;
     }
     if (argc > min) {
         ret.start = janet_gethalfrange(argv, min, ret.bytes.len, "offset");
@@ -2006,12 +2015,29 @@ static void peg_call_reset(PegCall *c) {
     c->s.tags->count = 0;
 }
 
+#define PEG_TRY_SETUP \
+    JanetTryState tstate; \
+    if (c.input_buffer && janet_try(&tstate)) { \
+        c.input_buffer->gc.flags = c.old_flags; \
+        Janet result = *janet_vm.return_reg; \
+        janet_restore(&tstate); \
+        janet_panicv(result); /* re-raise */ \
+    }
+
+#define PEG_TRY_TEARDOWN \
+    if (c.input_buffer) { \
+        janet_restore(&tstate); \
+        c.input_buffer->gc.flags = c.old_flags; \
+    }
+
 JANET_CORE_FN(cfun_peg_match,
               "(peg/match peg text &opt start & args)",
               "Match a Parsing Expression Grammar to a byte string and return an array of captured values. "
               "Returns nil if text does not match the language defined by peg. The syntax of PEGs is documented on the Janet website.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
+    PEG_TRY_SETUP
     const uint8_t *result = peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + c.start);
+    PEG_TRY_TEARDOWN
     return result ? janet_wrap_array(c.s.captures) : janet_wrap_nil();
 }
 
@@ -2019,29 +2045,37 @@ JANET_CORE_FN(cfun_peg_find,
               "(peg/find peg text &opt start & args)",
               "Find first index where the peg matches in text. Returns an integer, or nil if not found.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
+    PEG_TRY_SETUP
+    Janet result = janet_wrap_nil();
     for (int32_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
-        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
-            return janet_wrap_integer(i);
+        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i)) {
+            result = janet_wrap_integer(i);
+            break;
+        }
     }
-    return janet_wrap_nil();
+    PEG_TRY_TEARDOWN
+    return result;
 }
 
 JANET_CORE_FN(cfun_peg_find_all,
               "(peg/find-all peg text &opt start & args)",
               "Find all indexes where the peg matches in text. Returns an array of integers.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
+    PEG_TRY_SETUP
     JanetArray *ret = janet_array(0);
     for (int32_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
         if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
             janet_array_push(ret, janet_wrap_integer(i));
     }
+    PEG_TRY_TEARDOWN
     return janet_wrap_array(ret);
 }
 
 static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
     PegCall c = peg_cfun_init(argc, argv, 1);
+    PEG_TRY_SETUP
     JanetBuffer *ret = janet_buffer(0);
     int32_t trail = 0;
     for (int32_t i = c.start; i < c.bytes.len;) {
@@ -2066,6 +2100,7 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
     if (trail < c.bytes.len) {
         janet_buffer_push_bytes(ret, c.bytes.bytes + trail, (c.bytes.len - trail));
     }
+    PEG_TRY_TEARDOWN
     return janet_wrap_buffer(ret);
 }
 
