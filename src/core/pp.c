@@ -221,7 +221,7 @@ static void janet_escape_buffer_b(JanetBuffer *buffer, JanetBuffer *bx) {
 }
 
 void janet_to_string_b(JanetBuffer *buffer, Janet x) {
-    janet_buffer_cow_check(b);
+    janet_buffer_cow_check(buffer);
     switch (janet_type(x)) {
         case JANET_NIL:
             janet_buffer_push_cstring(buffer, "");
