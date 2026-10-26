@@ -1953,7 +1953,24 @@ typedef struct {
     JanetByteView bytes;
     Janet subst;
     int32_t start;
+    JanetBuffer *backing_buffer;
+    int32_t old_buffer_flags;
 } PegCall;
+
+static JanetByteView peg_getbytes(Janet *argv, int32_t n, PegCall *call) {
+    call->backing_buffer = NULL;
+    if (janet_checktype(argv[n], JANET_BUFFER)) {
+        /* Prevent mutation of the buffer for the duration of this call.
+         * If we error, clean up immediately, no lazy cleanup! */
+        call->backing_buffer = janet_unwrap_buffer(argv[n]);
+        call->old_buffer_flags = call->backing_buffer->gc.flags;
+        if (!(call->backing_buffer->gc.flags & JANET_BUFFER_FLAG_NO_REALLOC)) {
+            janet_array_push(janet_vm.try_cleanup, janet_wrap_buffer(call->backing_buffer));
+            call->backing_buffer->gc.flags |= JANET_BUFFER_FLAG_NO_REALLOC;
+        }
+    }
+    return janet_getbytes(argv, n);
+}
 
 /* Initialize state for peg cfunctions */
 static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
@@ -1968,9 +1985,9 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     }
     if (get_replace) {
         ret.subst = argv[1];
-        ret.bytes = janet_getbytes(argv, 2);
+        ret.bytes = peg_getbytes(argv, 2, &ret);
     } else {
-        ret.bytes = janet_getbytes(argv, 1);
+        ret.bytes = peg_getbytes(argv, 1, &ret);
     }
     if (argc > min) {
         ret.start = janet_gethalfrange(argv, min, ret.bytes.len, "offset");
@@ -1998,6 +2015,12 @@ static PegCall peg_cfun_init(int32_t argc, Janet *argv, int get_replace) {
     return ret;
 }
 
+static void peg_call_deinit(PegCall *c) {
+    if (c->backing_buffer) {
+        c->backing_buffer->gc.flags = c->old_buffer_flags;
+    }
+}
+
 static void peg_call_reset(PegCall *c) {
     c->s.depth = JANET_RECURSION_GUARD;
     c->s.captures->count = 0;
@@ -2012,6 +2035,7 @@ JANET_CORE_FN(cfun_peg_match,
               "Returns nil if text does not match the language defined by peg. The syntax of PEGs is documented on the Janet website.") {
     PegCall c = peg_cfun_init(argc, argv, 0);
     const uint8_t *result = peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + c.start);
+    peg_call_deinit(&c);
     return result ? janet_wrap_array(c.s.captures) : janet_wrap_nil();
 }
 
@@ -2021,9 +2045,12 @@ JANET_CORE_FN(cfun_peg_find,
     PegCall c = peg_cfun_init(argc, argv, 0);
     for (int32_t i = c.start; i < c.bytes.len; i++) {
         peg_call_reset(&c);
-        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
+        if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i)) {
+            peg_call_deinit(&c);
             return janet_wrap_integer(i);
+        }
     }
+    peg_call_deinit(&c);
     return janet_wrap_nil();
 }
 
@@ -2037,6 +2064,7 @@ JANET_CORE_FN(cfun_peg_find_all,
         if (peg_rule(&c.s, c.s.bytecode, c.bytes.bytes + i))
             janet_array_push(ret, janet_wrap_integer(i));
     }
+    peg_call_deinit(&c);
     return janet_wrap_array(ret);
 }
 
@@ -2066,6 +2094,7 @@ static Janet cfun_peg_replace_generic(int32_t argc, Janet *argv, int only_one) {
     if (trail < c.bytes.len) {
         janet_buffer_push_bytes(ret, c.bytes.bytes + trail, (c.bytes.len - trail));
     }
+    peg_call_deinit(&c);
     return janet_wrap_buffer(ret);
 }
 

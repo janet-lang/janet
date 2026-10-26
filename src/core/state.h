@@ -206,6 +206,8 @@ struct JanetVM {
 #endif
 #endif
 
+    /* Try cleanup stack */
+    JanetArray *try_cleanup;
 };
 
 extern JANET_THREAD_LOCAL JanetVM janet_vm;

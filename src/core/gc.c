@@ -592,8 +592,11 @@ void janet_collect(void) {
 #ifdef JANET_EV
     janet_ev_mark();
 #endif
+    if (janet_vm.try_cleanup) {
+        janet_mark_array(janet_vm.try_cleanup);
+    }
     if (janet_vm.top_dyns) {
-        janet_mark(janet_wrap_table(janet_vm.top_dyns));
+        janet_mark_table(janet_vm.top_dyns);
     }
     if (janet_vm.root_fiber != NULL) { /* Can be NULL if janet_collect called outside of interpreter loop */
         janet_mark_fiber(janet_vm.root_fiber);
@@ -706,7 +709,7 @@ void janet_gcunlock(int handle) {
 }
 
 /* Scratch memory API
- * Scratch memory allocations do not need to be free (but optionally can be), and will be automatically cleaned
+ * Scratch memory allocations do not need to be freed (but optionally can be), and will be automatically cleaned
  * up in the next call to janet_collect. */
 
 void *janet_smalloc(size_t size) {
