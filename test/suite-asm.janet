@@ -80,5 +80,11 @@
 (assert-error "short sourcemap entry" (asm '{:arity 0 :bytecode [(ret 0)] :sourcemap [[1]]}))
 (assert-error "short symbolmap entry" (asm '{:arity 0 :bytecode [(ret 0)] :symbolmap [[1 2 3]]}))
 
+# named_args_count must not exceed the constant array; the optimizer sets one
+# bit per named arg in a bitset sized for the constants, so an oversized count
+# wrote past that allocation (asan heap-buffer-overflow in bytecode.c).
+(assert-error "named args exceed constants"
+              (asm '{:arity 1 :bytecode [(retn)] :constants [1] :namedargs 100000} :o))
+
 (end-suite)
 
