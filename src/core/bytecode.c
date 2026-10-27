@@ -1778,6 +1778,11 @@ int janet_verify(JanetFuncDef *def) {
     if (def->environments_length > 256) return 15;
     if (def->bytecode_length == 0) return 1;
 
+    /* Named args are the first named_args_count constants, so the count must fit the constant array */
+    if ((def->flags & JANET_FUNCDEF_FLAG_NAMEDARGS) &&
+            (def->named_args_count < 0 || def->named_args_count > def->constants_length))
+        return 17;
+
     /* Environment indices must be -1 or non-negative */
     for (i = 0; i < def->environments_length; i++) {
         if (def->environments[i] < -1) return 16;
