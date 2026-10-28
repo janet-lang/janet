@@ -267,4 +267,23 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 (assert (deep= (freeze t) (freeze tclone)) "marsh weak tables with prototypes 4")
 (assert (deep= (getproto t) (getproto tclone)) "marsh weak tables with prototypes 5")
 
+# Reject an unmarshalled fiber that has no stack frames but a resumable status.
+# A finished fiber marshals with frame == 0; forcing its status to :pending
+# leaves the VM running with frame == 0, reading the stack frame header before
+# fiber->data.
+(do
+  (def dead (fiber/new (fn [] 1)))
+  (resume dead)
+  (def b (buffer (marshal dead)))
+  # byte 0 is LB_FIBER, byte 1 is the fiber flags (status :dead here), byte 2
+  # is the frame (0 for a finished fiber)
+  (assert (and (= (b 0) 0xcc) (= (b 1) 8) (= (b 2) 0)) "unexpected fiber marshal layout")
+  # splice in flags encoding status :pending (3 << 16) with the same low bits
+  (def tampered
+    (buffer/push (buffer (buffer/slice b 0 1))
+                 "\xCD\x00\x03\x00\x08"
+                 (buffer/slice b 2)))
+  (assert-error "unmarshal frameless resumable fiber"
+                (resume (unmarshal tampered))))
+
 (end-suite)

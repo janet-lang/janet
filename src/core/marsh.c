@@ -1223,6 +1223,15 @@ static const uint8_t *unmarshal_one_fiber(
         janet_panic("invalid fiber status");
     }
 
+    /* A fiber with no stack frames must not be resumable, or the VM reads the frame header before fiber->data */
+    if (frame == 0 &&
+            status != JANET_STATUS_DEAD &&
+            status != JANET_STATUS_ERROR &&
+            status != JANET_STATUS_ALIVE &&
+            !(status >= JANET_STATUS_USER0 && status <= JANET_STATUS_USER4)) {
+        janet_panic("fiber with no stack frames cannot be resumable");
+    }
+
     /* Return data */
     *out = fiber;
     return data;
