@@ -1524,17 +1524,18 @@ static void janet_chanat_marshal(void *p, JanetMarshalContext *ctx) {
 
 static void *janet_chanat_unmarshal(JanetMarshalContext *ctx) {
     uint8_t is_threaded = janet_unmarshal_byte(ctx);
+    uint8_t is_closed = janet_unmarshal_byte(ctx);
+    int32_t limit = janet_unmarshal_int(ctx);
+    int32_t count = janet_unmarshal_int(ctx);
+    if (count < 0) janet_panic("invalid negative channel count");
+    if (count > limit) janet_panic("invalid channel count");
+    /* Validate before allocating so a panic can't leave an uninitialized channel */
     JanetChannel *abst;
     if (is_threaded) {
         abst = janet_unmarshal_abstract_threaded(ctx, sizeof(JanetChannel));
     } else {
         abst = janet_unmarshal_abstract(ctx, sizeof(JanetChannel));
     }
-    uint8_t is_closed = janet_unmarshal_byte(ctx);
-    int32_t limit = janet_unmarshal_int(ctx);
-    int32_t count = janet_unmarshal_int(ctx);
-    if (count < 0) janet_panic("invalid negative channel count");
-    if (count > limit) janet_panic("invalid channel count");
     janet_chan_init(abst, limit, 0);
     abst->closed = !!is_closed;
     for (int32_t i = 0; i < count; i++) {
