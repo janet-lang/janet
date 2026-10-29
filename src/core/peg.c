@@ -426,7 +426,7 @@ tail:
 
         case RULE_ARGUMENT: {
             int32_t index = ((int32_t *)rule)[1];
-            Janet capture = (index >= s->extrac) ? janet_wrap_nil() : s->extrav[index];
+            Janet capture = (index >= s->extrac || index < 0) ? janet_wrap_nil() : s->extrav[index];
             pushcap(s, capture, rule[2]);
             return text;
         }
@@ -1764,9 +1764,6 @@ static void *peg_unmarshal(JanetMarshalContext *ctx) {
             case RULE_ARGUMENT:
                 /* [argument-index, tag] */
                 OVERFLOW_CHECK(3);
-                /* index is read as a signed int32 at match time and only
-                 * bounds-checked against extrac on the high side, so a
-                 * negative index would read before extrav */
                 if (((int32_t) rule[1]) < 0) goto bad;
                 i += 3;
                 break;

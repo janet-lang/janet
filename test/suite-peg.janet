@@ -963,6 +963,8 @@
 
     ```))
 
+(assert-error "negative argument" (peg/compile ~(argument -1)))
+
 # A matchtime or replacement callback that grows the buffer being matched
 # reallocates its storage. The matcher kept pointing at the old allocation,
 # so the rest of the match read freed memory.
