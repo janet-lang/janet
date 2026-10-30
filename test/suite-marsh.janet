@@ -290,7 +290,7 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
 # Previously the abstract was allocated first, so a panic while reading the
 # header left an uninitialized channel in the heap and the next collection ran
 # its finalizer on garbage queue pointers and a garbage mutex.
-(do
+(compwhen (dyn 'ev/chan)
   (def b (buffer (marshal (ev/chan 2))))
   # the image ends with is_threaded, closed, limit and count, one byte each
   (def n (length b))
