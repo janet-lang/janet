@@ -290,6 +290,7 @@ void safe_memcpy(void *dest, const void *src, size_t len) {
 /* Helper to find a value in a Janet struct or table like janet_dict_find, for keys
  * equaling stored key that is not bitwise identical to it. */
 const JanetKV *janet_dict_find_deep(const JanetKV *buckets, int32_t cap, Janet key) {
+    janet_assert(cap != 0, "bad capacity");
     int32_t index = janet_maphash(cap, janet_hash(key));
     int32_t i;
     const JanetKV *first_bucket = NULL;
@@ -320,6 +321,58 @@ const JanetKV *janet_dict_find_deep(const JanetKV *buckets, int32_t cap, Janet k
         }
     }
     return first_bucket;
+}
+
+/* Search the dict when we know that the key equality check is simple */
+const JanetKV *janet_dict_find_shallow(const JanetKV *buckets, int32_t cap, Janet key) {
+    janet_assert(cap != 0, "bad capacity");
+    int32_t hash;
+    /* Manual inline common case of symbol or keyword */
+    if (janet_checktype(key, JANET_KEYWORD) || janet_checktype(key, JANET_SYMBOL)) {
+        hash = janet_string_hash(janet_unwrap_string(key));
+    } else {
+        hash = janet_hash(key);
+    }
+    int32_t index = janet_maphash(cap, hash);
+    int32_t i;
+    const JanetKV *first_bucket = NULL;
+    /* Higher half */
+    for (i = index; i < cap; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_bitwise_same(kv->key, key)) {
+            return buckets + i;
+        }
+    }
+    /* Lower half */
+    for (i = 0; i < index; i++) {
+        const JanetKV *kv = buckets + i;
+        if (janet_checktype(kv->key, JANET_NIL)) {
+            if (janet_checktype(kv->value, JANET_NIL)) {
+                return kv;
+            } else if (NULL == first_bucket) {
+                first_bucket = kv;
+            }
+        } else if (janet_bitwise_same(kv->key, key)) {
+            return buckets + i;
+        }
+    }
+    return first_bucket;
+}
+
+#define HARD_KEY_TYPES (JANET_TFLAG_NIL | JANET_TFLAG_STRING | JANET_TFLAG_TUPLE | JANET_TFLAG_STRUCT | JANET_TFLAG_ABSTRACT)
+
+const JanetKV *janet_dict_find(const JanetKV *buckets, int32_t cap, Janet key) {
+    if (janet_checktypes(key, HARD_KEY_TYPES) || (janet_checktype(key, JANET_NUMBER) && janet_unwrap_number(key) == 0)) {
+        return janet_dict_find_deep(buckets, cap, key);
+    } else {
+        return janet_dict_find_shallow(buckets, cap, key);
+    }
 }
 
 /* Helper to find a keyword, symbol, or string in a Janet struct or table without allocating
@@ -981,7 +1034,6 @@ int32_t janet_sorted_keys(const JanetKV *dict, int32_t cap, int32_t *index_buffe
 
     /* Return number of indices found */
     return next_index;
-
 }
 
 /* Clock shims for various platforms */
