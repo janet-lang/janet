@@ -286,4 +286,20 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
   (assert-error "unmarshal frameless resumable fiber"
                 (resume (unmarshal tampered))))
 
+# A malformed channel image must be rejected before the channel is allocated.
+# Previously the abstract was allocated first, so a panic while reading the
+# header left an uninitialized channel in the heap and the next collection ran
+# its finalizer on garbage queue pointers and a garbage mutex.
+(compwhen (dyn 'ev/chan)
+  (def b (buffer (marshal (ev/chan 2))))
+  # the image ends with is_threaded, closed, limit and count, one byte each
+  (def n (length b))
+  (assert (and (= (b (- n 2)) 2) (= (b (- n 1)) 0)) "unexpected channel marshal layout")
+  # claim more queued items than the limit allows
+  (put b (- n 1) 3)
+  (assert-error "unmarshal channel count over limit" (unmarshal b))
+  # cut the image off right after the is_threaded byte
+  (assert-error "unmarshal truncated channel" (unmarshal (buffer/slice b 0 (- n 3))))
+  (gccollect))
+
 (end-suite)
