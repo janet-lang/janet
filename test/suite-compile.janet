@@ -209,7 +209,6 @@
 (check-bad-compile '(->|* /(--)(--)/(--)(--)-=(--)(--)-=(--)(--)-=) "fuzz case 2")
 
 # Jump target overflow check
-# This could be made to compile, but there will be limits to the compiler. At least don't segfault
-(check-bad-compile ~|(< ,;(seq [_ :range [0 11000]] 2)) "jump target overflow")
+(check-good-compile ~|(< ,;(seq [_ :range [0 11000]] 2)) "jump target overflow")
 
 (end-suite)

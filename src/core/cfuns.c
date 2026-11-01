@@ -58,6 +58,9 @@ static int fixarity3(JanetFopts opts, JanetSlot *args) {
     (void) opts;
     return janet_v_count(args) == 3;
 }
+static int prevent_huge(JanetFopts opts, JanetSlot *args) {
+    return janet_v_count(args) < 1000;
+}
 
 /* Generic handling for $A = op $B */
 static JanetSlot genericSS(JanetFopts opts, int op, JanetSlot s) {
@@ -400,12 +403,12 @@ static const JanetFunOptimizer optimizers[] = {
     {NULL, do_rshift},
     {NULL, do_rshiftu},
     {fixarity1, do_bnot},
-    {NULL, do_gt},
-    {NULL, do_lt},
-    {NULL, do_gte},
-    {NULL, do_lte},
-    {NULL, do_eq},
-    {NULL, do_neq},
+    {prevent_huge, do_gt},
+    {prevent_huge, do_lt},
+    {prevent_huge, do_gte},
+    {prevent_huge, do_lte},
+    {prevent_huge, do_eq},
+    {prevent_huge, do_neq},
     {fixarity2, do_propagate},
     {arity2or3, do_get},
     {arity1or2, do_next},
