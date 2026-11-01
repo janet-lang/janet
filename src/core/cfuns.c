@@ -342,12 +342,21 @@ static JanetSlot compreduce(
             janet_v_push(labels, label);
         }
     }
+    int bad_jump = 0;
     int32_t end = janet_v_count(c->buffer);
     for (i = 0; i < janet_v_count(labels); i++) {
         int32_t label = labels[i];
-        c->buffer[label] |= ((uint32_t)(end - label) << 16);
+        if (end - label > INT16_MAX) { /* Ideally we would just back out of the optimization */
+            bad_jump = 1;
+        } else {
+            c->buffer[label] |= ((uint32_t)(end - label) << 16);
+        }
     }
     janet_v_free(labels);
+    if (bad_jump) {
+        janetc_error(c, janet_cstring("16-bit jump overflow"));
+        return janetc_cslot(janet_wrap_nil());
+    }
     return t;
 }
 
