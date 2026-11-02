@@ -86,5 +86,15 @@
 (assert-error "named args exceed constants"
               (asm '{:arity 1 :bytecode [(retn)] :constants [1] :namedargs 100000} :o))
 
+# structarg/namedargs reserve a tuple slot at index arity, like vararg, so
+# slotcount must leave room for it. The compiler always pairs them with
+# vararg, but the assembler can set the flag while slotcount == arity; the
+# optimizer's slot compaction then pinned slot arity and wrote past the remap
+# buffer (asan heap-buffer-overflow in janet_bytecode_compact_slots).
+(assert-error "structarg with no room for tuple slot"
+              (asm '{:arity 1 :structarg true :bytecode [(ret 0)]} :o))
+(assert-error "namedargs with no room for tuple slot"
+              (asm '{:arity 1 :namedargs 0 :bytecode [(ret 0)]} :o))
+
 (end-suite)
 
