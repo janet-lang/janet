@@ -1770,7 +1770,8 @@ void janet_bytecode_optimize(JanetFuncDef *def, int32_t level) {
 
 /* Verify some bytecode */
 int janet_verify(JanetFuncDef *def) {
-    int vargs = !!(def->flags & JANET_FUNCDEF_FLAG_VARARG);
+    /* vararg, structarg and namedargs each reserve a tuple slot at index arity */
+    int vargs = !!(def->flags & (JANET_FUNCDEF_FLAG_VARARG | JANET_FUNCDEF_FLAG_STRUCTARG | JANET_FUNCDEF_FLAG_NAMEDARGS));
     int32_t i;
     int32_t maxslot = def->arity + vargs;
     int32_t sc = def->slotcount;
