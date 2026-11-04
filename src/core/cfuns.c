@@ -59,6 +59,7 @@ static int fixarity3(JanetFopts opts, JanetSlot *args) {
     return janet_v_count(args) == 3;
 }
 static int prevent_huge(JanetFopts opts, JanetSlot *args) {
+    (void) opts;
     return janet_v_count(args) < 1000;
 }
 
