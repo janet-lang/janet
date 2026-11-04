@@ -398,8 +398,8 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         }
     }
 
-    JanetFFIStruct *st = janet_abstract(&janet_struct_type,
-                                        sizeof(JanetFFIStruct) + argc * sizeof(JanetFFIStructMember));
+    JanetFFIStruct *st = janet_abstract_threaded(&janet_struct_type,
+        sizeof(JanetFFIStruct) + argc * sizeof(JanetFFIStructMember));
     st->field_count = 0;
     st->size = 0;
     st->align = 1;
@@ -1165,7 +1165,7 @@ JANET_CORE_FN(cfun_ffi_signature,
     }
 
     /* Create signature abstract value */
-    JanetFFISignature *abst = janet_abstract(&janet_signature_type, sizeof(JanetFFISignature));
+    JanetFFISignature *abst = janet_abstract_threaded(&janet_signature_type, sizeof(JanetFFISignature));
     abst->frame_size = frame_size;
     abst->cc = cc;
     abst->ret = ret;
