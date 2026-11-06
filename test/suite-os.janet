@@ -67,6 +67,12 @@
 (assert (= (try (os/strftime "%H:%M:%") ([err] err))
            "invalid conversion specifier")
         "invalid conversion specifier 2")
+# strftime leaves its buffer indeterminate when the result does not fit,
+# so an oversized result must not be read back with strlen.
+(assert (= (os/strftime (string/repeat "a" 249) 0) (string/repeat "a" 249))
+        "strftime result that fills the buffer")
+(assert (= (os/strftime (string/repeat "%Y" 200) 0) "")
+        "strftime result too long for the buffer")
 
 # 07db4c530
 (os/setenv "TESTENV1" "v1")

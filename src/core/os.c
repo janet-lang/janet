@@ -1996,8 +1996,8 @@ JANET_CORE_FN(os_strftime,
     struct tm t_infos;
     struct tm *t_info = time_to_tm(argv, argc, 1, &t_infos);
     char buf[SIZETIMEFMT];
-    (void)strftime(buf, sizeof(buf), fmt, t_info);
-    return janet_cstringv(buf);
+    size_t len = strftime(buf, sizeof(buf), fmt, t_info);
+    return janet_stringv((const uint8_t *)buf, (int32_t) len);
 }
 
 static int entry_getdst(Janet env_entry) {
