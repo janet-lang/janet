@@ -94,7 +94,7 @@ jobs:
     permissions:
       contents: write  # for softprops/action-gh-release to create GitHub release
     name: Build release binaries for Cosmo
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout the repository
         uses: actions/checkout@master
