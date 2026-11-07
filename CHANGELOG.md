@@ -1,10 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-## ??? - Unreleased
-- Bug fixes to ev/thread-chan and ev/select leaking GC roots in some cases
+## 1.43.0 - 2026-11-07
+- Functions with more than 256 closures will now fail to compile instead of silently mis-compiling.
+- Many fuzzing and memory safety issues patched via LLM bug search.
+- Many fixes to `marshal` and `unmarshal` on corrupted inputs.
+- Bug fixes to `ev/thread-chan` and `ev/select` leaking GC roots in some cases
 - Add `-z` (`--do-hook`) flag to more succinctly execute bundle hooks such as "clean", "build", and "check".
-- Add `*optimize*` for some preliminary bytecode optimizations.
+- Add `*optimize*` for some preliminary bytecode optimizations. Should slightly improve bytecode generation.
   Set this dynamic binding to an integer between 0 and 3 to set the optimization level.
 - Expose bytecode optimization as an optional argument to the `asm` function.
 - Various documentation improvements
