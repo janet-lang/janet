@@ -2757,7 +2757,7 @@
 
 ###
 ###
-### Default PEG patterns
+### PEG module
 ###
 ###
 
@@ -2800,6 +2800,11 @@
      :W* (any :W)})
 
 (setdyn *peg-grammar* default-peg-grammar)
+
+(defn peg/match-all
+  "A shorthand and wrapper around `peg/match` that captures and returns an array of all occurrences of peg in text."
+  [peg text]
+  (peg/match ~(any (+ (<- ,peg) 1)) text))
 
 ###
 ###

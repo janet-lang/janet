@@ -301,6 +301,11 @@
 (check-match redef-b "aabeef" false)
 (check-match redef-b "aaaaaa" false)
 
+# peg/match-all
+(assert (deep= (peg/match-all ':a+ "Hello!") @["Hello"]) "check-match-all one match")
+(assert (deep= (peg/match-all ':d "12345") @["1" "2" "3" "4" "5"]) "check-match-all multiple matches")
+(assert (deep= (peg/match-all ':a+ "12345") @[]) "check-match-all no matches")
+
 # Integer parsing
 # 45feb5548
 (check-deep '(int 1) "a" @[(chr "a")])
