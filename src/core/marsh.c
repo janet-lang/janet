@@ -963,6 +963,15 @@ static const uint8_t *unmarshal_one_def(
             def->source = janet_unwrap_string(x);
         }
 
+        /* Size environments now, as the constants may hold a closure over this def */
+        if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
+            def->environments = janet_calloc(1, sizeof(int32_t) * (size_t) environments_length);
+            if (!def->environments) {
+                JANET_OUT_OF_MEMORY;
+            }
+            def->environments_length = environments_length;
+        }
+
         /* Unmarshal constants */
         if (constants_length) {
             def->constants = array_allocate(sizeof(Janet), constants_length);
@@ -1005,18 +1014,9 @@ static const uint8_t *unmarshal_one_def(
         def->bytecode_length = bytecode_length;
 
         /* Unmarshal environments */
-        if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
-            def->environments = janet_calloc(1, sizeof(int32_t) * (size_t) environments_length);
-            if (!def->environments) {
-                JANET_OUT_OF_MEMORY;
-            }
-            for (int32_t i = 0; i < environments_length; i++) {
-                def->environments[i] = readint(st, &data);
-            }
-        } else {
-            def->environments = NULL;
+        for (int32_t i = 0; i < environments_length; i++) {
+            def->environments[i] = readint(st, &data);
         }
-        def->environments_length = environments_length;
 
         /* Unmarshal sub funcdefs */
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS) {
