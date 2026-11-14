@@ -414,8 +414,10 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
         *sizeout = sizeof(struct sockaddr_un);
 #ifdef JANET_LINUX
         if (path[0] == '@') {
+            size_t len = janet_string_length(path);
+            if (len > path_size) len = path_size;
             saddr->sun_path[0] = '\0';
-            *sizeout = offsetof(struct sockaddr_un, sun_path) + janet_string_length(path);
+            *sizeout = offsetof(struct sockaddr_un, sun_path) + len;
         }
 #endif
         *is_unix = 1;
@@ -915,9 +917,12 @@ struct sockaddr_un *sun;       // Unix Domain Socket Address
 
 /* Turn a socket address into a host, port pair.
  * For unix domain sockets, returned tuple will have only a single element, the path string. */
-static Janet janet_so_getname(const void *sa_any) {
+static Janet janet_so_getname(const void *sa_any, size_t salen) {
     const struct sockaddr *sa = sa_any;
     char buffer[SA_ADDRSTRLEN];
+    if (salen < offsetof(struct sockaddr, sa_family) + sizeof(sa->sa_family)) {
+        janet_panic("unknown address family");
+    }
     switch (sa->sa_family) {
         default:
             janet_panic("unknown address family");
@@ -942,14 +947,15 @@ static Janet janet_so_getname(const void *sa_any) {
 #ifndef JANET_WINDOWS
         case AF_UNIX: {
             const struct sockaddr_un *sun = sa_any;
-            Janet pathname;
-            if (sun->sun_path[0] == '\0') {
-                memcpy(buffer, sun->sun_path, sizeof(sun->sun_path));
-                buffer[0] = '@';
-                pathname = janet_cstringv(buffer);
-            } else {
-                pathname = janet_cstringv(sun->sun_path);
+            size_t len = 0;
+            if (salen > offsetof(struct sockaddr_un, sun_path)) {
+                len = salen - offsetof(struct sockaddr_un, sun_path);
+                if (len > sizeof(sun->sun_path)) len = sizeof(sun->sun_path);
             }
+            memcpy(buffer, sun->sun_path, len);
+            buffer[len] = '\0';
+            if (len > 0 && buffer[0] == '\0') buffer[0] = '@';
+            Janet pathname = janet_cstringv(buffer);
             return janet_wrap_tuple(janet_tuple_n(&pathname, 1));
         }
 #endif
@@ -969,7 +975,7 @@ JANET_CORE_FN(cfun_net_getsockname,
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
-    return janet_so_getname(&ss);
+    return janet_so_getname(&ss, slen);
 }
 
 JANET_CORE_FN(cfun_net_getpeername,
@@ -985,7 +991,7 @@ JANET_CORE_FN(cfun_net_getpeername,
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
-    return janet_so_getname(&ss);
+    return janet_so_getname(&ss, slen);
 }
 
 JANET_CORE_FN(cfun_net_address_unpack,
@@ -994,7 +1000,7 @@ JANET_CORE_FN(cfun_net_address_unpack,
               "will have only the path in the returned tuple.") {
     janet_fixarity(argc, 1);
     struct sockaddr *sa = janet_getabstract(argv, 0, &janet_address_type);
-    return janet_so_getname(sa);
+    return janet_so_getname(sa, janet_abstract_size(sa));
 }
 
 JANET_CORE_FN(cfun_stream_accept_loop,
