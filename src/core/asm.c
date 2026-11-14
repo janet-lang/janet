@@ -807,7 +807,10 @@ static JanetAssembleResult janet_asm1(JanetAssembler *parent, Janet source, int 
 
     /* Optionally do optimization and a second verify step */
     if (flags & JANET_ASSEMBLE_FLAG_OPTIMIZE) {
-        int32_t optimization_level = 1; /* TODO */
+        int32_t optimization_level = 1; /* Use :o1, :o2, etc. for optimization levels */
+        if (flags & 0x2) optimization_level = 1;
+        if (flags & 0x4) optimization_level = 2;
+        if (flags & 0x8) optimization_level = 3;
         janet_bytecode_optimize(def, optimization_level);
         int verify_status = janet_verify(def);
         if (verify_status) {
@@ -1085,7 +1088,7 @@ JANET_CORE_FN(cfun_asm,
     janet_arity(argc, 1, 2);
     uint64_t flags = 0;
     if (argc >= 2) {
-        flags = janet_getflags(argv, 1, "o");
+        flags = janet_getflags(argv, 1, "o123");
     }
     JanetAssembleResult res;
     res = janet_asm(argv[0], (int32_t) flags);
