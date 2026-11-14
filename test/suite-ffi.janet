@@ -62,4 +62,13 @@
   (ffi/write :u8 10 buf)
   (assert (= 2 (length buf))))
 
+# ffi/signature lays out argument types in a fixed array of 32 entries,
+# so 32 is the most it can take. Extra argument types used to be written
+# past the end of that array on the C stack.
+(compwhen has-ffi
+  (assert (ffi/signature :default :void ;(array/new-filled 32 :int))
+          "signature with 32 arguments")
+  (assert-error "signature with 33 arguments"
+                (ffi/signature :default :void ;(array/new-filled 33 :int))))
+
 (end-suite)

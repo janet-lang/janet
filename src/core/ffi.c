@@ -879,7 +879,7 @@ JANET_CORE_FN(cfun_ffi_signature,
               "(ffi/signature calling-convention ret-type & arg-types)",
               "Create a function signature object that can be used to make calls "
               "with raw function pointers.") {
-    janet_arity(argc, 2, -1);
+    janet_arity(argc, 2, JANET_FFI_MAX_ARGS + 2);
     uint32_t frame_size = 0;
     uint32_t variant = 0;
     uint32_t arg_count = argc - 2;
