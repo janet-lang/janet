@@ -237,7 +237,7 @@
 /* Resolve key to an index into a sequence of len elements. Returns 1 and
  * sets *index if key is an integer in [0, len), otherwise returns 0. */
 static inline int vm_seq_index(Janet key, int32_t len, int32_t *index) {
-/* 64-bit nanboxing makes non-numbers NaN, failing the range check */
+    /* 64-bit nanboxing makes non-numbers NaN, failing the range check */
 #ifndef JANET_NANBOX_64
     if (!janet_checktype(key, JANET_NUMBER)) return 0;
 #endif
