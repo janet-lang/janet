@@ -178,8 +178,6 @@ typedef enum {
 #define JANET_FFI_CC_DEFAULT JANET_FFI_CC_NONE
 #endif
 
-#define JANET_FFI_MAX_ARGS 32
-
 typedef struct {
     uint32_t frame_size;
     uint32_t arg_count;
@@ -188,7 +186,7 @@ typedef struct {
     uint32_t stack_count;
     JanetFFICallingConvention cc;
     JanetFFIMapping ret;
-    JanetFFIMapping args[JANET_FFI_MAX_ARGS];
+    JanetFFIMapping args[];
 } JanetFFISignature;
 
 int signature_mark(void *p, size_t s) {
@@ -879,7 +877,7 @@ JANET_CORE_FN(cfun_ffi_signature,
               "(ffi/signature calling-convention ret-type & arg-types)",
               "Create a function signature object that can be used to make calls "
               "with raw function pointers.") {
-    janet_arity(argc, 2, JANET_FFI_MAX_ARGS + 2);
+    janet_arity(argc, 2, -1);
     uint32_t frame_size = 0;
     uint32_t variant = 0;
     uint32_t arg_count = argc - 2;
@@ -892,8 +890,11 @@ JANET_CORE_FN(cfun_ffi_signature,
         0,
         0
     };
-    JanetFFIMapping mappings[JANET_FFI_MAX_ARGS];
-    for (int i = 0; i < JANET_FFI_MAX_ARGS; i++) mappings[i] = void_mapping();
+    JanetFFISignature *abst = janet_abstract(&janet_signature_type,
+                                            sizeof(JanetFFISignature) + arg_count * sizeof(JanetFFIMapping));
+    abst->arg_count = arg_count;
+    JanetFFIMapping *mappings = abst->args;
+    for (uint32_t i = 0; i < arg_count; i++) mappings[i] = void_mapping();
     switch (cc) {
         default:
         case JANET_FFI_CC_NONE: {
@@ -1164,15 +1165,11 @@ JANET_CORE_FN(cfun_ffi_signature,
 #endif
     }
 
-    /* Create signature abstract value */
-    JanetFFISignature *abst = janet_abstract(&janet_signature_type, sizeof(JanetFFISignature));
     abst->frame_size = frame_size;
     abst->cc = cc;
     abst->ret = ret;
-    abst->arg_count = arg_count;
     abst->variant = variant;
     abst->stack_count = stack_count;
-    memcpy(abst->args, mappings, sizeof(JanetFFIMapping) * JANET_FFI_MAX_ARGS);
     return janet_wrap_abstract(abst);
 }
 
