@@ -358,7 +358,7 @@ JANET_CORE_FN(cfun_array_remove,
         if (n < 0)
             janet_panicf("expected non-negative integer for argument n, got %v", argv[2]);
     }
-    if (at + n > array->count) {
+    if (n > array->count - at) {
         n = array->count - at;
     }
     memmove(array->data + at,

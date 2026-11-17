@@ -167,6 +167,11 @@
 (assert (> (memcmp "123helloabcd" "1234hellaabc" 5 3 4) 0) "memcmp 3")
 (assert-error "invalid offset-a: 1" (memcmp "a" "b" 1 1 0))
 (assert-error "invalid offset-b: 1" (memcmp "a" "b" 1 0 1))
+# offset + len used to overflow int32 and pass the range check, letting
+# memcmp read far outside the byte sequences
+(assert-error "memcmp offset-a overflow" (memcmp "abc" "abc" 2 2147483647 0))
+(assert-error "memcmp offset-b overflow" (memcmp "abc" "abc" 1 0 2147483647))
+(assert-error "memcmp len overflow" (memcmp "abc" "abc" 2147483647 1 1))
 
 # Range
 # a982f351d

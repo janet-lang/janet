@@ -756,8 +756,8 @@ JANET_CORE_FN(janet_core_memcmp,
     int32_t len = janet_optnat(argv, argc, 2, a.len < b.len ? a.len : b.len);
     int32_t offset_a = janet_optnat(argv, argc, 3, 0);
     int32_t offset_b = janet_optnat(argv, argc, 4, 0);
-    if (offset_a + len > a.len) janet_panicf("invalid offset-a: %d", offset_a);
-    if (offset_b + len > b.len) janet_panicf("invalid offset-b: %d", offset_b);
+    if (len > a.len - offset_a) janet_panicf("invalid offset-a: %d", offset_a);
+    if (len > b.len - offset_b) janet_panicf("invalid offset-b: %d", offset_b);
     return janet_wrap_integer(memcmp(a.bytes + offset_a, b.bytes + offset_b, (size_t) len));
 }
 
