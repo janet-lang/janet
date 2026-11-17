@@ -508,6 +508,7 @@ static JANET_CFUNCTION_ALIGN Janet cfun_it_s64_divf(int32_t argc, Janet *argv) {
     int64_t op1 = janet_unwrap_s64(argv[0]);
     int64_t op2 = janet_unwrap_s64(argv[1]);
     if (op2 == 0) janet_panic("division by zero");
+    if (op2 == -1 && op1 == INT64_MIN) janet_panic("INT64_MIN divided by -1");
     int64_t x = op1 / op2;
     *box = x - (((op1 ^ op2) < 0) && (x * op2 != op1));
     return janet_wrap_abstract(box);
@@ -519,6 +520,7 @@ static JANET_CFUNCTION_ALIGN Janet cfun_it_s64_divfi(int32_t argc, Janet *argv) 
     int64_t op2 = janet_unwrap_s64(argv[0]);
     int64_t op1 = janet_unwrap_s64(argv[1]);
     if (op2 == 0) janet_panic("division by zero");
+    if (op2 == -1 && op1 == INT64_MIN) janet_panic("INT64_MIN divided by -1");
     int64_t x = op1 / op2;
     *box = x - (((op1 ^ op2) < 0) && (x * op2 != op1));
     return janet_wrap_abstract(box);
@@ -531,6 +533,8 @@ static JANET_CFUNCTION_ALIGN Janet cfun_it_s64_mod(int32_t argc, Janet *argv) {
     int64_t op2 = janet_unwrap_s64(argv[1]);
     if (op2 == 0) {
         *box = op1;
+    } else if (op2 == -1) {
+        *box = 0;
     } else {
         int64_t x = op1 % op2;
         *box = (((op1 ^ op2) < 0) && (x != 0)) ? x + op2 : x;
@@ -545,6 +549,8 @@ static JANET_CFUNCTION_ALIGN Janet cfun_it_s64_modi(int32_t argc, Janet *argv) {
     int64_t op1 = janet_unwrap_s64(argv[1]);
     if (op2 == 0) {
         *box = op1;
+    } else if (op2 == -1) {
+        *box = 0;
     } else {
         int64_t x = op1 % op2;
         *box = (((op1 ^ op2) < 0) && (x != 0)) ? x + op2 : x;

@@ -104,6 +104,20 @@
   "trap INT64_MIN / -1"
   (:/ -0x8000_0000_0000_0000:s -1))
 
+# Floored division and modulo hit the same INT64_MIN / -1 overflow, which
+# traps in the CPU (SIGFPE) instead of raising a Janet error.
+(assert-error
+  "trap INT64_MIN div -1"
+  (div -0x8000_0000_0000_0000:s -1))
+(assert-error
+  "trap INT64_MIN div -1, int/s64 divisor"
+  (div -0x8000_0000_0000_0000:s -1:s))
+# Anything mod -1 is 0, so mod returns that instead of erroring.
+(assert (= 0:s (mod -0x8000_0000_0000_0000:s -1)) "INT64_MIN mod -1")
+(assert (= 0:s (mod -0x8000_0000_0000_0000:s -1:s))
+        "INT64_MIN mod -1, int/s64 divisor")
+(assert (= 0:s (mod 5:s -1)) "int/s64 mod -1")
+
 # int/s64 and int/u64 serialization
 # 6aea7c7f7
 (assert (deep= (int/to-bytes 0:u) @"\x00\x00\x00\x00\x00\x00\x00\x00")
