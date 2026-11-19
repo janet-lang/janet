@@ -64,6 +64,10 @@
 # array/remove
 (assert-error "removal index 3 out of range [0,2]" (array/remove @[1 2] 3))
 (assert-error "expected non-negative integer for argument n, got -1" (array/remove @[1 2] 1 -1))
+# at + n used to overflow int32 and skip the clamp, so memmove ran with a
+# wild source pointer and a huge length
+(assert (deep= (array/remove @[1 2 3 4] 1 2147483647) @[1]) "array/remove huge n")
+(assert (deep= (array/remove @[1 2 3 4] -1 2147483647) @[1 2 3]) "array/remove huge n negative at")
 
 # array/pop
 (assert (= (array/pop @[1]) 1) "array/pop 1")
