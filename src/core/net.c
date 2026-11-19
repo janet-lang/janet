@@ -396,8 +396,17 @@ static int janet_get_sockettype(Janet *argv, int32_t argc, int32_t n) {
     return socktype;
 }
 
+static void janet_freeaddrinfo(struct addrinfo *info, int is_unix) {
+    /* Our unix addresses are allocated normally instead of with getaddrinfo */
+    if (is_unix) {
+        janet_free(info);
+    } else {
+        freeaddrinfo(info);
+    }
+}
+
 /* Needs argc >= offset + 2 */
-/* For unix paths, just rertuns a single sockaddr and sets *is_unix to 1,
+/* For unix paths, just returns a single sockaddr and sets *is_unix to 1,
  * otherwise 0. Also, ignores is_bind when is a unix socket. */
 static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int socktype, int passive, int *is_unix, socklen_t *sizeout) {
     /* Unix socket support - not yet supported on windows. */
@@ -415,7 +424,9 @@ static struct addrinfo *janet_get_addrinfo(Janet *argv, int32_t offset, int sock
 #ifdef JANET_LINUX
         if (path[0] == '@') {
             saddr->sun_path[0] = '\0';
-            *sizeout = offsetof(struct sockaddr_un, sun_path) + janet_string_length(path);
+            size_t len = (size_t) janet_string_length(path);
+            if (len > path_size) len = path_size; /* truncate too long addresses */
+            *sizeout = offsetof(struct sockaddr_un, sun_path) + len;
         }
 #endif
         *is_unix = 1;
@@ -478,6 +489,7 @@ JANET_CORE_FN(cfun_net_sockaddr,
         void *abst = janet_abstract(&janet_address_type, addrsize);
         memcpy(abst, ai, addrsize);
         Janet ret = janet_wrap_abstract(abst);
+        janet_freeaddrinfo(ai, is_unix);
         return make_arr ? janet_wrap_array(janet_array_n(&ret, 1)) : ret;
     }
 #endif
@@ -491,7 +503,7 @@ JANET_CORE_FN(cfun_net_sockaddr,
             janet_array_push(arr, janet_wrap_abstract(abst));
             iter = iter->ai_next;
         }
-        freeaddrinfo(ai);
+        janet_freeaddrinfo(ai, is_unix);
         return janet_wrap_array(arr);
     } else {
         /* Select first */
@@ -500,7 +512,7 @@ JANET_CORE_FN(cfun_net_sockaddr,
         }
         void *abst = janet_abstract(&janet_address_type, ai->ai_addrlen);
         memcpy(abst, ai->ai_addr, ai->ai_addrlen);
-        freeaddrinfo(ai);
+        janet_freeaddrinfo(ai, is_unix);
         return janet_wrap_abstract(abst);
     }
 }
@@ -537,7 +549,7 @@ JANET_CORE_FN(cfun_net_connect,
     struct addrinfo *binding = NULL;
     if (bindhost != NULL) {
         if (is_unix) {
-            freeaddrinfo(ai);
+            janet_freeaddrinfo(ai, is_unix);
             janet_panic("bindhost not supported for unix domain sockets");
         }
         /* getaddrinfo */
@@ -548,7 +560,7 @@ JANET_CORE_FN(cfun_net_connect,
         hints.ai_flags = 0;
         int status = getaddrinfo(bindhost, bindport, &hints, &binding);
         if (status) {
-            freeaddrinfo(ai);
+            janet_freeaddrinfo(ai, is_unix);
             janet_panicf("could not get address info for bindhost: %s", gai_strerror(status));
         }
     }
@@ -658,11 +670,7 @@ JANET_CORE_FN(cfun_net_connect,
         status = connect(sock, addr, addrlen);
     } while (status == -1 && errno == EINTR);
     int err = errno;
-    if (is_unix) {
-        janet_free(ai);
-    } else {
-        freeaddrinfo(ai);
-    }
+    janet_freeaddrinfo(ai, is_unix);
 #endif
 
     if (status == 0) {
@@ -915,9 +923,12 @@ struct sockaddr_un *sun;       // Unix Domain Socket Address
 
 /* Turn a socket address into a host, port pair.
  * For unix domain sockets, returned tuple will have only a single element, the path string. */
-static Janet janet_so_getname(const void *sa_any) {
+static Janet janet_so_getname(const void *sa_any, socklen_t sa_size) {
     const struct sockaddr *sa = sa_any;
     char buffer[SA_ADDRSTRLEN];
+    if (sa_size < offsetof(struct sockaddr, sa_family) + sizeof(sa->sa_family)) {
+        janet_panic("unknown address family");
+    }
     switch (sa->sa_family) {
         default:
             janet_panic("unknown address family");
@@ -942,14 +953,16 @@ static Janet janet_so_getname(const void *sa_any) {
 #ifndef JANET_WINDOWS
         case AF_UNIX: {
             const struct sockaddr_un *sun = sa_any;
-            Janet pathname;
-            if (sun->sun_path[0] == '\0') {
-                memcpy(buffer, sun->sun_path, sizeof(sun->sun_path));
-                buffer[0] = '@';
-                pathname = janet_cstringv(buffer);
-            } else {
-                pathname = janet_cstringv(sun->sun_path);
+            int32_t c = 0;
+            int32_t max_c = (int32_t)(sa_size - offsetof(struct sockaddr_un, sun_path));
+            janet_assert(max_c <= (int32_t)sizeof(buffer), "address would be truncated");
+            if (sun->sun_path[0] == '\0') buffer[c++] = '@';
+            /* Copy the string without reading over sun_path or buffer, causing overflow */
+            while (c < max_c && sun->sun_path[c]) {
+                buffer[c] = sun->sun_path[c];
+                c++;
             }
+            Janet pathname = janet_stringv((uint8_t *) buffer, c);
             return janet_wrap_tuple(janet_tuple_n(&pathname, 1));
         }
 #endif
@@ -969,7 +982,7 @@ JANET_CORE_FN(cfun_net_getsockname,
         janet_panicf("Failed to get localname on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
-    return janet_so_getname(&ss);
+    return janet_so_getname(&ss, slen);
 }
 
 JANET_CORE_FN(cfun_net_getpeername,
@@ -985,7 +998,7 @@ JANET_CORE_FN(cfun_net_getpeername,
         janet_panicf("Failed to get peername on %v: %V", argv[0], janet_ev_lasterr());
     }
     janet_assert(slen <= (socklen_t) sizeof(ss), "socket address truncated");
-    return janet_so_getname(&ss);
+    return janet_so_getname(&ss, slen);
 }
 
 JANET_CORE_FN(cfun_net_address_unpack,
@@ -994,7 +1007,8 @@ JANET_CORE_FN(cfun_net_address_unpack,
               "will have only the path in the returned tuple.") {
     janet_fixarity(argc, 1);
     struct sockaddr *sa = janet_getabstract(argv, 0, &janet_address_type);
-    return janet_so_getname(sa);
+    socklen_t slen = janet_abstract_size(sa);
+    return janet_so_getname(sa, slen);
 }
 
 JANET_CORE_FN(cfun_stream_accept_loop,
