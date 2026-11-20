@@ -899,7 +899,7 @@ static const uint8_t *unmarshal_one_def(
     if (*data == LB_FUNCDEF_REF) {
         data++;
         int32_t index = readint(st, &data);
-        if (index < 0 || index >= janet_v_count(st->lookup_defs))
+        if (index < 0 || index >= janet_v_count(st->lookup_defs) || NULL == st->lookup_defs[index])
             janet_panicf("invalid funcdef reference %d", index);
         *out = st->lookup_defs[index];
     } else {
@@ -921,7 +921,9 @@ static const uint8_t *unmarshal_one_def(
         def->symbolmap = NULL;
         def->symbolmap_length = 0;
         def->named_args_count = 0;
-        janet_v_push(st->lookup_defs, def);
+        /* Not referenceable until fully unmarshalled */
+        int32_t def_index = janet_v_count(st->lookup_defs);
+        janet_v_push(st->lookup_defs, NULL);
 
         /* Set default lengths to zero */
         int32_t bytecode_length = 0;
@@ -961,15 +963,6 @@ static const uint8_t *unmarshal_one_def(
             data = unmarshal_one(st, data, &x, flags + 1);
             janet_asserttype(x, JANET_STRING, st);
             def->source = janet_unwrap_string(x);
-        }
-
-        /* Size environments now, as the constants may hold a closure over this def */
-        if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
-            def->environments = janet_calloc(1, sizeof(int32_t) * (size_t) environments_length);
-            if (!def->environments) {
-                JANET_OUT_OF_MEMORY;
-            }
-            def->environments_length = environments_length;
         }
 
         /* Unmarshal constants */
@@ -1014,9 +1007,18 @@ static const uint8_t *unmarshal_one_def(
         def->bytecode_length = bytecode_length;
 
         /* Unmarshal environments */
-        for (int32_t i = 0; i < environments_length; i++) {
-            def->environments[i] = readint(st, &data);
+        if (def->flags & JANET_FUNCDEF_FLAG_HASENVS) {
+            def->environments = janet_calloc(1, sizeof(int32_t) * (size_t) environments_length);
+            if (!def->environments) {
+                JANET_OUT_OF_MEMORY;
+            }
+            for (int32_t i = 0; i < environments_length; i++) {
+                def->environments[i] = readint(st, &data);
+            }
+        } else {
+            def->environments = NULL;
         }
+        def->environments_length = environments_length;
 
         /* Unmarshal sub funcdefs */
         if (def->flags & JANET_FUNCDEF_FLAG_HASDEFS) {
@@ -1065,6 +1067,7 @@ static const uint8_t *unmarshal_one_def(
         }
 
         /* Set def */
+        st->lookup_defs[def_index] = def;
         *out = def;
     }
     return data;
