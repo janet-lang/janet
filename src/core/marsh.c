@@ -899,7 +899,7 @@ static const uint8_t *unmarshal_one_def(
     if (*data == LB_FUNCDEF_REF) {
         data++;
         int32_t index = readint(st, &data);
-        if (index < 0 || index >= janet_v_count(st->lookup_defs))
+        if (index < 0 || index >= janet_v_count(st->lookup_defs) || NULL == st->lookup_defs[index])
             janet_panicf("invalid funcdef reference %d", index);
         *out = st->lookup_defs[index];
     } else {
@@ -921,7 +921,9 @@ static const uint8_t *unmarshal_one_def(
         def->symbolmap = NULL;
         def->symbolmap_length = 0;
         def->named_args_count = 0;
-        janet_v_push(st->lookup_defs, def);
+        /* Not referenceable until fully unmarshalled */
+        int32_t def_index = janet_v_count(st->lookup_defs);
+        janet_v_push(st->lookup_defs, NULL);
 
         /* Set default lengths to zero */
         int32_t bytecode_length = 0;
@@ -1065,6 +1067,7 @@ static const uint8_t *unmarshal_one_def(
         }
 
         /* Set def */
+        st->lookup_defs[def_index] = def;
         *out = def;
     }
     return data;

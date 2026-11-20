@@ -302,4 +302,28 @@ neldb\0\0\0\xD8\x05printG\x01\0\xDE\xDE\xDE'\x03\0marshal_tes/\x02
   (assert-error "unmarshal truncated channel" (unmarshal (buffer/slice b 0 (- n 3))))
   (gccollect))
 
+# A funcdef's constants can hold a closure whose def is a reference back to
+# that same funcdef, which is still being unmarshalled at that point. The
+# half-built funcdef reports 0 environments, so a closure claiming 0 envs used
+# to pass the env count check, end up with a short envs array, and (ldu ...)
+# read past it. References to an unfinished funcdef are now rejected outright,
+# whatever env count the closure claims.
+(do
+  (defn self-closure [inner-envs]
+    (buffer/push
+      (buffer/from-bytes
+        215 1               # LB_FUNCTION with 1 env
+        205 0 0x40 0 0      # funcdef flags: HASENVS
+        1 0 0 0             # slotcount, arity, min-arity, max-arity
+        1 2 1)              # constants, bytecode and environments lengths
+      inner-envs            # constant 0: closure over funcdef 0
+      (buffer/from-bytes
+        45 0 0 1 3 0 0 0    # (ldu 0 0 1) (ret 0)
+        0xBF 0xFF           # environments [-1]
+        0 2 1 1)))          # outer env: off stack, length 2, [1 1]
+  (assert-error "unmarshal self closure with short env count"
+                (unmarshal (self-closure (buffer/from-bytes 215 0 220 0))))
+  (assert-error "unmarshal self closure with matching env count"
+                (unmarshal (self-closure (buffer/from-bytes 215 1 220 0 0 2 7 8)))))
+
 (end-suite)
