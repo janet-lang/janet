@@ -391,6 +391,28 @@
                (exec-slurp ;run janet "-e" "(print :hi)")))
           "exec-slurp 1"))
 
+# os/spawn env with embedded 0s or =s
+# A 0 in a value used to end the variable early on Windows, so the rest of
+# the value was read as a new variable. A key containing = or 0 is skipped,
+# the same as on POSIX.
+(defn env-slurp
+  [env code]
+  (def proc (os/spawn [;run janet "-e" code] :epx
+                      (merge (os/environ) env {:out :pipe})))
+  (def buf @"")
+  (ev/gather
+    (:read (proc :out) :all buf)
+    (:wait proc))
+  (string/trimr buf))
+(assert (= "bar-"
+           (env-slurp {"JANET_ENV_A" "bar\0JANET_ENV_B=injected"}
+                      `(prin (os/getenv "JANET_ENV_A") (os/getenv "JANET_ENV_B" "-"))`))
+        "os/spawn env value with embedded 0")
+(assert (= "-"
+           (env-slurp {"JANET_ENV_C=JANET_ENV_D" "x"}
+                      `(prin (os/getenv "JANET_ENV_C" "-"))`))
+        "os/spawn env key with =")
+
 # valgrind-able check for #1337
 (def superv (ev/chan 10))
 (def f (ev/go |(ev/sleep 1e9) nil superv))
