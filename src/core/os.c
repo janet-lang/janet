@@ -363,6 +363,16 @@ typedef char *EnvBlock;
 typedef char **EnvBlock;
 #endif
 
+/* Prevent embedded 0s and = characters in environment variable names */
+static int os_env_bad_key(JanetString key) {
+    for (int32_t i = 0; i < janet_string_length(key); i++) {
+        if (key[i] == '\0' || key[i] == '=') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Get env for os_execute */
 static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
     if (argc <= 2) return NULL;
@@ -375,9 +385,10 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
         const uint8_t *keys = janet_unwrap_string(kv->key);
         const uint8_t *vals = janet_unwrap_string(kv->value);
+        if (os_env_bad_key(keys)) continue;
         janet_buffer_push_bytes(temp, keys, janet_string_length(keys));
         janet_buffer_push_u8(temp, '=');
-        janet_buffer_push_bytes(temp, vals, janet_string_length(vals));
+        janet_buffer_push_cstring(temp, (const char *) vals);
         janet_buffer_push_u8(temp, '\0');
     }
     /* Windows environment blocks must be double-NULL terminated */
@@ -395,17 +406,9 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
         const uint8_t *keys = janet_unwrap_string(kv->key);
         const uint8_t *vals = janet_unwrap_string(kv->value);
+        if (os_env_bad_key(keys)) continue;
         int32_t klen = janet_string_length(keys);
         int32_t vlen = janet_string_length(vals);
-        /* Check keys has no embedded 0s or =s. */
-        int skip = 0;
-        for (int32_t k = 0; k < klen; k++) {
-            if (keys[k] == '\0' || keys[k] == '=') {
-                skip = 1;
-                break;
-            }
-        }
-        if (skip) continue;
         char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
         memcpy(envitem, keys, klen);
         envitem[klen] = '=';

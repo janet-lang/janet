@@ -205,4 +205,27 @@
 (assert (os/which (os/which)) "os/which 1 arg")
 (assert (not (os/which :gobbledegook)) "os/which 2")
 
+# Issue #1946
+# os/spawn env with embedded 0s or =s
+# A 0 in a value used to end the variable early on Windows, so the rest of
+# the value was read as a new variable. A key containing = or 0 is skipped,
+# the same as on POSIX.
+(defn env-slurp
+  [env code]
+  (def proc (os/spawn [;run janet "-e" code] :epx
+                      (merge (os/environ) env {:out :pipe})))
+  (def buf @"")
+  (ev/gather
+    (:read (proc :out) :all buf)
+    (:wait proc))
+  (string/trimr buf))
+(assert (= "bar-"
+           (env-slurp {"JANET_ENV_A" "bar\0JANET_ENV_B=injected"}
+                      `(prin (os/getenv "JANET_ENV_A") (os/getenv "JANET_ENV_B" "-"))`))
+        "os/spawn env value with embedded 0")
+(assert (= "-"
+           (env-slurp {"JANET_ENV_C=JANET_ENV_D" "x"}
+                      `(prin (os/getenv "JANET_ENV_C" "-"))`))
+        "os/spawn env key with =")
+
 (end-suite)
