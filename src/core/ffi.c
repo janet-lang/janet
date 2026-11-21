@@ -304,6 +304,12 @@ static size_t type_align(JanetFFIType t) {
     }
 }
 
+/* Type sizes are stored as uint32_t and used as buffer lengths. */
+static uint32_t check_type_size(int64_t size) {
+    if (size > INT32_MAX) janet_panic("ffi type too large");
+    return (uint32_t) size;
+}
+
 static JanetFFICallingConvention decode_ffi_cc(const uint8_t *name) {
     if (!janet_cstrcmp(name, "none")) return JANET_FFI_CC_NONE;
 #ifdef JANET_FFI_WIN64_ENABLED
@@ -420,18 +426,16 @@ static JanetFFIStruct *build_struct_type(int32_t argc, const Janet *argv) {
         if (all_packed || pack_one) {
             if (st->size % el_align != 0) is_aligned = 0;
             st->fields[i].offset = st->size;
-            st->size += (uint32_t) el_size;
+            st->size = check_type_size((int64_t) st->size + (int64_t) el_size);
         } else {
             if (el_align > st->align) st->align = (uint32_t) el_align;
-            st->fields[i].offset = (uint32_t)(((st->size + el_align - 1) / el_align) * el_align);
-            st->size = (uint32_t)(el_size + st->fields[i].offset);
+            st->fields[i].offset = (((size_t) st->size + el_align - 1) / el_align) * el_align;
+            st->size = check_type_size((int64_t) el_size + (int64_t) st->fields[i].offset);
         }
         i++;
     }
     st->is_aligned = is_aligned;
-    st->size += (st->align - 1);
-    st->size /= st->align;
-    st->size *= st->align;
+    st->size = check_type_size((((int64_t) st->size + st->align - 1) / st->align) * st->align);
     st->field_count = member_count;
     return st;
 }
@@ -453,7 +457,9 @@ static JanetFFIType decode_ffi_type(Janet x) {
         if (janet_checktype(x, JANET_ARRAY)) {
             if (len != 2 && len != 1) janet_panicf("array type must be of form @[type count], got %v", x);
             ret = decode_ffi_type(els[0]);
+            ret.array_count = -1;
             int32_t array_count = len == 1 ? 0 : janet_getnat(els, 1);
+            check_type_size((int64_t) type_size(ret) * array_count);
             ret.array_count = array_count;
         } else {
             ret.st = build_struct_type(len, els);
