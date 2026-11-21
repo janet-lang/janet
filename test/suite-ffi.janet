@@ -62,4 +62,17 @@
   (ffi/write :u8 10 buf)
   (assert (= 2 (length buf))))
 
+# ffi/signature used to lay argument types out in a fixed array of 32
+# entries on the C stack, so a 33rd argument type was written past the end
+# of it. Signatures are now sized by their argument count.
+(compwhen has-ffi
+  (assert (ffi/signature :default :void ;(array/new-filled 33 :int))
+          "signature with 33 arguments")
+  # Enough of both integer and float arguments to spill well past the
+  # registers onto the stack.
+  (assert (ffi/signature :default :double
+                         ;(array/new-filled 100 :int)
+                         ;(array/new-filled 100 :double))
+          "signature with 200 arguments"))
+
 (end-suite)
