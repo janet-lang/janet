@@ -363,6 +363,14 @@ typedef char *EnvBlock;
 typedef char **EnvBlock;
 #endif
 
+/* Keys with embedded 0s or =s would split into other variables */
+static int os_env_key_invalid(const uint8_t *key, int32_t len) {
+    for (int32_t k = 0; k < len; k++) {
+        if (key[k] == '\0' || key[k] == '=') return 1;
+    }
+    return 0;
+}
+
 /* Get env for os_execute */
 static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
     if (argc <= 2) return NULL;
@@ -375,9 +383,11 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
         if (!janet_checktype(kv->value, JANET_STRING)) continue;
         const uint8_t *keys = janet_unwrap_string(kv->key);
         const uint8_t *vals = janet_unwrap_string(kv->value);
-        janet_buffer_push_bytes(temp, keys, janet_string_length(keys));
+        int32_t klen = janet_string_length(keys);
+        if (os_env_key_invalid(keys, klen)) continue;
+        janet_buffer_push_bytes(temp, keys, klen);
         janet_buffer_push_u8(temp, '=');
-        janet_buffer_push_bytes(temp, vals, janet_string_length(vals));
+        janet_buffer_push_cstring(temp, (const char *) vals);
         janet_buffer_push_u8(temp, '\0');
     }
     /* Windows environment blocks must be double-NULL terminated */
@@ -397,15 +407,7 @@ static EnvBlock os_execute_env(int32_t argc, const Janet *argv) {
         const uint8_t *vals = janet_unwrap_string(kv->value);
         int32_t klen = janet_string_length(keys);
         int32_t vlen = janet_string_length(vals);
-        /* Check keys has no embedded 0s or =s. */
-        int skip = 0;
-        for (int32_t k = 0; k < klen; k++) {
-            if (keys[k] == '\0' || keys[k] == '=') {
-                skip = 1;
-                break;
-            }
-        }
-        if (skip) continue;
+        if (os_env_key_invalid(keys, klen)) continue;
         char *envitem = janet_smalloc((size_t) klen + (size_t) vlen + 2);
         memcpy(envitem, keys, klen);
         envitem[klen] = '=';
