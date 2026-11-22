@@ -891,7 +891,7 @@ JANET_CORE_FN(cfun_ffi_signature,
         0
     };
     JanetFFISignature *abst = janet_abstract(&janet_signature_type,
-                                            sizeof(JanetFFISignature) + arg_count * sizeof(JanetFFIMapping));
+        sizeof(JanetFFISignature) + arg_count * sizeof(JanetFFIMapping));
     abst->arg_count = arg_count;
     JanetFFIMapping *mappings = abst->args;
     for (uint32_t i = 0; i < arg_count; i++) mappings[i] = void_mapping();
