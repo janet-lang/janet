@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## 1.43.1 - 2026-11-22
+- Fix regression in FFI signature garbage collection from 1.43.0
+- Fix more memory safety issues in bad payloads to `unmarshal`.
+
 ## 1.43.0 - 2026-11-07
 - Functions with more than 256 closures will now fail to compile instead of silently mis-compiling.
 - Many fuzzing and memory safety issues patched via LLM bug search.
