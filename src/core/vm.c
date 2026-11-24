@@ -1562,6 +1562,12 @@ static JanetSignal janet_check_can_resume(JanetFiber *fiber, Janet *out, int is_
         *out = janet_wrap_string(str);
         return JANET_SIGNAL_ERROR;
     }
+#ifdef JANET_EV
+    if (janet_vm.fiber == NULL) {
+        /* Make sure we don't run root fibers without this flag */
+        fiber->gc.flags |= JANET_FIBER_EV_GCFLAG_ROOT;
+    }
+#endif
     return JANET_SIGNAL_OK;
 }
 

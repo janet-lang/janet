@@ -26,7 +26,7 @@
 #include "state.h"
 #endif
 
-/* Run a string of code. The return value is a set of error flags, JANET_DO_ERROR_RUNTIME, JANET_DO_ERROR_COMPILE, and JANET_DOR_ERROR_PARSE if
+/* Run a string of code. The return value is a set of error flags, JANET_DO_ERROR_RUNTIME, JANET_DO_ERROR_COMPILE, and JANET_DO_ERROR_PARSE if
  * any errors were encountered in those phases. More information is printed to stderr. */
 int janet_dobytes(JanetTable *env, const uint8_t *bytes, int32_t len, const char *sourcePath, Janet *out) {
     JanetParser *parser;
