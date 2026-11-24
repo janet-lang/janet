@@ -75,4 +75,22 @@
                          ;(array/new-filled 100 :double))
           "signature with 200 arguments"))
 
+# ffi type sizes must stay within what a buffer can hold
+(compwhen has-ffi
+  # 2147483647 * 4 wraps a uint32_t size to 4294967292, which ffi/write used
+  # as a memset length over a 10 byte buffer
+  (assert-error "array type too large" (ffi/size @[:int32 2147483647]))
+  (assert-error "array type too large in ffi/write"
+                (ffi/write @[:int32 2147483647] 0 @"" 0))
+  # two INT32_MAX fields add up to 4294967294
+  (assert-error "struct type too large"
+                (ffi/size (ffi/struct @[:int8 2147483647] @[:int8 2147483647])))
+  # three of them wrap back into range, reporting 2147483645
+  (assert-error "struct type size wraparound"
+                (ffi/size (ffi/struct @[:int8 2147483647]
+                                      @[:int8 2147483647]
+                                      @[:int8 2147483647])))
+  (assert (= 2147483647 (ffi/size @[:int8 2147483647]))
+          "largest allowed array type"))
+
 (end-suite)
