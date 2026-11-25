@@ -79,6 +79,16 @@
 (array/trim a1)
 (array/ensure @[1 1] 6 2)
 
+# array/ensure with a growth below 1 used to shrink the backing memory
+# below the array's count. A growth of 0 asks realloc for 0 bytes, and a
+# negative growth like -858993459 wraps 5 * growth to a capacity of 1, so
+# indexing the existing elements read past the new allocation.
+(assert-error "array/ensure growth 0" (array/ensure @[1 2 3] 5 0))
+(assert-error "array/ensure growth -1" (array/ensure @[1 2 3] 5 -1))
+(def a2 @[1 2 3])
+(assert-error "array/ensure wrapping growth" (array/ensure a2 5 -858993459))
+(assert (deep= a2 @[1 2 3]) "array/ensure leaves array intact")
+
 # array/join
 (assert (deep= @[1 2 3] (array/join @[] [1] [2] [3])) "array/join 1")
 (assert (deep= @[] (array/join @[])) "array/join 2")

@@ -231,6 +231,7 @@ JANET_CORE_FN(cfun_array_ensure,
     int32_t newcount = janet_getinteger(argv, 1);
     int32_t growth = janet_getinteger(argv, 2);
     if (newcount < 1) janet_panic("expected positive integer");
+    if (growth < 1) janet_panic("expected positive integer for growth");
     janet_array_ensure(array, newcount, growth);
     return argv[0];
 }
